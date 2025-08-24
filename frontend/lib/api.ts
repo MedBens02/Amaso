@@ -1,0 +1,391 @@
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
+
+interface ApiResponse<T> {
+  data: T
+  meta?: {
+    current_page: number
+    last_page: number
+    per_page: number
+    total: number
+  }
+  message?: string
+  errors?: Record<string, string[]>
+}
+
+export class ApiError extends Error {
+  status: number
+  errors?: Record<string, string[]>
+
+  constructor(response: Response, data?: any) {
+    super(data?.message || `HTTP ${response.status}`)
+    this.status = response.status
+    this.errors = data?.errors
+  }
+}
+
+class ApiClient {
+  private baseURL: string
+  private token: string | null = null
+
+  constructor() {
+    this.baseURL = API_BASE_URL
+  }
+
+  setToken(token: string) {
+    this.token = token
+  }
+
+  async request<T>(
+    endpoint: string, 
+    options: RequestInit = {}
+  ): Promise<ApiResponse<T>> {
+    const url = `${this.baseURL}${endpoint}`
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...(this.token && { Authorization: `Bearer ${this.token}` }),
+      ...options.headers,
+    }
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new ApiError(response, data)
+      }
+
+      return data
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error
+      }
+      throw new Error(`Network error: ${error}`)
+    }
+  }
+
+  // Donors API
+  async getDonors(params?: {
+    search?: string
+    per_page?: number
+    page?: number
+  }) {
+    const searchParams = new URLSearchParams()
+    if (params?.search) searchParams.set('search', params.search)
+    if (params?.per_page) searchParams.set('per_page', params.per_page.toString())
+    if (params?.page) searchParams.set('page', params.page.toString())
+    
+    const query = searchParams.toString()
+    return this.request<any[]>(`/donors${query ? `?${query}` : ''}`)
+  }
+
+  async createDonor(data: {
+    first_name: string
+    last_name: string
+    phone?: string
+    email?: string
+    address?: string
+    is_kafil?: boolean
+    monthly_pledge?: number
+    widow_id?: number
+  }) {
+    return this.request<any>('/donors', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateDonor(id: number, data: {
+    first_name: string
+    last_name: string
+    phone?: string
+    email?: string
+    address?: string
+    is_kafil?: boolean
+    monthly_pledge?: number
+    widow_id?: number
+  }) {
+    return this.request<any>(`/donors/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getDonor(id: number) {
+    return this.request<any>(`/donors/${id}`)
+  }
+
+  async deleteDonor(id: number) {
+    return this.request<any>(`/donors/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // Incomes API
+  async createIncome(data: {
+    fiscal_year_id: number
+    sub_budget_id: number
+    income_category_id: number
+    donor_id?: number
+    kafil_id?: number
+    entry_date: string
+    entry_month?: number
+    amount: number
+    payment_method: 'Cash' | 'Cheque' | 'BankWire'
+    cheque_number?: string
+    receipt_number?: string
+    bank_account_id?: number
+    remarks?: string
+  }) {
+    return this.request<any>('/incomes', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Expenses API
+  async createExpense(data: {
+    fiscal_year_id: number
+    sub_budget_id: number
+    expense_category_id: number
+    partner_id?: number
+    details?: string
+    expense_date: string
+    amount: number
+    payment_method: 'Cash' | 'Cheque' | 'BankWire'
+    cheque_number?: string
+    receipt_number?: string
+    bank_account_id?: number
+    remarks?: string
+    unrelated_to_benef?: boolean
+    beneficiaries?: Array<{
+      type: 'Widow' | 'Orphan'
+      id: number
+      amount: number
+      notes?: string
+    }>
+    beneficiary_groups?: Array<{
+      group_id: number
+      amount: number
+      notes?: string
+    }>
+  }) {
+    return this.request<any>('/expenses', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Transfers API
+  async createTransfer(data: {
+    fiscal_year_id: number
+    transfer_date: string
+    from_account_id: number
+    to_account_id: number
+    amount: number
+    remarks?: string
+  }) {
+    return this.request<any>('/transfers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Lookup data
+  async getFiscalYears() {
+    return this.request<any[]>('/fiscal-years')
+  }
+
+  async getBankAccounts() {
+    return this.request<any[]>('/bank-accounts')
+  }
+
+  async getKafils() {
+    return this.request<any[]>('/kafils')
+  }
+
+  async getSubBudgets() {
+    return this.request<any[]>('/sub-budgets')
+  }
+
+  async getIncomeCategories() {
+    return this.request<any[]>('/income-categories')
+  }
+
+  async getExpenseCategories() {
+    return this.request<any[]>('/expense-categories')
+  }
+
+
+  // Widows API
+  async getWidows(params?: {
+    search?: string
+    widow_id?: number
+    has_disability?: boolean
+    education_level?: string
+    per_page?: number
+    page?: number
+  }) {
+    const searchParams = new URLSearchParams()
+    if (params?.search) searchParams.set('search', params.search)
+    if (params?.widow_id) searchParams.set('widow_id', params.widow_id.toString())
+    if (params?.has_disability !== undefined) searchParams.set('has_disability', params.has_disability.toString())
+    if (params?.education_level) searchParams.set('education_level', params.education_level)
+    if (params?.per_page) searchParams.set('per_page', params.per_page.toString())
+    if (params?.page) searchParams.set('page', params.page.toString())
+    
+    const query = searchParams.toString()
+    return this.request<any[]>(`/widows${query ? `?${query}` : ''}`)
+  }
+
+  async createWidow(data: {
+    widow_id: number
+    first_name: string
+    last_name: string
+    phone?: string
+    email?: string
+    address?: string
+    neighborhood?: string
+    admission_date: string
+    national_id: string
+    birth_date: string
+    marital_status: 'Widowed' | 'Divorced' | 'Single'
+    education_level?: string
+    disability_flag?: boolean
+    disability_type?: string
+  }) {
+    return this.request<any>('/widows', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateWidow(id: number, data: {
+    widow_id?: number
+    first_name?: string
+    last_name?: string
+    phone?: string
+    email?: string
+    address?: string
+    neighborhood?: string
+    admission_date?: string
+    national_id?: string
+    birth_date?: string
+    marital_status?: 'Widowed' | 'Divorced' | 'Single'
+    education_level?: string
+    disability_flag?: boolean
+    disability_type?: string
+  }) {
+    return this.request<any>(`/widows/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getWidow(id: number) {
+    return this.request<any>(`/widows/${id}`)
+  }
+
+  async deleteWidow(id: number) {
+    return this.request<any>(`/widows/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // Kafils API
+  async getKafils(params?: {
+    search?: string
+    per_page?: number
+    page?: number
+  }) {
+    const searchParams = new URLSearchParams()
+    if (params?.search) searchParams.set('search', params.search)
+    if (params?.per_page) searchParams.set('per_page', params.per_page.toString())
+    if (params?.page) searchParams.set('page', params.page.toString())
+    
+    const query = searchParams.toString()
+    return this.request<any[]>(`/kafils${query ? `?${query}` : ''}`)
+  }
+
+  async createKafil(data: {
+    first_name: string
+    last_name: string
+    phone?: string
+    email?: string
+    address?: string
+    donor_id: number
+    monthly_pledge: number
+    sponsorships: Array<{
+      widow_id: number
+      amount: number
+    }>
+  }) {
+    return this.request<any>('/kafils', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateKafil(id: number, data: {
+    first_name: string
+    last_name: string
+    phone?: string
+    email?: string
+    address?: string
+    monthly_pledge: number
+  }) {
+    return this.request<any>(`/kafils/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getKafil(id: number) {
+    return this.request<any>(`/kafils/${id}`)
+  }
+
+  async deleteKafil(id: number) {
+    return this.request<any>(`/kafils/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async addSponsorship(kafilId: number, data: {
+    widow_id: number
+    amount: number
+  }) {
+    return this.request<any>(`/kafils/${kafilId}/sponsorships`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateSponsorship(kafilId: number, sponsorshipId: number, data: {
+    widow_id?: number
+    amount?: number
+  }) {
+    return this.request<any>(`/kafils/${kafilId}/sponsorships/${sponsorshipId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async removeSponsorship(kafilId: number, sponsorshipId: number) {
+    return this.request<any>(`/kafils/${kafilId}/sponsorships/${sponsorshipId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async removeKafilStatus(kafilId: number) {
+    return this.request<any>(`/kafils/${kafilId}/remove-status`, {
+      method: 'POST',
+    })
+  }
+}
+
+export const api = new ApiClient()
+export default api

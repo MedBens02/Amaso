@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "Bash(php artisan:*)",
+      "Bash(rm:*)",
+      "Bash(npm run dev:*)",
+      "Bash(composer dev:*)"
+    ],
+    "deny": [],
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\c\\Users\\PC\\Desktop\\Amaso\\app"
+    ],
+    "defaultMode": "acceptEdits"
+  }
+}
