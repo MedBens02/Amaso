@@ -1078,7 +1078,7 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
                           value={field.value || []}
                           placeholder="اختر المهارات"
                           variant="inverted"
-                          modalPopover={true}
+                          modalPopover={false}
                         />
                       </div>
                     )}
@@ -1101,7 +1101,7 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
                           value={field.value || []}
                           placeholder="اختر الأمراض إن وجدت"
                           variant="inverted"
-                          modalPopover={true}
+                          modalPopover={false}
                         />
                       </div>
                     )}
@@ -1161,7 +1161,7 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
                           value={field.value || []}
                           placeholder="اختر أنواع المساعدات"
                           variant="inverted"
-                          modalPopover={true}
+                          modalPopover={false}
                         />
                       </div>
                     )}
@@ -1249,11 +1249,13 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
                           name={`kafils.${index}.kafilId`}
                           control={form.control}
                           render={({ field }) => (
-                            <KafilSelector
-                              value={field.value}
-                              onValueChange={field.onChange}
-                              placeholder="اختر الكفيل"
-                            />
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <KafilSelector
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                placeholder="اختر الكفيل"
+                              />
+                            </div>
                           )}
                         />
                       </div>

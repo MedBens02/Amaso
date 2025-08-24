@@ -78,7 +78,10 @@ export function MultiSelect({
     onValueChange([])
   }
 
-  const handleTogglePopover = () => {
+  const handleTogglePopover = (e: React.MouseEvent) => {
+    // Only prevent form submission, not the normal popover behavior
+    e.preventDefault()
+    console.log('MultiSelect button clicked', { isPopoverOpen })
     setIsPopoverOpen((prev) => !prev)
   }
 
@@ -104,6 +107,7 @@ export function MultiSelect({
     <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen} modal={modalPopover}>
       <PopoverTrigger asChild>
         <Button
+          type="button"
           ref={React.useRef<HTMLButtonElement>(null)}
           {...props}
           onClick={handleTogglePopover}
@@ -181,7 +185,7 @@ export function MultiSelect({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start" onEscapeKeyDown={() => setIsPopoverOpen(false)}>
+      <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom" avoidCollisions={true} onEscapeKeyDown={() => setIsPopoverOpen(false)}>
         <Command>
           <CommandInput placeholder="Search..." onKeyDown={handleInputKeyDown} />
           <CommandList>
