@@ -153,12 +153,12 @@ export function ViewDonorDialog({ donor, open, onOpenChange }: ViewDonorDialogPr
           <div className="border-t pt-4 text-sm text-muted-foreground">
             <div className="flex justify-between">
               <span>تاريخ التسجيل:</span>
-              <span>{new Date(donor.created_at).toLocaleDateString('ar-EG')}</span>
+              <span>{new Date(donor.created_at).toLocaleDateString('ar-EG', { numberingSystem: 'latn' })}</span>
             </div>
             {donor.updated_at !== donor.created_at && (
               <div className="flex justify-between mt-1">
                 <span>آخر تحديث:</span>
-                <span>{new Date(donor.updated_at).toLocaleDateString('ar-EG')}</span>
+                <span>{new Date(donor.updated_at).toLocaleDateString('ar-EG', { numberingSystem: 'latn' })}</span>
               </div>
             )}
           </div>

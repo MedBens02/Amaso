@@ -42,24 +42,14 @@ class KafilSponsorship extends Model
 
     /**
      * Boot the model to add validation events
+     * Note: Validation removed to allow over-budget sponsorships with warnings
      */
     protected static function boot()
     {
         parent::boot();
 
-        // Validate before creating a new sponsorship
-        static::creating(function ($sponsorship) {
-            if (!$sponsorship->validateKafilPledgeAmount()) {
-                throw new \Exception('مبلغ الكفالة يتجاوز التعهد الشهري المتاح للكفيل');
-            }
-        });
-
-        // Validate before updating an existing sponsorship
-        static::updating(function ($sponsorship) {
-            if (!$sponsorship->validateKafilPledgeAmount()) {
-                throw new \Exception('مبلغ الكفالة يتجاوز التعهد الشهري المتاح للكفيل');
-            }
-        });
+        // Note: Budget validation moved to controller level to allow warnings
+        // instead of hard validation errors
     }
 
     /**

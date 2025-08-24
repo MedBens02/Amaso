@@ -144,7 +144,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
           <div className="border-t pt-4 space-y-4">
             <div>
               <Label className="text-sm font-medium text-muted-foreground">تاريخ الانتساب</Label>
-              <p>{new Date(widow.admission_date).toLocaleDateString('ar-EG')}</p>
+              <p>{new Date(widow.admission_date).toLocaleDateString('ar-EG', { numberingSystem: 'latn' })}</p>
             </div>
           </div>
 
@@ -251,12 +251,12 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
           <div className="border-t pt-4 text-sm text-muted-foreground">
             <div className="flex justify-between">
               <span>تاريخ التسجيل:</span>
-              <span>{new Date(widow.created_at).toLocaleDateString('ar-EG')}</span>
+              <span>{new Date(widow.created_at).toLocaleDateString('ar-EG', { numberingSystem: 'latn' })}</span>
             </div>
             {widow.updated_at !== widow.created_at && (
               <div className="flex justify-between mt-1">
                 <span>آخر تحديث:</span>
-                <span>{new Date(widow.updated_at).toLocaleDateString('ar-EG')}</span>
+                <span>{new Date(widow.updated_at).toLocaleDateString('ar-EG', { numberingSystem: 'latn' })}</span>
               </div>
             )}
           </div>

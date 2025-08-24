@@ -35,6 +35,8 @@ Route::prefix('v1')->group(function () {
     // Kafils CRUD
     Route::apiResource('kafils', KafilController::class);
     Route::post('kafils/{kafil}/remove-status', [KafilController::class, 'removeKafilStatus']);
+    Route::get('kafils-for-sponsorship', [KafilController::class, 'getKafilsForSponsorship']);
+    Route::post('sponsorships', [KafilController::class, 'createSponsorship']);
     
     // Incomes CRUD + approval
     Route::apiResource('incomes', IncomeController::class);
@@ -61,11 +63,7 @@ Route::prefix('v1')->group(function () {
         ]);
     });
     
-    Route::get('kafils', function () {
-        return response()->json([
-            'data' => \App\Models\Kafil::orderBy('first_name')->get()
-        ]);
-    });
+    // Removed: kafils endpoint handled by KafilController::index
     
     Route::get('sub-budgets', function () {
         return response()->json([

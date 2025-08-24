@@ -18,8 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
-import { format } from "date-fns"
-import { ar } from "date-fns/locale"
+import { formatDateArabic } from "@/lib/date-utils"
 import { NewIncomeDialog } from "@/components/forms/NewIncomeForm"
 import { TransferIncomeDialog } from "@/components/incomes/transfer-income-dialog"
 import { cn } from "@/lib/utils"
@@ -172,7 +171,7 @@ export function IncomesTable({ searchTerm }: IncomesTableProps) {
             محول
           </Badge>
           {income.transferDate && (
-            <span className="text-xs text-gray-500">{format(income.transferDate, "dd/MM/yyyy", { locale: ar })}</span>
+            <span className="text-xs text-gray-500">{formatDateArabic(income.transferDate, "dd/MM/yyyy")}</span>
           )}
         </div>
       )
@@ -344,7 +343,7 @@ export function IncomesTable({ searchTerm }: IncomesTableProps) {
                     onCheckedChange={(checked) => handleSelectRow(income.id, checked as boolean)}
                   />
                 </TableCell>
-                <TableCell className="text-right">{format(income.date, "dd/MM/yyyy", { locale: ar })}</TableCell>
+                <TableCell className="text-right">{formatDateArabic(income.date, "dd/MM/yyyy")}</TableCell>
                 <TableCell className="text-right font-medium">{income.subBudget}</TableCell>
                 <TableCell className="text-right">{income.category}</TableCell>
                 <TableCell className="text-right">

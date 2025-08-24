@@ -2,8 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { HandCoins, Wallet, TrendingUp } from "lucide-react"
-import { format } from "date-fns"
-import { ar } from "date-fns/locale"
+import { formatDateArabic } from "@/lib/date-utils"
 
 const financeActivities = [
   {
@@ -126,7 +125,7 @@ export function RecentFinanceActivity() {
                     </div>
                   </div>
                   <p className="text-sm text-gray-600">{activity.description}</p>
-                  <p className="text-xs text-gray-500">{format(activity.time, "dd/MM/yyyy - HH:mm", { locale: ar })}</p>
+                  <p className="text-xs text-gray-500">{formatDateArabic(activity.time, "dd/MM/yyyy - HH:mm")}</p>
                 </div>
               </div>
             )

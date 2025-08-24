@@ -18,8 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
-import { format } from "date-fns"
-import { ar } from "date-fns/locale"
+import { formatDateArabic } from "@/lib/date-utils"
 import { NewExpenseDialog } from "@/components/forms/NewExpenseForm"
 
 // Sample data
@@ -227,7 +226,7 @@ export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
                     onCheckedChange={(checked) => handleSelectRow(expense.id, checked as boolean)}
                   />
                 </TableCell>
-                <TableCell className="text-right">{format(expense.date, "dd/MM/yyyy", { locale: ar })}</TableCell>
+                <TableCell className="text-right">{formatDateArabic(expense.date, "dd/MM/yyyy")}</TableCell>
                 <TableCell className="text-right font-medium">{expense.subBudget}</TableCell>
                 <TableCell className="text-right">{expense.category}</TableCell>
                 <TableCell className="text-right">{expense.partner}</TableCell>

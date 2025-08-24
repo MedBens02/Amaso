@@ -385,6 +385,18 @@ class ApiClient {
       method: 'POST',
     })
   }
+
+  async getKafilsForSponsorship(search?: string) {
+    const query = search ? `?search=${encodeURIComponent(search)}` : ''
+    return this.request<any[]>(`/kafils-for-sponsorship${query}`)
+  }
+
+  async createSponsorship(data: { kafil_id: string; widow_id: number; amount: number }) {
+    return this.request<any>(`/sponsorships`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
 }
 
 export const api = new ApiClient()

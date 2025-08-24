@@ -25,9 +25,10 @@ import { Calendar } from "@/components/ui/calendar"
 import { MultiSelect } from "@/components/ui/multi-select"
 import { useToast } from "@/hooks/use-toast"
 import { CalendarIcon, Plus, Trash2, User, Users, Home, Heart, HandHeart } from "lucide-react"
-import { format } from "date-fns"
-import { ar } from "date-fns/locale"
+import { formatDateArabic } from "@/lib/date-utils"
 import { cn } from "@/lib/utils"
+import { KafilSelector } from "@/components/kafils/kafil-selector"
+import api from "@/lib/api"
 
 // Validation Schema
 const widowSchema = z
@@ -413,9 +414,47 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
       const result = await response.json()
       console.log("API response:", result)
 
+      // Create sponsorships if any kafils are assigned
+      if (data.kafils && data.kafils.length > 0) {
+        const widowId = result.data.id
+        const sponsorshipPromises = []
+        const sponsorshipWarnings = []
+
+        for (const kafil of data.kafils) {
+          if (kafil.kafilId && kafil.amount > 0) {
+            try {
+              const sponsorshipResponse = await api.createSponsorship({
+                kafil_id: kafil.kafilId,
+                widow_id: widowId,
+                amount: kafil.amount
+              })
+
+              if (sponsorshipResponse.warning) {
+                sponsorshipWarnings.push({
+                  kafil: kafil.kafilId,
+                  warning: sponsorshipResponse.warning
+                })
+              }
+            } catch (sponsorshipError) {
+              console.error('Error creating sponsorship:', sponsorshipError)
+              // Continue with other sponsorships even if one fails
+            }
+          }
+        }
+
+        // Show warnings if any sponsorships exceed budget
+        if (sponsorshipWarnings.length > 0) {
+          toast({
+            title: "تحذير بشأن الكفالات",
+            description: "تم إنشاء الكفالات ولكن بعضها يتجاوز التعهد الشهري للكفيل",
+            variant: "destructive",
+          })
+        }
+      }
+
       toast({
         title: "تم الحفظ بنجاح",
-        description: "تم إضافة الأرملة الجديدة بنجاح",
+        description: "تم إضافة الأرملة الجديدة وإنشاء الكفالات بنجاح",
       })
 
       form.reset()
@@ -477,7 +516,7 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
             }}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {value ? format(value, "PPP", { locale: ar }) : placeholder}
+            {value ? formatDateArabic(value, "PPP") : placeholder}
           </Button>
         </PopoverTrigger>
         <PopoverContent 
@@ -1210,18 +1249,11 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
                           name={`kafils.${index}.kafilId`}
                           control={form.control}
                           render={({ field }) => (
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="اختر الكفيل" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {lookupData.kafils.map((kafil) => (
-                                  <SelectItem key={kafil.id} value={kafil.id}>
-                                    {kafil.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <KafilSelector
+                              value={field.value}
+                              onValueChange={field.onChange}
+                              placeholder="اختر الكفيل"
+                            />
                           )}
                         />
                       </div>

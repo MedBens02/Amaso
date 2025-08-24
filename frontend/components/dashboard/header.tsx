@@ -37,6 +37,7 @@ export function Header({ user }: HeaderProps) {
               year: "numeric",
               month: "long",
               day: "numeric",
+              numberingSystem: "latn"
             })}
           </p>
         </div>

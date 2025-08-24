@@ -21,8 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar"
 import { useToast } from "@/hooks/use-toast"
 import { CalendarIcon, HandCoins, Plus } from "lucide-react"
-import { format } from "date-fns"
-import { ar } from "date-fns/locale"
+import { formatDateArabic } from "@/lib/date-utils"
 import { cn } from "@/lib/utils"
 import { AddDonorSheet } from "@/components/donors/add-donor-sheet"
 import api from "@/lib/api"
@@ -189,7 +188,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {field.value ? format(field.value, "PPP", { locale: ar }) : "اختر التاريخ"}
+                        {field.value ? formatDateArabic(field.value, "PPP") : "اختر التاريخ"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">

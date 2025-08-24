@@ -120,7 +120,7 @@ export default function ProfilePage() {
           <CardContent className="space-y-4">
             <div className="flex items-center gap-3 text-sm">
               <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span>انضم في {new Date(user.joinDate).toLocaleDateString("ar-SA")}</span>
+              <span>انضم في {new Date(user.joinDate).toLocaleDateString("ar-SA", { numberingSystem: "latn" })}</span>
             </div>
             <Separator />
             <div className="space-y-2">

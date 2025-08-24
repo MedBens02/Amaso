@@ -174,4 +174,113 @@ class KafilController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get kafils with their remaining budget for widow assignment
+     */
+    public function getKafilsForSponsorship(Request $request): JsonResponse
+    {
+        $query = Kafil::with(['donor', 'sponsorships']);
+
+        // Search functionality
+        if ($request->has('search') && $request->search) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('first_name', 'like', "%{$searchTerm}%")
+                  ->orWhere('last_name', 'like', "%{$searchTerm}%")
+                  ->orWhereHas('donor', function ($donorQuery) use ($searchTerm) {
+                      $donorQuery->where('first_name', 'like', "%{$searchTerm}%")
+                                 ->orWhere('last_name', 'like', "%{$searchTerm}%");
+                  });
+            });
+        }
+
+        $kafils = $query->get()->map(function ($kafil) {
+            $totalSponsored = $kafil->sponsorships->sum('amount');
+            $remainingAmount = $kafil->monthly_pledge - $totalSponsored;
+            
+            return [
+                'id' => $kafil->id,
+                'name' => trim($kafil->first_name . ' ' . $kafil->last_name),
+                'first_name' => $kafil->first_name,
+                'last_name' => $kafil->last_name,
+                'phone' => $kafil->phone,
+                'monthly_pledge' => $kafil->monthly_pledge,
+                'total_sponsored' => $totalSponsored,
+                'remaining_amount' => $remainingAmount,
+                'sponsorships_count' => $kafil->sponsorships->count(),
+                'donor' => $kafil->donor ? [
+                    'id' => $kafil->donor->id,
+                    'name' => trim($kafil->donor->first_name . ' ' . $kafil->donor->last_name)
+                ] : null
+            ];
+        });
+
+        return response()->json([
+            'data' => $kafils
+        ]);
+    }
+
+    /**
+     * Create a sponsorship between a kafil and widow
+     */
+    public function createSponsorship(Request $request): JsonResponse
+    {
+        $request->validate([
+            'kafil_id' => 'required|exists:kafils,id',
+            'widow_id' => 'required|exists:widows,id',
+            'amount' => 'required|numeric|min:0',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $kafil = Kafil::findOrFail($request->kafil_id);
+            
+            // Check if sponsorship already exists
+            $existingSponsorship = KafilSponsorship::where('kafil_id', $request->kafil_id)
+                ->where('widow_id', $request->widow_id)
+                ->first();
+
+            if ($existingSponsorship) {
+                return response()->json([
+                    'message' => 'يوجد كفالة سابقة لهذه الأرملة من نفس الكفيل'
+                ], 422);
+            }
+
+            // Calculate current total sponsorships
+            $totalSponsored = KafilSponsorship::where('kafil_id', $request->kafil_id)
+                ->sum('amount');
+            
+            $newTotal = $totalSponsored + $request->amount;
+            $isOverBudget = $newTotal > $kafil->monthly_pledge;
+
+            // Create the sponsorship
+            $sponsorship = KafilSponsorship::create([
+                'kafil_id' => $request->kafil_id,
+                'widow_id' => $request->widow_id,
+                'amount' => $request->amount,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'data' => $sponsorship,
+                'warning' => $isOverBudget ? [
+                    'message' => 'تحذير: إجمالي مبالغ الكفالات يتجاوز التعهد الشهري',
+                    'monthly_pledge' => $kafil->monthly_pledge,
+                    'total_sponsored' => $newTotal,
+                    'excess_amount' => $newTotal - $kafil->monthly_pledge
+                ] : null,
+                'message' => 'تم إنشاء الكفالة بنجاح'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'حدث خطأ أثناء إنشاء الكفالة',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

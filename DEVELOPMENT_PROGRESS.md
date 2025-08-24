@@ -880,6 +880,197 @@ DB_PASSWORD=
 
 ---
 
+## 📅 DATE FORMATTING CHANGES (2025-08-24)
+
+### Arabic Interface with Western Numerals Implementation
+
+**Status**: ✅ **COMPLETED**
+
+**Changes Made**:
+1. **Created Date Utility**: `frontend/lib/date-utils.ts` - Custom utility to format dates with Arabic text but Western numerals
+2. **Updated toLocaleDateString**: Modified components to use `numberingSystem: 'latn'` option
+3. **Updated date-fns Components**: Replaced direct `format()` calls with `formatDateArabic()` utility
+
+**Components Updated**:
+```
+✅ components/dashboard/header.tsx - Main header date display
+✅ components/widows/view-widow-dialog.tsx - Widow dates (admission, created, updated)
+✅ components/donors/view-donor-dialog.tsx - Donor dates (created, updated)
+✅ app/dashboard/profile/page.tsx - Profile join date
+✅ components/widows/add-widow-dialog.tsx - Date picker display
+✅ components/incomes/incomes-table.tsx - Income dates and transfer dates
+✅ components/dashboard/recent-finance-activity.tsx - Activity timestamps
+✅ components/forms/NewIncomeForm.tsx - Date picker in income form
+✅ components/expenses/expenses-table.tsx - Expense dates
+```
+
+**Technical Implementation**:
+```typescript
+// New utility function in date-utils.ts
+export function formatDateArabicWesternNumerals(date: Date, formatString: string): string {
+  const arabicFormatted = format(date, formatString, { locale: ar })
+  // Convert Arabic numerals (٠١٢٣٤٥٦٧٨٩) to Western (0123456789)
+  const arabicNumerals = '٠١٢٣٤٥٦٧٨٩'
+  const westernNumerals = '0123456789'
+  // ... conversion logic
+}
+
+// Updated toLocaleDateString pattern
+new Date().toLocaleDateString("ar-SA", {
+  weekday: "long",
+  year: "numeric", 
+  month: "long",
+  day: "numeric",
+  numberingSystem: "latn"  // Added for Western numerals
+})
+```
+
+**Result**: All dates now display in Arabic with Western numerals (e.g., "15 يناير 2024" instead of "١٥ يناير ٢٠٢٤")
+
+---
+
+## 👥 KAFIL SPONSORSHIP ENHANCEMENT (2025-08-24)
+
+### Advanced Kafil Selection and Budget Management
+
+**Status**: ✅ **COMPLETED**
+
+**Enhancement Overview**:
+Enhanced widow creation form with advanced kafil selection, real-time budget display, search functionality, and over-budget warnings.
+
+**Backend Changes**:
+1. **New API Endpoint**: `GET /api/v1/kafils-for-sponsorship` - Returns kafils with remaining budget calculations
+2. **Enhanced KafilController**: Added `getKafilsForSponsorship()` method with search functionality
+3. **Sponsorship Creation**: `POST /api/v1/sponsorships` - Creates sponsorships with budget validation
+4. **Budget Validation**: Modified to allow over-budget with warnings instead of blocking
+
+**Frontend Changes**:
+1. **New Component**: `components/kafils/kafil-selector.tsx` - Advanced kafil selector with search and budget display
+2. **Enhanced Widow Form**: Updated kafil tab to use new selector and handle sponsorship creation
+3. **Real-time Search**: Kafil search with debouncing and loading states
+4. **Budget Display**: Shows remaining budget next to each kafil name with color coding
+
+**Key Features**:
+
+#### Advanced Kafil Selector
+```typescript
+- Real-time search functionality
+- Budget display: "متبقي: ₪300" (green) or "متبقي: ₪-100" (red for over-budget)
+- Kafil details: Monthly pledge, current sponsorships count
+- Responsive dropdown with Command component
+```
+
+#### Backend API Features
+```php
+// GET /api/v1/kafils-for-sponsorship?search=ahmed
+{
+  "data": [
+    {
+      "id": 16,
+      "name": "kaFIL duplicate", 
+      "monthly_pledge": 800.00,
+      "total_sponsored": 700,
+      "remaining_amount": 100,    // Can be negative
+      "sponsorships_count": 2
+    }
+  ]
+}
+
+// POST /api/v1/sponsorships - With over-budget warning
+{
+  "data": { /* sponsorship created */ },
+  "warning": {
+    "message": "تحذير: إجمالي مبالغ الكفالات يتجاوز التعهد الشهري",
+    "monthly_pledge": 800.00,
+    "total_sponsored": 900,
+    "excess_amount": 100
+  }
+}
+```
+
+#### Widow Form Integration
+```typescript
+- Seamless integration in aid/sponsorship tab
+- Form validation with sponsorship creation
+- Success notifications with budget warnings
+- Error handling for duplicate sponsorships
+```
+
+**Technical Implementation**:
+
+#### KafilController Enhancement
+```php
+public function getKafilsForSponsorship(Request $request): JsonResponse
+{
+    $query = Kafil::with(['donor', 'sponsorships']);
+    
+    // Search functionality
+    if ($request->has('search')) {
+        $query->where(function ($q) use ($searchTerm) {
+            $q->where('first_name', 'like', "%{$searchTerm}%")
+              ->orWhere('last_name', 'like', "%{$searchTerm}%")
+              ->orWhereHas('donor', /* donor name search */);
+        });
+    }
+    
+    // Calculate remaining budgets
+    return $kafils->map(function ($kafil) {
+        $remaining = $kafil->monthly_pledge - $kafil->sponsorships->sum('amount');
+        return [
+            // ... kafil data with remaining_amount
+        ];
+    });
+}
+```
+
+#### KafilSelector Component
+```typescript
+export function KafilSelector({ value, onValueChange, placeholder }) {
+  const [kafils, setKafils] = useState<Kafil[]>([])
+  const [searchTerm, setSearchTerm] = useState("")
+  
+  // Real-time search with API calls
+  // Budget color coding (green/red)
+  // Command component with search functionality
+}
+```
+
+#### Model Validation Changes
+```php
+// KafilSponsorship.php - Removed hard validation
+// Now allows over-budget with controller-level warnings
+protected static function boot() {
+    parent::boot();
+    // Note: Budget validation moved to controller level
+}
+```
+
+**User Experience Improvements**:
+- **Search Functionality**: Find kafils quickly by typing their names
+- **Budget Awareness**: See remaining budget before selecting kafil
+- **Visual Feedback**: Color-coded budget display (green=available, red=over-budget)
+- **Warning System**: Allows over-budget but warns user about excess
+- **Responsive Design**: Works on all screen sizes
+
+**Data Flow**:
+1. User opens widow form → navigates to aid tab
+2. Clicks "Add Kafil" → KafilSelector loads with search
+3. Types kafil name → Real-time search via API
+4. Selects kafil → Shows remaining budget in selector
+5. Enters amount → Form validation
+6. Submits form → Widow created + sponsorships created
+7. If over-budget → Success with warning notification
+
+**Testing Completed**:
+✅ API endpoints working correctly  
+✅ Search functionality operational  
+✅ Budget calculations accurate  
+✅ Over-budget warnings functional  
+✅ Frontend component integration  
+✅ Form submission with sponsorship creation  
+
+---
+
 **🎉 SYSTEM STATUS: PRODUCTION-READY**  
 **🔧 READY FOR: Major architectural changes**  
 **📊 CONFIDENCE LEVEL: HIGH - All features tested and working**
