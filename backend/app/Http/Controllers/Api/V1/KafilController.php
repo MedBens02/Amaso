@@ -58,36 +58,8 @@ class KafilController extends Controller
             'address' => 'nullable|string',
             'donor_id' => 'required|exists:donors,id',
             'monthly_pledge' => 'required|numeric|min:0',
-            'sponsorships' => 'required|array|min:1',
-            'sponsorships.*.widow_id' => 'required|exists:widows,id',
-            'sponsorships.*.amount' => 'required|numeric|min:0.01',
         ]);
 
-        // Validate that sponsorship amounts don't exceed monthly pledge
-        $totalSponsorshipAmount = array_sum(array_column($request->sponsorships, 'amount'));
-        if ($totalSponsorshipAmount > $request->monthly_pledge) {
-            throw ValidationException::withMessages([
-                'sponsorships' => ['إجمالي مبالغ الكفالات يتجاوز التعهد الشهري']
-            ]);
-        }
-
-        // Check for duplicate widow sponsorships
-        $widowIds = array_column($request->sponsorships, 'widow_id');
-        if (count($widowIds) !== count(array_unique($widowIds))) {
-            throw ValidationException::withMessages([
-                'sponsorships' => ['لا يمكن كفالة نفس الأرملة أكثر من مرة']
-            ]);
-        }
-
-        // Check if any of these widows are already sponsored by this kafil
-        $existingSponsorships = KafilSponsorship::whereIn('widow_id', $widowIds)->exists();
-        if ($existingSponsorships) {
-            throw ValidationException::withMessages([
-                'sponsorships' => ['إحدى الأرامل المختارة مكفولة بالفعل']
-            ]);
-        }
-
-        DB::beginTransaction();
         try {
             // Create the kafil
             $kafil = Kafil::create([
@@ -100,27 +72,15 @@ class KafilController extends Controller
                 'monthly_pledge' => $request->monthly_pledge,
             ]);
 
-            // Create the sponsorships
-            foreach ($request->sponsorships as $sponsorship) {
-                KafilSponsorship::create([
-                    'kafil_id' => $kafil->id,
-                    'widow_id' => $sponsorship['widow_id'],
-                    'amount' => $sponsorship['amount'],
-                ]);
-            }
-
-            DB::commit();
-
             // Load relationships for response
             $kafil->load(['donor', 'sponsorships.widow']);
 
             return response()->json([
                 'data' => $kafil,
-                'message' => 'تم إنشاء الكفيل والكفالات بنجاح'
+                'message' => 'تم إنشاء الكفيل بنجاح'
             ], 201);
 
         } catch (\Exception $e) {
-            DB::rollBack();
             return response()->json([
                 'message' => 'خطأ في إنشاء الكفيل',
                 'errors' => ['general' => [$e->getMessage()]]
@@ -151,14 +111,6 @@ class KafilController extends Controller
             'monthly_pledge' => 'required|numeric|min:0',
         ]);
 
-        // Check if new monthly pledge can cover existing sponsorships
-        $existingSponsorshipTotal = $kafil->total_sponsorship_amount;
-        if ($request->monthly_pledge < $existingSponsorshipTotal) {
-            throw ValidationException::withMessages([
-                'monthly_pledge' => ['التعهد الشهري الجديد أقل من مجموع الكفالات الحالية']
-            ]);
-        }
-
         $kafil->update($request->only([
             'first_name',
             'last_name', 
@@ -185,101 +137,6 @@ class KafilController extends Controller
         return response()->json(['message' => 'تم حذف الكفيل بنجاح']);
     }
 
-    /**
-     * Add a new sponsorship to an existing kafil
-     */
-    public function addSponsorship(Request $request, Kafil $kafil): JsonResponse
-    {
-        $request->validate([
-            'widow_id' => 'required|exists:widows,id',
-            'amount' => 'required|numeric|min:0.01',
-        ]);
-
-        // Check if kafil can afford this new sponsorship
-        if (!$kafil->canAffordSponsorship($request->amount)) {
-            throw ValidationException::withMessages([
-                'amount' => ['مبلغ الكفالة يتجاوز المبلغ المتاح من التعهد الشهري']
-            ]);
-        }
-
-        // Check if widow is already sponsored by this kafil
-        if ($kafil->sponsorships()->where('widow_id', $request->widow_id)->exists()) {
-            throw ValidationException::withMessages([
-                'widow_id' => ['هذه الأرملة مكفولة بالفعل من قبل هذا الكفيل']
-            ]);
-        }
-
-        $sponsorship = KafilSponsorship::create([
-            'kafil_id' => $kafil->id,
-            'widow_id' => $request->widow_id,
-            'amount' => $request->amount,
-        ]);
-
-        $sponsorship->load('widow');
-
-        return response()->json([
-            'data' => $sponsorship,
-            'message' => 'تم إضافة الكفالة بنجاح'
-        ], 201);
-    }
-
-    /**
-     * Update a sponsorship for a kafil
-     */
-    public function updateSponsorship(Request $request, Kafil $kafil, KafilSponsorship $sponsorship): JsonResponse
-    {
-        if ($sponsorship->kafil_id !== $kafil->id) {
-            return response()->json(['message' => 'الكفالة غير مرتبطة بهذا الكفيل'], 404);
-        }
-
-        $request->validate([
-            'widow_id' => 'sometimes|exists:widows,id',
-            'amount' => 'sometimes|numeric|min:0.01',
-        ]);
-
-        // Calculate what the new total would be after this update
-        $currentAmount = $sponsorship->amount;
-        $newAmount = $request->get('amount', $currentAmount);
-        $amountDifference = $newAmount - $currentAmount;
-
-        // Check if kafil can afford the new amount
-        if ($amountDifference > 0 && $kafil->remaining_pledge_amount < $amountDifference) {
-            throw ValidationException::withMessages([
-                'amount' => ['مبلغ الكفالة الجديد يتجاوز المبلغ المتاح من التعهد الشهري']
-            ]);
-        }
-
-        // If changing widow, check if new widow is already sponsored by this kafil
-        if ($request->has('widow_id') && $request->widow_id !== $sponsorship->widow_id) {
-            if ($kafil->sponsorships()->where('widow_id', $request->widow_id)->exists()) {
-                throw ValidationException::withMessages([
-                    'widow_id' => ['هذه الأرملة مكفولة بالفعل من قبل هذا الكفيل']
-                ]);
-            }
-        }
-
-        $sponsorship->update($request->only(['widow_id', 'amount']));
-        $sponsorship->load('widow');
-
-        return response()->json([
-            'data' => $sponsorship,
-            'message' => 'تم تحديث الكفالة بنجاح'
-        ]);
-    }
-
-    /**
-     * Remove a sponsorship from a kafil
-     */
-    public function removeSponsorship(Kafil $kafil, KafilSponsorship $sponsorship): JsonResponse
-    {
-        if ($sponsorship->kafil_id !== $kafil->id) {
-            return response()->json(['message' => 'الكفالة غير مرتبطة بهذا الكفيل'], 404);
-        }
-
-        $sponsorship->delete();
-
-        return response()->json(['message' => 'تم حذف الكفالة بنجاح']);
-    }
 
     /**
      * Remove kafil status and convert back to regular donor

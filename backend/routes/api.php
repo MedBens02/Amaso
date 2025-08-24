@@ -34,9 +34,6 @@ Route::prefix('v1')->group(function () {
     
     // Kafils CRUD
     Route::apiResource('kafils', KafilController::class);
-    Route::post('kafils/{kafil}/sponsorships', [KafilController::class, 'addSponsorship']);
-    Route::put('kafils/{kafil}/sponsorships/{sponsorship}', [KafilController::class, 'updateSponsorship']);
-    Route::delete('kafils/{kafil}/sponsorships/{sponsorship}', [KafilController::class, 'removeSponsorship']);
     Route::post('kafils/{kafil}/remove-status', [KafilController::class, 'removeKafilStatus']);
     
     // Incomes CRUD + approval
