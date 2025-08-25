@@ -88,3 +88,27 @@
 .dark ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--accent));
 }
+
+/* React Select Menu Portal Fix */
+.rs__menu-portal {
+  z-index: 99999 !important;
+  position: fixed !important;
+  pointer-events: auto !important;
+}
+
+.rs__menu {
+  z-index: 99999 !important;
+  pointer-events: auto !important;
+  position: relative !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+.rs__option {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+.rs__option:hover {
+  background-color: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
+}

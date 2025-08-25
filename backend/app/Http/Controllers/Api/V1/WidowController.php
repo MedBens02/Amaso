@@ -14,6 +14,9 @@ use App\Models\WidowSocialExpense;
 use App\Models\WidowMaouna;
 use App\Models\Orphan;
 use App\Models\Skill;
+use App\Models\Illness;
+use App\Models\WidowIncomeCategory;
+use App\Models\WidowExpenseCategory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -106,24 +109,44 @@ class WidowController extends Controller
                 // Create income entries
                 if (!empty($validated['income'])) {
                     foreach ($validated['income'] as $incomeData) {
-                        WidowSocialIncome::create([
-                            'widow_id' => $widow->id,
-                            'income_category_id' => $incomeData['category_id'],
-                            'amount' => $incomeData['amount'],
-                            'remarks' => $incomeData['description'] ?? null,
-                        ]);
+                        $categoryId = $incomeData['category_id'];
+                        
+                        // If category_id is null but category_name is provided, create new category
+                        if (!$categoryId && !empty($incomeData['category_name'])) {
+                            $category = WidowIncomeCategory::firstOrCreate(['name' => $incomeData['category_name']]);
+                            $categoryId = $category->id;
+                        }
+                        
+                        if ($categoryId) {
+                            WidowSocialIncome::create([
+                                'widow_id' => $widow->id,
+                                'income_category_id' => $categoryId,
+                                'amount' => $incomeData['amount'],
+                                'remarks' => $incomeData['description'] ?? null,
+                            ]);
+                        }
                     }
                 }
                 
                 // Create expense entries
                 if (!empty($validated['expenses'])) {
                     foreach ($validated['expenses'] as $expenseData) {
-                        WidowSocialExpense::create([
-                            'widow_id' => $widow->id,
-                            'expense_category_id' => $expenseData['category_id'],
-                            'amount' => $expenseData['amount'],
-                            'remarks' => $expenseData['description'] ?? null,
-                        ]);
+                        $categoryId = $expenseData['category_id'];
+                        
+                        // If category_id is null but category_name is provided, create new category
+                        if (!$categoryId && !empty($expenseData['category_name'])) {
+                            $category = WidowExpenseCategory::firstOrCreate(['name' => $expenseData['category_name']]);
+                            $categoryId = $category->id;
+                        }
+                        
+                        if ($categoryId) {
+                            WidowSocialExpense::create([
+                                'widow_id' => $widow->id,
+                                'expense_category_id' => $categoryId,
+                                'amount' => $expenseData['amount'],
+                                'remarks' => $expenseData['description'] ?? null,
+                            ]);
+                        }
                     }
                 }
                 
@@ -138,6 +161,17 @@ class WidowController extends Controller
                 // Attach skills
                 if (!empty($validated['skills'])) {
                     $widow->skills()->attach($validated['skills']);
+                }
+                
+                // Handle new illnesses creation
+                if (!empty($validated['new_illnesses'])) {
+                    foreach ($validated['new_illnesses'] as $illnessName) {
+                        $illness = Illness::firstOrCreate([
+                            'label' => $illnessName,
+                            'is_chronic' => false  // Default to non-chronic for new illnesses
+                        ]);
+                        $validated['illnesses'][] = $illness->id;
+                    }
                 }
                 
                 // Attach illnesses

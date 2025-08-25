@@ -5,13 +5,14 @@
       "Bash(php artisan:*)",
       "Bash(rm:*)",
       "Bash(npm run dev:*)",
-      "Bash(composer dev:*)"
+      "Bash(composer dev:*)",
+      "Bash(npm i:*)"
     ],
     "deny": [],
     "ask": [],
+    "defaultMode": "acceptEdits",
     "additionalDirectories": [
       "C:\\c\\Users\\PC\\Desktop\\Amaso\\app"
-    ],
-    "defaultMode": "acceptEdits"
+    ]
   }
 }

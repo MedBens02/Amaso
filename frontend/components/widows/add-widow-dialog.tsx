@@ -22,7 +22,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { MultiSelect } from "@/components/ui/multi-select"
+import { MultiSelectRS } from "@/components/common/MultiSelectRS"
+import { SingleSelectRS } from "@/components/common/SingleSelectRS"
+import { StarRating } from "@/components/common/StarRating"
 import { useToast } from "@/hooks/use-toast"
 import { CalendarIcon, Plus, Trash2, User, Users, Home, Heart, HandHeart } from "lucide-react"
 import { formatDateArabic } from "@/lib/date-utils"
@@ -184,6 +186,8 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
       email: "",
       address: "",
       neighborhood: "",
+      maritalStatus: "Widowed",
+      educationLevel: "",
       children: [],
       housingType: "1", // Default to first housing type
       housingStatus: "rented",
@@ -340,7 +344,9 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
         phone: data.phone,
         email: data.email || "",
         address: data.address || "",
-        neighborhood: data.neighborhood,
+        neighborhood: data.neighborhood?.startsWith('__new_option_') 
+          ? data.neighborhood.replace('__new_option_', '') 
+          : data.neighborhood,
         admission_date: data.admissionDate.toISOString().split('T')[0],
         national_id: data.nationalId || "",
         birth_date: data.birthDate.toISOString().split('T')[0],
@@ -371,23 +377,36 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
         })),
 
         // Income and Expenses
-        income: (data.incomes || []).map(income => ({
-          category_id: income.source,
-          amount: income.amount,
-          description: income.remarks || ""
-        })),
-        expenses: (data.expenses || []).map(expense => ({
-          category_id: expense.category,
-          amount: expense.amount,
-          description: expense.remarks || ""
-        })),
+        income: (data.incomes || []).map(income => {
+          const isNewCategory = income.source?.startsWith('__new_option_')
+          return {
+            category_id: isNewCategory ? null : income.source,
+            category_name: isNewCategory ? income.source.replace('__new_option_', '') : null,
+            amount: income.amount,
+            description: income.remarks || ""
+          }
+        }),
+        expenses: (data.expenses || []).map(expense => {
+          const isNewCategory = expense.category?.startsWith('__new_option_')
+          return {
+            category_id: isNewCategory ? null : expense.category,
+            category_name: isNewCategory ? expense.category.replace('__new_option_', '') : null,
+            amount: expense.amount,
+            description: expense.remarks || ""
+          }
+        }),
 
-        // Skills
-        skills: data.selectedSkills || [],
-        new_skills: data.newSkills || [],
+        // Skills - separate existing and new items
+        skills: (data.selectedSkills || []).filter(skill => !skill.startsWith('__new_option_')),
+        new_skills: (data.selectedSkills || [])
+          .filter(skill => skill.startsWith('__new_option_'))
+          .map(skill => skill.replace('__new_option_', '')),
 
-        // Illnesses
-        illnesses: data.selectedIllnesses || [],
+        // Illnesses - separate existing and new items  
+        illnesses: (data.selectedIllnesses || []).filter(illness => !illness.startsWith('__new_option_')),
+        new_illnesses: (data.selectedIllnesses || [])
+          .filter(illness => illness.startsWith('__new_option_'))
+          .map(illness => illness.replace('__new_option_', '')),
 
         // Aid Types
         aid_types: data.selectedAidTypes || [],
@@ -701,18 +720,16 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
                     name="neighborhood"
                     control={form.control}
                     render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="اختر الحي" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {lookupData.neighborhoods.map((neighborhood) => (
-                            <SelectItem key={neighborhood.id} value={neighborhood.id}>
-                              {neighborhood.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <SingleSelectRS
+                        options={lookupData.neighborhoods.map((neighborhood) => ({ 
+                          label: neighborhood.name, 
+                          value: neighborhood.name 
+                        }))}
+                        onChange={field.onChange}
+                        value={field.value || ""}
+                        placeholder="اختر الحي أو اكتب حياً جديداً"
+                        isCreatable={true}
+                      />
                     )}
                   />
                   {form.formState.errors.neighborhood && (
@@ -733,6 +750,53 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
                   {form.formState.errors.admissionDate && (
                     <p className="text-sm text-red-600">{form.formState.errors.admissionDate.message}</p>
                   )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="maritalStatus">الحالة الاجتماعية</Label>
+                  <Controller
+                    name="maritalStatus"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="اختر الحالة الاجتماعية" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Widowed">أرملة</SelectItem>
+                          <SelectItem value="Divorced">مطلقة</SelectItem>
+                          <SelectItem value="Single">عزباء</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="educationLevel">المستوى التعليمي</Label>
+                  <Controller
+                    name="educationLevel"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="اختر المستوى التعليمي" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="لا يقرأ ولا يكتب">لا يقرأ ولا يكتب</SelectItem>
+                          <SelectItem value="يقرأ ويكتب">يقرأ ويكتب</SelectItem>
+                          <SelectItem value="ابتدائي">ابتدائي</SelectItem>
+                          <SelectItem value="إعدادي">إعدادي</SelectItem>
+                          <SelectItem value="ثانوي">ثانوي</SelectItem>
+                          <SelectItem value="دبلوم">دبلوم</SelectItem>
+                          <SelectItem value="بكالوريوس">بكالوريوس</SelectItem>
+                          <SelectItem value="ماجستير">ماجستير</SelectItem>
+                          <SelectItem value="دكتوراه">دكتوراه</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                 </div>
               </div>
 
@@ -913,15 +977,21 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
                     />
                     <Label htmlFor="hasWater">يوجد ماء</Label>
                   </div>
-                  <div className="flex items-center space-x-2 space-x-reverse">
+                  <div className="space-y-2">
+                    <Label>تقييم الأثاث (من 0 إلى 5)</Label>
                     <Controller
                       name="hasFurniture"
                       control={form.control}
                       render={({ field }) => (
-                        <Checkbox id="hasFurniture" checked={field.value} onCheckedChange={field.onChange} />
+                        <StarRating
+                          value={field.value || 0}
+                          onChange={field.onChange}
+                          maxStars={5}
+                          labels={['لا يوجد', 'سيء جداً', 'سيء', 'متوسط', 'جيد', 'ممتاز']}
+                          className="flex-col items-start"
+                        />
                       )}
                     />
-                    <Label htmlFor="hasFurniture">يوجد أثاث</Label>
                   </div>
                 </div>
               </div>
@@ -961,18 +1031,16 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
                           name={`incomes.${index}.source`}
                           control={form.control}
                           render={({ field }) => (
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="اختر المصدر" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {lookupData.incomeCategories.map((category) => (
-                                  <SelectItem key={category.id} value={category.id}>
-                                    {category.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <SingleSelectRS
+                              options={lookupData.incomeCategories.map((category) => ({ 
+                                label: category.name, 
+                                value: category.id 
+                              }))}
+                              onChange={field.onChange}
+                              value={field.value || ""}
+                              placeholder="اختر المصدر"
+                              isCreatable={true}
+                            />
                           )}
                         />
                       </div>
@@ -1028,18 +1096,16 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
                           name={`expenses.${index}.category`}
                           control={form.control}
                           render={({ field }) => (
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="اختر الفئة" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {lookupData.expenseCategories.map((category) => (
-                                  <SelectItem key={category.id} value={category.id}>
-                                    {category.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <SingleSelectRS
+                              options={lookupData.expenseCategories.map((category) => ({ 
+                                label: category.name, 
+                                value: category.id 
+                              }))}
+                              onChange={field.onChange}
+                              value={field.value || ""}
+                              placeholder="اختر الفئة"
+                              isCreatable={true}
+                            />
                           )}
                         />
                       </div>
@@ -1070,18 +1136,25 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
                   <Controller
                     name="selectedSkills"
                     control={form.control}
-                    render={({ field }) => (
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <MultiSelect
+                    render={({ field }) => {
+                      console.log('Skills field render:', { 
+                        fieldValue: field.value, 
+                        fieldName: field.name,
+                        skillsOptions: lookupData.skills
+                      })
+                      return (
+                        <MultiSelectRS
                           options={lookupData.skills.map((skill) => ({ label: skill.name, value: skill.id }))}
-                          onValueChange={field.onChange}
+                          onChange={(newValue) => {
+                            console.log('Skills field onChange:', { newValue, fieldName: field.name })
+                            field.onChange(newValue)
+                          }}
                           value={field.value || []}
                           placeholder="اختر المهارات"
-                          variant="inverted"
-                          modalPopover={false}
+                          isCreatable={true}
                         />
-                      </div>
-                    )}
+                      )
+                    }}
                   />
                 </div>
               </div>
@@ -1094,17 +1167,13 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
                     name="selectedIllnesses"
                     control={form.control}
                     render={({ field }) => (
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <MultiSelect
-                          options={lookupData.illnesses.map((illness) => ({ label: illness.name, value: illness.id }))}
-                          onValueChange={field.onChange}
-                          value={field.value || []}
-                          placeholder="اختر الأمراض إن وجدت"
-                          variant="inverted"
-                          modalPopover={false}
-                          enableSearch={false}
-                        />
-                      </div>
+                      <MultiSelectRS
+                        options={lookupData.illnesses.map((illness) => ({ label: illness.name, value: illness.id }))}
+                        onChange={field.onChange}
+                        value={field.value || []}
+                        placeholder="اختر الأمراض إن وجدت"
+                        isCreatable={true}
+                      />
                     )}
                   />
                 </div>
@@ -1155,16 +1224,12 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
                     name="selectedAidTypes"
                     control={form.control}
                     render={({ field }) => (
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <MultiSelect
-                          options={lookupData.aidTypes.map((aid) => ({ label: aid.name, value: aid.id }))}
-                          onValueChange={field.onChange}
-                          value={field.value || []}
-                          placeholder="اختر أنواع المساعدات"
-                          variant="inverted"
-                          modalPopover={false}
-                        />
-                      </div>
+                      <MultiSelectRS
+                        options={lookupData.aidTypes.map((aid) => ({ label: aid.name, value: aid.id }))}
+                        onChange={field.onChange}
+                        value={field.value || []}
+                        placeholder="اختر أنواع المساعدات"
+                      />
                     )}
                   />
                 </div>

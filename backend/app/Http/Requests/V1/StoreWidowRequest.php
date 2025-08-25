@@ -51,12 +51,14 @@ class StoreWidowRequest extends FormRequest
 
             // Income and Expenses
             'income' => ['array'],
-            'income.*.category_id' => ['required', 'integer', 'exists:widow_income_categories,id'],
+            'income.*.category_id' => ['nullable', 'integer', 'exists:widow_income_categories,id'],
+            'income.*.category_name' => ['nullable', 'string', 'max:100'],
             'income.*.amount' => ['required', 'numeric', 'min:0'],
             'income.*.description' => ['nullable', 'string', 'max:500'],
 
             'expenses' => ['array'],
-            'expenses.*.category_id' => ['required', 'integer', 'exists:widow_expense_categories,id'],
+            'expenses.*.category_id' => ['nullable', 'integer', 'exists:widow_expense_categories,id'],
+            'expenses.*.category_name' => ['nullable', 'string', 'max:100'],
             'expenses.*.amount' => ['required', 'numeric', 'min:0'],
             'expenses.*.description' => ['nullable', 'string', 'max:500'],
 
@@ -69,6 +71,8 @@ class StoreWidowRequest extends FormRequest
             // Illnesses
             'illnesses' => ['array'],
             'illnesses.*' => ['integer', 'exists:illnesses,id'],
+            'new_illnesses' => ['array'],
+            'new_illnesses.*' => ['string', 'max:100'],
 
             // Aid Types
             'aid_types' => ['array'],
