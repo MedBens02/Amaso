@@ -220,6 +220,10 @@ class ApiClient {
     return this.request<any[]>('/expense-categories')
   }
 
+  async getWidowsReferenceData() {
+    return this.request<any>('/widows-reference-data')
+  }
+
 
   // Widows API
   async getWidows(params?: {
@@ -227,6 +231,13 @@ class ApiClient {
     widow_id?: number
     has_disability?: boolean
     education_level?: string
+    illness_id?: number
+    aid_type_id?: number
+    skill_id?: number
+    has_kafil?: boolean
+    has_chronic_illness?: boolean
+    has_active_maouna?: boolean
+    maouna_partner_id?: number
     per_page?: number
     page?: number
     sort_by?: string
@@ -237,6 +248,13 @@ class ApiClient {
     if (params?.widow_id) searchParams.set('widow_id', params.widow_id.toString())
     if (params?.has_disability !== undefined) searchParams.set('has_disability', params.has_disability.toString())
     if (params?.education_level) searchParams.set('education_level', params.education_level)
+    if (params?.illness_id) searchParams.set('illness_id', params.illness_id.toString())
+    if (params?.aid_type_id) searchParams.set('aid_type_id', params.aid_type_id.toString())
+    if (params?.skill_id) searchParams.set('skill_id', params.skill_id.toString())
+    if (params?.has_kafil !== undefined) searchParams.set('has_kafil', params.has_kafil.toString())
+    if (params?.has_chronic_illness !== undefined) searchParams.set('has_chronic_illness', params.has_chronic_illness.toString())
+    if (params?.has_active_maouna !== undefined) searchParams.set('has_active_maouna', params.has_active_maouna.toString())
+    if (params?.maouna_partner_id) searchParams.set('maouna_partner_id', params.maouna_partner_id.toString())
     if (params?.per_page) searchParams.set('per_page', params.per_page.toString())
     if (params?.page) searchParams.set('page', params.page.toString())
     if (params?.sort_by) searchParams.set('sort_by', params.sort_by)

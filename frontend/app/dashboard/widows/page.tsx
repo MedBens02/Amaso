@@ -13,6 +13,8 @@ export default function WidowsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [showFilters, setShowFilters] = useState(false)
   const [showAddDialog, setShowAddDialog] = useState(false)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [filters, setFilters] = useState({})
 
   return (
     <div className="space-y-6">
@@ -48,7 +50,7 @@ export default function WidowsPage() {
         </CardHeader>
         {showFilters && (
           <CardContent>
-            <WidowFilters />
+            <WidowFilters onFiltersChange={setFilters} initialFilters={filters} />
           </CardContent>
         )}
       </Card>
@@ -59,11 +61,15 @@ export default function WidowsPage() {
           <CardTitle>قائمة الأرامل</CardTitle>
         </CardHeader>
         <CardContent>
-          <WidowsTable searchTerm={searchTerm} />
+          <WidowsTable searchTerm={searchTerm} filters={filters} refreshTrigger={refreshTrigger} />
         </CardContent>
       </Card>
 
-      <AddWidowDialog open={showAddDialog} onOpenChange={setShowAddDialog} />
+      <AddWidowDialog 
+        open={showAddDialog} 
+        onOpenChange={setShowAddDialog} 
+        onSuccess={() => setRefreshTrigger(prev => prev + 1)}
+      />
     </div>
   )
 }

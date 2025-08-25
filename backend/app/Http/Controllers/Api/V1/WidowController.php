@@ -50,6 +50,66 @@ class WidowController extends Controller
             $query->where('education_level', $request->get('education_level'));
         }
 
+        // Filter by illness
+        if ($request->filled('illness_id')) {
+            $query->whereHas('illnesses', function ($q) use ($request) {
+                $q->where('illnesses.id', $request->get('illness_id'));
+            });
+        }
+
+        // Filter by aid type
+        if ($request->filled('aid_type_id')) {
+            $query->whereHas('aidTypes', function ($q) use ($request) {
+                $q->where('aid_types.id', $request->get('aid_type_id'));
+            });
+        }
+
+        // Filter by skill
+        if ($request->filled('skill_id')) {
+            $query->whereHas('skills', function ($q) use ($request) {
+                $q->where('skills.id', $request->get('skill_id'));
+            });
+        }
+
+        // Filter by kafil status (has sponsorship or not)
+        if ($request->filled('has_kafil')) {
+            $hasKafil = $request->boolean('has_kafil');
+            if ($hasKafil) {
+                $query->whereHas('sponsorships');
+            } else {
+                $query->whereDoesntHave('sponsorships');
+            }
+        }
+
+        // Filter by chronic illness status
+        if ($request->filled('has_chronic_illness')) {
+            $query->whereHas('widowFiles', function ($q) use ($request) {
+                $q->where('has_chronic_disease', $request->boolean('has_chronic_illness'));
+            });
+        }
+
+        // Filter by active maouna status
+        if ($request->filled('has_active_maouna')) {
+            $hasActiveMaouna = $request->boolean('has_active_maouna');
+            if ($hasActiveMaouna) {
+                $query->whereHas('activeMaouna', function ($q) {
+                    $q->where('is_active', true);
+                });
+            } else {
+                $query->whereDoesntHave('activeMaouna', function ($q) {
+                    $q->where('is_active', true);
+                });
+            }
+        }
+
+        // Filter by maouna partner
+        if ($request->filled('maouna_partner_id')) {
+            $query->whereHas('activeMaouna', function ($q) use ($request) {
+                $q->where('partner_id', $request->get('maouna_partner_id'))
+                  ->where('is_active', true);
+            });
+        }
+
         // Sorting functionality
         $sortBy = $request->get('sort_by', 'created_at');
         $sortOrder = $request->get('sort_order', 'desc');

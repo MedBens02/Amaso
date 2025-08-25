@@ -119,6 +119,12 @@ const widowSchema = z
     maounaActive: z.boolean().default(false),
     maounaAmount: z.number().optional(),
     maounaPartnerId: z.string().optional(),
+    
+    // Kafils
+    kafils: z.array(z.object({
+      kafilId: z.string().optional(),
+      amount: z.number().optional(),
+    })).default([]),
   })
   .refine(
     (data) => {
@@ -143,10 +149,29 @@ const widowSchema = z
   )
   .refine(
     (data) => {
-      return data.kafils ? data.kafils.every((kafil) => kafil.amount > 0) : true
+      if (!data.kafils || data.kafils.length === 0) return true
+      return data.kafils.every((kafil) => {
+        // If kafil has a kafilId, it must have a positive amount
+        if (kafil.kafilId && kafil.kafilId.trim()) {
+          return kafil.amount && kafil.amount > 0
+        }
+        return true
+      })
     },
     {
-      message: "جميع مبالغ الكفالة يجب أن تكون موجبة",
+      message: "عند اختيار كفيل يجب إدخال مبلغ كفالة موجب",
+      path: ["kafils"],
+    },
+  )
+  .refine(
+    (data) => {
+      if (!data.kafils || data.kafils.length === 0) return true
+      const kafilIds = data.kafils.map(kafil => kafil.kafilId).filter(id => id)
+      const uniqueKafilIds = new Set(kafilIds)
+      return kafilIds.length === uniqueKafilIds.size
+    },
+    {
+      message: "لا يمكن اختيار نفس الكفيل أكثر من مرة",
       path: ["kafils"],
     },
   )
@@ -156,6 +181,7 @@ type WidowFormData = z.infer<typeof widowSchema>
 interface AddWidowDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSuccess?: () => void
 }
 
 // Lookup data interfaces
@@ -176,7 +202,7 @@ interface LookupData {
   kafils: LookupOption[]
 }
 
-export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
+export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialogProps) {
   const [activeTab, setActiveTab] = useState("personal")
   const [lookupData, setLookupData] = useState<LookupData | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -338,6 +364,8 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
     console.log("Form validation errors:", form.formState.errors)
     console.log("Form is valid:", form.formState.isValid)
     console.log("Children data:", data.children)
+    console.log("Kafils data:", data.kafils)
+    console.log("All form data:", data)
     
     setIsSubmitting(true)
     try {
@@ -490,6 +518,11 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
         title: "تم الحفظ بنجاح",
         description: "تم إضافة الأرملة الجديدة وإنشاء الكفالات بنجاح",
       })
+
+      // Trigger refresh of parent component
+      if (onSuccess) {
+        onSuccess()
+      }
 
       form.reset()
       onOpenChange(false)
@@ -1335,6 +1368,9 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
                                 value={field.value}
                                 onValueChange={field.onChange}
                                 placeholder="اختر الكفيل"
+                                excludeIds={form.watch("kafils")
+                                  ?.map((k, i) => i !== index ? k.kafilId : null)
+                                  ?.filter(Boolean) || []}
                               />
                             </div>
                           )}
@@ -1351,6 +1387,13 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
                     </div>
                   </div>
                 ))}
+                
+                {/* Display kafils validation errors */}
+                {form.formState.errors.kafils && (
+                  <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+                    {form.formState.errors.kafils.message || JSON.stringify(form.formState.errors.kafils)}
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>

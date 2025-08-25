@@ -41,6 +41,7 @@ class WidowResource extends JsonResource
                         'age' => $orphan->birth_date ? $orphan->birth_date->diffInYears(now()) : null,
                         'gender' => $orphan->gender,
                         'education_level' => $orphan->education_level,
+                        'health_status' => $orphan->health_status,
                     ];
                 });
             }),
@@ -50,22 +51,18 @@ class WidowResource extends JsonResource
                     return [
                         'id' => $sponsorship->id,
                         'amount' => $sponsorship->amount,
-                        'kafil' => $sponsorship->whenLoaded('kafil', function () use ($sponsorship) {
-                            return [
-                                'id' => $sponsorship->kafil->id,
-                                'first_name' => $sponsorship->kafil->first_name,
-                                'last_name' => $sponsorship->kafil->last_name,
-                                'phone' => $sponsorship->kafil->phone,
-                                'monthly_pledge' => $sponsorship->kafil->monthly_pledge,
-                                'donor' => $sponsorship->kafil->whenLoaded('donor', function () use ($sponsorship) {
-                                    return [
-                                        'id' => $sponsorship->kafil->donor->id,
-                                        'first_name' => $sponsorship->kafil->donor->first_name,
-                                        'last_name' => $sponsorship->kafil->donor->last_name,
-                                    ];
-                                }),
-                            ];
-                        }),
+                        'kafil' => $sponsorship->relationLoaded('kafil') && $sponsorship->kafil ? [
+                            'id' => $sponsorship->kafil->id,
+                            'first_name' => $sponsorship->kafil->first_name,
+                            'last_name' => $sponsorship->kafil->last_name,
+                            'phone' => $sponsorship->kafil->phone,
+                            'monthly_pledge' => $sponsorship->kafil->monthly_pledge,
+                            'donor' => $sponsorship->kafil->relationLoaded('donor') && $sponsorship->kafil->donor ? [
+                                'id' => $sponsorship->kafil->donor->id,
+                                'first_name' => $sponsorship->kafil->donor->first_name,
+                                'last_name' => $sponsorship->kafil->donor->last_name,
+                            ] : null,
+                        ] : null,
                         'created_at' => $sponsorship->created_at?->toISOString(),
                     ];
                 });
@@ -76,6 +73,7 @@ class WidowResource extends JsonResource
                 return $this->widowFiles ? [
                     'social_situation' => $this->widowFiles->social_situation,
                     'has_chronic_disease' => $this->widowFiles->has_chronic_disease,
+                    'has_maouna' => $this->widowFiles->has_maouna ?? false,
                 ] : null;
             }),
 
@@ -109,6 +107,7 @@ class WidowResource extends JsonResource
                     return [
                         'id' => $illness->id,
                         'label' => $illness->label,
+                        'is_chronic' => $illness->is_chronic ?? false,
                     ];
                 });
             }),

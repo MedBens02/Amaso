@@ -6,7 +6,10 @@
       "Bash(rm:*)",
       "Bash(npm run dev:*)",
       "Bash(composer dev:*)",
-      "Bash(npm i:*)"
+      "Bash(npm i:*)",
+      "Bash(tasklist:*)",
+      "Bash(taskkill:*)",
+      "Bash(powershell:*)"
     ],
     "deny": [],
     "ask": [],

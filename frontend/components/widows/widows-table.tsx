@@ -59,15 +59,13 @@ interface Widow {
 
 interface WidowsTableProps {
   searchTerm: string
-  disabilityFilter?: boolean | null
-  educationFilter?: string | null
+  filters?: any
   refreshTrigger?: number
 }
 
 export function WidowsTable({ 
   searchTerm, 
-  disabilityFilter, 
-  educationFilter, 
+  filters = {}, 
   refreshTrigger 
 }: WidowsTableProps) {
   const [widows, setWidows] = useState<Widow[]>([])
@@ -86,15 +84,26 @@ export function WidowsTable({
   const fetchWidows = async () => {
     try {
       setLoading(true)
-      const response = await api.getWidows({
+      // Prepare query parameters, filtering out empty values
+      const queryParams = {
         search: searchTerm || undefined,
-        has_disability: disabilityFilter !== null ? disabilityFilter : undefined,
-        education_level: educationFilter || undefined,
         per_page: itemsPerPage,
         page: currentPage,
         sort_by: sortBy,
         sort_order: sortOrder,
-      })
+        // Add all filter parameters, converting boolean strings to actual booleans
+        ...(filters.has_disability && filters.has_disability !== "all" && { has_disability: filters.has_disability === "true" }),
+        ...(filters.education_level && filters.education_level !== "all" && { education_level: filters.education_level }),
+        ...(filters.illness_id && filters.illness_id !== "all" && { illness_id: parseInt(filters.illness_id) }),
+        ...(filters.aid_type_id && filters.aid_type_id !== "all" && { aid_type_id: parseInt(filters.aid_type_id) }),
+        ...(filters.skill_id && filters.skill_id !== "all" && { skill_id: parseInt(filters.skill_id) }),
+        ...(filters.has_kafil && filters.has_kafil !== "all" && { has_kafil: filters.has_kafil === "true" }),
+        ...(filters.has_chronic_illness && filters.has_chronic_illness !== "all" && { has_chronic_illness: filters.has_chronic_illness === "true" }),
+        ...(filters.has_active_maouna && filters.has_active_maouna !== "all" && { has_active_maouna: filters.has_active_maouna === "true" }),
+        ...(filters.maouna_partner_id && filters.maouna_partner_id !== "all" && { maouna_partner_id: parseInt(filters.maouna_partner_id) }),
+      }
+
+      const response = await api.getWidows(queryParams)
 
       setWidows(response.data)
       if (response.meta) {
@@ -114,17 +123,27 @@ export function WidowsTable({
 
   useEffect(() => {
     fetchWidows()
-  }, [currentPage, searchTerm, disabilityFilter, educationFilter, refreshTrigger, sortBy, sortOrder])
+  }, [currentPage, searchTerm, filters, refreshTrigger, sortBy, sortOrder])
 
   useEffect(() => {
     if (currentPage !== 1) {
       setCurrentPage(1)
     }
-  }, [searchTerm, disabilityFilter, educationFilter])
+  }, [searchTerm, filters])
 
-  const handleView = (widow: Widow) => {
-    setSelectedWidow(widow)
-    setIsViewDialogOpen(true)
+  const handleView = async (widow: Widow) => {
+    try {
+      // Fetch detailed widow data with all relationships
+      const response = await api.getWidow(widow.id)
+      setSelectedWidow(response.data)
+      setIsViewDialogOpen(true)
+    } catch (error: any) {
+      toast({
+        title: "خطأ في تحميل البيانات",
+        description: error.message || "فشل في تحميل تفاصيل الأرملة",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleEdit = (widow: Widow) => {

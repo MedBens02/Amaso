@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import api from "@/lib/api"
 
 interface Kafil {
-  id: string
+  id: string | number
   name: string
   monthly_pledge: number
   total_sponsored: number
@@ -24,9 +24,10 @@ interface KafilSelectorProps {
   value?: string
   onValueChange: (value: string) => void
   placeholder?: string
+  excludeIds?: string[]  // List of kafil IDs to exclude from selection
 }
 
-export function KafilSelector({ value, onValueChange, placeholder = "اختر الكفيل" }: KafilSelectorProps) {
+export function KafilSelector({ value, onValueChange, placeholder = "اختر الكفيل", excludeIds = [] }: KafilSelectorProps) {
   const [defaultOptions, setDefaultOptions] = useState<KafilOption[]>([])
 
   useEffect(() => {
@@ -34,11 +35,13 @@ export function KafilSelector({ value, onValueChange, placeholder = "اختر ا
     const loadDefaultKafils = async () => {
       try {
         const response = await api.getKafilsForSponsorship()
-        const options = response.data.map((kafil: Kafil) => ({
-          value: kafil.id,
-          label: kafil.name,
-          kafil
-        }))
+        const options = response.data
+          .filter((kafil: Kafil) => !excludeIds.includes(kafil.id.toString()))
+          .map((kafil: Kafil) => ({
+            value: kafil.id.toString(),
+            label: kafil.name,
+            kafil
+          }))
         setDefaultOptions(options)
       } catch (error) {
         console.error('Error loading default kafils:', error)
@@ -46,7 +49,7 @@ export function KafilSelector({ value, onValueChange, placeholder = "اختر ا
     }
     
     loadDefaultKafils()
-  }, [])
+  }, [excludeIds])
 
   const loadOptions = async (inputValue: string): Promise<KafilOption[]> => {
     try {
@@ -55,11 +58,13 @@ export function KafilSelector({ value, onValueChange, placeholder = "اختر ا
       }
       
       const response = await api.getKafilsForSponsorship(inputValue || undefined)
-      return response.data.map((kafil: Kafil) => ({
-        value: kafil.id,
-        label: kafil.name,
-        kafil
-      }))
+      return response.data
+        .filter((kafil: Kafil) => !excludeIds.includes(kafil.id.toString()))
+        .map((kafil: Kafil) => ({
+          value: kafil.id.toString(),
+          label: kafil.name,
+          kafil
+        }))
     } catch (error) {
       console.error('Error loading kafils:', error)
       return []
