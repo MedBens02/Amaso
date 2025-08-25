@@ -32,6 +32,7 @@ class StoreWidowRequest extends FormRequest
             // Widow Files (social situation)
             'social_situation' => ['required', 'string', 'in:single,widow,divorced,remarried'],
             'has_chronic_disease' => ['boolean'],
+            'has_maouna' => ['boolean'],
 
             // Social Information
             'housing_type_id' => ['nullable', 'integer', 'exists:housing_types,id'],

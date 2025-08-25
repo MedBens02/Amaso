@@ -50,8 +50,29 @@ class WidowController extends Controller
             $query->where('education_level', $request->get('education_level'));
         }
 
+        // Sorting functionality
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortOrder = $request->get('sort_order', 'desc');
+        
+        // Define allowed sort columns to prevent SQL injection
+        $allowedSortColumns = [
+            'first_name',
+            'last_name', 
+            'birth_date',
+            'neighborhood',
+            'education_level',
+            'disability_flag',
+            'created_at'
+        ];
+        
+        if (in_array($sortBy, $allowedSortColumns)) {
+            $query->orderBy($sortBy, $sortOrder === 'desc' ? 'desc' : 'asc');
+        } else {
+            $query->latest(); // Default sorting
+        }
+
         $perPage = min($request->get('per_page', 15), 100);
-        $widows = $query->latest()->paginate($perPage);
+        $widows = $query->paginate($perPage);
 
         return WidowResource::collection($widows);
     }
@@ -77,6 +98,7 @@ class WidowController extends Controller
                     'widow_id' => $widow->id,
                     'social_situation' => $validated['social_situation'],
                     'has_chronic_disease' => $validated['has_chronic_disease'] ?? false,
+                    'has_maouna' => $validated['has_maouna'] ?? false,
                 ]);
                 
                 // Create widow social record (only if housing data is provided)

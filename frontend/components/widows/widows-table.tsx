@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Edit, Trash2, Phone, Mail, Loader2, Users } from "lucide-react"
+import { Eye, Edit, Trash2, Phone, Mail, Loader2, Users, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
 import { ViewWidowDialog } from "./view-widow-dialog"
@@ -78,6 +78,8 @@ export function WidowsTable({
   const [selectedWidow, setSelectedWidow] = useState<Widow | null>(null)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [sortBy, setSortBy] = useState<string>('created_at')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const itemsPerPage = 10
   const { toast } = useToast()
 
@@ -90,6 +92,8 @@ export function WidowsTable({
         education_level: educationFilter || undefined,
         per_page: itemsPerPage,
         page: currentPage,
+        sort_by: sortBy,
+        sort_order: sortOrder,
       })
 
       setWidows(response.data)
@@ -110,7 +114,7 @@ export function WidowsTable({
 
   useEffect(() => {
     fetchWidows()
-  }, [currentPage, searchTerm, disabilityFilter, educationFilter, refreshTrigger])
+  }, [currentPage, searchTerm, disabilityFilter, educationFilter, refreshTrigger, sortBy, sortOrder])
 
   useEffect(() => {
     if (currentPage !== 1) {
@@ -149,6 +153,24 @@ export function WidowsTable({
     }
   }
 
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortBy(column)
+      setSortOrder('asc')
+    }
+  }
+
+  const getSortIcon = (column: string) => {
+    if (sortBy !== column) {
+      return <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
+    }
+    return sortOrder === 'asc' 
+      ? <ChevronUp className="h-4 w-4" />
+      : <ChevronDown className="h-4 w-4" />
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -170,13 +192,58 @@ export function WidowsTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-right">الاسم</TableHead>
-              <TableHead className="text-right">العمر</TableHead>
-              <TableHead className="text-right">الحي</TableHead>
+              <TableHead className="text-right">
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSort('first_name')}
+                  className="h-auto p-0 font-medium hover:bg-transparent"
+                >
+                  <span className="ml-2">الاسم</span>
+                  {getSortIcon('first_name')}
+                </Button>
+              </TableHead>
+              <TableHead className="text-right">
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSort('birth_date')}
+                  className="h-auto p-0 font-medium hover:bg-transparent"
+                >
+                  <span className="ml-2">العمر</span>
+                  {getSortIcon('birth_date')}
+                </Button>
+              </TableHead>
+              <TableHead className="text-right">
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSort('neighborhood')}
+                  className="h-auto p-0 font-medium hover:bg-transparent"
+                >
+                  <span className="ml-2">الحي</span>
+                  {getSortIcon('neighborhood')}
+                </Button>
+              </TableHead>
               <TableHead className="text-right">عدد الأيتام</TableHead>
               <TableHead className="text-right">الهاتف</TableHead>
-              <TableHead className="text-right">الحالة التعليمية</TableHead>
-              <TableHead className="text-right">الإعاقة</TableHead>
+              <TableHead className="text-right">
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSort('education_level')}
+                  className="h-auto p-0 font-medium hover:bg-transparent"
+                >
+                  <span className="ml-2">الحالة التعليمية</span>
+                  {getSortIcon('education_level')}
+                </Button>
+              </TableHead>
+              <TableHead className="text-right">
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSort('disability_flag')}
+                  className="h-auto p-0 font-medium hover:bg-transparent"
+                >
+                  <span className="ml-2">الإعاقة</span>
+                  {getSortIcon('disability_flag')}
+                </Button>
+              </TableHead>
               <TableHead className="text-center">الإجراءات</TableHead>
             </TableRow>
           </TableHeader>

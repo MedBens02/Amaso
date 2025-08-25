@@ -114,6 +114,11 @@ const widowSchema = z
       partner_id: z.string(),
       amount: z.number()
     })).default([]),
+    
+    // Maouna fields
+    maounaActive: z.boolean().default(false),
+    maounaAmount: z.number().optional(),
+    maounaPartnerId: z.string().optional(),
   })
   .refine(
     (data) => {
@@ -201,6 +206,8 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
       selectedAidTypes: [],
       hasChronicDisease: false,
       maounaActive: false,
+      maounaAmount: 0,
+      maounaPartnerId: "",
       kafils: [],
     },
   })
@@ -335,6 +342,11 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
     setIsSubmitting(true)
     try {
       console.log("Submitting widow data:", data)
+      console.log("Maouna fields:", { 
+        maounaActive: data.maounaActive, 
+        maounaAmount: data.maounaAmount, 
+        maounaPartnerId: data.maounaPartnerId 
+      })
 
       // Transform the form data to match the backend API structure
       const apiData = {
@@ -358,6 +370,7 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
         // Widow Files (social situation)
         social_situation: data.socialSituation || 'widow',
         has_chronic_disease: data.hasChronicDisease || false,
+        has_maouna: data.maounaActive || false,
 
         // Social Information
         housing_type_id: data.housingType ? parseInt(data.housingType) : 1, // Default to first housing type if not selected
@@ -412,7 +425,9 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
         aid_types: data.selectedAidTypes || [],
 
         // Maouna
-        maouna: data.maounaEntries || []
+        maouna: data.maounaActive && data.maounaPartnerId && data.maounaAmount 
+          ? [{ partner_id: parseInt(data.maounaPartnerId), amount: data.maounaAmount }] 
+          : []
       }
 
       console.log("Transformed API data:", apiData)

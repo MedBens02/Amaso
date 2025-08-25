@@ -14,10 +14,12 @@ class WidowFiles extends Model
         'widow_id',
         'social_situation',
         'has_chronic_disease',
+        'has_maouna',
     ];
 
     protected $casts = [
         'has_chronic_disease' => 'boolean',
+        'has_maouna' => 'boolean',
     ];
 
     public function widow(): BelongsTo
