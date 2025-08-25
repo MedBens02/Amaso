@@ -322,14 +322,191 @@ class WidowController extends Controller
 
     public function update(UpdateWidowRequest $request, Widow $widow): JsonResponse
     {
-        $widow->update($request->validated());
-        
-        $widow->load(['orphans']);
+        try {
+            $updatedWidow = DB::transaction(function () use ($request, $widow) {
+                $validated = $request->validated();
+                
+                // Update the main widow record
+                $widowData = collect($validated)->only([
+                    'first_name', 'last_name', 'phone', 'email', 
+                    'address', 'neighborhood', 'admission_date', 'national_id', 
+                    'birth_date', 'marital_status', 'education_level', 
+                    'disability_flag', 'disability_type'
+                ])->toArray();
+                
+                $widow->update($widowData);
+                
+                // Update widow files record
+                $widow->widowFiles()->updateOrCreate(
+                    ['widow_id' => $widow->id],
+                    [
+                        'social_situation' => $validated['social_situation'] ?? 'widow',
+                        'has_chronic_disease' => $validated['has_chronic_disease'] ?? false,
+                        'has_maouna' => $validated['has_maouna'] ?? false,
+                    ]
+                );
+                
+                // Update widow social record
+                if (!empty($validated['housing_type_id'])) {
+                    $widow->widowSocial()->updateOrCreate(
+                        ['widow_id' => $widow->id],
+                        [
+                            'housing_type_id' => $validated['housing_type_id'],
+                            'housing_status' => $validated['housing_status'] ?? 'owned',
+                            'has_water' => $validated['has_water'] ?? false,
+                            'has_electricity' => $validated['has_electricity'] ?? false,
+                            'has_furniture' => $validated['has_furniture'] ?? 0,
+                        ]
+                    );
+                }
+                
+                // Update children/orphans - delete existing and recreate
+                if (array_key_exists('children', $validated)) {
+                    $widow->orphans()->delete();
+                    if (!empty($validated['children'])) {
+                        foreach ($validated['children'] as $childData) {
+                            Orphan::create([
+                                'widow_id' => $widow->id,
+                                'first_name' => $childData['first_name'],
+                                'last_name' => $childData['last_name'],
+                                'birth_date' => $childData['birth_date'],
+                                'gender' => $childData['gender'],
+                                'education_level' => $childData['education_level'] ?? null,
+                                'health_status' => $childData['health_status'] ?? null,
+                            ]);
+                        }
+                    }
+                }
+                
+                // Update income entries - delete existing and recreate
+                if (array_key_exists('income', $validated)) {
+                    WidowSocialIncome::where('widow_id', $widow->id)->delete();
+                    if (!empty($validated['income'])) {
+                        foreach ($validated['income'] as $incomeData) {
+                            $categoryId = $incomeData['category_id'];
+                            
+                            // If category_id is null but category_name is provided, create new category
+                            if (!$categoryId && !empty($incomeData['category_name'])) {
+                                $category = WidowIncomeCategory::firstOrCreate(['name' => $incomeData['category_name']]);
+                                $categoryId = $category->id;
+                            }
+                            
+                            if ($categoryId) {
+                                WidowSocialIncome::create([
+                                    'widow_id' => $widow->id,
+                                    'income_category_id' => $categoryId,
+                                    'amount' => $incomeData['amount'],
+                                    'remarks' => $incomeData['description'] ?? null,
+                                ]);
+                            }
+                        }
+                    }
+                }
+                
+                // Update expense entries - delete existing and recreate
+                if (array_key_exists('expenses', $validated)) {
+                    WidowSocialExpense::where('widow_id', $widow->id)->delete();
+                    if (!empty($validated['expenses'])) {
+                        foreach ($validated['expenses'] as $expenseData) {
+                            $categoryId = $expenseData['category_id'];
+                            
+                            // If category_id is null but category_name is provided, create new category
+                            if (!$categoryId && !empty($expenseData['category_name'])) {
+                                $category = WidowExpenseCategory::firstOrCreate(['name' => $expenseData['category_name']]);
+                                $categoryId = $category->id;
+                            }
+                            
+                            if ($categoryId) {
+                                WidowSocialExpense::create([
+                                    'widow_id' => $widow->id,
+                                    'expense_category_id' => $categoryId,
+                                    'amount' => $expenseData['amount'],
+                                    'remarks' => $expenseData['description'] ?? null,
+                                ]);
+                            }
+                        }
+                    }
+                }
+                
+                // Handle skills update
+                if (array_key_exists('skills', $validated) || array_key_exists('new_skills', $validated)) {
+                    $skillIds = $validated['skills'] ?? [];
+                    
+                    // Handle new skills creation
+                    if (!empty($validated['new_skills'])) {
+                        foreach ($validated['new_skills'] as $skillName) {
+                            $skill = Skill::firstOrCreate(['label' => $skillName]);
+                            $skillIds[] = $skill->id;
+                        }
+                    }
+                    
+                    // Sync skills
+                    $widow->skills()->sync($skillIds);
+                }
+                
+                // Handle illnesses update
+                if (array_key_exists('illnesses', $validated) || array_key_exists('new_illnesses', $validated)) {
+                    $illnessIds = $validated['illnesses'] ?? [];
+                    
+                    // Handle new illnesses creation
+                    if (!empty($validated['new_illnesses'])) {
+                        foreach ($validated['new_illnesses'] as $illnessName) {
+                            $illness = Illness::firstOrCreate([
+                                'label' => $illnessName,
+                                'is_chronic' => false
+                            ]);
+                            $illnessIds[] = $illness->id;
+                        }
+                    }
+                    
+                    // Sync illnesses
+                    $widow->illnesses()->sync($illnessIds);
+                }
+                
+                // Update aid types
+                if (array_key_exists('aid_types', $validated)) {
+                    $widow->aidTypes()->sync($validated['aid_types'] ?? []);
+                }
+                
+                // Update maouna entries - delete existing and recreate
+                if (array_key_exists('maouna', $validated)) {
+                    WidowMaouna::where('widow_id', $widow->id)->delete();
+                    if (!empty($validated['maouna'])) {
+                        foreach ($validated['maouna'] as $maounaData) {
+                            WidowMaouna::create([
+                                'widow_id' => $widow->id,
+                                'partner_id' => $maounaData['partner_id'],
+                                'amount' => $maounaData['amount'],
+                                'is_active' => true,
+                            ]);
+                        }
+                    }
+                }
+                
+                // Note: Kafil sponsorships are handled separately via the sponsorships API
+                // The frontend should handle kafil updates through the sponsorships endpoints
+                
+                return $widow;
+            });
+            
+            $updatedWidow->load([
+                'orphans', 'widowFiles', 'widowSocial.housingType',
+                'socialIncome.category', 'socialExpenses.category', 
+                'skills', 'illnesses', 'aidTypes', 'activeMaouna.partner',
+                'sponsorships.kafil.donor'
+            ]);
 
-        return response()->json([
-            'message' => 'تم تحديث بيانات الأرملة بنجاح',
-            'data' => new WidowResource($widow)
-        ]);
+            return response()->json([
+                'message' => 'تم تحديث جميع بيانات الأرملة بنجاح',
+                'data' => new WidowResource($updatedWidow)
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'حدث خطأ أثناء تحديث بيانات الأرملة',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function destroy(Widow $widow): JsonResponse

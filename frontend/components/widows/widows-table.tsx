@@ -146,9 +146,19 @@ export function WidowsTable({
     }
   }
 
-  const handleEdit = (widow: Widow) => {
-    setSelectedWidow(widow)
-    setIsEditDialogOpen(true)
+  const handleEdit = async (widow: Widow) => {
+    try {
+      // Fetch detailed widow data with all relationships for editing
+      const response = await api.getWidow(widow.id)
+      setSelectedWidow(response.data)
+      setIsEditDialogOpen(true)
+    } catch (error: any) {
+      toast({
+        title: "خطأ في تحميل البيانات",
+        description: error.message || "فشل في تحميل تفاصيل الأرملة للتعديل",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleDelete = async (id: number, name: string) => {

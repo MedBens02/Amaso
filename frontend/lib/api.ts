@@ -287,7 +287,7 @@ class ApiClient {
   }
 
   async updateWidow(id: number, data: {
-    widow_id?: number
+    // Basic widow information
     first_name?: string
     last_name?: string
     phone?: string
@@ -301,6 +301,55 @@ class ApiClient {
     education_level?: string
     disability_flag?: boolean
     disability_type?: string
+    
+    // Social information
+    social_situation?: string
+    has_chronic_disease?: boolean
+    has_maouna?: boolean
+    housing_type_id?: number
+    housing_status?: string
+    has_electricity?: boolean
+    has_water?: boolean
+    has_furniture?: number
+    
+    // Children/Orphans
+    children?: Array<{
+      first_name: string
+      last_name: string
+      birth_date: string
+      gender: string
+      education_level?: string
+    }>
+    
+    // Skills, illnesses, aid types
+    skills?: number[]
+    new_skills?: string[]
+    illnesses?: number[]
+    aid_types?: number[]
+    
+    // Income and expenses
+    income?: Array<{
+      category_id: number
+      amount: number
+      description?: string
+    }>
+    expenses?: Array<{
+      category_id: number
+      amount: number
+      description?: string
+    }>
+    
+    // Maouna
+    maouna?: Array<{
+      partner_id: number
+      amount: number
+    }>
+    
+    // Kafils
+    kafils?: Array<{
+      kafil_id: string
+      amount: number
+    }>
   }) {
     return this.request<any>(`/widows/${id}`, {
       method: 'PUT',
@@ -309,7 +358,7 @@ class ApiClient {
   }
 
   async getWidow(id: number) {
-    return this.request<any>(`/widows/${id}`)
+    return this.request<any>(`/widows/${id}?include=orphans,widow_files,widow_social,skills,illnesses,aid_types,social_income,social_expenses,active_maouna,sponsorships`)
   }
 
   async deleteWidow(id: number) {
