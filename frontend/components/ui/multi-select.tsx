@@ -26,6 +26,7 @@ interface MultiSelectProps {
   modalPopover?: boolean
   asChild?: boolean
   className?: string
+  enableSearch?: boolean
 }
 
 export function MultiSelect({
@@ -40,6 +41,7 @@ export function MultiSelect({
   modalPopover = false,
   asChild = false,
   className,
+  enableSearch = true,
   ...props
 }: MultiSelectProps) {
   const [selectedValues, setSelectedValues] = React.useState<string[]>(value || defaultValue)
@@ -185,9 +187,26 @@ export function MultiSelect({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom" avoidCollisions={true} onEscapeKeyDown={() => setIsPopoverOpen(false)}>
+      <PopoverContent 
+        className="w-auto p-0 z-[1000] pointer-events-auto" 
+        align="start" 
+        side="bottom" 
+        avoidCollisions={true} 
+        onEscapeKeyDown={() => setIsPopoverOpen(false)}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <Command>
-          <CommandInput placeholder="Search..." onKeyDown={handleInputKeyDown} />
+          {enableSearch && (
+            <CommandInput 
+              placeholder="Search..." 
+              onKeyDown={handleInputKeyDown}
+              autoComplete="off"
+              onKeyDownCapture={(e) => { 
+                if (e.key === 'Enter') e.preventDefault(); 
+              }}
+              onMouseDown={(e) => e.preventDefault()}
+            />
+          )}
           <CommandList>
             <CommandEmpty>No results found.</CommandEmpty>
             <CommandGroup>

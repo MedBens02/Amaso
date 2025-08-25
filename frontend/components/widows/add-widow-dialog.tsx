@@ -602,7 +602,7 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto" data-dialog-content-root>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
@@ -1102,6 +1102,7 @@ export function AddWidowDialog({ open, onOpenChange }: AddWidowDialogProps) {
                           placeholder="اختر الأمراض إن وجدت"
                           variant="inverted"
                           modalPopover={false}
+                          enableSearch={false}
                         />
                       </div>
                     )}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Check, ChevronsUpDown, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -62,11 +62,19 @@ export function KafilSelector({ value, onValueChange, placeholder = "اختر ا
     }
   }, [open])
 
+  // Debounced search effect
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchTerm.length >= 2 || searchTerm.length === 0) {
+        fetchKafils(searchTerm || undefined)
+      }
+    }, 300) // 300ms delay
+
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm])
+
   const handleSearch = (search: string) => {
     setSearchTerm(search)
-    if (search.length >= 2 || search.length === 0) {
-      fetchKafils(search || undefined)
-    }
   }
 
   return (
@@ -95,7 +103,13 @@ export function KafilSelector({ value, onValueChange, placeholder = "اختر ا
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0 z-[9999]" align="start" side="bottom" avoidCollisions={true}>
+      <PopoverContent 
+        className="w-full p-0 z-[1000] pointer-events-auto" 
+        align="start" 
+        side="bottom" 
+        avoidCollisions={true}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <Command>
           <div className="flex items-center border-b px-3">
             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
@@ -104,6 +118,14 @@ export function KafilSelector({ value, onValueChange, placeholder = "اختر ا
               value={searchTerm}
               onValueChange={handleSearch}
               className="border-0 focus:ring-0"
+              autoComplete="off"
+              onKeyDown={(e) => { 
+                if (e.key === 'Enter') e.preventDefault(); 
+              }}
+              onKeyDownCapture={(e) => { 
+                if (e.key === 'Enter') e.preventDefault(); 
+              }}
+              onMouseDown={(e) => e.preventDefault()}
             />
           </div>
           <CommandList>
@@ -113,7 +135,9 @@ export function KafilSelector({ value, onValueChange, placeholder = "اختر ا
                 <p className="text-sm text-muted-foreground mt-2">جاري البحث...</p>
               </div>
             )}
-            <CommandEmpty>لا توجد نتائج للبحث.</CommandEmpty>
+            <CommandEmpty>
+              {searchTerm ? `لا توجد نتائج لـ "${searchTerm}"` : "لا توجد كفلاء متاحين"}
+            </CommandEmpty>
             <CommandGroup>
               {kafils.map((kafil) => (
                 <CommandItem
