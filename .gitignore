@@ -194,3 +194,6 @@ docker-compose.override.yml
 
 # Progress tracking (development files)
 progress.md
+ARCHITECTURE_DECISIONS.md
+DEVELOPMENT_PROGRESS.md
+CLAUDE.md

@@ -162,3 +162,9 @@ const response = await fetch('/api/v1/incomes', {
 - **Complex Relationships**: Kafil-widow sponsorship, beneficiary groups
 - **Financial Tracking**: Approval workflows, balance validation
 - **Charitable Context**: Specialized business logic for charitable operations
+
+## Git Commit Settings
+
+When creating git commits, do not include Claude as a co-author or contributor.
+Use only the user's identity for git commits without any Claude attribution.
+Remove any "Co-Authored-By: Claude" lines from commit messages.
