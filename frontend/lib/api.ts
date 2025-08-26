@@ -468,6 +468,37 @@ class ApiClient {
       body: JSON.stringify(data),
     })
   }
+
+  // Orphans API (read-only)
+  async getOrphans(params?: {
+    search?: string
+    gender?: string
+    education_level?: string
+    min_age?: number
+    max_age?: number
+    per_page?: number
+    page?: number
+    sort_by?: string
+    sort_order?: 'asc' | 'desc'
+  }) {
+    const searchParams = new URLSearchParams()
+    if (params?.search) searchParams.set('search', params.search)
+    if (params?.gender) searchParams.set('gender', params.gender)
+    if (params?.education_level) searchParams.set('education_level', params.education_level)
+    if (params?.min_age) searchParams.set('min_age', params.min_age.toString())
+    if (params?.max_age) searchParams.set('max_age', params.max_age.toString())
+    if (params?.per_page) searchParams.set('per_page', params.per_page.toString())
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.sort_by) searchParams.set('sort_by', params.sort_by)
+    if (params?.sort_order) searchParams.set('sort_order', params.sort_order)
+    
+    const query = searchParams.toString()
+    return this.request<any[]>(`/orphans${query ? `?${query}` : ''}`)
+  }
+
+  async getOrphan(id: number) {
+    return this.request<any>(`/orphans/${id}`)
+  }
 }
 
 export const api = new ApiClient()

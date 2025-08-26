@@ -4,27 +4,37 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Search, Filter } from "lucide-react"
+import { Search, Filter, Users, Info } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { OrphansTable } from "@/components/orphans/orphans-table"
 import { OrphanFilters } from "@/components/orphans/orphan-filters"
-import { AddOrphanDialog } from "@/components/orphans/add-orphan-dialog"
 
 export default function OrphansPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [showFilters, setShowFilters] = useState(false)
-  const [showAddDialog, setShowAddDialog] = useState(false)
+  const [filters, setFilters] = useState({})
+
+  const handleFiltersChange = (newFilters: any) => {
+    setFilters(newFilters)
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">إدارة الأيتام</h1>
-          <p className="text-gray-600 mt-2">إدارة وتتبع بيانات الأيتام والرعاية</p>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+            <Users className="h-8 w-8" />
+            إدارة الأيتام
+          </h1>
+          <p className="text-gray-600 mt-2">عرض وتتبع بيانات الأيتام مجمعة حسب الأسر</p>
         </div>
-        <Button onClick={() => setShowAddDialog(true)}>
-          <Plus className="h-4 w-4 ml-2" />
-          إضافة يتيم جديد
-        </Button>
+        
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            لإضافة أو تعديل بيانات الأيتام، يرجى استخدام صفحة إدارة الأرامل. الأيتام مرتبطون بسجلات أمهاتهم الأرامل.
+          </AlertDescription>
+        </Alert>
       </div>
 
       {/* Search and Filters */}
@@ -48,7 +58,7 @@ export default function OrphansPage() {
         </CardHeader>
         {showFilters && (
           <CardContent>
-            <OrphanFilters />
+            <OrphanFilters onFiltersChange={handleFiltersChange} />
           </CardContent>
         )}
       </Card>
@@ -59,11 +69,9 @@ export default function OrphansPage() {
           <CardTitle>قائمة الأيتام</CardTitle>
         </CardHeader>
         <CardContent>
-          <OrphansTable searchTerm={searchTerm} />
+          <OrphansTable searchTerm={searchTerm} filters={filters} />
         </CardContent>
       </Card>
-
-      <AddOrphanDialog open={showAddDialog} onOpenChange={setShowAddDialog} />
     </div>
   )
 }

@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\DonorController;
 use App\Http\Controllers\Api\V1\WidowController;
 use App\Http\Controllers\Api\V1\KafilController;
+use App\Http\Controllers\Api\V1\OrphanController;
 use App\Http\Controllers\Api\V1\IncomeController;
 use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\TransferController;
@@ -31,6 +32,13 @@ Route::prefix('v1')->group(function () {
     // Widows CRUD
     Route::apiResource('widows', WidowController::class);
     Route::get('widows-reference-data', [WidowController::class, 'getReferenceData']);
+    
+    // Orphans CRUD (read-only, managed through widows)
+    Route::get('orphans', [OrphanController::class, 'index']);
+    Route::get('orphans/{orphan}', [OrphanController::class, 'show']);
+    Route::post('orphans', [OrphanController::class, 'store']); // Returns error message
+    Route::put('orphans/{orphan}', [OrphanController::class, 'update']); // Returns error message
+    Route::delete('orphans/{orphan}', [OrphanController::class, 'destroy']); // Returns error message
     
     // Kafils CRUD
     Route::apiResource('kafils', KafilController::class);
