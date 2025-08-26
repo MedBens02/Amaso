@@ -40,7 +40,6 @@ class WidowResource extends JsonResource
                         'birth_date' => $orphan->birth_date?->format('Y-m-d'),
                         'age' => $orphan->birth_date ? $orphan->birth_date->diffInYears(now()) : null,
                         'gender' => $orphan->gender,
-                        'education_level' => $orphan->educationLevel ? $orphan->educationLevel->name_ar : null,
                         'education_level_id' => $orphan->education_level_id,
                         'health_status' => $orphan->health_status,
                     ];

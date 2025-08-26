@@ -357,13 +357,24 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
         has_furniture: data.hasFurniture,
         
         // Children
-        children: data.children.map(child => ({
-          first_name: child.firstName,
-          last_name: child.lastName,
-          birth_date: child.birthDate.toISOString().split('T')[0],
-          gender: child.sex,
-          education_level_id: child.education_level_id && child.education_level_id !== "0" ? parseInt(child.education_level_id) : null,
-        })),
+        children: data.children.map((child, childIndex) => {
+          console.log(`EDIT - Processing child ${childIndex} for submission:`, child);
+          console.log(`EDIT - Raw education_level_id value for child ${childIndex}:`, child.education_level_id);
+          console.log(`EDIT - Type of education_level_id:`, typeof child.education_level_id);
+          
+          const educationLevelId = child.education_level_id && child.education_level_id !== "0" ? parseInt(child.education_level_id) : null;
+          console.log(`EDIT - Processed education_level_id for child ${childIndex}:`, educationLevelId);
+          
+          const childData = {
+            first_name: child.firstName,
+            last_name: child.lastName,
+            birth_date: child.birthDate.toISOString().split('T')[0],
+            gender: child.sex,
+            education_level_id: educationLevelId,
+          };
+          console.log(`EDIT - Final child data for child ${childIndex}:`, childData);
+          return childData;
+        }),
         
         // Skills
         skills: data.selectedSkills.map(id => parseInt(id)),
@@ -398,6 +409,9 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
           amount: kafil.amount,
         })),
       }
+
+      console.log("EDIT - Final API update data:", updateData);
+      console.log("EDIT - JSON payload being sent to API:", JSON.stringify(updateData));
 
       // Call API to update widow (we'll need to create this endpoint)
       await api.updateWidow(widow.id, updateData)
@@ -738,21 +752,44 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                         <Controller
                           name={`children.${index}.education_level_id`}
                           control={form.control}
-                          render={({ field }) => (
-                            <Select value={field.value || "0"} onValueChange={field.onChange}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="اختر المرحلة الدراسية" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="0">غير محدد</SelectItem>
-                                {educationLevels.map((level) => (
-                                  <SelectItem key={level.id} value={level.id.toString()}>
-                                    {level.name_ar}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
+                          render={({ field }) => {
+                            console.log(`EDIT - Child ${index} education_level_id field value:`, field.value);
+                            console.log(`EDIT - Available education levels:`, educationLevels);
+                            console.log(`EDIT - Field onChange function:`, typeof field.onChange);
+                            
+                            const currentValue = field.value || "0";
+                            console.log(`EDIT - Current value for Select:`, currentValue);
+                            
+                            return (
+                              <Select 
+                                value={currentValue} 
+                                onValueChange={(value) => {
+                                  console.log(`EDIT - Child ${index} education level selected:`, value);
+                                  console.log(`EDIT - About to call field.onChange with:`, value);
+                                  field.onChange(value);
+                                  console.log(`EDIT - After field.onChange, field.value is:`, field.value);
+                                  
+                                  // Additional verification - get the form values
+                                  setTimeout(() => {
+                                    const formValues = form.getValues();
+                                    console.log(`EDIT - Form values after selection:`, formValues.children[index]?.education_level_id);
+                                  }, 100);
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="اختر المرحلة الدراسية" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="0">غير محدد</SelectItem>
+                                  {educationLevels.map((level) => (
+                                    <SelectItem key={level.id} value={level.id.toString()}>
+                                      {level.name_ar}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            );
+                          }}
                         />
                       </div>
                       <div className="space-y-2">

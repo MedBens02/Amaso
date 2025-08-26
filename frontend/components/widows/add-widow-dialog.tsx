@@ -411,14 +411,25 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
         has_furniture: data.hasFurniture || 0,
 
         // Children/Orphans
-        children: (data.children || []).map(child => ({
-          first_name: child.firstName,
-          last_name: child.lastName,
-          birth_date: child.birthDate.toISOString().split('T')[0],
-          gender: child.sex,
-          education_level_id: child.education_level_id && child.education_level_id !== "0" ? parseInt(child.education_level_id) : null,
-          health_status: "" // Add health_status field
-        })),
+        children: (data.children || []).map((child, childIndex) => {
+          console.log(`ADD - Processing child ${childIndex} for submission:`, child);
+          console.log(`ADD - Raw education_level_id value for child ${childIndex}:`, child.education_level_id);
+          console.log(`ADD - Type of education_level_id:`, typeof child.education_level_id);
+          
+          const educationLevelId = child.education_level_id && child.education_level_id !== "0" ? parseInt(child.education_level_id) : null;
+          console.log(`ADD - Processed education_level_id for child ${childIndex}:`, educationLevelId);
+          
+          const childData = {
+            first_name: child.firstName,
+            last_name: child.lastName,
+            birth_date: child.birthDate.toISOString().split('T')[0],
+            gender: child.sex,
+            education_level_id: educationLevelId,
+            health_status: ""
+          };
+          console.log(`ADD - Final child data for child ${childIndex}:`, childData);
+          return childData;
+        }),
 
         // Income and Expenses
         income: (data.incomes || []).map(income => {
@@ -462,13 +473,15 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
       }
 
       console.log("Transformed API data:", apiData)
+      const jsonPayload = JSON.stringify(apiData);
+      console.log("JSON payload being sent to API:", jsonPayload);
 
       const response = await fetch('/api/v1/widows', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(apiData)
+        body: jsonPayload
       })
 
       if (!response.ok) {
@@ -936,21 +949,44 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                       <Controller
                         name={`children.${index}.education_level_id`}
                         control={form.control}
-                        render={({ field }) => (
-                          <Select value={field.value || "0"} onValueChange={field.onChange}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="اختر المرحلة الدراسية" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="0">غير محدد</SelectItem>
-                              {educationLevels.map((level) => (
-                                <SelectItem key={level.id} value={level.id.toString()}>
-                                  {level.name_ar}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
+                        render={({ field }) => {
+                          console.log(`ADD - Child ${index} education_level_id field value:`, field.value);
+                          console.log(`ADD - Available education levels:`, educationLevels);
+                          console.log(`ADD - Field onChange function:`, typeof field.onChange);
+                          
+                          const currentValue = field.value || "0";
+                          console.log(`ADD - Current value for Select:`, currentValue);
+                          
+                          return (
+                            <Select 
+                              value={currentValue} 
+                              onValueChange={(value) => {
+                                console.log(`ADD - Child ${index} education level selected:`, value);
+                                console.log(`ADD - About to call field.onChange with:`, value);
+                                field.onChange(value);
+                                console.log(`ADD - After field.onChange, field.value is:`, field.value);
+                                
+                                // Additional verification - get the form values
+                                setTimeout(() => {
+                                  const formValues = form.getValues();
+                                  console.log(`ADD - Form values after selection:`, formValues.children[index]?.education_level_id);
+                                }, 100);
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="اختر المرحلة الدراسية" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="0">غير محدد</SelectItem>
+                                {educationLevels.map((level) => (
+                                  <SelectItem key={level.id} value={level.id.toString()}>
+                                    {level.name_ar}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          );
+                        }}
                       />
                     </div>
                     <div className="space-y-2">
