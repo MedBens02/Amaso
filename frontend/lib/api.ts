@@ -499,6 +499,11 @@ class ApiClient {
   async getOrphan(id: number) {
     return this.request<any>(`/orphans/${id}`)
   }
+
+  // Education levels for orphans
+  async getOrphansEducationLevels() {
+    return this.request<any[]>('/orphans-education-levels')
+  }
 }
 
 export const api = new ApiClient()

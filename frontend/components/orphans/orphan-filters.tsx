@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
+import api from "@/lib/api"
 
 interface OrphanFiltersProps {
   onFiltersChange: (filters: any) => void
@@ -17,6 +18,23 @@ export function OrphanFilters({ onFiltersChange, initialFilters = {} }: OrphanFi
     min_age: initialFilters.min_age || "",
     max_age: initialFilters.max_age || "",
   })
+  const [educationLevels, setEducationLevels] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchEducationLevels()
+  }, [])
+
+  const fetchEducationLevels = async () => {
+    try {
+      const response = await api.getOrphansEducationLevels()
+      setEducationLevels(response.data || [])
+    } catch (error) {
+      console.error('Failed to fetch education levels:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleFilterChange = (key: string, value: string) => {
     const newFilters = { ...filters, [key]: value }
@@ -113,16 +131,17 @@ export function OrphanFilters({ onFiltersChange, initialFilters = {} }: OrphanFi
 
         <div className="space-y-2">
           <Label htmlFor="education_level">المستوى التعليمي</Label>
-          <Select value={filters.education_level} onValueChange={(value) => handleFilterChange('education_level', value)}>
+          <Select value={filters.education_level} onValueChange={(value) => handleFilterChange('education_level', value)} disabled={loading}>
             <SelectTrigger>
-              <SelectValue placeholder="اختر المستوى التعليمي" />
+              <SelectValue placeholder={loading ? "جاري التحميل..." : "اختر المستوى التعليمي"} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">جميع المستويات</SelectItem>
-              <SelectItem value="ابتدائي">ابتدائي</SelectItem>
-              <SelectItem value="إعدادي">إعدادي</SelectItem>
-              <SelectItem value="ثانوي">ثانوي</SelectItem>
-              <SelectItem value="جامعي">جامعي</SelectItem>
+              {educationLevels.map((level) => (
+                <SelectItem key={level.id} value={level.name_ar}>
+                  {level.name_ar}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

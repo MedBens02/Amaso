@@ -91,5 +91,11 @@ Route::prefix('v1')->group(function () {
         ]);
     });
 
+    Route::get('orphans-education-levels', function () {
+        return response()->json([
+            'data' => \App\Models\OrphansEducationLevel::active()->ordered()->get()
+        ]);
+    });
+
     
 });

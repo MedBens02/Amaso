@@ -16,7 +16,7 @@ class Orphan extends Model
         'last_name',
         'gender',
         'birth_date',
-        'education_level',
+        'education_level_id',
         'health_status',
     ];
 
@@ -27,6 +27,11 @@ class Orphan extends Model
     public function widow(): BelongsTo
     {
         return $this->belongsTo(Widow::class);
+    }
+
+    public function educationLevel(): BelongsTo
+    {
+        return $this->belongsTo(OrphansEducationLevel::class, 'education_level_id');
     }
 
     public function getFullNameAttribute(): string

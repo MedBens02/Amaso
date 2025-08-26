@@ -14,7 +14,7 @@ class OrphanController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Orphan::query()->with(['widow']);
+        $query = Orphan::query()->with(['widow', 'educationLevel']);
 
         // Search functionality
         if ($request->filled('search')) {
@@ -36,7 +36,9 @@ class OrphanController extends Controller
 
         // Filter by education level
         if ($request->filled('education_level')) {
-            $query->where('education_level', 'like', '%' . $request->get('education_level') . '%');
+            $query->whereHas('educationLevel', function($q) use ($request) {
+                $q->where('name_ar', 'like', '%' . $request->get('education_level') . '%');
+            });
         }
 
         // Filter by age range
@@ -92,7 +94,7 @@ class OrphanController extends Controller
                         'age' => $age,
                         'gender' => $orphan->gender,
                         'birth_date' => $orphan->birth_date,
-                        'education_level' => $orphan->education_level,
+                        'education_level' => $orphan->educationLevel ? $orphan->educationLevel->name_ar : 'غير محدد',
                         'health_status' => $orphan->health_status,
                         'created_at' => $orphan->created_at,
                         'updated_at' => $orphan->updated_at,
@@ -118,7 +120,7 @@ class OrphanController extends Controller
      */
     public function show(Orphan $orphan): JsonResponse
     {
-        $orphan->load(['widow']);
+        $orphan->load(['widow', 'educationLevel']);
         
         $birthDate = $orphan->birth_date ? \Carbon\Carbon::parse($orphan->birth_date) : null;
         $age = $birthDate ? $birthDate->age : null;
@@ -131,7 +133,7 @@ class OrphanController extends Controller
             'age' => $age,
             'gender' => $orphan->gender,
             'birth_date' => $orphan->birth_date,
-            'education_level' => $orphan->education_level,
+            'education_level' => $orphan->educationLevel ? $orphan->educationLevel->name_ar : 'غير محدد',
             'health_status' => $orphan->health_status,
             'created_at' => $orphan->created_at,
             'updated_at' => $orphan->updated_at,
