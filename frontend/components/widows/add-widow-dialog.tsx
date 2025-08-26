@@ -58,7 +58,7 @@ const widowSchema = z
           lastName: z.string().min(1, "اسم العائلة مطلوب"),
           sex: z.enum(["male", "female"], { required_error: "الجنس مطلوب" }),
           birthDate: z.date({ required_error: "تاريخ الميلاد مطلوب" }),
-          schoolLevel: z.string().optional(),
+          education_level_id: z.string().optional(), // Education level ID as string for form
           schoolName: z.string().optional(),
         }),
       )
@@ -205,6 +205,7 @@ interface LookupData {
 export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialogProps) {
   const [activeTab, setActiveTab] = useState("personal")
   const [lookupData, setLookupData] = useState<LookupData | null>(null)
+  const [educationLevels, setEducationLevels] = useState<any[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
 
@@ -279,7 +280,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
     const loadLookupData = async () => {
       try {
         // Fetch real data from APIs
-        const [widowsRefData, kafilsData] = await Promise.all([
+        const [widowsRefData, kafilsData, educationLevelsData] = await Promise.all([
           fetch('/api/v1/widows-reference-data').then(async res => {
             if (!res.ok) throw new Error(`Widows reference data API error: ${res.status}`)
             return res.json()
@@ -287,7 +288,8 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
           fetch('/api/v1/kafils').then(async res => {
             if (!res.ok) throw new Error(`Kafils API error: ${res.status}`)
             return res.json()
-          })
+          }),
+          api.getOrphansEducationLevels()
         ])
 
         const apiData: LookupData = {
@@ -332,6 +334,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
         }
 
         setLookupData(apiData)
+        setEducationLevels(educationLevelsData?.data || [])
       } catch (error) {
         console.error("Error loading lookup data:", error)
         // Fallback to empty data
@@ -413,7 +416,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
           last_name: child.lastName,
           birth_date: child.birthDate.toISOString().split('T')[0],
           gender: child.sex,
-          education_level: child.schoolLevel || "",
+          education_level_id: child.education_level_id && child.education_level_id !== "0" ? parseInt(child.education_level_id) : null,
           health_status: "" // Add health_status field
         })),
 
@@ -867,7 +870,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                       lastName: "",
                       sex: "male",
                       birthDate: new Date(),
-                      schoolLevel: "",
+                      education_level_id: "0",
                       schoolName: "",
                     })
                   }
@@ -930,7 +933,25 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                     </div>
                     <div className="space-y-2">
                       <Label>المرحلة الدراسية</Label>
-                      <Input {...form.register(`children.${index}.schoolLevel`)} placeholder="الصف الدراسي" />
+                      <Controller
+                        name={`children.${index}.education_level_id`}
+                        control={form.control}
+                        render={({ field }) => (
+                          <Select value={field.value || "0"} onValueChange={field.onChange}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="اختر المرحلة الدراسية" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">غير محدد</SelectItem>
+                              {educationLevels.map((level) => (
+                                <SelectItem key={level.id} value={level.id.toString()}>
+                                  {level.name_ar}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>اسم المدرسة</Label>

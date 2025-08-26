@@ -182,7 +182,7 @@ class WidowController extends Controller
                             'last_name' => $childData['last_name'],
                             'birth_date' => $childData['birth_date'],
                             'gender' => $childData['gender'], // Use 'gender' as in migration, not 'sex'
-                            'education_level' => $childData['education_level'] ?? null,
+                            'education_level_id' => $childData['education_level_id'] ?? null,
                             'health_status' => $childData['health_status'] ?? null,
                         ]);
                     }
@@ -303,7 +303,7 @@ class WidowController extends Controller
     public function show(Widow $widow): JsonResponse
     {
         $widow->load([
-            'orphans', 
+            'orphans.educationLevel', 
             'widowFiles', 
             'widowSocial.housingType',
             'socialIncome.category', 
@@ -371,7 +371,7 @@ class WidowController extends Controller
                                 'last_name' => $childData['last_name'],
                                 'birth_date' => $childData['birth_date'],
                                 'gender' => $childData['gender'],
-                                'education_level' => $childData['education_level'] ?? null,
+                                'education_level_id' => $childData['education_level_id'] ?? null,
                                 'health_status' => $childData['health_status'] ?? null,
                             ]);
                         }

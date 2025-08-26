@@ -318,7 +318,7 @@ class ApiClient {
       last_name: string
       birth_date: string
       gender: string
-      education_level?: string
+      education_level_id?: number | null
     }>
     
     // Skills, illnesses, aid types

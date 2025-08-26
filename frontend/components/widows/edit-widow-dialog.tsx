@@ -58,7 +58,7 @@ const editWidowSchema = z
           lastName: z.string().min(1, "اسم العائلة مطلوب"),
           sex: z.enum(["male", "female"], { required_error: "الجنس مطلوب" }),
           birthDate: z.date({ required_error: "تاريخ الميلاد مطلوب" }),
-          schoolLevel: z.string().optional(),
+          education_level_id: z.string().optional(), // Education level ID as string for form
           schoolName: z.string().optional(),
         }),
       )
@@ -153,6 +153,7 @@ interface EditWidowDialogProps {
 export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWidowDialogProps) {
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [educationLevels, setEducationLevels] = useState<any[]>([])
   const [referenceData, setReferenceData] = useState({
     housing_types: [],
     skills: [],
@@ -232,8 +233,12 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
   useEffect(() => {
     const loadReferenceData = async () => {
       try {
-        const response = await api.getWidowsReferenceData()
-        setReferenceData(response.data)
+        const [widowsResponse, educationLevelsResponse] = await Promise.all([
+          api.getWidowsReferenceData(),
+          api.getOrphansEducationLevels()
+        ])
+        setReferenceData(widowsResponse.data)
+        setEducationLevels(educationLevelsResponse.data || [])
       } catch (error) {
         console.error("Failed to load reference data:", error)
       }
@@ -273,7 +278,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
           lastName: child.last_name || "",
           sex: child.gender || "male",
           birthDate: child.birth_date ? new Date(child.birth_date) : new Date(),
-          schoolLevel: child.education_level || "",
+          education_level_id: child.education_level_id ? child.education_level_id.toString() : "0",
           schoolName: "", // Not available in current data
         })) || [],
         
@@ -357,7 +362,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
           last_name: child.lastName,
           birth_date: child.birthDate.toISOString().split('T')[0],
           gender: child.sex,
-          education_level: child.schoolLevel || undefined,
+          education_level_id: child.education_level_id && child.education_level_id !== "0" ? parseInt(child.education_level_id) : null,
         })),
         
         // Skills
@@ -661,7 +666,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                         lastName: "",
                         sex: "male",
                         birthDate: new Date(),
-                        schoolLevel: "",
+                        education_level_id: "0",
                         schoolName: "",
                       })
                     }
@@ -730,7 +735,25 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                       </div>
                       <div className="space-y-2">
                         <Label>المرحلة الدراسية</Label>
-                        <Input {...form.register(`children.${index}.schoolLevel`)} placeholder="الصف الدراسي" />
+                        <Controller
+                          name={`children.${index}.education_level_id`}
+                          control={form.control}
+                          render={({ field }) => (
+                            <Select value={field.value || "0"} onValueChange={field.onChange}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="اختر المرحلة الدراسية" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="0">غير محدد</SelectItem>
+                                {educationLevels.map((level) => (
+                                  <SelectItem key={level.id} value={level.id.toString()}>
+                                    {level.name_ar}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label>اسم المدرسة</Label>
