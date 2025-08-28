@@ -9,7 +9,9 @@
       "Bash(npm i:*)",
       "Bash(tasklist:*)",
       "Bash(taskkill:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(mkdir:*)",
+      "Bash(mysql:*)"
     ],
     "deny": [],
     "ask": [],

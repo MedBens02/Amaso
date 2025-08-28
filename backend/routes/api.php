@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\OrphanController;
 use App\Http\Controllers\Api\V1\IncomeController;
 use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\TransferController;
+use App\Http\Controllers\Api\V1\ReferencesController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -97,5 +98,47 @@ Route::prefix('v1')->group(function () {
         ]);
     });
 
+    // References Management - Skills
+    Route::get('references/skills', [ReferencesController::class, 'getSkills']);
+    Route::post('references/skills', [ReferencesController::class, 'storeSkill']);
+    Route::put('references/skills/{skill}', [ReferencesController::class, 'updateSkill']);
+    Route::delete('references/skills/{skill}', [ReferencesController::class, 'destroySkill']);
+    
+    // References Management - Illnesses
+    Route::get('references/illnesses', [ReferencesController::class, 'getIllnesses']);
+    Route::post('references/illnesses', [ReferencesController::class, 'storeIllness']);
+    Route::put('references/illnesses/{illness}', [ReferencesController::class, 'updateIllness']);
+    Route::delete('references/illnesses/{illness}', [ReferencesController::class, 'destroyIllness']);
+    
+    // References Management - Aid Types
+    Route::get('references/aid-types', [ReferencesController::class, 'getAidTypes']);
+    Route::post('references/aid-types', [ReferencesController::class, 'storeAidType']);
+    Route::put('references/aid-types/{aidType}', [ReferencesController::class, 'updateAidType']);
+    Route::delete('references/aid-types/{aidType}', [ReferencesController::class, 'destroyAidType']);
+    
+    // References Management - Income Categories
+    Route::get('references/income-categories', [ReferencesController::class, 'getIncomeCategories']);
+    Route::post('references/income-categories', [ReferencesController::class, 'storeIncomeCategory']);
+    Route::put('references/income-categories/{category}', [ReferencesController::class, 'updateIncomeCategory']);
+    Route::delete('references/income-categories/{category}', [ReferencesController::class, 'destroyIncomeCategory']);
+    
+    // References Management - Expense Categories
+    Route::get('references/expense-categories', [ReferencesController::class, 'getExpenseCategories']);
+    Route::post('references/expense-categories', [ReferencesController::class, 'storeExpenseCategory']);
+    Route::put('references/expense-categories/{category}', [ReferencesController::class, 'updateExpenseCategory']);
+    Route::delete('references/expense-categories/{category}', [ReferencesController::class, 'destroyExpenseCategory']);
+    
+    // References Management - Partners
+    Route::get('references/partners', [ReferencesController::class, 'getPartners']);
+    Route::post('references/partners', [ReferencesController::class, 'storePartner']);
+    Route::put('references/partners/{partner}', [ReferencesController::class, 'updatePartner']);
+    Route::delete('references/partners/{partner}', [ReferencesController::class, 'destroyPartner']);
+    
+    // References Management - Education Levels (CRUD)
+    Route::get('references/education-levels', [ReferencesController::class, 'getEducationLevels']);
+    Route::post('references/education-levels', [ReferencesController::class, 'storeEducationLevel']);
+    Route::put('references/education-levels/{level}', [ReferencesController::class, 'updateEducationLevel']);
+    Route::delete('references/education-levels/{level}', [ReferencesController::class, 'destroyEducationLevel']);
+    Route::post('references/education-levels/reorder', [ReferencesController::class, 'reorderEducationLevels']);
     
 });

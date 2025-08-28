@@ -23,6 +23,7 @@ import {
   ChevronRight,
   FolderOpen,
   LogOut,
+  Database,
 } from "lucide-react"
 
 const navigation = [
@@ -94,6 +95,14 @@ const systemNavigation = [
     name: "الإعدادات",
     href: "/dashboard/settings",
     icon: Settings,
+  },
+]
+
+const referencesNavigation = [
+  {
+    name: "البيانات المرجعية",
+    href: "/dashboard/references",
+    icon: Database,
   },
 ]
 
@@ -170,6 +179,31 @@ export function Sidebar() {
             )}
             <nav className="space-y-1">
               {systemNavigation.map((item) => {
+                const isActive = pathname === item.href
+                return (
+                  <Link key={item.name} href={item.href}>
+                    <Button
+                      variant={isActive ? "secondary" : "ghost"}
+                      className={cn("w-full justify-start", collapsed ? "px-2" : "px-3", isActive && "bg-secondary")}
+                    >
+                      <item.icon className={cn("h-4 w-4", collapsed ? "" : "ml-2")} />
+                      {!collapsed && item.name}
+                    </Button>
+                  </Link>
+                )
+              })}
+            </nav>
+          </div>
+
+          <Separator />
+
+          {/* References Navigation */}
+          <div className="space-y-2">
+            {!collapsed && (
+              <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">البيانات المرجعية</h3>
+            )}
+            <nav className="space-y-1">
+              {referencesNavigation.map((item) => {
                 const isActive = pathname === item.href
                 return (
                   <Link key={item.name} href={item.href}>

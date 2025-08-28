@@ -14,8 +14,8 @@ class WidowIncomeCategory extends Model
         'name',
     ];
 
-    public function socialIncome(): HasMany
+    public function socialIncomes(): HasMany
     {
-        return $this->hasMany(WidowSocialIncome::class, 'category_id');
+        return $this->hasMany(WidowSocialIncome::class, 'income_category_id');
     }
 }

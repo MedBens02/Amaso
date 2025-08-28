@@ -34,4 +34,9 @@ class Partner extends Model
     {
         return $this->hasMany(Expense::class);
     }
+
+    public function widowMaouna(): HasMany
+    {
+        return $this->hasMany(WidowMaouna::class, 'partner_id');
+    }
 }

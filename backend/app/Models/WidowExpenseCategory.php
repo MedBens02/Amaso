@@ -16,6 +16,6 @@ class WidowExpenseCategory extends Model
 
     public function socialExpenses(): HasMany
     {
-        return $this->hasMany(WidowSocialExpense::class, 'category_id');
+        return $this->hasMany(WidowSocialExpense::class, 'expense_category_id');
     }
 }
