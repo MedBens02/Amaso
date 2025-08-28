@@ -126,6 +126,14 @@ interface Widow {
     partner?: {
       id: number
       name: string
+      field?: {
+        id: number
+        label: string
+      }
+      subfield?: {
+        id: number
+        label: string
+      }
     }
   }>
   
@@ -604,19 +612,57 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                   <CardContent>
                     <div className="space-y-3">
                       {widow.active_maouna.map((maouna) => (
-                        <div key={maouna.id} className="bg-purple-50 p-3 rounded-lg">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <p className="font-medium">
-                                {maouna.partner?.name || "غير محدد"}
-                              </p>
-                              <Badge variant={maouna.is_active ? "secondary" : "outline"}>
-                                {maouna.is_active ? "نشطة" : "غير نشطة"}
+                        <div key={maouna.id} className="bg-purple-50 p-4 rounded-lg">
+                          <div className="flex justify-between items-start">
+                            <div className="space-y-2">
+                              <div>
+                                <p className="font-medium text-lg">
+                                  {maouna.partner?.name || "غير محدد"}
+                                </p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge variant={maouna.is_active ? "secondary" : "outline"}>
+                                    {maouna.is_active ? "نشطة" : "غير نشطة"}
+                                  </Badge>
+                                </div>
+                              </div>
+                              
+                              {/* Partner Field and Subfield Details */}
+                              {(maouna.partner?.field || maouna.partner?.subfield) && (
+                                <div className="space-y-1">
+                                  {maouna.partner?.field && (
+                                    <div className="flex items-center gap-2">
+                                      <Label className="text-sm font-medium text-muted-foreground">المجال:</Label>
+                                      <Badge variant="outline" className="text-xs">
+                                        {maouna.partner.field.label}
+                                      </Badge>
+                                    </div>
+                                  )}
+                                  {maouna.partner?.subfield && (
+                                    <div className="flex items-center gap-2">
+                                      <Label className="text-sm font-medium text-muted-foreground">التخصص:</Label>
+                                      <Badge variant="secondary" className="text-xs">
+                                        {maouna.partner.subfield.label}
+                                      </Badge>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* No field/subfield indication */}
+                              {(!maouna.partner?.field && !maouna.partner?.subfield) && (
+                                <div className="text-sm text-muted-foreground">
+                                  <Badge variant="outline" className="text-xs">
+                                    غير مصنف
+                                  </Badge>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="text-right">
+                              <Badge variant="secondary" className="text-lg">
+                                ₪ {maouna.amount}
                               </Badge>
                             </div>
-                            <Badge variant="secondary">
-                              ₪ {maouna.amount}
-                            </Badge>
                           </div>
                         </div>
                       ))}

@@ -163,6 +163,14 @@ class WidowResource extends JsonResource
                         'partner' => $maouna->partner ? [
                             'id' => $maouna->partner->id,
                             'name' => $maouna->partner->name,
+                            'field' => $maouna->partner->relationLoaded('field') && $maouna->partner->field ? [
+                                'id' => $maouna->partner->field->id,
+                                'label' => $maouna->partner->field->label,
+                            ] : null,
+                            'subfield' => $maouna->partner->relationLoaded('subfield') && $maouna->partner->subfield ? [
+                                'id' => $maouna->partner->subfield->id,
+                                'label' => $maouna->partner->subfield->label,
+                            ] : null,
                         ] : null,
                     ];
                 });

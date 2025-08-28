@@ -198,7 +198,9 @@ interface LookupData {
   skills: LookupOption[]
   illnesses: LookupOption[]
   aidTypes: LookupOption[]
-  partners: LookupOption[]
+  partners: any[]
+  partnerFields: any[]
+  partnerSubfields: any[]
   kafils: LookupOption[]
 }
 
@@ -207,6 +209,12 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
   const [lookupData, setLookupData] = useState<LookupData | null>(null)
   const [educationLevels, setEducationLevels] = useState<any[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // Partner filtering state
+  const [selectedPartnerField, setSelectedPartnerField] = useState<any>(null)
+  const [selectedPartnerSubfield, setSelectedPartnerSubfield] = useState<any>(null)
+  const [filteredPartners, setFilteredPartners] = useState<any[]>([])
+  
   const { toast } = useToast()
 
   const form = useForm<WidowFormData>({
@@ -279,8 +287,8 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
   useEffect(() => {
     const loadLookupData = async () => {
       try {
-        // Fetch real data from APIs
-        const [widowsRefData, kafilsData, educationLevelsData] = await Promise.all([
+        // Fetch real data from APIs including partner fields and subfields
+        const [widowsRefData, kafilsData, educationLevelsData, partnerFieldsData, partnerSubfieldsData, partnersData] = await Promise.all([
           fetch('/api/v1/widows-reference-data').then(async res => {
             if (!res.ok) throw new Error(`Widows reference data API error: ${res.status}`)
             return res.json()
@@ -289,7 +297,19 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
             if (!res.ok) throw new Error(`Kafils API error: ${res.status}`)
             return res.json()
           }),
-          api.getOrphansEducationLevels()
+          api.getOrphansEducationLevels(),
+          fetch('/api/v1/references/partner-fields').then(async res => {
+            if (!res.ok) throw new Error(`Partner fields API error: ${res.status}`)
+            return res.json()
+          }),
+          fetch('/api/v1/references/partner-subfields').then(async res => {
+            if (!res.ok) throw new Error(`Partner subfields API error: ${res.status}`)
+            return res.json()
+          }),
+          fetch('/api/v1/references/partners').then(async res => {
+            if (!res.ok) throw new Error(`Partners API error: ${res.status}`)
+            return res.json()
+          })
         ])
 
         const apiData: LookupData = {
@@ -323,10 +343,9 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
             id: item.id.toString(),
             name: item.label
           })),
-          partners: (widowsRefData?.data?.partners || []).map((item: any) => ({
-            id: item.id.toString(),
-            name: item.name
-          })),
+          partners: partnersData?.data || [],
+          partnerFields: partnerFieldsData?.data || [],
+          partnerSubfields: partnerSubfieldsData?.data || [],
           kafils: (kafilsData?.data || []).map((item: any) => ({
             id: item.id.toString(),
             name: `${item.first_name} ${item.last_name}`
@@ -352,6 +371,8 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
           illnesses: [],
           aidTypes: [],
           partners: [],
+          partnerFields: [],
+          partnerSubfields: [],
           kafils: [],
         })
       }
@@ -361,6 +382,37 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
       loadLookupData()
     }
   }, [open])
+
+  // Update filtered partners when field/subfield selection changes
+  useEffect(() => {
+    if (!lookupData?.partners) {
+      setFilteredPartners([])
+      return
+    }
+
+    let filtered = [...lookupData.partners]
+
+    if (selectedPartnerField) {
+      filtered = filtered.filter(partner => 
+        partner.field_id === selectedPartnerField.value || partner.field?.id === selectedPartnerField.value
+      )
+    }
+
+    if (selectedPartnerSubfield) {
+      filtered = filtered.filter(partner => 
+        partner.subfield_id === selectedPartnerSubfield.value || partner.subfield?.id === selectedPartnerSubfield.value
+      )
+    }
+
+    setFilteredPartners(filtered)
+  }, [lookupData?.partners, selectedPartnerField, selectedPartnerSubfield])
+
+  // Initialize filtered partners when lookup data loads
+  useEffect(() => {
+    if (lookupData?.partners) {
+      setFilteredPartners(lookupData.partners)
+    }
+  }, [lookupData?.partners])
 
   const onSubmit = async (data: WidowFormData) => {
     console.log("Form submit triggered!")
@@ -1355,36 +1407,101 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                 </div>
 
                 {form.watch("maounaActive") && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>مبلغ المعونة (₪)</Label>
-                      <Input
-                        type="number"
-                        {...form.register("maounaAmount", { valueAsNumber: true })}
-                        placeholder="0"
-                      />
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>مبلغ المعونة (₪)</Label>
+                        <Input
+                          type="number"
+                          {...form.register("maounaAmount", { valueAsNumber: true })}
+                          placeholder="0"
+                        />
+                      </div>
                     </div>
+
+                    {/* Partner Field and Subfield Filters */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>تصفية حسب المجال (اختياري)</Label>
+                        <SingleSelectRS
+                          options={[
+                            { label: "جميع المجالات", value: null },
+                            ...(lookupData.partnerFields || []).map((field: any) => ({
+                              label: field.label,
+                              value: field.id
+                            }))
+                          ]}
+                          onChange={(value) => {
+                            setSelectedPartnerField(value ? { label: "", value } : null)
+                            setSelectedPartnerSubfield(null) // Reset subfield when field changes
+                          }}
+                          value={selectedPartnerField?.value || null}
+                          placeholder="اختر المجال (اختياري)"
+                          isClearable={true}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>تصفية حسب التخصص (اختياري)</Label>
+                        <SingleSelectRS
+                          options={[
+                            { label: "جميع التخصصات", value: null },
+                            ...(selectedPartnerField 
+                              ? (lookupData.partnerSubfields || [])
+                                  .filter((subfield: any) => subfield.field_id === selectedPartnerField.value)
+                                  .map((subfield: any) => ({
+                                    label: subfield.label,
+                                    value: subfield.id
+                                  }))
+                              : []
+                            )
+                          ]}
+                          onChange={(value) => {
+                            setSelectedPartnerSubfield(value ? { label: "", value } : null)
+                          }}
+                          value={selectedPartnerSubfield?.value || null}
+                          placeholder={!selectedPartnerField ? "اختر المجال أولاً" : "اختر التخصص (اختياري)"}
+                          isDisabled={!selectedPartnerField}
+                          isClearable={true}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Partner Selection */}
                     <div className="space-y-2">
-                      <Label>شريك المعونة</Label>
+                      <Label>اختيار الشريك *</Label>
                       <Controller
                         name="maounaPartnerId"
                         control={form.control}
                         render={({ field }) => (
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="اختر الشريك" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {lookupData.partners.map((partner) => (
-                                <SelectItem key={partner.id} value={partner.id}>
-                                  {partner.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <SingleSelectRS
+                            options={(filteredPartners || []).map((partner: any) => ({
+                              label: partner.name,
+                              value: partner.id.toString()
+                            }))}
+                            onChange={field.onChange}
+                            value={field.value || ""}
+                            placeholder="اختر الشريك"
+                            isSearchable={true}
+                            noOptionsMessage={() => "لم يتم العثور على شركاء"}
+                          />
                         )}
                       />
+                      {form.formState.errors.maounaPartnerId && (
+                        <p className="text-sm text-red-600">{form.formState.errors.maounaPartnerId.message}</p>
+                      )}
                     </div>
+
+                    {/* Show filtered partners count */}
+                    {lookupData.partners && (
+                      <div className="text-sm text-gray-600">
+                        {(selectedPartnerField || selectedPartnerSubfield) ? (
+                          <span>عرض {filteredPartners.length} من أصل {lookupData.partners.length} شريك</span>
+                        ) : (
+                          <span>{lookupData.partners.length} شريك متاح</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

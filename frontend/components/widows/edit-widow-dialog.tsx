@@ -162,7 +162,14 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
     income_categories: [],
     expense_categories: [],
     partners: [],
+    partnerFields: [],
+    partnerSubfields: [],
   })
+
+  // Partner filtering state
+  const [selectedPartnerField, setSelectedPartnerField] = useState<any>(null)
+  const [selectedPartnerSubfield, setSelectedPartnerSubfield] = useState<any>(null)
+  const [filteredPartners, setFilteredPartners] = useState<any[]>([])
 
   // Form setup with react-hook-form
   const form = useForm<EditWidowFormData>({
@@ -233,11 +240,17 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
   useEffect(() => {
     const loadReferenceData = async () => {
       try {
-        const [widowsResponse, educationLevelsResponse] = await Promise.all([
+        const [widowsResponse, educationLevelsResponse, partnerFieldsResponse, partnerSubfieldsResponse] = await Promise.all([
           api.getWidowsReferenceData(),
-          api.getOrphansEducationLevels()
+          api.getOrphansEducationLevels(),
+          fetch('/api/v1/references/partner-fields').then(res => res.ok ? res.json() : { data: [] }),
+          fetch('/api/v1/references/partner-subfields').then(res => res.ok ? res.json() : { data: [] })
         ])
-        setReferenceData(widowsResponse.data)
+        setReferenceData({
+          ...widowsResponse.data,
+          partnerFields: partnerFieldsResponse.data || [],
+          partnerSubfields: partnerSubfieldsResponse.data || []
+        })
         setEducationLevels(educationLevelsResponse.data || [])
       } catch (error) {
         console.error("Failed to load reference data:", error)
@@ -325,6 +338,37 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
       })
     }
   }, [widow, open, form])
+
+  // Update filtered partners when field/subfield selection changes
+  useEffect(() => {
+    if (!referenceData?.partners) {
+      setFilteredPartners([])
+      return
+    }
+
+    let filtered = [...referenceData.partners]
+
+    if (selectedPartnerField) {
+      filtered = filtered.filter((partner: any) => 
+        partner.field_id === selectedPartnerField.value || partner.field?.id === selectedPartnerField.value
+      )
+    }
+
+    if (selectedPartnerSubfield) {
+      filtered = filtered.filter((partner: any) => 
+        partner.subfield_id === selectedPartnerSubfield.value || partner.subfield?.id === selectedPartnerSubfield.value
+      )
+    }
+
+    setFilteredPartners(filtered)
+  }, [referenceData?.partners, selectedPartnerField, selectedPartnerSubfield])
+
+  // Initialize filtered partners when lookup data loads
+  useEffect(() => {
+    if (referenceData?.partners) {
+      setFilteredPartners(referenceData.partners)
+    }
+  }, [referenceData?.partners])
 
   const handleSubmit = async (data: EditWidowFormData) => {
     if (!widow) return
@@ -1179,36 +1223,101 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                   </div>
 
                   {form.watch("maounaActive") && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>مبلغ المعونة (₪)</Label>
-                        <Input
-                          type="number"
-                          {...form.register("maounaAmount", { valueAsNumber: true })}
-                          placeholder="0"
-                        />
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>مبلغ المعونة (₪)</Label>
+                          <Input
+                            type="number"
+                            {...form.register("maounaAmount", { valueAsNumber: true })}
+                            placeholder="0"
+                          />
+                        </div>
                       </div>
+
+                      {/* Partner Field and Subfield Filters */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>تصفية حسب المجال (اختياري)</Label>
+                          <SingleSelectRS
+                            options={[
+                              { label: "جميع المجالات", value: null },
+                              ...(referenceData.partnerFields || []).map((field: any) => ({
+                                label: field.label,
+                                value: field.id
+                              }))
+                            ]}
+                            onChange={(value) => {
+                              setSelectedPartnerField(value ? { label: "", value } : null)
+                              setSelectedPartnerSubfield(null) // Reset subfield when field changes
+                            }}
+                            value={selectedPartnerField?.value || null}
+                            placeholder="اختر المجال (اختياري)"
+                            isClearable={true}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label>تصفية حسب التخصص (اختياري)</Label>
+                          <SingleSelectRS
+                            options={[
+                              { label: "جميع التخصصات", value: null },
+                              ...(selectedPartnerField 
+                                ? (referenceData.partnerSubfields || [])
+                                    .filter((subfield: any) => subfield.field_id === selectedPartnerField.value)
+                                    .map((subfield: any) => ({
+                                      label: subfield.label,
+                                      value: subfield.id
+                                    }))
+                                : []
+                              )
+                            ]}
+                            onChange={(value) => {
+                              setSelectedPartnerSubfield(value ? { label: "", value } : null)
+                            }}
+                            value={selectedPartnerSubfield?.value || null}
+                            placeholder={!selectedPartnerField ? "اختر المجال أولاً" : "اختر التخصص (اختياري)"}
+                            isDisabled={!selectedPartnerField}
+                            isClearable={true}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Partner Selection */}
                       <div className="space-y-2">
-                        <Label>شريك المعونة</Label>
+                        <Label>اختيار الشريك *</Label>
                         <Controller
                           name="maounaPartnerId"
                           control={form.control}
                           render={({ field }) => (
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="اختر الشريك" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {referenceData.partners.map((partner: any) => (
-                                  <SelectItem key={partner.id} value={partner.id.toString()}>
-                                    {partner.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <SingleSelectRS
+                              options={(filteredPartners || []).map((partner: any) => ({
+                                label: partner.name,
+                                value: partner.id.toString()
+                              }))}
+                              onChange={field.onChange}
+                              value={field.value || ""}
+                              placeholder="اختر الشريك"
+                              isSearchable={true}
+                              noOptionsMessage={() => "لم يتم العثور على شركاء"}
+                            />
                           )}
                         />
+                        {form.formState.errors.maounaPartnerId && (
+                          <p className="text-sm text-red-600">{form.formState.errors.maounaPartnerId.message}</p>
+                        )}
                       </div>
+
+                      {/* Show filtered partners count */}
+                      {referenceData.partners && (
+                        <div className="text-sm text-gray-600">
+                          {(selectedPartnerField || selectedPartnerSubfield) ? (
+                            <span>عرض {filteredPartners.length} من أصل {referenceData.partners.length} شريك</span>
+                          ) : (
+                            <span>{referenceData.partners.length} شريك متاح</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

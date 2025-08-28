@@ -284,7 +284,7 @@ class WidowController extends Controller
             $widow->load([
                 'orphans', 'widowFiles', 'widowSocial.housingType',
                 'socialIncome.category', 'socialExpenses.category', 
-                'skills', 'illnesses', 'aidTypes', 'activeMaouna.partner'
+                'skills', 'illnesses', 'aidTypes', 'activeMaouna.partner.field', 'activeMaouna.partner.subfield'
             ]);
 
             return response()->json([
@@ -311,7 +311,8 @@ class WidowController extends Controller
             'skills', 
             'illnesses', 
             'aidTypes', 
-            'activeMaouna.partner',
+            'activeMaouna.partner.field',
+            'activeMaouna.partner.subfield',
             'sponsorships.kafil.donor'
         ]);
         
@@ -492,7 +493,7 @@ class WidowController extends Controller
             $updatedWidow->load([
                 'orphans', 'widowFiles', 'widowSocial.housingType',
                 'socialIncome.category', 'socialExpenses.category', 
-                'skills', 'illnesses', 'aidTypes', 'activeMaouna.partner',
+                'skills', 'illnesses', 'aidTypes', 'activeMaouna.partner.field', 'activeMaouna.partner.subfield',
                 'sponsorships.kafil.donor'
             ]);
 
@@ -593,7 +594,8 @@ class WidowController extends Controller
             'skills', 
             'illnesses', 
             'aidTypes', 
-            'maouna.partner',
+            'maouna.partner.field',
+            'maouna.partner.subfield',
             'sponsorships.kafil.donor'
         ]);
         
