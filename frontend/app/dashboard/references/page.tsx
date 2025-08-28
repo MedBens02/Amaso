@@ -23,6 +23,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { ReferenceItemDialog } from "@/components/references/reference-item-dialog"
 import { EducationLevelReorder } from "@/components/references/education-level-reorder"
+import { PartnersManagement } from "@/components/references/partners-management"
 
 interface ReferenceItem {
   id: number
@@ -119,8 +120,8 @@ export default function ReferencesPage() {
   }
 
   const handleAddItem = (type: typeof dialogType) => {
+    setSelectedItem(undefined) // Clear any previous selection first
     setDialogType(type)
-    setSelectedItem(undefined)
     setDialogOpen(true)
   }
 
@@ -132,6 +133,14 @@ export default function ReferencesPage() {
 
   const handleDialogSuccess = () => {
     loadReferenceData() // Reload data after successful add/edit
+  }
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setDialogOpen(open)
+    if (!open) {
+      // Clear selected item when dialog is closed
+      setSelectedItem(undefined)
+    }
   }
 
   const handleDeleteItem = async (type: typeof dialogType, item: ReferenceItem) => {
@@ -359,13 +368,7 @@ export default function ReferencesPage() {
         </TabsContent>
 
         <TabsContent value="partners">
-          <ReferenceDataTable
-            data={partners}
-            title="الشركاء"
-            icon={Building}
-            keyField="name"
-            type="partner"
-          />
+          <PartnersManagement onDataChange={loadReferenceData} />
         </TabsContent>
 
         <TabsContent value="education">
@@ -382,7 +385,7 @@ export default function ReferencesPage() {
 
       <ReferenceItemDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={handleDialogOpenChange}
         type={dialogType}
         item={selectedItem}
         onSuccess={handleDialogSuccess}

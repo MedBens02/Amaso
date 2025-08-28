@@ -9,6 +9,8 @@ use App\Models\AidType;
 use App\Models\WidowIncomeCategory;
 use App\Models\WidowExpenseCategory;
 use App\Models\Partner;
+use App\Models\PartnerField;
+use App\Models\PartnerSubfield;
 use App\Models\OrphansEducationLevel;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -337,11 +339,27 @@ class ReferencesController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:partners,name',
+            'field_id' => 'nullable|integer|exists:partner_fields,id',
+            'subfield_id' => 'nullable|integer|exists:partner_subfields,id',
         ]);
+
+        // If subfield is provided, ensure it belongs to the selected field
+        if ($request->subfield_id && $request->field_id) {
+            $subfield = PartnerSubfield::find($request->subfield_id);
+            if (!$subfield || $subfield->field_id != $request->field_id) {
+                return response()->json([
+                    'message' => 'التخصص المحدد لا ينتمي للمجال المختار'
+                ], 422);
+            }
+        }
 
         $partner = Partner::create([
             'name' => $request->name,
+            'field_id' => $request->field_id ?: null,
+            'subfield_id' => $request->subfield_id ?: null,
         ]);
+
+        $partner->load(['field', 'subfield']);
 
         return response()->json([
             'message' => 'تم إنشاء الشريك بنجاح',
@@ -353,11 +371,27 @@ class ReferencesController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:partners,name,' . $partner->id,
+            'field_id' => 'nullable|integer|exists:partner_fields,id',
+            'subfield_id' => 'nullable|integer|exists:partner_subfields,id',
         ]);
+
+        // If subfield is provided, ensure it belongs to the selected field
+        if ($request->subfield_id && $request->field_id) {
+            $subfield = PartnerSubfield::find($request->subfield_id);
+            if (!$subfield || $subfield->field_id != $request->field_id) {
+                return response()->json([
+                    'message' => 'التخصص المحدد لا ينتمي للمجال المختار'
+                ], 422);
+            }
+        }
 
         $partner->update([
             'name' => $request->name,
+            'field_id' => $request->field_id ?: null,
+            'subfield_id' => $request->subfield_id ?: null,
         ]);
+
+        $partner->load(['field', 'subfield']);
 
         return response()->json([
             'message' => 'تم تحديث الشريك بنجاح',
@@ -484,6 +518,172 @@ class ReferencesController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'حدث خطأ أثناء تحديث الترتيب',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Partner Fields CRUD
+    public function getPartnerFields(): JsonResponse
+    {
+        $fields = PartnerField::with(['subfields', 'partners'])->orderBy('label')->get();
+        return response()->json(['data' => $fields]);
+    }
+
+    public function storePartnerField(Request $request): JsonResponse
+    {
+        $request->validate([
+            'label' => 'required|string|max:255|unique:partner_fields,label',
+        ]);
+
+        $field = PartnerField::create([
+            'label' => $request->label,
+        ]);
+
+        return response()->json([
+            'message' => 'تم إنشاء مجال الشريك بنجاح',
+            'data' => $field
+        ], 201);
+    }
+
+    public function updatePartnerField(Request $request, PartnerField $field): JsonResponse
+    {
+        $request->validate([
+            'label' => 'required|string|max:255|unique:partner_fields,label,' . $field->id,
+        ]);
+
+        $field->update([
+            'label' => $request->label,
+        ]);
+
+        return response()->json([
+            'message' => 'تم تحديث مجال الشريك بنجاح',
+            'data' => $field
+        ]);
+    }
+
+    public function destroyPartnerField(PartnerField $field): JsonResponse
+    {
+        try {
+            return DB::transaction(function () use ($field) {
+                // Check if field has subfields or partners
+                $subfieldCount = $field->subfields()->count();
+                $partnerCount = $field->partners()->count();
+                
+                if ($subfieldCount > 0 || $partnerCount > 0) {
+                    return response()->json([
+                        'message' => "لا يمكن حذف هذا المجال لأنه يحتوي على {$subfieldCount} تخصص و {$partnerCount} شريك"
+                    ], 400);
+                }
+                
+                $fieldName = $field->label;
+                $field->delete();
+
+                return response()->json([
+                    'message' => "تم حذف مجال الشريك \"{$fieldName}\" بنجاح"
+                ]);
+            });
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'حدث خطأ أثناء حذف مجال الشريك',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Partner Subfields CRUD
+    public function getPartnerSubfields(): JsonResponse
+    {
+        $subfields = PartnerSubfield::with(['field', 'partners'])->orderBy('label')->get();
+        return response()->json(['data' => $subfields]);
+    }
+
+    public function storePartnerSubfield(Request $request): JsonResponse
+    {
+        $request->validate([
+            'field_id' => 'required|integer|exists:partner_fields,id',
+            'label' => 'required|string|max:255',
+        ]);
+
+        // Check for unique label within the same field
+        $exists = PartnerSubfield::where('field_id', $request->field_id)
+            ->where('label', $request->label)
+            ->exists();
+            
+        if ($exists) {
+            return response()->json([
+                'message' => 'يوجد بالفعل تخصص بهذا الاسم في نفس المجال'
+            ], 422);
+        }
+
+        $subfield = PartnerSubfield::create([
+            'field_id' => $request->field_id,
+            'label' => $request->label,
+        ]);
+
+        $subfield->load('field');
+
+        return response()->json([
+            'message' => 'تم إنشاء تخصص الشريك بنجاح',
+            'data' => $subfield
+        ], 201);
+    }
+
+    public function updatePartnerSubfield(Request $request, PartnerSubfield $subfield): JsonResponse
+    {
+        $request->validate([
+            'field_id' => 'required|integer|exists:partner_fields,id',
+            'label' => 'required|string|max:255',
+        ]);
+
+        // Check for unique label within the same field (excluding current record)
+        $exists = PartnerSubfield::where('field_id', $request->field_id)
+            ->where('label', $request->label)
+            ->where('id', '!=', $subfield->id)
+            ->exists();
+            
+        if ($exists) {
+            return response()->json([
+                'message' => 'يوجد بالفعل تخصص بهذا الاسم في نفس المجال'
+            ], 422);
+        }
+
+        $subfield->update([
+            'field_id' => $request->field_id,
+            'label' => $request->label,
+        ]);
+
+        $subfield->load('field');
+
+        return response()->json([
+            'message' => 'تم تحديث تخصص الشريك بنجاح',
+            'data' => $subfield
+        ]);
+    }
+
+    public function destroyPartnerSubfield(PartnerSubfield $subfield): JsonResponse
+    {
+        try {
+            return DB::transaction(function () use ($subfield) {
+                // Check if subfield has partners
+                $partnerCount = $subfield->partners()->count();
+                
+                if ($partnerCount > 0) {
+                    return response()->json([
+                        'message' => "لا يمكن حذف هذا التخصص لأنه يحتوي على {$partnerCount} شريك"
+                    ], 400);
+                }
+                
+                $subfieldName = $subfield->label;
+                $subfield->delete();
+
+                return response()->json([
+                    'message' => "تم حذف تخصص الشريك \"{$subfieldName}\" بنجاح"
+                ]);
+            });
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'حدث خطأ أثناء حذف تخصص الشريك',
                 'error' => $e->getMessage()
             ], 500);
         }

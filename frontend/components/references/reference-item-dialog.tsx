@@ -16,14 +16,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 
 interface ReferenceItemDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  type: 'illness' | 'skill' | 'aid-type' | 'income-category' | 'expense-category' | 'partner' | 'education-level'
+  type: 'illness' | 'skill' | 'aid-type' | 'income-category' | 'expense-category' | 'partner' | 'education-level' | 'partner-field' | 'partner-subfield'
   item?: any
   onSuccess: () => void
+  extraProps?: any
 }
 
 const getTitle = (type: string) => {
@@ -34,7 +36,9 @@ const getTitle = (type: string) => {
     'income-category': 'فئة الدخل',
     'expense-category': 'فئة المصروف',
     'partner': 'الشريك',
-    'education-level': 'المرحلة التعليمية'
+    'education-level': 'المرحلة التعليمية',
+    'partner-field': 'مجال الشريك',
+    'partner-subfield': 'تخصص الشريك'
   }
   return titles[type as keyof typeof titles] || 'العنصر'
 }
@@ -62,7 +66,28 @@ const getSchema = (type: string) => {
     })
   }
 
-  if (type === 'partner' || type === 'income-category' || type === 'expense-category') {
+  if (type === 'partner-field') {
+    return z.object({
+      label: z.string().min(1, "اسم المجال مطلوب"),
+    })
+  }
+
+  if (type === 'partner-subfield') {
+    return z.object({
+      field_id: z.number().min(1, "يجب اختيار المجال"),
+      label: z.string().min(1, "اسم التخصص مطلوب"),
+    })
+  }
+
+  if (type === 'partner') {
+    return z.object({
+      name: z.string().min(1, "اسم الشريك مطلوب"),
+      field_id: z.number().optional(),
+      subfield_id: z.number().optional(),
+    })
+  }
+
+  if (type === 'income-category' || type === 'expense-category') {
     return z.object({
       name: z.string().min(1, "الاسم مطلوب"),
     })
@@ -74,7 +99,7 @@ const getSchema = (type: string) => {
   })
 }
 
-export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess }: ReferenceItemDialogProps) {
+export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess, extraProps }: ReferenceItemDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
   const title = getTitle(type)
@@ -101,6 +126,8 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess 
         name_ar: item.name_ar || "",
         name_en: item.name_en || "",
         label: item.label || "",
+        field_id: item.field_id || 0,
+        subfield_id: item.subfield_id || 0,
         sort_order: item.sort_order || 0,
         is_active: item.is_active ?? true,
         is_chronic: item.is_chronic ?? false,
@@ -111,6 +138,8 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess 
         name_ar: "",
         name_en: "",
         label: "",
+        field_id: 0,
+        subfield_id: 0,
         sort_order: 0,
         is_active: true,
         is_chronic: false,
@@ -137,7 +166,9 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess 
         'income-category': 'references/income-categories',
         'expense-category': 'references/expense-categories',
         'partner': 'references/partners',
-        'education-level': 'references/education-levels'
+        'education-level': 'references/education-levels',
+        'partner-field': 'references/partner-fields',
+        'partner-subfield': 'references/partner-subfields'
       }
       
       const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
@@ -280,13 +311,151 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess 
                 <Label htmlFor="is_chronic">مرض مزمن</Label>
               </div>
             </>
+          ) : type === 'partner-field' ? (
+            <div className="space-y-2">
+              <Label htmlFor="label">اسم المجال *</Label>
+              <Input
+                id="label"
+                {...form.register('label')}
+                placeholder="مثال: الصحة، التعليم، النقل"
+              />
+              {form.formState.errors.label && (
+                <p className="text-sm text-red-600">{form.formState.errors.label.message}</p>
+              )}
+            </div>
+          ) : type === 'partner-subfield' ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="field_id">المجال *</Label>
+                <Controller
+                  control={form.control}
+                  name="field_id"
+                  render={({ field }) => (
+                    <Select value={field.value?.toString()} onValueChange={(value) => field.onChange(parseInt(value))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختر المجال" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {extraProps?.fields?.map((fieldOption: any) => (
+                          <SelectItem key={fieldOption.id} value={fieldOption.id.toString()}>
+                            {fieldOption.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {form.formState.errors.field_id && (
+                  <p className="text-sm text-red-600">{form.formState.errors.field_id.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="label">اسم التخصص *</Label>
+                <Input
+                  id="label"
+                  {...form.register('label')}
+                  placeholder="مثال: صيدليات، مستشفيات، عيادات"
+                />
+                {form.formState.errors.label && (
+                  <p className="text-sm text-red-600">{form.formState.errors.label.message}</p>
+                )}
+              </div>
+            </>
+          ) : type === 'partner' ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="name">اسم الشريك *</Label>
+                <Input
+                  id="name"
+                  {...form.register('name')}
+                  placeholder="مثال: صيدلية النهضة، مستشفى الأمل"
+                />
+                {form.formState.errors.name && (
+                  <p className="text-sm text-red-600">{form.formState.errors.name.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="field_id">المجال (اختياري)</Label>
+                <Controller
+                  control={form.control}
+                  name="field_id"
+                  render={({ field }) => (
+                    <Select 
+                      value={field.value?.toString() || ""} 
+                      onValueChange={(value) => {
+                        const fieldId = value ? parseInt(value) : 0
+                        field.onChange(fieldId)
+                        // Reset subfield when field changes
+                        form.setValue('subfield_id', 0)
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختر المجال (اختياري)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">بدون مجال</SelectItem>
+                        {extraProps?.fields?.map((fieldOption: any) => (
+                          <SelectItem key={fieldOption.id} value={fieldOption.id.toString()}>
+                            {fieldOption.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="subfield_id">التخصص (اختياري)</Label>
+                <Controller
+                  control={form.control}
+                  name="subfield_id"
+                  render={({ field }) => {
+                    const selectedFieldId = form.watch('field_id')
+                    const availableSubfields = extraProps?.subfields?.filter(
+                      (subfield: any) => subfield.field_id === selectedFieldId
+                    ) || []
+
+                    return (
+                      <Select 
+                        value={field.value?.toString() || ""} 
+                        onValueChange={(value) => field.onChange(value ? parseInt(value) : 0)}
+                        disabled={!selectedFieldId || selectedFieldId === 0}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={
+                            !selectedFieldId || selectedFieldId === 0 
+                              ? "اختر المجال أولاً" 
+                              : "اختر التخصص (اختياري)"
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">بدون تخصص</SelectItem>
+                          {availableSubfields.map((subfield: any) => (
+                            <SelectItem key={subfield.id} value={subfield.id.toString()}>
+                              {subfield.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )
+                  }}
+                />
+                {(!form.watch('field_id') || form.watch('field_id') === 0) && (
+                  <p className="text-sm text-gray-500">
+                    اختر المجال أولاً لتتمكن من اختيار التخصص
+                  </p>
+                )}
+              </div>
+            </>
           ) : (
             <div className="space-y-2">
               <Label htmlFor={type === 'skill' || type === 'aid-type' || type === 'illness' ? 'label' : 'name'}>
                 {type === 'skill' ? 'اسم المهارة' :
                  type === 'aid-type' ? 'نوع المساعدة' :
                  type === 'illness' ? 'المرض' :
-                 type === 'partner' ? 'اسم الشريك' :
                  'الاسم'} *
               </Label>
               <Input

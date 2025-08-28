@@ -128,6 +128,18 @@ Route::prefix('v1')->group(function () {
     Route::put('references/expense-categories/{category}', [ReferencesController::class, 'updateExpenseCategory']);
     Route::delete('references/expense-categories/{category}', [ReferencesController::class, 'destroyExpenseCategory']);
     
+    // References Management - Partner Fields
+    Route::get('references/partner-fields', [ReferencesController::class, 'getPartnerFields']);
+    Route::post('references/partner-fields', [ReferencesController::class, 'storePartnerField']);
+    Route::put('references/partner-fields/{field}', [ReferencesController::class, 'updatePartnerField']);
+    Route::delete('references/partner-fields/{field}', [ReferencesController::class, 'destroyPartnerField']);
+    
+    // References Management - Partner Subfields
+    Route::get('references/partner-subfields', [ReferencesController::class, 'getPartnerSubfields']);
+    Route::post('references/partner-subfields', [ReferencesController::class, 'storePartnerSubfield']);
+    Route::put('references/partner-subfields/{subfield}', [ReferencesController::class, 'updatePartnerSubfield']);
+    Route::delete('references/partner-subfields/{subfield}', [ReferencesController::class, 'destroyPartnerSubfield']);
+    
     // References Management - Partners
     Route::get('references/partners', [ReferencesController::class, 'getPartners']);
     Route::post('references/partners', [ReferencesController::class, 'storePartner']);
