@@ -361,7 +361,7 @@ export function IncomesTable({ searchTerm }: IncomesTableProps) {
                   )}
                 </TableCell>
                 <TableCell className="text-right font-bold text-green-600">
-                  ₪ {income.amount.toLocaleString()}
+                  DH {income.amount.toLocaleString()}
                 </TableCell>
                 <TableCell className="text-right">{getPaymentMethodBadge(income.paymentMethod)}</TableCell>
                 <TableCell className="text-right">{getTransferStatusBadge(income)}</TableCell>

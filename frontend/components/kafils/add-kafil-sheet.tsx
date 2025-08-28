@@ -278,7 +278,7 @@ export function AddKafilSheet({ open, onOpenChange, onSuccess }: AddKafilSheetPr
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="monthlyPledge">التعهد الشهري (₪) *</Label>
+                <Label htmlFor="monthlyPledge">التعهد الشهري (DH) *</Label>
                 <Input
                   id="monthlyPledge"
                   type="number"
@@ -303,16 +303,16 @@ export function AddKafilSheet({ open, onOpenChange, onSuccess }: AddKafilSheetPr
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
                   <span className="text-gray-600">التعهد الشهري:</span>
-                  <span className="font-medium text-blue-900 mr-2">₪ {monthlyPledge || 0}</span>
+                  <span className="font-medium text-blue-900 mr-2">DH {monthlyPledge || 0}</span>
                 </div>
                 <div>
                   <span className="text-gray-600">مجموع الكفالات:</span>
-                  <span className="font-medium text-green-600 mr-2">₪ {totalSponsorships}</span>
+                  <span className="font-medium text-green-600 mr-2">DH {totalSponsorships}</span>
                 </div>
                 <div>
                   <span className="text-gray-600">المبلغ المتبقي:</span>
                   <span className={`font-medium mr-2 ${remainingAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    ₪ {remainingAmount}
+                    DH {remainingAmount}
                   </span>
                 </div>
               </div>
@@ -372,7 +372,7 @@ export function AddKafilSheet({ open, onOpenChange, onSuccess }: AddKafilSheetPr
                       step="0.01"
                       min="0"
                     />
-                    <span className="text-sm text-gray-500">₪</span>
+                    <span className="text-sm text-gray-500">DH</span>
                     {sponsoredWidows.length > 1 && (
                       <Button
                         type="button"

@@ -1202,7 +1202,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>المبلغ (₪)</Label>
+                        <Label>المبلغ (DH)</Label>
                         <Input
                           type="number"
                           {...form.register(`incomes.${index}.amount`, { valueAsNumber: true })}
@@ -1267,7 +1267,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>المبلغ (₪)</Label>
+                        <Label>المبلغ (DH)</Label>
                         <Input
                           type="number"
                           {...form.register(`expenses.${index}.amount`, { valueAsNumber: true })}
@@ -1410,7 +1410,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>مبلغ المعونة (₪)</Label>
+                        <Label>مبلغ المعونة (DH)</Label>
                         <Input
                           type="number"
                           {...form.register("maounaAmount", { valueAsNumber: true })}
@@ -1551,7 +1551,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>مبلغ الكفالة (₪)</Label>
+                        <Label>مبلغ الكفالة (DH)</Label>
                         <Input
                           type="number"
                           {...form.register(`kafils.${index}.amount`, { valueAsNumber: true })}

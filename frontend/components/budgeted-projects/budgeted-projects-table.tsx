@@ -170,12 +170,12 @@ export function BudgetedProjectsTable({ searchTerm }: BudgetedProjectsTableProps
                   <TableCell className="text-right">{getCategoryBadge(project.category)}</TableCell>
                   <TableCell className="text-right font-medium">{project.donor}</TableCell>
                   <TableCell className="text-right font-bold text-blue-600">
-                    ₪ {project.totalBudget.toLocaleString()}
+                    DH {project.totalBudget.toLocaleString()}
                   </TableCell>
                   <TableCell className="text-right">
                     <div>
-                      <div className="font-bold text-red-600">₪ {project.usedBudget.toLocaleString()}</div>
-                      <div className="text-xs text-green-600">متبقي: ₪ {remaining.toLocaleString()}</div>
+                      <div className="font-bold text-red-600">DH {project.usedBudget.toLocaleString()}</div>
+                      <div className="text-xs text-green-600">متبقي: DH {remaining.toLocaleString()}</div>
                     </div>
                   </TableCell>
                   <TableCell className="text-center">

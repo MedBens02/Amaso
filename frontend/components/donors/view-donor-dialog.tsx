@@ -109,7 +109,7 @@ export function ViewDonorDialog({ donor, open, onOpenChange }: ViewDonorDialogPr
               <div>
                 <Label className="text-sm font-medium text-muted-foreground">إجمالي التبرعات</Label>
                 <p className="text-xl font-bold text-green-600">
-                  ₪ {donor.total_given?.toLocaleString() || '0'}
+                  DH {donor.total_given?.toLocaleString() || '0'}
                 </p>
               </div>
             </div>
@@ -124,7 +124,7 @@ export function ViewDonorDialog({ donor, open, onOpenChange }: ViewDonorDialogPr
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">التعهد الشهري</Label>
                   <p className="text-lg font-semibold text-blue-600">
-                    ₪ {donor.kafil.monthly_pledge || '0'}
+                    DH {donor.kafil.monthly_pledge || '0'}
                   </p>
                 </div>
 

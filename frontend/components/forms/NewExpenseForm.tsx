@@ -266,7 +266,7 @@ export function NewExpenseDialog({ open, onOpenChange }: NewExpenseDialogProps) 
 
       toast({
         title: "تم الحفظ بنجاح",
-        description: `تم إضافة المصروف بقيمة ₪ ${data.totalAmount.toLocaleString()} لـ ${data.beneficiaries.length} مستفيد`,
+        description: `تم إضافة المصروف بقيمة DH ${data.totalAmount.toLocaleString()} لـ ${data.beneficiaries.length} مستفيد`,
       })
 
       form.reset()
@@ -435,7 +435,7 @@ export function NewExpenseDialog({ open, onOpenChange }: NewExpenseDialogProps) 
               </div>
 
               <div className="space-y-2">
-                <Label>المبلغ الإجمالي (₪) *</Label>
+                <Label>المبلغ الإجمالي (DH) *</Label>
                 <Input
                   type="number"
                   {...form.register("totalAmount", { valueAsNumber: true })}
@@ -603,7 +603,7 @@ export function NewExpenseDialog({ open, onOpenChange }: NewExpenseDialogProps) 
                       توزيع متساوي
                     </Button>
                     <Badge variant="secondary">
-                      المجموع: ₪{" "}
+                      المجموع: DH{" "}
                       {beneficiaryFields.reduce((sum, field) => sum + (field.amount || 0), 0).toLocaleString()}
                     </Badge>
                   </div>
@@ -626,7 +626,7 @@ export function NewExpenseDialog({ open, onOpenChange }: NewExpenseDialogProps) 
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Label className="text-sm">المبلغ (₪):</Label>
+                          <Label className="text-sm">المبلغ (DH):</Label>
                           <Input
                             type="number"
                             value={field.amount}

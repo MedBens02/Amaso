@@ -116,7 +116,7 @@ export function StartNewFiscalYearDialog({ open, onOpenChange }: StartNewFiscalY
               </div>
               <div className="flex justify-between">
                 <span>المبلغ المرحل:</span>
-                <span>₪ {(form.watch("carryOverAmount") || 0).toLocaleString()}</span>
+                <span>DH {(form.watch("carryOverAmount") || 0).toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span>تاريخ البداية:</span>

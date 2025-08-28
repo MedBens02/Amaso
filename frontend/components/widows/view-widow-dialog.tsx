@@ -468,7 +468,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                                 {sponsorship.kafil?.monthly_pledge && (
                                   <div>
                                     <Label className="text-muted-foreground">التعهد الشهري</Label>
-                                    <p>₪ {sponsorship.kafil.monthly_pledge}</p>
+                                    <p>DH {sponsorship.kafil.monthly_pledge}</p>
                                   </div>
                                 )}
                               </div>
@@ -483,7 +483,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                             </div>
                             <div className="text-right">
                               <Badge variant="secondary" className="text-lg">
-                                ₪ {sponsorship.amount}
+                                DH {sponsorship.amount}
                               </Badge>
                             </div>
                           </div>
@@ -494,7 +494,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                         <div className="flex justify-between items-center">
                           <span className="font-medium">إجمالي الكفالة الشهرية:</span>
                           <span className="text-xl font-bold text-green-600">
-                            ₪ {widow.total_sponsorship_amount || 0}
+                            DH {widow.total_sponsorship_amount || 0}
                           </span>
                         </div>
                       </div>
@@ -534,7 +534,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                                 )}
                               </div>
                               <Badge variant="secondary">
-                                ₪ {income.amount}
+                                DH {income.amount}
                               </Badge>
                             </div>
                           </div>
@@ -543,7 +543,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                           <div className="flex justify-between font-medium">
                             <span>إجمالي الدخل:</span>
                             <span className="text-green-600">
-                              ₪ {widow.social_income.reduce((sum, income) => sum + income.amount, 0)}
+                              DH {widow.social_income.reduce((sum, income) => sum + income.amount, 0)}
                             </span>
                           </div>
                         </div>
@@ -579,7 +579,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                                 )}
                               </div>
                               <Badge variant="destructive">
-                                ₪ {expense.amount}
+                                DH {expense.amount}
                               </Badge>
                             </div>
                           </div>
@@ -588,7 +588,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                           <div className="flex justify-between font-medium">
                             <span>إجمالي المصاريف:</span>
                             <span className="text-red-600">
-                              ₪ {widow.social_expenses.reduce((sum, expense) => sum + expense.amount, 0)}
+                              DH {widow.social_expenses.reduce((sum, expense) => sum + expense.amount, 0)}
                             </span>
                           </div>
                         </div>
@@ -660,7 +660,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                             
                             <div className="text-right">
                               <Badge variant="secondary" className="text-lg">
-                                ₪ {maouna.amount}
+                                DH {maouna.amount}
                               </Badge>
                             </div>
                           </div>

@@ -135,7 +135,7 @@ export function TransferIncomeDialog({ open, onOpenChange, items, onSuccess }: T
                         )}
                       </TableCell>
                       <TableCell className="text-right font-bold text-green-600">
-                        ₪ {item.amount.toLocaleString()}
+                        DH {item.amount.toLocaleString()}
                       </TableCell>
                       <TableCell className="text-right">{getPaymentMethodBadge(item.paymentMethod)}</TableCell>
                       <TableCell className="text-right text-sm text-muted-foreground">{item.remarks}</TableCell>
@@ -149,7 +149,7 @@ export function TransferIncomeDialog({ open, onOpenChange, items, onSuccess }: T
             <div className="flex justify-end">
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <div className="text-sm text-blue-600">إجمالي المبلغ المراد تحويله</div>
-                <div className="text-2xl font-bold text-blue-800">₪ {totalAmount.toLocaleString()}</div>
+                <div className="text-2xl font-bold text-blue-800">DH {totalAmount.toLocaleString()}</div>
               </div>
             </div>
           </div>

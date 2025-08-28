@@ -134,7 +134,7 @@ export function KafilSelector({ value, onValueChange, placeholder = "اختر ا
         <div>
           <div className="font-medium">{option.kafil.name}</div>
           <div className="text-sm text-muted-foreground">
-            تعهد: ₪{option.kafil.monthly_pledge} | مكفول: {option.kafil.sponsorships_count} أرملة
+            تعهد: DH{option.kafil.monthly_pledge} | مكفول: {option.kafil.sponsorships_count} أرملة
           </div>
         </div>
       </div>
@@ -143,7 +143,7 @@ export function KafilSelector({ value, onValueChange, placeholder = "اختر ا
           variant={option.kafil.remaining_amount >= 0 ? "secondary" : "destructive"}
           className="text-xs"
         >
-          متبقي: ₪{option.kafil.remaining_amount}
+          متبقي: DH{option.kafil.remaining_amount}
         </Badge>
       </div>
     </div>

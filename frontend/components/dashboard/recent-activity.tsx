@@ -15,7 +15,7 @@ const activities = [
     id: 2,
     type: "aid_distributed",
     title: "توزيع مساعدة شهرية",
-    description: "تم توزيع ₪ 500 لعائلة محمد علي",
+    description: "تم توزيع DH 500 لعائلة محمد علي",
     time: "منذ 4 ساعات",
     status: "مكتمل",
   },

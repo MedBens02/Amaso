@@ -182,16 +182,16 @@ export function ViewKafilDialog({ open, onOpenChange, onEdit, kafilId }: ViewKaf
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-sm text-gray-600">التعهد الشهري</div>
-                  <div className="font-medium text-blue-900">₪ {kafil.monthly_pledge}</div>
+                  <div className="font-medium text-blue-900">DH {kafil.monthly_pledge}</div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-600">إجمالي الكفالات</div>
-                  <div className="font-medium text-green-600">₪ {kafil.total_sponsorship_amount}</div>
+                  <div className="font-medium text-green-600">DH {kafil.total_sponsorship_amount}</div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-600">المبلغ المتبقي</div>
                   <div className={`font-medium ${kafil.remaining_pledge_amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    ₪ {kafil.remaining_pledge_amount}
+                    DH {kafil.remaining_pledge_amount}
                   </div>
                 </div>
                 <div>
@@ -229,7 +229,7 @@ export function ViewKafilDialog({ open, onOpenChange, onEdit, kafilId }: ViewKaf
                       )}
                     </div>
                     <div className="text-left">
-                      <div className="font-bold text-green-600">₪ {sponsorship.amount}</div>
+                      <div className="font-bold text-green-600">DH {sponsorship.amount}</div>
                       <Badge variant="secondary" className="text-xs">
                         كفالة رقم {sponsorship.id}
                       </Badge>

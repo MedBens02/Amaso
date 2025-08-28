@@ -36,7 +36,7 @@ export default function TransfersPage() {
             <Banknote className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">₪ 125,680</div>
+            <div className="text-2xl font-bold text-blue-600">DH 125,680</div>
             <p className="text-xs text-muted-foreground">البنك الأهلي</p>
           </CardContent>
         </Card>
@@ -47,7 +47,7 @@ export default function TransfersPage() {
             <Banknote className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">₪ 45,230</div>
+            <div className="text-2xl font-bold text-red-600">DH 45,230</div>
             <p className="text-xs text-muted-foreground">بنك فلسطين</p>
           </CardContent>
         </Card>
@@ -58,7 +58,7 @@ export default function TransfersPage() {
             <Banknote className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">₪ 89,450</div>
+            <div className="text-2xl font-bold text-green-600">DH 89,450</div>
             <p className="text-xs text-muted-foreground">البنك الإسلامي</p>
           </CardContent>
         </Card>

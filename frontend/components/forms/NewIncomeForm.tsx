@@ -308,7 +308,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>المبلغ (₪) *</Label>
+              <Label>المبلغ (DH) *</Label>
               <Input type="number" {...form.register("amount", { valueAsNumber: true })} placeholder="أدخل المبلغ" />
               {form.formState.errors.amount && (
                 <p className="text-sm text-red-600">{form.formState.errors.amount.message}</p>

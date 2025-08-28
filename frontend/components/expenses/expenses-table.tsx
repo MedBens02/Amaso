@@ -239,7 +239,7 @@ export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
                     <span className="text-muted-foreground text-sm">غير مرتبط</span>
                   )}
                 </TableCell>
-                <TableCell className="text-right font-bold text-red-600">₪ {expense.amount.toLocaleString()}</TableCell>
+                <TableCell className="text-right font-bold text-red-600">DH {expense.amount.toLocaleString()}</TableCell>
                 <TableCell className="text-center">
                   <Button variant="ghost" size="sm" className="h-8 px-2">
                     <Users className="h-4 w-4 ml-1" />

@@ -31,15 +31,26 @@ export function Header({ user }: HeaderProps) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-foreground">مرحباً، {user.name}</h1>
-          <p className="text-sm text-muted-foreground">
-            {new Date().toLocaleDateString("ar-SA", {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-              numberingSystem: "latn"
-            })}
-          </p>
+          <div className="text-sm text-muted-foreground space-y-1">
+            <p>
+              {new Date().toLocaleDateString("ar-SA", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                numberingSystem: "latn"
+              })} هـ
+            </p>
+            <p>
+              {new Date().toLocaleDateString("ar-EG", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                numberingSystem: "latn"
+              })} م
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-4">

@@ -54,7 +54,7 @@ export default function BudgetedProjectsPage() {
             <FolderOpen className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₪ 450,000</div>
+            <div className="text-2xl font-bold">DH 450,000</div>
             <p className="text-xs text-muted-foreground">للمشاريع النشطة</p>
           </CardContent>
         </Card>
@@ -64,7 +64,7 @@ export default function BudgetedProjectsPage() {
             <FolderOpen className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₪ 287,500</div>
+            <div className="text-2xl font-bold">DH 287,500</div>
             <p className="text-xs text-muted-foreground">64% من إجمالي الميزانيات</p>
           </CardContent>
         </Card>

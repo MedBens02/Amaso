@@ -238,7 +238,7 @@ export function EditKafilSheet({ open, onOpenChange, onSuccess, kafilId }: EditK
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="monthlyPledge">التعهد الشهري (₪) *</Label>
+              <Label htmlFor="monthlyPledge">التعهد الشهري (DH) *</Label>
               <Input
                 id="monthlyPledge"
                 type="number"

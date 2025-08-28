@@ -82,7 +82,7 @@ export function NewBudgetedProjectDialog({
 
       toast({
         title: "تم الحفظ بنجاح",
-        description: `تم إضافة المشروع "${data.name}" بميزانية ₪ ${data.totalBudget.toLocaleString()}`,
+        description: `تم إضافة المشروع "${data.name}" بميزانية DH ${data.totalBudget.toLocaleString()}`,
       })
 
       form.reset()
@@ -165,7 +165,7 @@ export function NewBudgetedProjectDialog({
             </div>
 
             <div className="space-y-2">
-              <Label>الميزانية الإجمالية (₪) *</Label>
+              <Label>الميزانية الإجمالية (DH) *</Label>
               <Input
                 type="number"
                 {...form.register("totalBudget", { valueAsNumber: true })}

@@ -198,7 +198,7 @@ export function AddDonorSheet({ open, onOpenChange, onSuccess, convertDonorData 
 
             {isKafil && (
               <div className="space-y-2 mr-6">
-                <Label htmlFor="monthlyPledge">التعهد الشهري (₪) *</Label>
+                <Label htmlFor="monthlyPledge">التعهد الشهري (DH) *</Label>
                 <Input
                   id="monthlyPledge"
                   type="number"

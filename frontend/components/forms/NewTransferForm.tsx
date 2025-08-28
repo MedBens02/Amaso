@@ -162,7 +162,7 @@ export function NewTransferDialog({ open, onOpenChange }: NewTransferDialogProps
                       <SelectItem key={account.id} value={account.id}>
                         <div className="flex items-center justify-between w-full">
                           <span>{account.name}</span>
-                          <span className="text-sm text-gray-500">₪ {account.balance.toLocaleString()}</span>
+                          <span className="text-sm text-gray-500">DH {account.balance.toLocaleString()}</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -173,7 +173,7 @@ export function NewTransferDialog({ open, onOpenChange }: NewTransferDialogProps
             {fromAccount && (
               <div className="text-sm text-gray-600 flex items-center gap-2">
                 <Banknote className="h-4 w-4" />
-                الرصيد الحالي: ₪ {getAccountBalance(fromAccount).toLocaleString()}
+                الرصيد الحالي: DH {getAccountBalance(fromAccount).toLocaleString()}
               </div>
             )}
             {form.formState.errors.fromAccount && (
@@ -198,7 +198,7 @@ export function NewTransferDialog({ open, onOpenChange }: NewTransferDialogProps
                         <SelectItem key={account.id} value={account.id}>
                           <div className="flex items-center justify-between w-full">
                             <span>{account.name}</span>
-                            <span className="text-sm text-gray-500">₪ {account.balance.toLocaleString()}</span>
+                            <span className="text-sm text-gray-500">DH {account.balance.toLocaleString()}</span>
                           </div>
                         </SelectItem>
                       ))}
@@ -209,7 +209,7 @@ export function NewTransferDialog({ open, onOpenChange }: NewTransferDialogProps
             {toAccount && (
               <div className="text-sm text-gray-600 flex items-center gap-2">
                 <Banknote className="h-4 w-4" />
-                الرصيد الحالي: ₪ {getAccountBalance(toAccount).toLocaleString()}
+                الرصيد الحالي: DH {getAccountBalance(toAccount).toLocaleString()}
               </div>
             )}
             {form.formState.errors.toAccount && (
@@ -218,7 +218,7 @@ export function NewTransferDialog({ open, onOpenChange }: NewTransferDialogProps
           </div>
 
           <div className="space-y-2">
-            <Label>المبلغ (₪) *</Label>
+            <Label>المبلغ (DH) *</Label>
             <Input type="number" {...form.register("amount", { valueAsNumber: true })} placeholder="أدخل المبلغ" />
             {form.formState.errors.amount && (
               <p className="text-sm text-red-600">{form.formState.errors.amount.message}</p>

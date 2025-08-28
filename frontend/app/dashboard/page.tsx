@@ -33,7 +33,7 @@ export default function DashboardPage() {
     },
     {
       title: "الإيرادات الشهرية",
-      value: "₪ 85,430",
+      value: "DH 85,430",
       change: "+12.5%",
       changeType: "increase" as const,
       icon: HandCoins,
@@ -41,7 +41,7 @@ export default function DashboardPage() {
     },
     {
       title: "المصروفات الشهرية",
-      value: "₪ 72,150",
+      value: "DH 72,150",
       change: "+8.2%",
       changeType: "increase" as const,
       icon: Wallet,
@@ -49,7 +49,7 @@ export default function DashboardPage() {
     },
     {
       title: "الرصيد النقدي الحالي",
-      value: "₪ 125,680",
+      value: "DH 125,680",
       change: "+15.3%",
       changeType: "increase" as const,
       icon: Banknote,

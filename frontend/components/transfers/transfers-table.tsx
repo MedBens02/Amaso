@@ -102,9 +102,9 @@ export function TransfersTable({ searchTerm }: TransfersTableProps) {
                   </div>
                 </TableCell>
                 <TableCell className="font-bold text-blue-600 text-right">
-                  ₪ {transfer.amount.toLocaleString()}
+                  DH {transfer.amount.toLocaleString()}
                 </TableCell>
-                <TableCell className="font-medium text-right">₪ {transfer.runningBalance.toLocaleString()}</TableCell>
+                <TableCell className="font-medium text-right">DH {transfer.runningBalance.toLocaleString()}</TableCell>
                 <TableCell className="text-right">{getStatusBadge(transfer.status)}</TableCell>
                 <TableCell className="text-sm text-gray-600 text-right">{transfer.remarks}</TableCell>
                 <TableCell className="text-center">

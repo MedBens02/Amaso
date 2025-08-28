@@ -9,7 +9,7 @@ const financeActivities = [
     id: 1,
     type: "income",
     title: "تبرع نقدي",
-    description: "محمد أحمد السيد - ₪ 5,000",
+    description: "محمد أحمد السيد - DH 5,000",
     time: new Date("2024-01-15T10:30:00"),
     status: "معتمد",
     amount: 5000,
@@ -27,7 +27,7 @@ const financeActivities = [
     id: 3,
     type: "income",
     title: "كفالة شهرية",
-    description: "فاطمة علي حسن - ₪ 1,200",
+    description: "فاطمة علي حسن - DH 1,200",
     time: new Date("2024-01-14T16:45:00"),
     status: "مسودة",
     amount: 1200,
@@ -85,7 +85,7 @@ export function RecentFinanceActivity() {
     const sign = amount > 0 ? "+" : ""
     return (
       <span className={`font-medium ${color}`}>
-        {sign}₪ {Math.abs(amount).toLocaleString()}
+        {sign}DH {Math.abs(amount).toLocaleString()}
       </span>
     )
   }

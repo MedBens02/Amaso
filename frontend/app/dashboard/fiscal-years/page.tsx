@@ -89,22 +89,22 @@ export default function FiscalYearsPage() {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>إجمالي الميزانية:</span>
-                  <span className="font-bold">₪ {year.totalBudget.toLocaleString()}</span>
+                  <span className="font-bold">DH {year.totalBudget.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>المصروف:</span>
-                  <span className="font-bold text-red-600">₪ {year.totalSpent.toLocaleString()}</span>
+                  <span className="font-bold text-red-600">DH {year.totalSpent.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>المتبقي:</span>
                   <span className="font-bold text-green-600">
-                    ₪ {(year.totalBudget - year.totalSpent).toLocaleString()}
+                    DH {(year.totalBudget - year.totalSpent).toLocaleString()}
                   </span>
                 </div>
                 {year.carryOver > 0 && (
                   <div className="flex justify-between text-sm">
                     <span>المرحل من السنة السابقة:</span>
-                    <span className="font-bold text-blue-600">₪ {year.carryOver.toLocaleString()}</span>
+                    <span className="font-bold text-blue-600">DH {year.carryOver.toLocaleString()}</span>
                   </div>
                 )}
               </div>

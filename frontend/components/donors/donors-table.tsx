@@ -218,11 +218,11 @@ export function DonorsTable({ searchTerm, isKafilFilter, refreshTrigger }: Donor
                     </div>
                   </TableCell>
                   <TableCell className="font-bold text-green-600 text-right">
-                    ₪ {donor.total_given?.toLocaleString() || '0'}
+                    DH {donor.total_given?.toLocaleString() || '0'}
                   </TableCell>
                   <TableCell className="text-right">
                     {donor.kafil?.monthly_pledge ? (
-                      <span className="text-blue-600 font-medium">₪ {donor.kafil.monthly_pledge}</span>
+                      <span className="text-blue-600 font-medium">DH {donor.kafil.monthly_pledge}</span>
                     ) : (
                       <span className="text-gray-400">-</span>
                     )}
