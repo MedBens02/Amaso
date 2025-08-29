@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\IncomeController;
 use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\TransferController;
 use App\Http\Controllers\Api\V1\ReferencesController;
+use App\Http\Controllers\Api\V1\FiscalYearController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -152,5 +153,13 @@ Route::prefix('v1')->group(function () {
     Route::put('references/education-levels/{level}', [ReferencesController::class, 'updateEducationLevel']);
     Route::delete('references/education-levels/{level}', [ReferencesController::class, 'destroyEducationLevel']);
     Route::post('references/education-levels/reorder', [ReferencesController::class, 'reorderEducationLevels']);
+    
+    // Fiscal Year Management
+    Route::get('fiscal-years', [FiscalYearController::class, 'index']);
+    Route::get('fiscal-years/{fiscalYear}/closing-status', [FiscalYearController::class, 'getClosingStatus']);
+    Route::get('fiscal-years/{fiscalYear}/closing-summary', [FiscalYearController::class, 'getClosingSummary']);
+    Route::post('fiscal-years/{fiscalYear}/close', [FiscalYearController::class, 'closeFiscalYear']);
+    Route::get('fiscal-years/{fiscalYear}/untransferred-incomes', [FiscalYearController::class, 'getUntransferredIncomes']);
+    Route::post('incomes/{income}/transfer', [FiscalYearController::class, 'transferIncome']);
     
 });

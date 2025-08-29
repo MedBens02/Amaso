@@ -15,11 +15,13 @@ class Budget extends Model
         'fiscal_year_id',
         'current_amount',
         'carryover_prev_year',
+        'carryover_next_year',
     ];
 
     protected $casts = [
         'current_amount' => 'decimal:2',
         'carryover_prev_year' => 'decimal:2',
+        'carryover_next_year' => 'decimal:2',
     ];
 
     public function fiscalYear(): BelongsTo

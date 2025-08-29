@@ -34,10 +34,29 @@ interface BankAccount {
   notes?: string
 }
 
-interface FiscalYear {
+interface Transfer {
   id: number
-  year: number
-  status: string
+  fiscal_year_id: number
+  transfer_date: string
+  from_account_id: number
+  to_account_id: number
+  amount: string
+  remarks?: string
+  status: 'Draft' | 'Approved'
+  from_account: {
+    id: number
+    label: string
+    bank_name: string
+    account_number: string
+    balance: string
+  }
+  to_account: {
+    id: number
+    label: string
+    bank_name: string
+    account_number: string
+    balance: string
+  }
 }
 
 const transferSchema = z
@@ -60,58 +79,59 @@ const transferSchema = z
 
 type TransferFormData = z.infer<typeof transferSchema>
 
-interface NewTransferDialogProps {
+interface EditTransferDialogProps {
+  transfer: Transfer | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  onTransferCreated?: () => void
+  onTransferUpdated?: () => void
 }
 
-export function NewTransferDialog({ open, onOpenChange, onTransferCreated }: NewTransferDialogProps) {
+export function EditTransferDialog({ transfer, open, onOpenChange, onTransferUpdated }: EditTransferDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
-  const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>([])
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
   const form = useForm<TransferFormData>({
     resolver: zodResolver(transferSchema),
-    defaultValues: {
-      transferDate: new Date(),
-    },
   })
 
   const fromAccount = form.watch("fromAccount")
   const toAccount = form.watch("toAccount")
 
-  // Fetch bank accounts and fiscal years
+  // Fetch bank accounts when dialog opens
   useEffect(() => {
     if (open) {
-      fetchInitialData()
+      fetchBankAccounts()
     }
   }, [open])
 
-  const fetchInitialData = async () => {
+  // Set form values when transfer changes
+  useEffect(() => {
+    if (transfer && bankAccounts.length > 0) {
+      form.reset({
+        transferDate: new Date(transfer.transfer_date),
+        fromAccount: transfer.from_account_id.toString(),
+        toAccount: transfer.to_account_id.toString(),
+        amount: parseFloat(transfer.amount),
+        remarks: transfer.remarks || ''
+      })
+    }
+  }, [transfer, bankAccounts, form])
+
+  const fetchBankAccounts = async () => {
     setLoading(true)
     try {
-      const [accountsResponse, fiscalYearsResponse] = await Promise.all([
-        fetch('http://127.0.0.1:8000/api/v1/bank-accounts'),
-        fetch('http://127.0.0.1:8000/api/v1/fiscal-years')
-      ])
+      const response = await fetch('http://127.0.0.1:8000/api/v1/bank-accounts')
+      const data = await response.json()
 
-      const accountsData = await accountsResponse.json()
-      const fiscalYearsData = await fiscalYearsResponse.json()
-
-      if (accountsData.data) {
-        setBankAccounts(accountsData.data)
-      }
-
-      if (fiscalYearsData.data) {
-        setFiscalYears(fiscalYearsData.data)
+      if (data.data) {
+        setBankAccounts(data.data)
       }
     } catch (error) {
       toast({
         title: "خطأ في تحميل البيانات",
-        description: "فشل في تحميل بيانات الحسابات والسنوات المالية",
+        description: "فشل في تحميل بيانات الحسابات المصرفية",
         variant: "destructive"
       })
     } finally {
@@ -122,10 +142,6 @@ export function NewTransferDialog({ open, onOpenChange, onTransferCreated }: New
   const getAccountBalance = (accountId: string) => {
     const account = bankAccounts.find((acc) => acc.id.toString() === accountId)
     return account ? account.balance : 0
-  }
-
-  const getAccountInfo = (accountId: string) => {
-    return bankAccounts.find((acc) => acc.id.toString() === accountId)
   }
 
   const DatePicker = ({
@@ -239,16 +255,12 @@ export function NewTransferDialog({ open, onOpenChange, onTransferCreated }: New
   }
 
   const onSubmit = async (data: TransferFormData) => {
+    if (!transfer) return
+
     setIsSubmitting(true)
     try {
-      // Get the open fiscal year (handle both Arabic and English status)
-      const openFiscalYear = fiscalYears.find(fy => fy.status === 'Open' || fy.status === 'مفتوح')
-      if (!openFiscalYear) {
-        throw new Error('لا توجد سنة مالية مفتوحة')
-      }
-
       const transferData = {
-        fiscal_year_id: openFiscalYear.id,
+        fiscal_year_id: transfer.fiscal_year_id,
         transfer_date: format(data.transferDate, 'yyyy-MM-dd'),
         from_account_id: parseInt(data.fromAccount),
         to_account_id: parseInt(data.toAccount),
@@ -256,8 +268,8 @@ export function NewTransferDialog({ open, onOpenChange, onTransferCreated }: New
         remarks: data.remarks || ''
       }
 
-      const response = await fetch('http://127.0.0.1:8000/api/v1/transfers', {
-        method: 'POST',
+      const response = await fetch(`http://127.0.0.1:8000/api/v1/transfers/${transfer.id}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
@@ -268,27 +280,19 @@ export function NewTransferDialog({ open, onOpenChange, onTransferCreated }: New
 
       if (response.ok) {
         toast({
-          title: "تم إنشاء التحويل بنجاح",
+          title: "تم تحديث التحويل بنجاح",
           description: result.message,
         })
 
-        form.reset({
-          transferDate: new Date(),
-          fromAccount: '',
-          toAccount: '',
-          amount: undefined,
-          remarks: ''
-        })
-        
-        onTransferCreated?.()
+        onTransferUpdated?.()
         onOpenChange(false)
       } else {
-        throw new Error(result.message || 'فشل في إنشاء التحويل')
+        throw new Error(result.message || 'فشل في تحديث التحويل')
       }
     } catch (error) {
       toast({
-        title: "خطأ في إنشاء التحويل",
-        description: error instanceof Error ? error.message : "حدث خطأ أثناء إنشاء التحويل",
+        title: "خطأ في تحديث التحويل",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء تحديث التحويل",
         variant: "destructive",
       })
     } finally {
@@ -296,15 +300,17 @@ export function NewTransferDialog({ open, onOpenChange, onTransferCreated }: New
     }
   }
 
+  if (!transfer) return null
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ArrowLeftRight className="h-5 w-5" />
-            تحويل جديد
+            تعديل التحويل
           </DialogTitle>
-          <DialogDescription>إنشاء تحويل جديد بين الحسابات المصرفية</DialogDescription>
+          <DialogDescription>تعديل بيانات التحويل</DialogDescription>
         </DialogHeader>
 
         {loading ? (
@@ -423,7 +429,7 @@ export function NewTransferDialog({ open, onOpenChange, onTransferCreated }: New
                 type="submit" 
                 disabled={isSubmitting}
               >
-                {isSubmitting ? "جاري إنشاء التحويل..." : "إنشاء التحويل"}
+                {isSubmitting ? "جاري التحديث..." : "تحديث التحويل"}
               </Button>
             </DialogFooter>
           </form>

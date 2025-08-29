@@ -28,12 +28,14 @@ class Income extends Model
         'created_by',
         'approved_by',
         'approved_at',
+        'transferred_at',
     ];
 
     protected $casts = [
         'entry_date' => 'date',
         'amount' => 'decimal:2',
         'approved_at' => 'datetime',
+        'transferred_at' => 'datetime',
     ];
 
     public function fiscalYear(): BelongsTo
