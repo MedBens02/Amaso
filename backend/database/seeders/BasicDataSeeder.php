@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\FiscalYear;
-use App\Models\Budget;
 use App\Models\SubBudget;
 use App\Models\BankAccount;
 use App\Models\IncomeCategory;
@@ -20,23 +19,18 @@ class BasicDataSeeder extends Seeder
         $fiscalYear = FiscalYear::create([
             'year' => 2025,
             'is_active' => true,
-        ]);
-
-        // Create budget for 2025
-        $budget = Budget::create([
-            'fiscal_year_id' => $fiscalYear->id,
-            'current_amount' => 100000.00,
             'carryover_prev_year' => 0.00,
+            'carryover_next_year' => 0.00,
         ]);
 
         // Create sub-budgets
         $generalSubBudget = SubBudget::create([
-            'budget_id' => $budget->id,
+            'fiscal_year_id' => $fiscalYear->id,
             'label' => 'الميزانية العامة',
         ]);
 
         $educationSubBudget = SubBudget::create([
-            'budget_id' => $budget->id,
+            'fiscal_year_id' => $fiscalYear->id,
             'label' => 'ميزانية التعليم',
         ]);
 

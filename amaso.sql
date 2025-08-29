@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Aug 28, 2025 at 11:28 PM
+-- Generation Time: Aug 29, 2025 at 07:11 PM
 -- Server version: 8.0.40
 -- PHP Version: 8.2.18
 
@@ -69,7 +69,15 @@ CREATE TABLE IF NOT EXISTS `bank_accounts` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `bank_accounts_label_unique` (`label`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `bank_accounts`
+--
+
+INSERT INTO `bank_accounts` (`id`, `label`, `bank_name`, `account_number`, `balance`, `notes`, `created_at`, `updated_at`) VALUES
+(1, 'حساب البنك الشعبي الرئيسي', 'البنك الشعبي', '001234567890', 267000.00, 'الحساب الرئيسي للجمعية', '2025-08-28 23:19:23', '2025-08-29 13:30:29'),
+(2, 'حساب التوفير - التجاري وفا', 'التجاري وفا بنك', '002345678901', 164000.00, 'حساب التوفير للطوارئ', '2025-08-28 23:19:23', '2025-08-29 13:30:29');
 
 -- --------------------------------------------------------
 
@@ -102,24 +110,6 @@ CREATE TABLE IF NOT EXISTS `beneficiary_group_members` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`group_id`,`beneficiary_type`,`beneficiary_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `budgets`
---
-
-DROP TABLE IF EXISTS `budgets`;
-CREATE TABLE IF NOT EXISTS `budgets` (
-  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `fiscal_year_id` bigint UNSIGNED NOT NULL,
-  `current_amount` decimal(16,2) NOT NULL DEFAULT '0.00',
-  `carryover_prev_year` decimal(16,2) NOT NULL DEFAULT '0.00',
-  `created_at` timestamp NULL DEFAULT NULL,
-  `updated_at` timestamp NULL DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `budgets_fiscal_year_id_unique` (`fiscal_year_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -169,7 +159,7 @@ CREATE TABLE IF NOT EXISTS `donors` (
   `is_kafil` tinyint(1) NOT NULL DEFAULT '0',
   `total_given` decimal(16,2) NOT NULL DEFAULT '0.00',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `donors`
@@ -178,7 +168,9 @@ CREATE TABLE IF NOT EXISTS `donors` (
 INSERT INTO `donors` (`id`, `first_name`, `last_name`, `phone`, `email`, `address`, `created_at`, `updated_at`, `is_kafil`, `total_given`) VALUES
 (1, 'test', 'donor', '4534346345634', NULL, 'sdrgsdfgsd', '2025-08-20 14:36:56', '2025-08-20 14:36:56', 0, 0.00),
 (11, 'kaFIL', 'duplicate', '54554434', 'fsgfsg@dgdfsf.sdfdsf', NULL, '2025-08-21 09:24:29', '2025-08-21 10:35:56', 1, 0.00),
-(13, 'bdfghgd', 'gfdfgdf', '453455435435', 'gfdg@fddfg.dfgdgdf', 'fdgsgfdg', '2025-08-24 17:34:40', '2025-08-25 12:35:08', 1, 0.00);
+(13, 'bdfghgd', 'gfdfgdf', '453455435435', 'gfdg@fddfg.dfgdgdf', 'fdgsgfdg', '2025-08-24 17:34:40', '2025-08-25 12:35:08', 1, 0.00),
+(14, 'أحمد', 'المحسن', '+212661234567', 'ahmed.donor@email.com', 'الرباط، المغرب', '2025-08-28 23:19:23', '2025-08-28 23:19:23', 0, 0.00),
+(15, 'فاطمة', 'الخيرية', '+212662345678', 'fatima.donor@email.com', 'الدار البيضاء، المغرب', '2025-08-28 23:19:23', '2025-08-28 23:19:23', 0, 0.00);
 
 -- --------------------------------------------------------
 
@@ -216,7 +208,16 @@ CREATE TABLE IF NOT EXISTS `expenses` (
   KEY `expenses_bank_account_id_foreign` (`bank_account_id`),
   KEY `expenses_created_by_foreign` (`created_by`),
   KEY `expenses_approved_by_foreign` (`approved_by`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `expenses`
+--
+
+INSERT INTO `expenses` (`id`, `fiscal_year_id`, `sub_budget_id`, `expense_category_id`, `partner_id`, `details`, `expense_date`, `amount`, `payment_method`, `cheque_number`, `receipt_number`, `bank_account_id`, `remarks`, `unrelated_to_benef`, `status`, `created_by`, `approved_by`, `approved_at`, `created_at`, `updated_at`) VALUES
+(1, 2, 1, 1, NULL, 'مساعدة شهرية للأرامل - مارس 2024', '2024-03-25', 15000.00, 'BankWire', NULL, 'EXP-2024-001', 1, 'دفعة مارس للأرامل المستفيدات', 0, 'Approved', 2, 2, '2025-08-16 23:19:23', '2025-08-28 23:19:23', '2025-08-28 23:19:23'),
+(2, 2, 2, 2, NULL, 'شراء مواد تعليمية للبرنامج', '2024-06-20', 3500.00, 'Cash', NULL, 'EXP-2024-002', NULL, 'مصروف في انتظار الموافقة', 0, 'Draft', 2, NULL, NULL, '2025-08-28 23:19:23', '2025-08-28 23:19:23'),
+(3, 2, 1, 1, NULL, 'مساعدة طبية عاجلة', '2024-05-30', 2500.00, 'Cheque', 'CHQ-EXP-001', 'EXP-2024-003', NULL, 'مساعدة طبية للأرملة خديجة', 0, 'Approved', 2, 2, '2025-08-22 23:19:23', '2025-08-28 23:19:23', '2025-08-28 23:19:23');
 
 -- --------------------------------------------------------
 
@@ -274,7 +275,15 @@ CREATE TABLE IF NOT EXISTS `expense_categories` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `expense_categories_label_unique` (`label`),
   KEY `expense_categories_sub_budget_id_foreign` (`sub_budget_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `expense_categories`
+--
+
+INSERT INTO `expense_categories` (`id`, `sub_budget_id`, `label`, `created_at`, `updated_at`) VALUES
+(1, 1, 'مساعدات الأرامل', '2025-08-28 23:19:23', '2025-08-28 23:19:23'),
+(2, 2, 'مواد تعليمية', '2025-08-28 23:19:23', '2025-08-28 23:19:23');
 
 -- --------------------------------------------------------
 
@@ -306,11 +315,23 @@ CREATE TABLE IF NOT EXISTS `fiscal_years` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `year` year NOT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `carryover_prev_year` decimal(16,2) NOT NULL DEFAULT '0.00',
+  `carryover_next_year` decimal(16,2) NOT NULL DEFAULT '0.00',
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `fiscal_years_year_unique` (`year`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `fiscal_years`
+--
+
+INSERT INTO `fiscal_years` (`id`, `year`, `is_active`, `carryover_prev_year`, `carryover_next_year`, `created_at`, `updated_at`) VALUES
+(1, '2023', 0, 15000.00, 45000.00, '2025-08-28 23:19:23', '2025-08-28 23:19:23'),
+(2, '2024', 0, 45000.00, 0.00, '2025-08-28 23:19:23', '2025-08-29 13:30:29'),
+(3, '2025', 0, 50000.00, 431000.00, '2025-08-29 13:30:29', '2025-08-29 17:43:13'),
+(5, '2026', 1, 431000.00, 0.00, '2025-08-29 17:43:13', '2025-08-29 17:43:13');
 
 -- --------------------------------------------------------
 
@@ -399,6 +420,7 @@ CREATE TABLE IF NOT EXISTS `incomes` (
   `created_by` bigint UNSIGNED DEFAULT NULL,
   `approved_by` bigint UNSIGNED DEFAULT NULL,
   `approved_at` timestamp NULL DEFAULT NULL,
+  `transferred_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -410,7 +432,18 @@ CREATE TABLE IF NOT EXISTS `incomes` (
   KEY `incomes_bank_account_id_foreign` (`bank_account_id`),
   KEY `incomes_created_by_foreign` (`created_by`),
   KEY `incomes_approved_by_foreign` (`approved_by`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `incomes`
+--
+
+INSERT INTO `incomes` (`id`, `fiscal_year_id`, `sub_budget_id`, `income_category_id`, `donor_id`, `kafil_id`, `entry_date`, `entry_month`, `amount`, `payment_method`, `cheque_number`, `receipt_number`, `bank_account_id`, `remarks`, `status`, `created_by`, `approved_by`, `approved_at`, `transferred_at`, `created_at`, `updated_at`) VALUES
+(1, 2, 1, 1, 14, NULL, '2024-03-15', NULL, 25000.00, 'BankWire', NULL, 'REC-2024-001', 1, 'تبرع شهري من أحمد المحسن', 'Approved', 2, 2, '2025-08-18 23:19:23', NULL, '2025-08-28 23:19:23', '2025-08-28 23:19:23'),
+(2, 2, 1, 1, 15, NULL, '2024-04-20', NULL, 5000.00, 'Cash', NULL, 'REC-2024-002', 1, 'تبرع نقدي من فاطمة الخيرية', 'Approved', 2, 2, '2025-08-23 23:19:23', '2025-08-28 23:19:48', '2025-08-28 23:19:23', '2025-08-28 23:19:48'),
+(3, 2, 2, 2, 14, NULL, '2024-05-10', NULL, 15000.00, 'Cheque', 'CHQ-001234', 'REC-2024-003', 2, 'تبرع بشيك لبرنامج التعليم', 'Approved', 2, 2, '2025-08-20 23:19:23', '2025-08-25 23:19:23', '2025-08-28 23:19:23', '2025-08-28 23:19:23'),
+(4, 2, 1, 1, 15, NULL, '2024-06-01', NULL, 8000.00, 'Cash', NULL, 'REC-2024-004', NULL, 'تبرع في انتظار الموافقة', 'Draft', 2, NULL, NULL, NULL, '2025-08-28 23:19:23', '2025-08-28 23:19:23'),
+(5, 2, 2, 2, 14, NULL, '2024-07-15', NULL, 12000.00, 'Cheque', 'CHQ-005678', 'REC-2024-005', NULL, 'شيك لم يتم إيداعه بعد', 'Approved', 2, 2, '2025-08-26 23:19:23', NULL, '2025-08-28 23:19:23', '2025-08-28 23:19:23');
 
 -- --------------------------------------------------------
 
@@ -428,7 +461,15 @@ CREATE TABLE IF NOT EXISTS `income_categories` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `income_categories_label_unique` (`label`),
   KEY `income_categories_sub_budget_id_foreign` (`sub_budget_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `income_categories`
+--
+
+INSERT INTO `income_categories` (`id`, `sub_budget_id`, `label`, `created_at`, `updated_at`) VALUES
+(1, 1, 'التبرعات النقدية', '2025-08-28 23:19:23', '2025-08-28 23:19:23'),
+(2, 2, 'رسوم التدريب', '2025-08-28 23:19:23', '2025-08-28 23:19:23');
 
 -- --------------------------------------------------------
 
@@ -544,7 +585,7 @@ CREATE TABLE IF NOT EXISTS `migrations` (
   `migration` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `batch` int NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=45 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=47 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `migrations`
@@ -594,7 +635,9 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (41, '2025_08_20_000001_remove_families_table_restructure', 1),
 (42, '2025_08_25_132108_add_has_maouna_to_widow_files_table', 2),
 (43, '2025_08_26_123720_create_orphans_education_level_table', 3),
-(44, '2025_08_26_123806_modify_orphans_table_add_education_level_foreign_key', 3);
+(44, '2025_08_26_123806_modify_orphans_table_add_education_level_foreign_key', 3),
+(45, '2025_08_28_233444_add_carryover_next_year_to_budgets_table', 4),
+(46, '2025_08_28_233514_add_transferred_at_to_incomes_table', 4);
 
 -- --------------------------------------------------------
 
@@ -840,13 +883,24 @@ INSERT INTO `skills` (`id`, `label`, `created_at`, `updated_at`) VALUES
 DROP TABLE IF EXISTS `sub_budgets`;
 CREATE TABLE IF NOT EXISTS `sub_budgets` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `budget_id` bigint UNSIGNED NOT NULL,
+  `fiscal_year_id` bigint UNSIGNED NOT NULL,
   `label` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `sub_budgets_budget_id_foreign` (`budget_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `sub_budgets_fiscal_year_id_foreign` (`fiscal_year_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `sub_budgets`
+--
+
+INSERT INTO `sub_budgets` (`id`, `fiscal_year_id`, `label`, `created_at`, `updated_at`) VALUES
+(1, 2, 'المساعدات الاجتماعية', '2025-08-28 23:19:23', '2025-08-28 23:19:23'),
+(2, 2, 'التعليم والتدريب', '2025-08-28 23:19:23', '2025-08-28 23:19:23'),
+(3, 3, 'الإيرادات', '2025-08-29 13:32:34', '2025-08-29 13:32:34'),
+(4, 3, 'المصروفات', '2025-08-29 13:32:34', '2025-08-29 13:32:34'),
+(5, 3, 'الاستثمارات', '2025-08-29 13:32:34', '2025-08-29 13:32:34');
 
 -- --------------------------------------------------------
 
@@ -875,7 +929,45 @@ CREATE TABLE IF NOT EXISTS `transfers` (
   KEY `transfers_to_account_id_foreign` (`to_account_id`),
   KEY `transfers_created_by_foreign` (`created_by`),
   KEY `transfers_approved_by_foreign` (`approved_by`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `transfers`
+--
+
+INSERT INTO `transfers` (`id`, `fiscal_year_id`, `transfer_date`, `from_account_id`, `to_account_id`, `amount`, `remarks`, `status`, `created_by`, `approved_by`, `approved_at`, `created_at`, `updated_at`) VALUES
+(1, 2, '2024-01-15', 1, 2, 25000.00, 'تحويل لتغطية مصاريف الطوارئ - يناير', 'Approved', 2, 2, '2025-07-15 12:29:28', '2025-08-29 12:29:28', '2025-08-29 12:29:28'),
+(2, 2, '2024-02-10', 2, 1, 10000.00, 'إعادة توزيع السيولة للحساب الرئيسي', 'Approved', 2, 2, '2025-07-22 12:29:28', '2025-08-29 12:29:28', '2025-08-29 12:29:28'),
+(3, 2, '2024-03-05', 1, 2, 15000.00, 'تحويل لحساب التوفير - مارس', 'Approved', 2, 2, '2025-07-28 12:29:28', '2025-08-29 12:29:28', '2025-08-29 12:29:28'),
+(4, 2, '2024-04-22', 1, 2, 30000.00, 'تحويل كبير لحساب الطوارئ', 'Approved', 2, 2, '2025-08-04 12:29:28', '2025-08-29 12:29:28', '2025-08-29 12:29:28'),
+(5, 2, '2024-05-18', 2, 1, 20000.00, 'تحويل لتغطية المصاريف التشغيلية', 'Approved', 2, 2, '2025-08-11 12:29:28', '2025-08-29 12:29:28', '2025-08-29 12:29:28'),
+(6, 2, '2024-06-12', 1, 2, 8000.00, 'تحويل صغير لضبط الأرصدة', 'Approved', 2, 2, '2025-08-17 12:29:28', '2025-08-29 12:29:28', '2025-08-29 12:29:28'),
+(7, 2, '2024-07-08', 1, 2, 12000.00, 'تحويل في انتظار الموافقة - يوليو', 'Approved', 2, 1, '2025-08-29 12:35:47', '2025-08-29 12:29:28', '2025-08-29 12:35:47'),
+(8, 2, '2024-08-15', 2, 1, 5000.00, 'تحويل صغير في انتظار الموافقة', 'Approved', 2, 1, '2025-08-29 12:35:11', '2025-08-29 12:29:28', '2025-08-29 12:35:11'),
+(9, 2, '2024-06-25', 1, 2, 2500.00, 'تحويل مبلغ صغير للاختبار', 'Approved', 2, 2, '2025-08-19 12:29:28', '2025-08-29 12:29:28', '2025-08-29 12:29:28'),
+(10, 2, '2024-07-30', 2, 1, 50000.00, 'تحويل مبلغ كبير للاختبار', 'Approved', 2, 2, '2025-08-26 12:29:28', '2025-08-29 12:29:28', '2025-08-29 12:29:28'),
+(11, 2, '2024-01-15', 1, 2, 25000.00, 'تحويل لتغطية مصاريف الطوارئ - يناير', 'Approved', 2, 2, '2025-07-15 12:38:46', '2025-08-29 12:38:46', '2025-08-29 12:38:46'),
+(12, 2, '2024-02-10', 2, 1, 10000.00, 'إعادة توزيع السيولة للحساب الرئيسي', 'Approved', 2, 2, '2025-07-22 12:38:46', '2025-08-29 12:38:46', '2025-08-29 12:38:46'),
+(13, 2, '2024-03-05', 1, 2, 15000.00, 'تحويل لحساب التوفير - مارس', 'Approved', 2, 2, '2025-07-28 12:38:46', '2025-08-29 12:38:46', '2025-08-29 12:38:46'),
+(14, 2, '2024-04-22', 1, 2, 30000.00, 'تحويل كبير لحساب الطوارئ', 'Approved', 2, 2, '2025-08-04 12:38:46', '2025-08-29 12:38:46', '2025-08-29 12:38:46'),
+(15, 2, '2024-05-18', 2, 1, 20000.00, 'تحويل لتغطية المصاريف التشغيلية', 'Approved', 2, 2, '2025-08-11 12:38:46', '2025-08-29 12:38:47', '2025-08-29 12:38:47'),
+(16, 2, '2024-06-12', 1, 2, 8000.00, 'تحويل صغير لضبط الأرصدة', 'Approved', 2, 2, '2025-08-17 12:38:46', '2025-08-29 12:38:47', '2025-08-29 12:38:47'),
+(17, 2, '2024-07-08', 1, 2, 12000.00, 'تحويل في انتظار الموافقة - يوليو', 'Approved', 2, 1, '2025-08-29 12:40:27', '2025-08-29 12:38:47', '2025-08-29 12:40:27'),
+(18, 2, '2024-08-15', 2, 1, 5000.00, 'تحويل صغير في انتظار الموافقة', 'Approved', 2, 1, '2025-08-29 12:39:52', '2025-08-29 12:38:47', '2025-08-29 12:39:52'),
+(19, 2, '2024-06-25', 1, 2, 2500.00, 'تحويل مبلغ صغير للاختبار', 'Approved', 2, 2, '2025-08-19 12:38:46', '2025-08-29 12:38:47', '2025-08-29 12:38:47'),
+(20, 2, '2024-07-30', 2, 1, 50000.00, 'تحويل مبلغ كبير للاختبار', 'Approved', 2, 2, '2025-08-26 12:38:46', '2025-08-29 12:38:47', '2025-08-29 12:38:47'),
+(22, 2, '2024-11-06', 1, 2, 11000.00, 'approved new transfer', 'Approved', 1, 1, '2025-08-29 13:08:46', '2025-08-29 13:08:06', '2025-08-29 13:08:46'),
+(26, 2, '2024-10-16', 1, 2, 55000.00, 'new remark', 'Approved', 1, 1, '2025-08-29 13:21:56', '2025-08-29 13:19:32', '2025-08-29 13:21:56'),
+(28, 3, '2025-01-15', 1, 2, 25000.00, 'تحويل رأس المال للاستثمار', 'Approved', NULL, NULL, '2025-01-15 09:30:00', '2025-01-15 04:00:00', '2025-01-15 08:00:00'),
+(29, 3, '2025-02-01', 2, 2, 15000.00, 'تمويل العمليات الشهرية', 'Approved', NULL, NULL, '2025-02-01 13:20:00', '2025-02-01 01:00:00', '2025-02-01 08:00:00'),
+(30, 3, '2025-03-10', 1, 2, 8500.00, 'سداد مستحقات المورديين', 'Draft', NULL, NULL, NULL, '2025-03-10 01:00:00', '2025-03-10 09:00:00'),
+(31, 3, '2025-03-20', 2, 1, 12000.00, 'إعادة تمويل الحساب الرئيسي', 'Approved', NULL, NULL, '2025-03-20 09:15:00', '2025-03-20 01:00:00', '2025-03-20 10:00:00'),
+(32, 3, '2025-04-05', 2, 1, 30000.00, 'تحويل أرباح الاستثمار', 'Approved', NULL, NULL, '2025-04-05 16:45:00', '2025-04-05 03:00:00', '2025-04-05 09:00:00'),
+(33, 3, '2025-05-12', 1, 2, 18000.00, 'استثمار في الأسهم', 'Draft', NULL, NULL, NULL, '2025-05-12 01:00:00', '2025-05-12 08:00:00'),
+(34, 3, '2025-06-18', 2, 2, 7500.00, 'تسوية حسابات ربع السنة', 'Approved', NULL, NULL, '2025-06-18 10:30:00', '2025-06-18 01:00:00', '2025-06-18 07:00:00'),
+(35, 3, '2025-07-25', 2, 2, 22000.00, 'تمويل مشروع جديد', 'Approved', NULL, NULL, '2025-07-25 12:20:00', '2025-07-25 00:00:00', '2025-07-25 07:00:00'),
+(36, 3, '2025-08-10', 1, 2, 5000.00, 'مصاريف إدارية', 'Draft', NULL, NULL, NULL, '2025-08-10 00:00:00', '2025-08-10 05:00:00'),
+(37, 3, '2025-08-28', 2, 1, 35000.00, 'إيرادات شهر أغسطس', 'Draft', NULL, NULL, NULL, '2025-08-28 01:00:00', '2025-08-28 07:00:00');
 
 -- --------------------------------------------------------
 
@@ -895,14 +987,26 @@ CREATE TABLE IF NOT EXISTS `users` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `users_email_unique` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `users`
 --
 
 INSERT INTO `users` (`id`, `name`, `email`, `email_verified_at`, `password`, `remember_token`, `created_at`, `updated_at`) VALUES
-(1, 'Test User', 'test@example.com', '2025-08-20 10:40:20', '$2y$12$vh/CkRotEqxlACN/bKS2sOppH3xNcJt8bmLGL2zKGDnPdgVtyG.tm', 'JpdwtDsIC5', '2025-08-20 10:40:20', '2025-08-20 10:40:20');
+(1, 'Test User', 'test@example.com', '2025-08-20 10:40:20', '$2y$12$vh/CkRotEqxlACN/bKS2sOppH3xNcJt8bmLGL2zKGDnPdgVtyG.tm', 'JpdwtDsIC5', '2025-08-20 10:40:20', '2025-08-20 10:40:20'),
+(2, 'Test Admin', 'admin@test.com', NULL, '$2y$12$2Jy/EOgs4U4UJ1gsja/6sevpvLiYzYJWfCKFIfYn9ZWKXAo9B6wf.', NULL, '2025-08-28 23:19:23', '2025-08-28 23:19:23');
+
+-- --------------------------------------------------------
+
+--
+-- Stand-in structure for view `v_current_cash`
+-- (See below for the actual view)
+--
+DROP VIEW IF EXISTS `v_current_cash`;
+CREATE TABLE IF NOT EXISTS `v_current_cash` (
+`current_cash` decimal(38,2)
+);
 
 -- --------------------------------------------------------
 
@@ -1274,6 +1378,16 @@ INSERT INTO `widow_social_income` (`id`, `widow_id`, `income_category_id`, `amou
 (13, 15, 2, 400.00, 'dfsdf', '2025-08-25 19:43:17', '2025-08-25 19:43:17'),
 (14, 18, 4, 500.00, NULL, '2025-08-28 21:46:36', '2025-08-28 21:46:36');
 
+-- --------------------------------------------------------
+
+--
+-- Structure for view `v_current_cash`
+--
+DROP TABLE IF EXISTS `v_current_cash`;
+
+DROP VIEW IF EXISTS `v_current_cash`;
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_current_cash`  AS SELECT ifnull(sum(`bank_accounts`.`balance`),0.00) AS `current_cash` FROM `bank_accounts` ;
+
 --
 -- Constraints for dumped tables
 --
@@ -1283,12 +1397,6 @@ INSERT INTO `widow_social_income` (`id`, `widow_id`, `income_category_id`, `amou
 --
 ALTER TABLE `beneficiary_group_members`
   ADD CONSTRAINT `beneficiary_group_members_group_id_foreign` FOREIGN KEY (`group_id`) REFERENCES `beneficiary_groups` (`id`);
-
---
--- Constraints for table `budgets`
---
-ALTER TABLE `budgets`
-  ADD CONSTRAINT `budgets_fiscal_year_id_foreign` FOREIGN KEY (`fiscal_year_id`) REFERENCES `fiscal_years` (`id`);
 
 --
 -- Constraints for table `expenses`
@@ -1377,7 +1485,7 @@ ALTER TABLE `partner_subfields`
 -- Constraints for table `sub_budgets`
 --
 ALTER TABLE `sub_budgets`
-  ADD CONSTRAINT `sub_budgets_budget_id_foreign` FOREIGN KEY (`budget_id`) REFERENCES `budgets` (`id`);
+  ADD CONSTRAINT `sub_budgets_fiscal_year_id_foreign` FOREIGN KEY (`fiscal_year_id`) REFERENCES `fiscal_years` (`id`);
 
 --
 -- Constraints for table `transfers`

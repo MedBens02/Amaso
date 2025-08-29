@@ -77,7 +77,7 @@ Route::prefix('v1')->group(function () {
     
     Route::get('sub-budgets', function () {
         return response()->json([
-            'data' => \App\Models\SubBudget::with('budget.fiscalYear')->orderBy('label')->get()
+            'data' => \App\Models\SubBudget::orderBy('label')->get()
         ]);
     });
     

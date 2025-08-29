@@ -5,14 +5,21 @@ namespace App\Services;
 use App\Models\FiscalYear;
 use App\Models\Income;
 use App\Models\Expense;
-use App\Models\Budget;
+use App\Models\Transfer;
 use App\Models\BankAccount;
+use App\Services\CashService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Exception;
 
 class FiscalYearClosingService
 {
+    protected CashService $cashService;
+
+    public function __construct(CashService $cashService)
+    {
+        $this->cashService = $cashService;
+    }
     /**
      * Close a fiscal year following the complete business workflow
      */
@@ -20,31 +27,19 @@ class FiscalYearClosingService
     {
         return DB::transaction(function () use ($fiscalYear) {
             try {
-                // Step 1: Lock the current fiscal year and its budget with row-level locks
+                // Step 1: Lock the current fiscal year with row-level lock
                 $lockedFiscalYear = FiscalYear::lockForUpdate()->find($fiscalYear->id);
                 if (!$lockedFiscalYear) {
                     return $this->errorResponse('السنة المالية غير موجودة');
                 }
 
-                $budget = Budget::lockForUpdate()->where('fiscal_year_id', $fiscalYear->id)->first();
-                if (!$budget) {
-                    return $this->errorResponse('الميزانية غير موجودة لهذه السنة المالية');
-                }
+                // Step 2: Get current cash from the service
+                $currentCash = $this->cashService->getCurrentCash();
+                
+                // Lock bank accounts for consistency during the transaction
+                BankAccount::lockForUpdate()->get();
 
-                // Step 2: Lock bank accounts and calculate total
-                $bankAccounts = BankAccount::lockForUpdate()->get();
-                $bankTotal = $bankAccounts->sum('balance');
-
-                // Step 3: Ensure budget current amount equals bank total
-                if (abs($budget->current_amount - $bankTotal) > 0.01) {
-                    return $this->errorResponse(
-                        'المبلغ الحالي للميزانية (' . number_format($budget->current_amount, 2) . ' درهم) ' .
-                        'لا يتطابق مع إجمالي أرصدة البنوك (' . number_format($bankTotal, 2) . ' درهم). ' .
-                        'يجب أن تتطابق الأرقام قبل إغلاق السنة المالية.'
-                    );
-                }
-
-                // Step 4: Verify all incomes are approved
+                // Step 3: Verify all incomes are approved
                 $unapprovedIncomes = Income::where('fiscal_year_id', $fiscalYear->id)
                     ->where('status', '!=', 'Approved')
                     ->count();
@@ -55,7 +50,7 @@ class FiscalYearClosingService
                     );
                 }
 
-                // Step 5: Verify all expenses are approved
+                // Step 4: Verify all expenses are approved
                 $unapprovedExpenses = Expense::where('fiscal_year_id', $fiscalYear->id)
                     ->where('status', '!=', 'Approved')
                     ->count();
@@ -66,9 +61,20 @@ class FiscalYearClosingService
                     );
                 }
 
-                // Step 6: Snapshot the carryover for next year
-                $carryoverAmount = $budget->current_amount;
-                $budget->update(['carryover_next_year' => $carryoverAmount]);
+                // Step 5: Verify all transfers are approved
+                $unapprovedTransfers = Transfer::where('fiscal_year_id', $fiscalYear->id)
+                    ->where('status', '!=', 'Approved')
+                    ->count();
+
+                if ($unapprovedTransfers > 0) {
+                    return $this->errorResponse(
+                        'يوجد ' . $unapprovedTransfers . ' تحويلات غير معتمدة. يجب اعتماد جميع التحويلات قبل إغلاق السنة المالية.'
+                    );
+                }
+
+                // Step 6: Set carryover amount for current year
+                $carryoverAmount = $currentCash;
+                $lockedFiscalYear->update(['carryover_next_year' => $carryoverAmount]);
 
                 // Step 7: Create or activate next fiscal year
                 $nextYear = $fiscalYear->year + 1;
@@ -78,22 +84,11 @@ class FiscalYearClosingService
                     'is_active' => false
                 ]);
 
-                // Step 8: Create budget for next fiscal year
-                $nextBudget = Budget::firstOrCreate([
-                    'fiscal_year_id' => $nextFiscalYear->id
-                ], [
-                    'current_amount' => $carryoverAmount,
+                // Step 8: Set carryover amount for next fiscal year
+                $nextFiscalYear->update([
                     'carryover_prev_year' => $carryoverAmount,
                     'carryover_next_year' => 0.00
                 ]);
-
-                // If budget already existed, update it with correct values
-                if ($nextBudget->wasRecentlyCreated === false) {
-                    $nextBudget->update([
-                        'current_amount' => $carryoverAmount,
-                        'carryover_prev_year' => $carryoverAmount
-                    ]);
-                }
 
                 // Step 9: Flip the active flags
                 $lockedFiscalYear->update(['is_active' => false]);
@@ -113,12 +108,12 @@ class FiscalYearClosingService
                         'year' => $nextFiscalYear->year,
                         'status' => 'مفتوح'
                     ],
-                    'nextBudget' => [
-                        'id' => $nextBudget->id,
-                        'carryoverFromPreviousYear' => $nextBudget->carryover_prev_year,
-                        'currentAmount' => $nextBudget->current_amount
+                    'nextFiscalYear' => [
+                        'id' => $nextFiscalYear->id,
+                        'carryoverFromPreviousYear' => $nextFiscalYear->carryover_prev_year,
+                        'carryoverNextYear' => $nextFiscalYear->carryover_next_year
                     ],
-                    'bankTotal' => $bankTotal
+                    'currentCash' => $currentCash
                 ];
 
             } catch (Exception $e) {
@@ -142,20 +137,22 @@ class FiscalYearClosingService
             ->where('status', '!=', 'Approved')
             ->count();
 
-        // Current sum of bank accounts
-        $bankTotal = BankAccount::sum('balance');
+        // Count unapproved transfers
+        $unapprovedTransfers = Transfer::where('fiscal_year_id', $fiscalYear->id)
+            ->where('status', '!=', 'Approved')
+            ->count();
 
-        // Current budget's current amount
-        $budget = Budget::where('fiscal_year_id', $fiscalYear->id)->first();
-        $budgetCurrentAmount = $budget ? $budget->current_amount : 0;
-
-        // Check if budget matches bank total
-        $budgetMatchesBank = $budget ? abs($budgetCurrentAmount - $bankTotal) < 0.01 : false;
+        // Current cash from service
+        $currentCash = $this->cashService->getCurrentCash();
+        
+        // Since we're using the current cash directly, it always matches
+        $cashIsValid = true;
 
         // Determine if closing is allowed
         $canClose = $unapprovedIncomes === 0 && 
                    $unapprovedExpenses === 0 && 
-                   $budgetMatchesBank && 
+                   $unapprovedTransfers === 0 && 
+                   $cashIsValid && 
                    $fiscalYear->is_active;
 
         return [
@@ -167,14 +164,15 @@ class FiscalYearClosingService
             ],
             'unapprovedIncomes' => $unapprovedIncomes,
             'unapprovedExpenses' => $unapprovedExpenses,
-            'bankTotal' => $bankTotal,
-            'budgetCurrentAmount' => $budgetCurrentAmount,
-            'budgetMatchesBank' => $budgetMatchesBank,
+            'unapprovedTransfers' => $unapprovedTransfers,
+            'currentCash' => $currentCash,
+            'cashIsValid' => $cashIsValid,
             'canClose' => $canClose,
             'validationMessages' => $this->getValidationMessages(
                 $unapprovedIncomes, 
                 $unapprovedExpenses, 
-                $budgetMatchesBank,
+                $unapprovedTransfers,
+                $cashIsValid,
                 $fiscalYear->is_active
             )
         ];
@@ -183,7 +181,7 @@ class FiscalYearClosingService
     /**
      * Get validation messages in Arabic
      */
-    private function getValidationMessages(int $unapprovedIncomes, int $unapprovedExpenses, bool $budgetMatchesBank, bool $isActive): array
+    private function getValidationMessages(int $unapprovedIncomes, int $unapprovedExpenses, int $unapprovedTransfers, bool $cashIsValid, bool $isActive): array
     {
         $messages = [];
 
@@ -199,8 +197,12 @@ class FiscalYearClosingService
             $messages[] = 'يوجد ' . $unapprovedExpenses . ' مصروفات غير معتمدة';
         }
 
-        if (!$budgetMatchesBank) {
-            $messages[] = 'المبلغ الحالي للميزانية لا يتطابق مع إجمالي أرصدة البنوك';
+        if ($unapprovedTransfers > 0) {
+            $messages[] = 'يوجد ' . $unapprovedTransfers . ' تحويلات غير معتمدة';
+        }
+
+        if (!$cashIsValid) {
+            $messages[] = 'خطأ في حساب رصيد النقد الحالي';
         }
 
         if (empty($messages)) {

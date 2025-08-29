@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\FiscalYear;
 use App\Models\BankAccount;
-use App\Models\Budget;
 use App\Models\SubBudget;
 use App\Models\IncomeCategory;
 use App\Models\ExpenseCategory;
@@ -28,11 +27,15 @@ class FiscalYearTestDataSeeder extends Seeder
 
         // Create fiscal years
         $fiscalYear2023 = FiscalYear::firstOrCreate(['year' => 2023], [
-            'is_active' => false
+            'is_active' => false,
+            'carryover_prev_year' => 15000.00,
+            'carryover_next_year' => 45000.00
         ]);
 
         $fiscalYear2024 = FiscalYear::firstOrCreate(['year' => 2024], [
-            'is_active' => true
+            'is_active' => true,
+            'carryover_prev_year' => 45000.00,
+            'carryover_next_year' => 0.00
         ]);
 
         // Create bank accounts
@@ -54,31 +57,14 @@ class FiscalYearTestDataSeeder extends Seeder
             'notes' => 'حساب التوفير للطوارئ'
         ]);
 
-        // Create budgets
-        $budget2023 = Budget::firstOrCreate([
-            'fiscal_year_id' => $fiscalYear2023->id
-        ], [
-            'current_amount' => 450000.00,
-            'carryover_prev_year' => 15000.00,
-            'carryover_next_year' => 45000.00
-        ]);
-
-        $budget2024 = Budget::firstOrCreate([
-            'fiscal_year_id' => $fiscalYear2024->id
-        ], [
-            'current_amount' => 500000.00,
-            'carryover_prev_year' => 45000.00,
-            'carryover_next_year' => 0.00
-        ]);
-
         // Create sub budgets
         $subBudget1 = SubBudget::firstOrCreate([
-            'budget_id' => $budget2024->id,
+            'fiscal_year_id' => $fiscalYear2024->id,
             'label' => 'المساعدات الاجتماعية'
         ]);
 
         $subBudget2 = SubBudget::firstOrCreate([
-            'budget_id' => $budget2024->id,
+            'fiscal_year_id' => $fiscalYear2024->id,
             'label' => 'التعليم والتدريب'
         ]);
 

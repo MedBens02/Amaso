@@ -12,14 +12,9 @@ class SubBudget extends Model
     use HasFactory;
 
     protected $fillable = [
-        'budget_id',
         'label',
     ];
 
-    public function budget(): BelongsTo
-    {
-        return $this->belongsTo(Budget::class);
-    }
 
     public function incomeCategories(): HasMany
     {

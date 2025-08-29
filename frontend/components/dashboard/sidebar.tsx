@@ -24,6 +24,7 @@ import {
   FolderOpen,
   LogOut,
   Database,
+  Calculator,
 } from "lucide-react"
 
 const navigation = [
@@ -103,6 +104,11 @@ const referencesNavigation = [
     name: "البيانات المرجعية",
     href: "/dashboard/references",
     icon: Database,
+  },
+  {
+    name: "المراجع المحاسبية",
+    href: "/dashboard/accounting-references",
+    icon: Calculator,
   },
 ]
 

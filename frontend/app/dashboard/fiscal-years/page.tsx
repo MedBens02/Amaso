@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Calendar, Lock, Unlock, TrendingUp, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { StartNewFiscalYearDialog } from "@/components/forms/StartNewFiscalYearForm"
+import { CloseFiscalYearDialog } from "@/components/forms/CloseFiscalYearDialog"
 import { useToast } from "@/hooks/use-toast"
 
 interface FiscalYear {
@@ -14,7 +15,7 @@ interface FiscalYear {
   status: string
   startDate: string
   endDate: string
-  totalBudget: number
+  current_cash?: number
   totalIncomes: number
   totalSpent: number
   carryOver: number
@@ -31,9 +32,9 @@ interface ClosingSummary {
   }
   unapprovedIncomes: number
   unapprovedExpenses: number
-  bankTotal: string
-  budgetCurrentAmount: string
-  budgetMatchesBank: boolean
+  unapprovedTransfers: number
+  currentCash: number
+  cashIsValid: boolean
   canClose: boolean
   validationMessages: string[]
 }
@@ -44,6 +45,8 @@ export default function FiscalYearsPage() {
   const [loading, setLoading] = useState(true)
   const [closingYear, setClosingYear] = useState<number | null>(null)
   const [closingSummaries, setClosingSummaries] = useState<{[key: number]: ClosingSummary}>({})
+  const [showCloseDialog, setShowCloseDialog] = useState(false)
+  const [selectedYearForClosing, setSelectedYearForClosing] = useState<FiscalYear | null>(null)
   const { toast } = useToast()
 
   // Fetch fiscal years from API
@@ -58,10 +61,14 @@ export default function FiscalYearsPage() {
     return isNaN(num) ? '0' : num.toLocaleString()
   }
 
-  // Helper function to get current amount available (total budget minus spent)
+  // Helper function to get current amount available
   const getCurrentAmount = (year: FiscalYear): number => {
-    const currentAmount = year.totalBudget - year.totalSpent
-    return isNaN(currentAmount) ? 0 : currentAmount
+    if (year.isActive && year.current_cash !== undefined) {
+      return year.current_cash
+    }
+    // For closed years, use remaining calculation
+    const remaining = year.remaining
+    return isNaN(remaining) ? 0 : remaining
   }
 
   const fetchFiscalYears = async () => {
@@ -106,54 +113,14 @@ export default function FiscalYearsPage() {
     }
   }
 
-  const handleCloseFiscalYear = async (fiscalYear: FiscalYear) => {
-    setClosingYear(fiscalYear.id)
-    
-    try {
-      // First check closing status
-      const statusResponse = await fetch(`http://127.0.0.1:8000/api/v1/fiscal-years/${fiscalYear.id}/closing-status`)
-      const statusData = await statusResponse.json()
-      
-      if (!statusData.data.canClose) {
-        toast({
-          title: "لا يمكن إغلاق السنة المالية",
-          description: `هناك مشاكل يجب حلها أولاً:\n${statusData.data.validationErrors.join('\n')}`,
-          variant: "destructive"
-        })
-        return
-      }
+  const handleCloseFiscalYear = (fiscalYear: FiscalYear) => {
+    setSelectedYearForClosing(fiscalYear)
+    setShowCloseDialog(true)
+  }
 
-      // Proceed with closing
-      const closeResponse = await fetch(`http://127.0.0.1:8000/api/v1/fiscal-years/${fiscalYear.id}/close`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-      const closeData = await closeResponse.json()
-      
-      if (closeData.success) {
-        toast({
-          title: "تم إغلاق السنة المالية",
-          description: `تم إغلاق السنة المالية ${fiscalYear.year} بنجاح`
-        })
-        fetchFiscalYears() // Refresh data
-      } else {
-        toast({
-          title: "فشل في إغلاق السنة المالية",
-          description: closeData.message || "حدث خطأ غير متوقع",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "خطأ في الإغلاق",
-        description: "فشل في إغلاق السنة المالية",
-        variant: "destructive"
-      })
-    } finally {
-      setClosingYear(null)
-    }
+  const handleCloseSuccess = () => {
+    fetchFiscalYears() // Refresh data
+    setSelectedYearForClosing(null)
   }
 
   const getStatusBadge = (status: string) => {
@@ -213,11 +180,13 @@ export default function FiscalYearsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                {/* Budget Overview */}
+                {/* Current Cash from Database View */}
                 <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-blue-700">إجمالي الميزانية:</span>
-                    <span className="font-bold text-blue-800">DH {formatAmount(year.totalBudget)}</span>
+                    <span className="text-blue-700">الرصيد النقدي الحالي:</span>
+                    <span className="font-bold text-blue-800">
+                      {year.isActive ? `DH ${formatAmount(year.current_cash)}` : 'NaN'}
+                    </span>
                   </div>
                   {year.carryOver > 0 && (
                     <div className="flex justify-between text-xs text-blue-600">
@@ -238,31 +207,20 @@ export default function FiscalYearsPage() {
                     <span className="font-bold text-red-600">DH {formatAmount(year.totalSpent)}</span>
                   </div>
                   
-                  {/* Current Available Amount */}
-                  <div className="flex justify-between text-sm font-semibold bg-gray-50 p-2 rounded border">
-                    <span>المبلغ المتاح حالياً:</span>
-                    <span className="text-blue-700">
-                      DH {formatAmount(getCurrentAmount(year))}
-                    </span>
-                  </div>
                 </div>
 
                 {/* Real-time Bank Information for Active Years */}
                 {year.isActive && closingSummaries[year.id] && (
                   <div className="bg-green-50 p-3 rounded-lg border border-green-200">
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="text-green-700">إجمالي أرصدة البنوك:</span>
+                      <span className="text-green-700">الرصيد النقدي الحالي:</span>
                       <span className="font-bold text-green-800">
-                        DH {formatAmount(closingSummaries[year.id].bankTotal)}
+                        DH {formatAmount(closingSummaries[year.id].currentCash)}
                       </span>
                     </div>
-                    <div className="flex justify-between text-xs text-green-600">
-                      <span>• المبلغ الحالي للميزانية:</span>
-                      <span>DH {formatAmount(closingSummaries[year.id].budgetCurrentAmount)}</span>
-                    </div>
-                    {!closingSummaries[year.id].budgetMatchesBank && (
+                    {!closingSummaries[year.id].cashIsValid && (
                       <div className="text-xs text-amber-600 mt-1">
-                        ⚠️ الميزانية لا تتطابق مع أرصدة البنوك
+                        ⚠️ خطأ في حساب الرصيد النقدي
                       </div>
                     )}
                   </div>
@@ -276,6 +234,9 @@ export default function FiscalYearsPage() {
                     )}
                     {closingSummaries[year.id].unapprovedExpenses > 0 && (
                       <div>• مصروفات غير معتمدة: {closingSummaries[year.id].unapprovedExpenses}</div>
+                    )}
+                    {closingSummaries[year.id].unapprovedTransfers > 0 && (
+                      <div>• تحويلات غير معتمدة: {closingSummaries[year.id].unapprovedTransfers}</div>
                     )}
                   </div>
                 )}
@@ -291,24 +252,6 @@ export default function FiscalYearsPage() {
                 )}
               </div>
 
-              {/* Progress Bar - Spending vs Budget */}
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ 
-                    width: year.totalBudget > 0 ? 
-                      `${Math.min(Math.max(((year.totalSpent || 0) / (year.totalBudget || 1)) * 100, 0), 100)}%` : 
-                      '0%' 
-                  }}
-                ></div>
-              </div>
-              
-              <div className="text-xs text-gray-500 text-center">
-                استخدام الميزانية: {year.totalBudget > 0 ? 
-                  `${Math.round(((year.totalSpent || 0) / (year.totalBudget || 1)) * 100)}%` : 
-                  '0%'
-                }
-              </div>
 
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="flex-1 bg-transparent">
@@ -320,20 +263,10 @@ export default function FiscalYearsPage() {
                     variant={closingSummaries[year.id]?.canClose ? "default" : "outline"} 
                     size="sm"
                     onClick={() => handleCloseFiscalYear(year)}
-                    disabled={closingYear === year.id || (closingSummaries[year.id] && !closingSummaries[year.id].canClose)}
                     className={closingSummaries[year.id]?.canClose ? "bg-green-600 hover:bg-green-700" : ""}
                   >
-                    {closingYear === year.id ? (
-                      <>
-                        <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-600 ml-1"></div>
-                        جاري الإغلاق...
-                      </>
-                    ) : (
-                      <>
-                        <X className="h-4 w-4 ml-1" />
-                        {closingSummaries[year.id]?.canClose ? 'إغلاق السنة ✓' : 'إغلاق السنة'}
-                      </>
-                    )}
+                    <X className="h-4 w-4 ml-1" />
+                    {closingSummaries[year.id]?.canClose ? 'إغلاق السنة ✓' : 'إغلاق السنة'}
                   </Button>
                 )}
               </div>
@@ -343,6 +276,12 @@ export default function FiscalYearsPage() {
       </div>
 
       <StartNewFiscalYearDialog open={showNewDialog} onOpenChange={setShowNewDialog} />
+      <CloseFiscalYearDialog 
+        open={showCloseDialog} 
+        onOpenChange={setShowCloseDialog}
+        fiscalYear={selectedYearForClosing}
+        onSuccess={handleCloseSuccess}
+      />
     </div>
   )
 }

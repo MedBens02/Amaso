@@ -14,16 +14,16 @@ class FiscalYear extends Model
     protected $fillable = [
         'year',
         'is_active',
+        'carryover_prev_year',
+        'carryover_next_year',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'carryover_prev_year' => 'decimal:2',
+        'carryover_next_year' => 'decimal:2',
     ];
 
-    public function budget(): HasOne
-    {
-        return $this->hasOne(Budget::class);
-    }
 
     public function incomes(): HasMany
     {

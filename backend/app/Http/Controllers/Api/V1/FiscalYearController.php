@@ -7,27 +7,31 @@ use App\Models\FiscalYear;
 use App\Models\Income;
 use App\Models\Expense;
 use App\Services\FiscalYearClosingService;
+use App\Services\CashService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class FiscalYearController extends Controller
 {
     protected FiscalYearClosingService $closingService;
+    protected CashService $cashService;
 
-    public function __construct(FiscalYearClosingService $closingService)
+    public function __construct(FiscalYearClosingService $closingService, CashService $cashService)
     {
         $this->closingService = $closingService;
+        $this->cashService = $cashService;
     }
 
     /**
-     * Get all fiscal years with budget information
+     * Get all fiscal years with current cash information
      */
     public function index(): JsonResponse
     {
-        $fiscalYears = FiscalYear::with('budget')
-            ->orderBy('year', 'desc')
+        $currentCash = $this->cashService->getCurrentCash();
+        
+        $fiscalYears = FiscalYear::orderBy('year', 'desc')
             ->get()
-            ->map(function ($fiscalYear) {
+            ->map(function ($fiscalYear) use ($currentCash) {
                 // Calculate totals for this fiscal year
                 $totalIncomes = Income::where('fiscal_year_id', $fiscalYear->id)
                     ->where('status', 'Approved')
@@ -37,8 +41,11 @@ class FiscalYearController extends Controller
                     ->where('status', 'Approved')
                     ->sum('amount');
 
-                $budget = $fiscalYear->budget;
-                $totalBudget = $budget ? $budget->current_amount + $budget->carryover_prev_year : 0;
+                // For active fiscal year, calculate remaining as current cash
+                // For closed years, the remaining is what was carried to next year
+                $remaining = $fiscalYear->is_active ? 
+                    $currentCash : 
+                    $fiscalYear->carryover_next_year;
                 
                 return [
                     'id' => $fiscalYear->id,
@@ -46,12 +53,12 @@ class FiscalYearController extends Controller
                     'status' => $fiscalYear->is_active ? 'مفتوح' : 'مغلق',
                     'startDate' => $fiscalYear->year . '-01-01',
                     'endDate' => $fiscalYear->year . '-12-31',
-                    'totalBudget' => (float)$totalBudget,
+                    'current_cash' => (float)$currentCash,
                     'totalIncomes' => (float)$totalIncomes,
                     'totalSpent' => (float)$totalExpenses,
-                    'carryOver' => $budget ? (float)$budget->carryover_prev_year : 0,
-                    'carryoverNextYear' => $budget ? (float)$budget->carryover_next_year : 0,
-                    'remaining' => (float)($totalBudget - $totalExpenses),
+                    'carryOver' => (float)$fiscalYear->carryover_prev_year,
+                    'carryoverNextYear' => (float)$fiscalYear->carryover_next_year,
+                    'remaining' => (float)$remaining,
                     'isActive' => $fiscalYear->is_active,
                 ];
             });
