@@ -130,7 +130,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
         income_category_id: parseInt(data.category),
         donor_id: data.donorType === 'donor' ? parseInt(data.donorId) : undefined,
         kafil_id: data.donorType === 'kafil' ? parseInt(data.donorId) : undefined,
-        entry_date: format(data.date, 'yyyy-MM-dd'),
+        income_date: format(data.date, 'yyyy-MM-dd'),
         amount: data.amount,
         payment_method: data.paymentMethod === 'cash' ? 'Cash' : 
                        data.paymentMethod === 'cheque' ? 'Cheque' : 'BankWire',

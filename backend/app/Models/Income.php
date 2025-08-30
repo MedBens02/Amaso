@@ -16,8 +16,7 @@ class Income extends Model
         'income_category_id',
         'donor_id',
         'kafil_id',
-        'entry_date',
-        'entry_month',
+        'income_date',
         'amount',
         'payment_method',
         'cheque_number',
@@ -32,7 +31,7 @@ class Income extends Model
     ];
 
     protected $casts = [
-        'entry_date' => 'date',
+        'income_date' => 'date',
         'amount' => 'decimal:2',
         'approved_at' => 'datetime',
         'transferred_at' => 'datetime',

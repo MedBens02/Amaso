@@ -132,8 +132,7 @@ class ApiClient {
     income_category_id: number
     donor_id?: number
     kafil_id?: number
-    entry_date: string
-    entry_month?: number
+    income_date: string
     amount: number
     payment_method: 'Cash' | 'Cheque' | 'BankWire'
     cheque_number?: string

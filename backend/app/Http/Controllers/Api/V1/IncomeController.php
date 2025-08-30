@@ -26,12 +26,12 @@ class IncomeController extends Controller
                 return $query->where('status', $status);
             })
             ->when($request->from_date, function ($query, $fromDate) {
-                return $query->whereDate('entry_date', '>=', $fromDate);
+                return $query->whereDate('income_date', '>=', $fromDate);
             })
             ->when($request->to_date, function ($query, $toDate) {
-                return $query->whereDate('entry_date', '<=', $toDate);
+                return $query->whereDate('income_date', '<=', $toDate);
             })
-            ->orderBy('entry_date', 'desc')
+            ->orderBy('income_date', 'desc')
             ->paginate($request->per_page ?? 15);
 
         return response()->json([
@@ -53,8 +53,7 @@ class IncomeController extends Controller
             'income_category_id' => 'required|exists:income_categories,id',
             'donor_id' => 'nullable|exists:donors,id',
             'kafil_id' => 'nullable|exists:kafils,id',
-            'entry_date' => 'required|date',
-            'entry_month' => 'nullable|integer|min:1|max:12',
+            'income_date' => 'required|date',
             'amount' => 'required|numeric|min:0',
             'payment_method' => 'required|in:Cash,Cheque,BankWire',
             'cheque_number' => 'nullable|string|max:60',
@@ -117,8 +116,7 @@ class IncomeController extends Controller
             'income_category_id' => 'required|exists:income_categories,id',
             'donor_id' => 'nullable|exists:donors,id',
             'kafil_id' => 'nullable|exists:kafils,id',
-            'entry_date' => 'required|date',
-            'entry_month' => 'nullable|integer|min:1|max:12',
+            'income_date' => 'required|date',
             'amount' => 'required|numeric|min:0',
             'payment_method' => 'required|in:Cash,Cheque,BankWire',
             'cheque_number' => 'nullable|string|max:60',
