@@ -282,6 +282,18 @@ export function IncomesTable({ searchTerm, filters }: IncomesTableProps) {
     )
   })
 
+  // Helper function to check if income can be selected for approval
+  const canBeApproved = (income: IncomeData) => {
+    return income.status !== "Approved"
+  }
+
+  // Helper function to check if income can be transferred
+  const canBeTransferred = (income: IncomeData) => {
+    return income.status === "Approved" && 
+           (income.payment_method === "Cash" || income.payment_method === "Cheque") && 
+           !income.transferred_at
+  }
+
   // Get transferable items
   const transferableItems = filteredData.filter(
     (income) =>
@@ -293,6 +305,10 @@ export function IncomesTable({ searchTerm, filters }: IncomesTableProps) {
   const selectedTransferableItems = Array.from(selectedIds)
     .map((id) => filteredData.find((item) => item.id === id))
     .filter((item) => item && transferableItems.includes(item))
+
+  const selectedApprovableItems = Array.from(selectedIds)
+    .map((id) => filteredData.find((item) => item.id === id))
+    .filter((item) => item && canBeApproved(item))
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -364,7 +380,11 @@ export function IncomesTable({ searchTerm, filters }: IncomesTableProps) {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(new Set(filteredData.map((income) => income.id)))
+      // Select incomes that can be approved or transferred
+      const selectableIds = filteredData
+        .filter(income => canBeApproved(income) || canBeTransferred(income))
+        .map(income => income.id)
+      setSelectedIds(new Set(selectableIds))
     } else {
       setSelectedIds(new Set())
     }
@@ -507,10 +527,23 @@ export function IncomesTable({ searchTerm, filters }: IncomesTableProps) {
         
         fetchIncomes()
       } else if (validateTarget.type === "bulk") {
-        const selectedIdsArray = Array.from(selectedIds)
+        // Filter to only approve incomes that can actually be approved
+        const approvableIncomes = filteredData.filter(income => 
+          selectedIds.has(income.id) && canBeApproved(income)
+        )
         
-        for (const id of selectedIdsArray) {
-          const response = await fetch(`${baseUrl}/incomes/${id}/approve`, {
+        if (approvableIncomes.length === 0) {
+          toast({
+            title: "لا توجد إيرادات للاعتماد",
+            description: "الإيرادات المحددة معتمدة مسبقاً أو غير قابلة للاعتماد",
+            variant: "default",
+          })
+          handleCloseValidateDialog()
+          return
+        }
+        
+        for (const income of approvableIncomes) {
+          const response = await fetch(`${baseUrl}/incomes/${income.id}/approve`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -519,13 +552,13 @@ export function IncomesTable({ searchTerm, filters }: IncomesTableProps) {
           })
           
           if (!response.ok) {
-            console.error(`Failed to approve income ${id}`)
+            throw new Error(`Failed to approve income ${income.id}`)
           }
         }
         
         toast({
           title: "تم التأكيد بنجاح",
-          description: `تم تأكيد ${selectedIds.size} إيراد بنجاح`,
+          description: `تم تأكيد ${approvableIncomes.length} إيراد بنجاح`,
         })
         
         setSelectedIds(new Set())
@@ -566,10 +599,12 @@ export function IncomesTable({ searchTerm, filters }: IncomesTableProps) {
         <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
           <span className="text-sm font-medium text-blue-900">تم تحديد {selectedIds.size} عنصر</span>
           <div className="flex gap-2">
-            <Button size="sm" onClick={handleBulkValidate}>
-              <CheckCircle className="h-4 w-4 ml-2" />
-              تأكيد المحدد
-            </Button>
+            {selectedApprovableItems.length > 0 && (
+              <Button size="sm" onClick={handleBulkValidate}>
+                <CheckCircle className="h-4 w-4 ml-2" />
+                تأكيد المحدد ({selectedApprovableItems.length})
+              </Button>
+            )}
             {selectedTransferableItems.length > 0 && (
               <Button size="sm" variant="outline" onClick={handleBulkTransfer}>
                 <ArrowRightLeft className="h-4 w-4 ml-2" />
@@ -600,8 +635,12 @@ export function IncomesTable({ searchTerm, filters }: IncomesTableProps) {
             <TableRow>
               <TableHead className="w-12 text-center">
                 <Checkbox
-                  checked={selectedIds.size === filteredData.length && filteredData.length > 0}
+                  checked={(() => {
+                    const selectableIncomes = filteredData.filter(income => canBeApproved(income) || canBeTransferred(income))
+                    return selectableIncomes.length > 0 && selectedIds.size === selectableIncomes.length
+                  })()}
                   onCheckedChange={handleSelectAll}
+                  disabled={filteredData.filter(income => canBeApproved(income) || canBeTransferred(income)).length === 0}
                 />
               </TableHead>
               <TableHead className="text-right">التاريخ</TableHead>
@@ -635,6 +674,7 @@ export function IncomesTable({ searchTerm, filters }: IncomesTableProps) {
                     <Checkbox
                       checked={selectedIds.has(income.id)}
                       onCheckedChange={(checked) => handleSelectRow(income.id, checked as boolean)}
+                      disabled={!canBeApproved(income) && !canBeTransferred(income)}
                     />
                   </TableCell>
                   <TableCell className="text-right">
@@ -755,7 +795,7 @@ export function IncomesTable({ searchTerm, filters }: IncomesTableProps) {
             <AlertDialogDescription>
               {validateTarget.type === "single"
                 ? "هل أنت متأكد من تأكيد هذا الإيراد؟ لن تتمكن من تعديله بعد التأكيد."
-                : `هل أنت متأكد من تأكيد ${selectedIds.size} إيراد؟ لن تتمكن من تعديلها بعد التأكيد.`}
+                : `هل أنت متأكد من تأكيد ${selectedApprovableItems.length} إيراد؟ لن تتمكن من تعديلها بعد التأكيد.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
