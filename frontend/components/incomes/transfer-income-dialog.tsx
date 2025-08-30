@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -16,28 +16,9 @@ import { CalendarIcon, Banknote } from "lucide-react"
 import { format } from "date-fns"
 import { ar } from "date-fns/locale"
 import { cn } from "@/lib/utils"
-
-// Sample bank accounts
-const bankAccounts = [
-  {
-    id: "acc1",
-    name: "الحساب الجاري",
-    bank: "البنك الأهلي",
-    accountNumber: "123456789",
-  },
-  {
-    id: "acc2",
-    name: "حساب التوفير",
-    bank: "بنك فلسطين",
-    accountNumber: "987654321",
-  },
-  {
-    id: "acc3",
-    name: "حساب الطوارئ",
-    bank: "البنك الإسلامي",
-    accountNumber: "456789123",
-  },
-]
+import { formatDateArabic } from "@/lib/date-utils"
+import { useToast } from "@/hooks/use-toast"
+import api from "@/lib/api"
 
 interface TransferIncomeDialogProps {
   open: boolean
@@ -47,12 +28,53 @@ interface TransferIncomeDialogProps {
 }
 
 export function TransferIncomeDialog({ open, onOpenChange, items, onSuccess }: TransferIncomeDialogProps) {
-  const [transferDate, setTransferDate] = useState<Date>(new Date())
   const [selectedAccount, setSelectedAccount] = useState<string>("")
+  const [transferDate, setTransferDate] = useState<Date>(new Date())
   const [remarks, setRemarks] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [bankAccounts, setBankAccounts] = useState<any[]>([])
+  const { toast } = useToast()
 
-  const totalAmount = items.reduce((sum, item) => sum + item.amount, 0)
+  const handleClose = () => {
+    // Force remove any lingering pointer-events blocking
+    setTimeout(() => {
+      document.body.style.pointerEvents = 'auto'
+    }, 100)
+    onOpenChange(false)
+  }
+
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      // Force remove any lingering pointer-events blocking
+      setTimeout(() => {
+        document.body.style.pointerEvents = 'auto'
+      }, 100)
+      onOpenChange(false)
+    }
+  }
+
+  const totalAmount = items.reduce((sum, item) => sum + parseFloat(item.amount), 0)
+
+  // Load bank accounts
+  useEffect(() => {
+    if (open) {
+      loadBankAccounts()
+    }
+  }, [open])
+
+  const loadBankAccounts = async () => {
+    try {
+      const response = await api.getBankAccounts()
+      setBankAccounts(response.data || [])
+    } catch (error) {
+      console.error('Error loading bank accounts:', error)
+      toast({
+        title: "خطأ في تحميل البيانات",
+        description: "حدث خطأ أثناء تحميل الحسابات البنكية",
+        variant: "destructive",
+      })
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -60,39 +82,83 @@ export function TransferIncomeDialog({ open, onOpenChange, items, onSuccess }: T
 
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      // Update each income item to mark it as transferred
+      const transferResults = []
+      const transferDateStr = format(transferDate, 'yyyy-MM-dd') // Use selected transfer date
+      
+      for (const item of items) {
+        try {
+          // Use the new transfer-specific API method
+          const response = await api.transferIncomeToBank(item.id, {
+            bank_account_id: parseInt(selectedAccount),
+            transferred_at: transferDateStr, // Set to current timestamp
+            remarks: remarks ? `تحويل بنكي: ${remarks}` : undefined,
+          })
+          transferResults.push({ success: true, id: item.id })
+        } catch (error) {
+          console.error(`Error transferring income ${item.id}:`, error)
+          transferResults.push({ success: false, id: item.id, error })
+        }
+      }
 
-    // Here you would typically make an API call to transfer the incomes
-    console.log("Transferring items:", {
-      items: items.map((item) => item.id),
-      transferDate,
-      accountId: selectedAccount,
-      remarks,
-      totalAmount,
-    })
+      const successCount = transferResults.filter(r => r.success).length
+      const failCount = transferResults.filter(r => !r.success).length
 
-    setIsSubmitting(false)
-    onSuccess()
+      if (successCount > 0) {
+        toast({
+          title: "تم التحويل بنجاح",
+          description: `تم تحويل ${successCount} إيراد إلى البنك بنجاح${failCount > 0 ? ` (فشل ${failCount})` : ''}`,
+        })
+      }
 
-    // Reset form
-    setTransferDate(new Date())
-    setSelectedAccount("")
-    setRemarks("")
+      if (failCount > 0) {
+        toast({
+          title: "خطأ جزئي في التحويل",
+          description: `فشل في تحويل ${failCount} إيراد`,
+          variant: "destructive",
+        })
+      }
+
+      onSuccess()
+      handleClose()
+
+      // Reset form
+      setSelectedAccount("")
+      setTransferDate(new Date())
+      setRemarks("")
+    } catch (error) {
+      console.error('Error in bulk transfer:', error)
+      toast({
+        title: "خطأ في التحويل",
+        description: "حدث خطأ أثناء تحويل الإيرادات",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const getPaymentMethodBadge = (method: string) => {
+    const methodMap = {
+      "Cash": "نقدي",
+      "Cheque": "شيك", 
+      "BankWire": "حوالة بنكية",
+    } as const
+
+    const arabicMethod = methodMap[method as keyof typeof methodMap] || method
+
     const variants = {
-      نقدي: "default",
-      شيك: "secondary",
+      "نقدي": "default",
+      "شيك": "secondary",
       "حوالة بنكية": "outline",
     } as const
 
-    return <Badge variant={variants[method as keyof typeof variants] || "outline"}>{method}</Badge>
+    return <Badge variant={variants[arabicMethod as keyof typeof variants] || "outline"}>{arabicMethod}</Badge>
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -119,26 +185,31 @@ export function TransferIncomeDialog({ open, onOpenChange, items, onSuccess }: T
                 <TableBody>
                   {items.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell className="text-right">{format(item.date, "dd/MM/yyyy", { locale: ar })}</TableCell>
+                      <TableCell className="text-right">
+                        {formatDateArabic(new Date(item.income_date), "dd/MM/yyyy")}
+                      </TableCell>
                       <TableCell className="text-right">
                         {item.donor && (
                           <div className="flex items-center gap-1 justify-end">
-                            <span>{item.donor}</span>
-                            <span className="text-xs text-blue-600">:متبرع</span>
+                            <span>{`${item.donor.first_name} ${item.donor.last_name}`}</span>
+                            <span className="text-xs text-blue-600">متبرع:</span>
                           </div>
                         )}
                         {item.kafil && (
                           <div className="flex items-center gap-1 justify-end">
-                            <span>{item.kafil}</span>
-                            <span className="text-xs text-green-600">:كفيل</span>
+                            <span>{`${item.kafil.first_name} ${item.kafil.last_name}`}</span>
+                            <span className="text-xs text-green-600">كفيل:</span>
                           </div>
+                        )}
+                        {!item.donor && !item.kafil && (
+                          <span className="text-gray-500">غير محدد</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right font-bold text-green-600">
-                        DH {item.amount.toLocaleString()}
+                        {parseFloat(item.amount).toLocaleString()} د.م
                       </TableCell>
-                      <TableCell className="text-right">{getPaymentMethodBadge(item.paymentMethod)}</TableCell>
-                      <TableCell className="text-right text-sm text-muted-foreground">{item.remarks}</TableCell>
+                      <TableCell className="text-right">{getPaymentMethodBadge(item.payment_method)}</TableCell>
+                      <TableCell className="text-right text-sm text-muted-foreground">{item.remarks || '-'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -149,7 +220,7 @@ export function TransferIncomeDialog({ open, onOpenChange, items, onSuccess }: T
             <div className="flex justify-end">
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <div className="text-sm text-blue-600">إجمالي المبلغ المراد تحويله</div>
-                <div className="text-2xl font-bold text-blue-800">DH {totalAmount.toLocaleString()}</div>
+                <div className="text-2xl font-bold text-blue-800">{totalAmount.toLocaleString()} د.م</div>
               </div>
             </div>
           </div>
@@ -157,7 +228,7 @@ export function TransferIncomeDialog({ open, onOpenChange, items, onSuccess }: T
           {/* Transfer Details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="transferDate">تاريخ التحويل</Label>
+              <Label htmlFor="transferDate">تاريخ التحويل *</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -168,7 +239,7 @@ export function TransferIncomeDialog({ open, onOpenChange, items, onSuccess }: T
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {transferDate ? format(transferDate, "dd/MM/yyyy", { locale: ar }) : "اختر التاريخ"}
+                    {transferDate ? formatDateArabic(transferDate, "dd/MM/yyyy") : "اختر التاريخ"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -183,18 +254,18 @@ export function TransferIncomeDialog({ open, onOpenChange, items, onSuccess }: T
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="account">الحساب البنكي</Label>
+              <Label htmlFor="account">الحساب البنكي *</Label>
               <Select value={selectedAccount} onValueChange={setSelectedAccount} required>
                 <SelectTrigger>
                   <SelectValue placeholder="اختر الحساب البنكي" />
                 </SelectTrigger>
                 <SelectContent>
                   {bankAccounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
+                    <SelectItem key={account.id} value={account.id.toString()}>
                       <div className="text-right">
-                        <div className="font-medium">{account.name}</div>
+                        <div className="font-medium">{account.label}</div>
                         <div className="text-sm text-muted-foreground">
-                          {account.bank} - {account.accountNumber}
+                          {account.bank_name} - {account.account_number || account.id}
                         </div>
                       </div>
                     </SelectItem>
@@ -202,6 +273,12 @@ export function TransferIncomeDialog({ open, onOpenChange, items, onSuccess }: T
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-sm text-blue-800">
+              <strong>ملاحظة:</strong> تاريخ الإيراد الأصلي سيبقى كما هو، وسيتم تسجيل تاريخ التحويل المحدد أعلاه
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -217,7 +294,7 @@ export function TransferIncomeDialog({ open, onOpenChange, items, onSuccess }: T
 
           {/* Actions */}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
               إلغاء
             </Button>
             <Button type="submit" disabled={!selectedAccount || isSubmitting}>

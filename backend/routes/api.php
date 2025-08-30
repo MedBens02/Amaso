@@ -51,6 +51,7 @@ Route::prefix('v1')->group(function () {
     // Incomes CRUD + approval
     Route::apiResource('incomes', IncomeController::class);
     Route::post('incomes/{income}/approve', [IncomeController::class, 'approve']);
+    Route::post('incomes/{income}/transfer-to-bank', [IncomeController::class, 'transferToBank']);
     
     // Expenses CRUD + approval
     Route::apiResource('expenses', ExpenseController::class);

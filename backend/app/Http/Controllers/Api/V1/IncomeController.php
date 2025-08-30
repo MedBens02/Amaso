@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Income;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class IncomeController extends Controller
 {
@@ -30,6 +31,18 @@ class IncomeController extends Controller
             })
             ->when($request->to_date, function ($query, $toDate) {
                 return $query->whereDate('income_date', '<=', $toDate);
+            })
+            ->when($request->payment_method, function ($query, $paymentMethod) {
+                return $query->where('payment_method', $paymentMethod);
+            })
+            ->when($request->sub_budget_id, function ($query, $subBudgetId) {
+                return $query->where('sub_budget_id', $subBudgetId);
+            })
+            ->when($request->min_amount, function ($query, $minAmount) {
+                return $query->where('amount', '>=', $minAmount);
+            })
+            ->when($request->max_amount, function ($query, $maxAmount) {
+                return $query->where('amount', '<=', $maxAmount);
             })
             ->orderBy('income_date', 'desc')
             ->paginate($request->per_page ?? 15);
@@ -60,6 +73,7 @@ class IncomeController extends Controller
             'receipt_number' => 'nullable|string|max:60',
             'bank_account_id' => 'nullable|exists:bank_accounts,id',
             'remarks' => 'nullable|string',
+            'transferred_at' => 'nullable|date',
         ]);
 
         // Validation logic for payment method requirements
@@ -70,14 +84,14 @@ class IncomeController extends Controller
             ], 422);
         }
 
-        if (in_array($validated['payment_method'], ['Cheque', 'BankWire']) && empty($validated['bank_account_id'])) {
+        if ($validated['payment_method'] === 'BankWire' && empty($validated['bank_account_id'])) {
             return response()->json([
                 'message' => 'الحساب البنكي مطلوب لهذه طريقة الدفع',
                 'errors' => ['bank_account_id' => ['الحساب البنكي مطلوب']]
             ], 422);
         }
 
-        $validated['created_by'] = auth()->id();
+        $validated['created_by'] = auth()->id() ?? 1; // Fallback to user ID 1 if auth not available
         $income = Income::create($validated);
 
         return response()->json([
@@ -123,6 +137,7 @@ class IncomeController extends Controller
             'receipt_number' => 'nullable|string|max:60',
             'bank_account_id' => 'nullable|exists:bank_accounts,id',
             'remarks' => 'nullable|string',
+            'transferred_at' => 'nullable|date',
         ]);
 
         $income->update($validated);
@@ -156,15 +171,104 @@ class IncomeController extends Controller
             ], 400);
         }
 
-        $income->update([
-            'status' => 'Approved',
-            'approved_by' => auth()->id(),
-            'approved_at' => now(),
+        try {
+            DB::beginTransaction();
+
+            $income->update([
+                'status' => 'Approved',
+                'approved_by' => auth()->id() ?? 1, // Fallback to user ID 1 if auth not available
+                'approved_at' => now(),
+            ]);
+
+            // If it's a BankWire payment, automatically update the bank account balance
+            if ($income->payment_method === 'BankWire' && $income->bank_account_id) {
+                $bankAccount = \App\Models\BankAccount::find($income->bank_account_id);
+                if ($bankAccount) {
+                    $bankAccount->increment('balance', $income->amount);
+                }
+            }
+
+            DB::commit();
+
+            $message = $income->payment_method === 'BankWire' && $income->bank_account_id 
+                ? 'تم اعتماد الإيراد بنجاح وتم إضافة المبلغ إلى رصيد الحساب البنكي'
+                : 'تم اعتماد الإيراد بنجاح';
+
+            return response()->json([
+                'message' => $message,
+                'data' => $income
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'حدث خطأ أثناء اعتماد الإيراد',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Transfer income to bank account (allowed for approved incomes)
+     */
+    public function transferToBank(Request $request, Income $income): JsonResponse
+    {
+        $request->validate([
+            'bank_account_id' => 'required|exists:bank_accounts,id',
+            'transferred_at' => 'required|date',
+            'remarks' => 'nullable|string',
         ]);
 
-        return response()->json([
-            'message' => 'تم اعتماد الإيراد بنجاح',
-            'data' => $income
-        ]);
+        // Only allow transfer for approved cash/cheque incomes that haven't been transferred yet
+        if ($income->status !== 'Approved') {
+            return response()->json([
+                'message' => 'يمكن تحويل الإيرادات المعتمدة فقط'
+            ], 403);
+        }
+
+        if (!in_array($income->payment_method, ['Cash', 'Cheque'])) {
+            return response()->json([
+                'message' => 'يمكن تحويل الإيرادات النقدية والشيكات فقط'
+            ], 403);
+        }
+
+        if ($income->transferred_at) {
+            return response()->json([
+                'message' => 'هذا الإيراد محول مسبقاً'
+            ], 403);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Get the bank account and update its balance
+            $bankAccount = \App\Models\BankAccount::findOrFail($request->bank_account_id);
+            
+            // Update only transfer-related fields
+            $income->update([
+                'bank_account_id' => $request->bank_account_id,
+                'transferred_at' => $request->transferred_at,
+                'remarks' => $request->remarks ? 
+                    ($income->remarks ? $income->remarks . ' | ' . $request->remarks : $request->remarks) : 
+                    $income->remarks,
+            ]);
+
+            // Update bank account balance (add income amount)
+            $bankAccount->increment('balance', $income->amount);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'تم تحويل الإيراد إلى البنك بنجاح وتم تحديث رصيد الحساب',
+                'data' => $income->load(['bankAccount'])
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'حدث خطأ أثناء تحويل الإيراد',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -13,7 +13,8 @@
       "Bash(mkdir:*)",
       "Bash(mysql:*)",
       "WebFetch(domain:localhost)",
-      "Bash(cmd /c:*)"
+      "Bash(cmd /c:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": [],

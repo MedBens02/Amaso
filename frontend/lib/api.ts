@@ -139,8 +139,51 @@ class ApiClient {
     receipt_number?: string
     bank_account_id?: number
     remarks?: string
+    transferred_at?: string
   }) {
     return this.request<any>('/incomes', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateIncome(id: number, data: {
+    fiscal_year_id: number
+    sub_budget_id: number
+    income_category_id: number
+    donor_id?: number
+    kafil_id?: number
+    income_date: string
+    amount: number
+    payment_method: 'Cash' | 'Cheque' | 'BankWire'
+    cheque_number?: string
+    receipt_number?: string
+    bank_account_id?: number
+    remarks?: string
+    transferred_at?: string
+  }) {
+    return this.request<any>(`/incomes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteIncome(id: number) {
+    return this.request<any>(`/incomes/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getIncome(id: number) {
+    return this.request<any>(`/incomes/${id}`)
+  }
+
+  async transferIncomeToBank(id: number, data: {
+    bank_account_id: number
+    transferred_at: string
+    remarks?: string
+  }) {
+    return this.request<any>(`/incomes/${id}/transfer-to-bank`, {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -197,6 +240,11 @@ class ApiClient {
   // Lookup data
   async getFiscalYears() {
     return this.request<any[]>('/fiscal-years')
+  }
+
+  async getActiveFiscalYear() {
+    const response = await this.getFiscalYears()
+    return response.data?.find((fy: any) => fy.isActive) || null
   }
 
   async getBankAccounts() {

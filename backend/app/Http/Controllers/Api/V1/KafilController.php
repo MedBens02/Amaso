@@ -180,7 +180,7 @@ class KafilController extends Controller
      */
     public function getKafilsForSponsorship(Request $request): JsonResponse
     {
-        $query = Kafil::with(['donor', 'sponsorships']);
+        $query = Kafil::with(['donor', 'sponsorships.widow']);
 
         // Search functionality
         if ($request->has('search') && $request->search) {
@@ -212,7 +212,19 @@ class KafilController extends Controller
                 'donor' => $kafil->donor ? [
                     'id' => $kafil->donor->id,
                     'name' => trim($kafil->donor->first_name . ' ' . $kafil->donor->last_name)
-                ] : null
+                ] : null,
+                'sponsorships' => $kafil->sponsorships->map(function ($sponsorship) {
+                    return [
+                        'id' => $sponsorship->id,
+                        'amount' => $sponsorship->amount,
+                        'notes' => $sponsorship->notes,
+                        'widow' => $sponsorship->widow ? [
+                            'id' => $sponsorship->widow->id,
+                            'first_name' => $sponsorship->widow->first_name,
+                            'last_name' => $sponsorship->widow->last_name,
+                        ] : null
+                    ];
+                })
             ];
         });
 

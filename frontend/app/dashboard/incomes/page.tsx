@@ -7,16 +7,32 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Search, Filter, Download, HandCoins } from "lucide-react"
 import { IncomesTable } from "@/components/incomes/incomes-table"
 import { NewIncomeDialog } from "@/components/forms/NewIncomeForm"
-import { IncomeFilters } from "@/components/incomes/income-filters"
+import { IncomeFilters, FilterValues } from "@/components/incomes/income-filters"
 
 export default function IncomesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [showFilters, setShowFilters] = useState(false)
   const [showNewDialog, setShowNewDialog] = useState(false)
+  const [filters, setFilters] = useState<FilterValues>({})
+  const [appliedFilters, setAppliedFilters] = useState<FilterValues>({})
 
   const handleExportCSV = () => {
     // Implement CSV export logic
     console.log("Exporting CSV...")
+  }
+
+  const handleFiltersChange = (newFilters: FilterValues) => {
+    setFilters(newFilters)
+  }
+
+  const handleApplyFilters = () => {
+    setAppliedFilters(filters)
+  }
+
+  const handleClearFilters = () => {
+    const emptyFilters = {}
+    setFilters(emptyFilters)
+    setAppliedFilters(emptyFilters)
   }
 
   return (
@@ -62,7 +78,12 @@ export default function IncomesPage() {
         </CardHeader>
         {showFilters && (
           <CardContent>
-            <IncomeFilters />
+            <IncomeFilters
+              filters={filters}
+              onFiltersChange={handleFiltersChange}
+              onApply={handleApplyFilters}
+              onClear={handleClearFilters}
+            />
           </CardContent>
         )}
       </Card>
@@ -73,7 +94,7 @@ export default function IncomesPage() {
           <CardTitle>قائمة الإيرادات</CardTitle>
         </CardHeader>
         <CardContent>
-          <IncomesTable searchTerm={searchTerm} />
+          <IncomesTable searchTerm={searchTerm} filters={appliedFilters} />
         </CardContent>
       </Card>
 
