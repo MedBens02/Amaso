@@ -342,6 +342,9 @@ class ReferencesController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:partners,name',
+            'phone' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:255',
+            'address' => 'nullable|string|max:500',
             'field_id' => 'nullable|integer|exists:partner_fields,id',
             'subfield_id' => 'nullable|integer|exists:partner_subfields,id',
         ]);
@@ -358,6 +361,9 @@ class ReferencesController extends Controller
 
         $partner = Partner::create([
             'name' => $request->name,
+            'phone' => $request->phone,
+            'email' => $request->email,
+            'address' => $request->address,
             'field_id' => $request->field_id ?: null,
             'subfield_id' => $request->subfield_id ?: null,
         ]);
@@ -374,6 +380,9 @@ class ReferencesController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:partners,name,' . $partner->id,
+            'phone' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:255',
+            'address' => 'nullable|string|max:500',
             'field_id' => 'nullable|integer|exists:partner_fields,id',
             'subfield_id' => 'nullable|integer|exists:partner_subfields,id',
         ]);
@@ -390,6 +399,9 @@ class ReferencesController extends Controller
 
         $partner->update([
             'name' => $request->name,
+            'phone' => $request->phone,
+            'email' => $request->email,
+            'address' => $request->address,
             'field_id' => $request->field_id ?: null,
             'subfield_id' => $request->subfield_id ?: null,
         ]);

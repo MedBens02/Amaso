@@ -55,6 +55,9 @@ interface PartnerSubfield {
 interface Partner {
   id: number
   name: string
+  phone?: string
+  email?: string
+  address?: string
   field?: PartnerField
   subfield?: PartnerSubfield
   field_id?: number
@@ -393,14 +396,33 @@ export function PartnersManagement({ onDataChange }: PartnersManagementProps) {
                 <div className="space-y-2">
                   {partners.map((partner) => (
                     <div key={partner.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <span className="font-medium">{partner.name}</span>
-                        {partner.field && (
-                          <Badge variant="secondary">{partner.field.label}</Badge>
-                        )}
-                        {partner.subfield && (
-                          <Badge variant="outline">{partner.subfield.label}</Badge>
-                        )}
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-3">
+                          <span className="font-medium">{partner.name}</span>
+                          {partner.field && (
+                            <Badge variant="secondary">{partner.field.label}</Badge>
+                          )}
+                          {partner.subfield && (
+                            <Badge variant="outline">{partner.subfield.label}</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                          {partner.phone && (
+                            <span className="flex items-center gap-1">
+                              📞 {partner.phone}
+                            </span>
+                          )}
+                          {partner.email && (
+                            <span className="flex items-center gap-1">
+                              ✉️ {partner.email}
+                            </span>
+                          )}
+                          {partner.address && (
+                            <span className="flex items-center gap-1">
+                              📍 {partner.address}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button

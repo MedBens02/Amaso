@@ -82,6 +82,9 @@ const getSchema = (type: string) => {
   if (type === 'partner') {
     return z.object({
       name: z.string().min(1, "اسم الشريك مطلوب"),
+      phone: z.string().optional(),
+      email: z.string().email("يجب إدخال بريد إلكتروني صحيح").optional().or(z.literal("")),
+      address: z.string().optional(),
       field_id: z.number().optional(),
       subfield_id: z.number().optional(),
     })
@@ -112,6 +115,11 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
       name_ar: item?.name_ar || "",
       name_en: item?.name_en || "",
       label: item?.label || "",
+      phone: item?.phone || "",
+      email: item?.email || "",
+      address: item?.address || "",
+      field_id: item?.field_id || 0,
+      subfield_id: item?.subfield_id || 0,
       sort_order: item?.sort_order || 0,
       is_active: item?.is_active ?? true,
       is_chronic: item?.is_chronic ?? false,
@@ -126,6 +134,9 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
         name_ar: item.name_ar || "",
         name_en: item.name_en || "",
         label: item.label || "",
+        phone: item.phone || "",
+        email: item.email || "",
+        address: item.address || "",
         field_id: item.field_id || 0,
         subfield_id: item.subfield_id || 0,
         sort_order: item.sort_order || 0,
@@ -138,6 +149,9 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
         name_ar: "",
         name_en: "",
         label: "",
+        phone: "",
+        email: "",
+        address: "",
         field_id: 0,
         subfield_id: 0,
         sort_order: 0,
@@ -373,6 +387,44 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
                 />
                 {form.formState.errors.name && (
                   <p className="text-sm text-red-600">{form.formState.errors.name.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone">رقم الهاتف</Label>
+                <Input
+                  id="phone"
+                  {...form.register('phone')}
+                  placeholder="مثال: +970-123-456789"
+                  type="tel"
+                />
+                {form.formState.errors.phone && (
+                  <p className="text-sm text-red-600">{form.formState.errors.phone.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">البريد الإلكتروني</Label>
+                <Input
+                  id="email"
+                  {...form.register('email')}
+                  placeholder="مثال: info@partner.com"
+                  type="email"
+                />
+                {form.formState.errors.email && (
+                  <p className="text-sm text-red-600">{form.formState.errors.email.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="address">العنوان</Label>
+                <Input
+                  id="address"
+                  {...form.register('address')}
+                  placeholder="مثال: شارع الجامعة، غزة، فلسطين"
+                />
+                {form.formState.errors.address && (
+                  <p className="text-sm text-red-600">{form.formState.errors.address.message}</p>
                 )}
               </div>
 
