@@ -1,10 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { 
   Calculator, 
   Plus, 
@@ -12,7 +14,10 @@ import {
   Trash2, 
   Database,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Search,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { AccountingReferenceDialog } from "@/components/accounting/accounting-reference-dialog"
@@ -48,12 +53,61 @@ export default function AccountingReferencesPage() {
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([])
   const [loading, setLoading] = useState(true)
   
+  // Search state
+  const [incomeCategorySearch, setIncomeCategorySearch] = useState("")
+  const [expenseCategorySearch, setExpenseCategorySearch] = useState("")
+  
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogType, setDialogType] = useState<'sub-budget' | 'income-category' | 'expense-category'>('sub-budget')
   const [selectedItem, setSelectedItem] = useState<any>()
   
   const { toast } = useToast()
+
+  // Filtered and grouped data
+  const filteredIncomeCategories = useMemo(() => {
+    return incomeCategories.filter(category =>
+      category.label.toLowerCase().includes(incomeCategorySearch.toLowerCase())
+    )
+  }, [incomeCategories, incomeCategorySearch])
+
+  const filteredExpenseCategories = useMemo(() => {
+    return expenseCategories.filter(category =>
+      category.label.toLowerCase().includes(expenseCategorySearch.toLowerCase())
+    )
+  }, [expenseCategories, expenseCategorySearch])
+
+  const groupedIncomeCategories = useMemo(() => {
+    const grouped = new Map<number, { subBudget: SubBudget, categories: IncomeCategory[] }>()
+    
+    filteredIncomeCategories.forEach(category => {
+      const subBudget = subBudgets.find(sb => sb.id === category.sub_budget_id)
+      if (subBudget) {
+        if (!grouped.has(subBudget.id)) {
+          grouped.set(subBudget.id, { subBudget, categories: [] })
+        }
+        grouped.get(subBudget.id)!.categories.push(category)
+      }
+    })
+    
+    return Array.from(grouped.values()).sort((a, b) => a.subBudget.label.localeCompare(b.subBudget.label))
+  }, [filteredIncomeCategories, subBudgets])
+
+  const groupedExpenseCategories = useMemo(() => {
+    const grouped = new Map<number, { subBudget: SubBudget, categories: ExpenseCategory[] }>()
+    
+    filteredExpenseCategories.forEach(category => {
+      const subBudget = subBudgets.find(sb => sb.id === category.sub_budget_id)
+      if (subBudget) {
+        if (!grouped.has(subBudget.id)) {
+          grouped.set(subBudget.id, { subBudget, categories: [] })
+        }
+        grouped.get(subBudget.id)!.categories.push(category)
+      }
+    })
+    
+    return Array.from(grouped.values()).sort((a, b) => a.subBudget.label.localeCompare(b.subBudget.label))
+  }, [filteredExpenseCategories, subBudgets])
 
   // Load reference data on mount
   useEffect(() => {
@@ -124,10 +178,6 @@ export default function AccountingReferencesPage() {
   }
 
   const handleDeleteItem = async (type: 'sub-budget' | 'income-category' | 'expense-category', id: number) => {
-    if (!confirm(`هل أنت متأكد من حذف هذا العنصر؟ سيتم حذف جميع البيانات المرتبطة به.`)) {
-      return
-    }
-
     try {
       const apiUrls = {
         'sub-budget': 'references/sub-budgets',
@@ -136,6 +186,37 @@ export default function AccountingReferencesPage() {
       }
       
       const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
+
+      // First check if there are related records for accounting categories
+      let confirmMessage = `هل أنت متأكد من حذف هذا العنصر؟`
+      
+      if (type === 'income-category' || type === 'expense-category') {
+        try {
+          const countUrl = `${baseUrl}/${apiUrls[type]}/${id}/related-count`
+          const countResponse = await fetch(countUrl, {
+            headers: { 'Accept': 'application/json' }
+          })
+          
+          if (countResponse.ok) {
+            const countData = await countResponse.json()
+            const relatedCount = type === 'income-category' 
+              ? countData.data.related_incomes_count 
+              : countData.data.related_expenses_count
+            
+            if (relatedCount > 0) {
+              const itemType = type === 'income-category' ? 'إيراد' : 'مصروف'
+              confirmMessage = `هذه الفئة مرتبطة بـ ${relatedCount} ${itemType}. إذا تم حذفها، ستتم إعادة تعيين جميع العناصر المرتبطة إلى الفئة الافتراضية.\n\nهل تريد المتابعة؟`
+            }
+          }
+        } catch (countError) {
+          console.warn('Could not fetch related count:', countError)
+        }
+      }
+
+      if (!confirm(confirmMessage)) {
+        return
+      }
+      
       const url = `${baseUrl}/${apiUrls[type]}/${id}`
       
       const response = await fetch(url, {
@@ -240,38 +321,60 @@ export default function AccountingReferencesPage() {
         </CardTitle>
       </CardHeader>
       <CardContent>
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="البحث في فئات الإيرادات..."
+              value={incomeCategorySearch}
+              onChange={(e) => setIncomeCategorySearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+        
         {loading ? (
           <div className="text-center py-4">جاري التحميل...</div>
-        ) : incomeCategories.length === 0 ? (
+        ) : groupedIncomeCategories.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            لا توجد فئات إيرادات مضافة بعد
+            {incomeCategorySearch ? "لم يتم العثور على فئات إيرادات تطابق البحث" : "لا توجد فئات إيرادات مضافة بعد"}
           </div>
         ) : (
-          <div className="space-y-2">
-            {incomeCategories.map((category) => (
-              <div key={category.id} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <span className="font-medium">{category.label}</span>
-                  {category.subBudget && (
-                    <Badge variant="secondary">
-                      {category.subBudget.label}
+          <div className="space-y-4">
+            {groupedIncomeCategories.map(({ subBudget, categories }) => (
+              <Collapsible key={subBudget.id} defaultOpen>
+                <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
+                    <span className="font-semibold text-gray-700">{subBudget.label}</span>
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                      {categories.length} فئة
                     </Badge>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm">
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-red-600 hover:text-red-700" 
-                    onClick={() => handleDeleteItem('income-category', category.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2 space-y-2">
+                  {categories.map((category) => (
+                    <div key={category.id} className="flex items-center justify-between p-3 border rounded-lg ml-6 bg-white">
+                      <div className="flex items-center gap-3">
+                        <span className="font-medium">{category.label}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => handleEditItem('income-category', category)}>
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-red-600 hover:text-red-700" 
+                          onClick={() => handleDeleteItem('income-category', category.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
             ))}
           </div>
         )}
@@ -287,45 +390,67 @@ export default function AccountingReferencesPage() {
             <TrendingDown className="h-5 w-5 text-red-600" />
             فئات المصروفات
           </div>
-          <Button size="sm">
+          <Button size="sm" onClick={() => handleAddItem('expense-category')}>
             <Plus className="h-4 w-4 ml-2" />
             إضافة فئة مصروف
           </Button>
         </CardTitle>
       </CardHeader>
       <CardContent>
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="البحث في فئات المصروفات..."
+              value={expenseCategorySearch}
+              onChange={(e) => setExpenseCategorySearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+        
         {loading ? (
           <div className="text-center py-4">جاري التحميل...</div>
-        ) : expenseCategories.length === 0 ? (
+        ) : groupedExpenseCategories.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            لا توجد فئات مصروفات مضافة بعد
+            {expenseCategorySearch ? "لم يتم العثور على فئات مصروفات تطابق البحث" : "لا توجد فئات مصروفات مضافة بعد"}
           </div>
         ) : (
-          <div className="space-y-2">
-            {expenseCategories.map((category) => (
-              <div key={category.id} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <span className="font-medium">{category.label}</span>
-                  {category.subBudget && (
-                    <Badge variant="secondary">
-                      {category.subBudget.label}
+          <div className="space-y-4">
+            {groupedExpenseCategories.map(({ subBudget, categories }) => (
+              <Collapsible key={subBudget.id} defaultOpen>
+                <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
+                    <span className="font-semibold text-gray-700">{subBudget.label}</span>
+                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                      {categories.length} فئة
                     </Badge>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm">
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-red-600 hover:text-red-700" 
-                    onClick={() => handleDeleteItem('expense-category', category.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2 space-y-2">
+                  {categories.map((category) => (
+                    <div key={category.id} className="flex items-center justify-between p-3 border rounded-lg ml-6 bg-white">
+                      <div className="flex items-center gap-3">
+                        <span className="font-medium">{category.label}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => handleEditItem('expense-category', category)}>
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-red-600 hover:text-red-700" 
+                          onClick={() => handleDeleteItem('expense-category', category.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
             ))}
           </div>
         )}
@@ -371,6 +496,14 @@ export default function AccountingReferencesPage() {
           <ExpenseCategoriesTable />
         </TabsContent>
       </Tabs>
+
+      <AccountingReferenceDialog
+        open={dialogOpen}
+        onOpenChange={handleDialogOpenChange}
+        type={dialogType}
+        item={selectedItem}
+        onSuccess={handleDialogSuccess}
+      />
     </div>
   )
 }

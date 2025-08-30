@@ -12,7 +12,8 @@
       "Bash(powershell:*)",
       "Bash(mkdir:*)",
       "Bash(mysql:*)",
-      "WebFetch(domain:localhost)"
+      "WebFetch(domain:localhost)",
+      "Bash(cmd /c:*)"
     ],
     "deny": [],
     "ask": [],

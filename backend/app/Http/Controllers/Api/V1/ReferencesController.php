@@ -12,6 +12,9 @@ use App\Models\Partner;
 use App\Models\PartnerField;
 use App\Models\PartnerSubfield;
 use App\Models\OrphansEducationLevel;
+use App\Models\SubBudget;
+use App\Models\IncomeCategory;
+use App\Models\ExpenseCategory;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -687,5 +690,259 @@ class ReferencesController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    // Sub-Budgets CRUD
+    public function getSubBudgets(): JsonResponse
+    {
+        $subBudgets = SubBudget::with(['incomeCategories', 'expenseCategories'])
+            ->orderBy('label')
+            ->get();
+        return response()->json(['data' => $subBudgets]);
+    }
+
+    public function storeSubBudget(Request $request): JsonResponse
+    {
+        $request->validate([
+            'label' => 'required|string|max:255|unique:sub_budgets,label',
+        ]);
+
+        $subBudget = SubBudget::create([
+            'label' => $request->label,
+        ]);
+
+        return response()->json([
+            'message' => 'تم إنشاء الميزانية الفرعية بنجاح',
+            'data' => $subBudget
+        ], 201);
+    }
+
+    public function updateSubBudget(Request $request, SubBudget $subBudget): JsonResponse
+    {
+        $request->validate([
+            'label' => 'required|string|max:255|unique:sub_budgets,label,' . $subBudget->id,
+        ]);
+
+        $subBudget->update([
+            'label' => $request->label,
+        ]);
+
+        return response()->json([
+            'message' => 'تم تحديث الميزانية الفرعية بنجاح',
+            'data' => $subBudget
+        ]);
+    }
+
+    public function destroySubBudget(SubBudget $subBudget): JsonResponse
+    {
+        try {
+            return DB::transaction(function () use ($subBudget) {
+                // Check if sub-budget has income or expense categories
+                $incomeCount = $subBudget->incomeCategories()->count();
+                $expenseCount = $subBudget->expenseCategories()->count();
+                
+                if ($incomeCount > 0 || $expenseCount > 0) {
+                    return response()->json([
+                        'message' => "لا يمكن حذف هذه الميزانية الفرعية لأنها تحتوي على {$incomeCount} فئة إيراد و {$expenseCount} فئة مصروف"
+                    ], 400);
+                }
+                
+                $subBudgetName = $subBudget->label;
+                $subBudget->delete();
+
+                return response()->json([
+                    'message' => "تم حذف الميزانية الفرعية \"{$subBudgetName}\" بنجاح"
+                ]);
+            });
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'حدث خطأ أثناء حذف الميزانية الفرعية',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Accounting Income Categories CRUD
+    public function getAccountingIncomeCategories(): JsonResponse
+    {
+        $categories = IncomeCategory::with('subBudget')
+            ->where('id', '!=', 999)
+            ->orderBy('label')
+            ->get();
+        return response()->json(['data' => $categories]);
+    }
+
+    public function storeAccountingIncomeCategory(Request $request): JsonResponse
+    {
+        $request->validate([
+            'label' => 'required|string|max:255',
+            'sub_budget_id' => 'required|integer|exists:sub_budgets,id',
+        ]);
+
+        $category = IncomeCategory::create([
+            'label' => $request->label,
+            'sub_budget_id' => $request->sub_budget_id,
+        ]);
+
+        $category->load('subBudget');
+
+        return response()->json([
+            'message' => 'تم إنشاء فئة الإيراد بنجاح',
+            'data' => $category
+        ], 201);
+    }
+
+    public function updateAccountingIncomeCategory(Request $request, IncomeCategory $category): JsonResponse
+    {
+        $request->validate([
+            'label' => 'required|string|max:255',
+            'sub_budget_id' => 'required|integer|exists:sub_budgets,id',
+        ]);
+
+        $category->update([
+            'label' => $request->label,
+            'sub_budget_id' => $request->sub_budget_id,
+        ]);
+
+        $category->load('subBudget');
+
+        return response()->json([
+            'message' => 'تم تحديث فئة الإيراد بنجاح',
+            'data' => $category
+        ]);
+    }
+
+    public function destroyAccountingIncomeCategory(IncomeCategory $category): JsonResponse
+    {
+        try {
+            return DB::transaction(function () use ($category) {
+                $categoryName = $category->label;
+                $incomeCount = $category->incomes()->count();
+                
+                // Delete the category - the model's booted method will handle updating related records
+                $category->delete();
+
+                if ($incomeCount > 0) {
+                    return response()->json([
+                        'message' => "تم حذف فئة الإيراد \"{$categoryName}\" بنجاح. تم تحويل {$incomeCount} إيراد إلى الفئة الافتراضية."
+                    ]);
+                } else {
+                    return response()->json([
+                        'message' => "تم حذف فئة الإيراد \"{$categoryName}\" بنجاح"
+                    ]);
+                }
+            });
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'حدث خطأ أثناء حذف فئة الإيراد',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Get count of related records for income category (for deletion warning)
+    public function getAccountingIncomeCategoryRelatedCount(IncomeCategory $category): JsonResponse
+    {
+        $incomeCount = $category->incomes()->count();
+        
+        return response()->json([
+            'data' => [
+                'category_id' => $category->id,
+                'category_label' => $category->label,
+                'related_incomes_count' => $incomeCount
+            ]
+        ]);
+    }
+
+    // Accounting Expense Categories CRUD
+    public function getAccountingExpenseCategories(): JsonResponse
+    {
+        $categories = ExpenseCategory::with('subBudget')
+            ->where('id', '!=', 999)
+            ->orderBy('label')
+            ->get();
+        return response()->json(['data' => $categories]);
+    }
+
+    public function storeAccountingExpenseCategory(Request $request): JsonResponse
+    {
+        $request->validate([
+            'label' => 'required|string|max:255',
+            'sub_budget_id' => 'required|integer|exists:sub_budgets,id',
+        ]);
+
+        $category = ExpenseCategory::create([
+            'label' => $request->label,
+            'sub_budget_id' => $request->sub_budget_id,
+        ]);
+
+        $category->load('subBudget');
+
+        return response()->json([
+            'message' => 'تم إنشاء فئة المصروف بنجاح',
+            'data' => $category
+        ], 201);
+    }
+
+    public function updateAccountingExpenseCategory(Request $request, ExpenseCategory $category): JsonResponse
+    {
+        $request->validate([
+            'label' => 'required|string|max:255',
+            'sub_budget_id' => 'required|integer|exists:sub_budgets,id',
+        ]);
+
+        $category->update([
+            'label' => $request->label,
+            'sub_budget_id' => $request->sub_budget_id,
+        ]);
+
+        $category->load('subBudget');
+
+        return response()->json([
+            'message' => 'تم تحديث فئة المصروف بنجاح',
+            'data' => $category
+        ]);
+    }
+
+    public function destroyAccountingExpenseCategory(ExpenseCategory $category): JsonResponse
+    {
+        try {
+            return DB::transaction(function () use ($category) {
+                $categoryName = $category->label;
+                $expenseCount = $category->expenses()->count();
+                
+                // Delete the category - the model's booted method will handle updating related records
+                $category->delete();
+
+                if ($expenseCount > 0) {
+                    return response()->json([
+                        'message' => "تم حذف فئة المصروف \"{$categoryName}\" بنجاح. تم تحويل {$expenseCount} مصروف إلى الفئة الافتراضية."
+                    ]);
+                } else {
+                    return response()->json([
+                        'message' => "تم حذف فئة المصروف \"{$categoryName}\" بنجاح"
+                    ]);
+                }
+            });
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'حدث خطأ أثناء حذف فئة المصروف',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Get count of related records for expense category (for deletion warning)
+    public function getAccountingExpenseCategoryRelatedCount(ExpenseCategory $category): JsonResponse
+    {
+        $expenseCount = $category->expenses()->count();
+        
+        return response()->json([
+            'data' => [
+                'category_id' => $category->id,
+                'category_label' => $category->label,
+                'related_expenses_count' => $expenseCount
+            ]
+        ]);
     }
 }

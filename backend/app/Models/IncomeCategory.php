@@ -25,4 +25,14 @@ class IncomeCategory extends Model
     {
         return $this->hasMany(Income::class);
     }
+
+    protected static function booted()
+    {
+        static::deleting(function ($incomeCategory) {
+            if ($incomeCategory->id === 999) {
+                throw new \Exception('Cannot delete the default income category.');
+            }
+            $incomeCategory->incomes()->update(['income_category_id' => 999]);
+        });
+    }
 }

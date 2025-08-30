@@ -83,13 +83,13 @@ Route::prefix('v1')->group(function () {
     
     Route::get('income-categories', function () {
         return response()->json([
-            'data' => \App\Models\IncomeCategory::with('subBudget')->orderBy('label')->get()
+            'data' => \App\Models\IncomeCategory::with('subBudget')->where('id', '!=', 999)->orderBy('label')->get()
         ]);
     });
     
     Route::get('expense-categories', function () {
         return response()->json([
-            'data' => \App\Models\ExpenseCategory::with('subBudget')->orderBy('label')->get()
+            'data' => \App\Models\ExpenseCategory::with('subBudget')->where('id', '!=', 999)->orderBy('label')->get()
         ]);
     });
 
@@ -117,17 +117,19 @@ Route::prefix('v1')->group(function () {
     Route::put('references/aid-types/{aidType}', [ReferencesController::class, 'updateAidType']);
     Route::delete('references/aid-types/{aidType}', [ReferencesController::class, 'destroyAidType']);
     
-    // References Management - Income Categories
-    Route::get('references/income-categories', [ReferencesController::class, 'getIncomeCategories']);
-    Route::post('references/income-categories', [ReferencesController::class, 'storeIncomeCategory']);
-    Route::put('references/income-categories/{category}', [ReferencesController::class, 'updateIncomeCategory']);
-    Route::delete('references/income-categories/{category}', [ReferencesController::class, 'destroyIncomeCategory']);
+    // References Management - Income Categories (Accounting)
+    Route::get('references/income-categories', [ReferencesController::class, 'getAccountingIncomeCategories']);
+    Route::post('references/income-categories', [ReferencesController::class, 'storeAccountingIncomeCategory']);
+    Route::put('references/income-categories/{category}', [ReferencesController::class, 'updateAccountingIncomeCategory']);
+    Route::get('references/income-categories/{category}/related-count', [ReferencesController::class, 'getAccountingIncomeCategoryRelatedCount']);
+    Route::delete('references/income-categories/{category}', [ReferencesController::class, 'destroyAccountingIncomeCategory']);
     
-    // References Management - Expense Categories
-    Route::get('references/expense-categories', [ReferencesController::class, 'getExpenseCategories']);
-    Route::post('references/expense-categories', [ReferencesController::class, 'storeExpenseCategory']);
-    Route::put('references/expense-categories/{category}', [ReferencesController::class, 'updateExpenseCategory']);
-    Route::delete('references/expense-categories/{category}', [ReferencesController::class, 'destroyExpenseCategory']);
+    // References Management - Expense Categories (Accounting)
+    Route::get('references/expense-categories', [ReferencesController::class, 'getAccountingExpenseCategories']);
+    Route::post('references/expense-categories', [ReferencesController::class, 'storeAccountingExpenseCategory']);
+    Route::put('references/expense-categories/{category}', [ReferencesController::class, 'updateAccountingExpenseCategory']);
+    Route::get('references/expense-categories/{category}/related-count', [ReferencesController::class, 'getAccountingExpenseCategoryRelatedCount']);
+    Route::delete('references/expense-categories/{category}', [ReferencesController::class, 'destroyAccountingExpenseCategory']);
     
     // References Management - Partner Fields
     Route::get('references/partner-fields', [ReferencesController::class, 'getPartnerFields']);
@@ -153,6 +155,12 @@ Route::prefix('v1')->group(function () {
     Route::put('references/education-levels/{level}', [ReferencesController::class, 'updateEducationLevel']);
     Route::delete('references/education-levels/{level}', [ReferencesController::class, 'destroyEducationLevel']);
     Route::post('references/education-levels/reorder', [ReferencesController::class, 'reorderEducationLevels']);
+    
+    // References Management - Sub-Budgets
+    Route::get('references/sub-budgets', [ReferencesController::class, 'getSubBudgets']);
+    Route::post('references/sub-budgets', [ReferencesController::class, 'storeSubBudget']);
+    Route::put('references/sub-budgets/{subBudget}', [ReferencesController::class, 'updateSubBudget']);
+    Route::delete('references/sub-budgets/{subBudget}', [ReferencesController::class, 'destroySubBudget']);
     
     // Fiscal Year Management
     Route::get('fiscal-years', [FiscalYearController::class, 'index']);

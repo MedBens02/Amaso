@@ -25,4 +25,14 @@ class ExpenseCategory extends Model
     {
         return $this->hasMany(Expense::class);
     }
+
+    protected static function booted()
+    {
+        static::deleting(function ($expenseCategory) {
+            if ($expenseCategory->id === 999) {
+                throw new \Exception('Cannot delete the default expense category.');
+            }
+            $expenseCategory->expenses()->update(['expense_category_id' => 999]);
+        });
+    }
 }
