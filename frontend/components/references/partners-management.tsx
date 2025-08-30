@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,13 +8,17 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { 
   Plus, 
   Edit2, 
   Trash2, 
   Building, 
   Layers,
-  Users
+  Users,
+  Search,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { ReferenceItemDialog } from "./reference-item-dialog"
@@ -74,6 +78,9 @@ export function PartnersManagement({ onDataChange }: PartnersManagementProps) {
   const [partners, setPartners] = useState<Partner[]>([])
   const [loading, setLoading] = useState(true)
   
+  // Search state
+  const [partnerSearch, setPartnerSearch] = useState("")
+  
   // Dialog states
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false)
   const [subfieldDialogOpen, setSubfieldDialogOpen] = useState(false)
@@ -89,6 +96,61 @@ export function PartnersManagement({ onDataChange }: PartnersManagementProps) {
   const [deleteItem, setDeleteItem] = useState<{ type: string, item: any }>()
   
   const { toast } = useToast()
+
+  // Filtered and grouped partners data
+  const filteredPartners = useMemo(() => {
+    return partners.filter(partner =>
+      partner.name.toLowerCase().includes(partnerSearch.toLowerCase()) ||
+      (partner.phone && partner.phone.toLowerCase().includes(partnerSearch.toLowerCase())) ||
+      (partner.email && partner.email.toLowerCase().includes(partnerSearch.toLowerCase())) ||
+      (partner.address && partner.address.toLowerCase().includes(partnerSearch.toLowerCase()))
+    )
+  }, [partners, partnerSearch])
+
+  const groupedPartners = useMemo(() => {
+    const groups = new Map<string, { field: PartnerField | null, subfield: PartnerSubfield | null, partners: Partner[] }>()
+    
+    filteredPartners.forEach(partner => {
+      let groupKey = ""
+      let field: PartnerField | null = null
+      let subfield: PartnerSubfield | null = null
+      
+      if (partner.field_id && partner.subfield_id) {
+        // Group by field and subfield
+        field = partnerFields.find(f => f.id === partner.field_id) || null
+        subfield = partnerSubfields.find(sf => sf.id === partner.subfield_id) || null
+        groupKey = `field-${partner.field_id}-subfield-${partner.subfield_id}`
+      } else if (partner.field_id) {
+        // Group by field only
+        field = partnerFields.find(f => f.id === partner.field_id) || null
+        groupKey = `field-${partner.field_id}`
+      } else {
+        // Group ungrouped partners
+        groupKey = "no-field"
+      }
+      
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, { field, subfield, partners: [] })
+      }
+      groups.get(groupKey)!.partners.push(partner)
+    })
+    
+    return Array.from(groups.values()).sort((a, b) => {
+      // Sort by field name, then by subfield name, ungrouped last
+      if (!a.field && !b.field) return 0
+      if (!a.field) return 1
+      if (!b.field) return -1
+      
+      const fieldCompare = a.field.label.localeCompare(b.field.label)
+      if (fieldCompare !== 0) return fieldCompare
+      
+      if (!a.subfield && !b.subfield) return 0
+      if (!a.subfield) return 1
+      if (!b.subfield) return -1
+      
+      return a.subfield.label.localeCompare(b.subfield.label)
+    })
+  }, [filteredPartners, partnerFields, partnerSubfields])
 
   const loadData = async () => {
     setLoading(true)
@@ -386,64 +448,92 @@ export function PartnersManagement({ onDataChange }: PartnersManagementProps) {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              <div className="mb-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="البحث في الشركاء (الاسم، الهاتف، البريد، العنوان)..."
+                    value={partnerSearch}
+                    onChange={(e) => setPartnerSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              
               {loading ? (
                 <div className="text-center py-4">جاري التحميل...</div>
-              ) : partners.length === 0 ? (
+              ) : groupedPartners.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
-                  لا توجد شركاء مضافين بعد
+                  {partnerSearch ? "لم يتم العثور على شركاء يطابقون البحث" : "لا توجد شركاء مضافين بعد"}
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {partners.map((partner) => (
-                    <div key={partner.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-3">
-                          <span className="font-medium">{partner.name}</span>
-                          {partner.field && (
-                            <Badge variant="secondary">{partner.field.label}</Badge>
-                          )}
-                          {partner.subfield && (
-                            <Badge variant="outline">{partner.subfield.label}</Badge>
-                          )}
+                <div className="space-y-4">
+                  {groupedPartners.map((group, index) => (
+                    <Collapsible key={index} defaultOpen>
+                      <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                        <div className="flex items-center gap-2">
+                          <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
+                          <span className="font-semibold text-gray-700">
+                            {group.field 
+                              ? group.subfield 
+                                ? `${group.field.label} - ${group.subfield.label}`
+                                : group.field.label
+                              : "بدون تصنيف"
+                            }
+                          </span>
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                            {group.partners.length} شريك
+                          </Badge>
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          {partner.phone && (
-                            <span className="flex items-center gap-1">
-                              📞 {partner.phone}
-                            </span>
-                          )}
-                          {partner.email && (
-                            <span className="flex items-center gap-1">
-                              ✉️ {partner.email}
-                            </span>
-                          )}
-                          {partner.address && (
-                            <span className="flex items-center gap-1">
-                              📍 {partner.address}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedPartner(partner)
-                            setPartnerDialogOpen(true)
-                          }}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openDeleteConfirm('partner', partner)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="mt-2 space-y-2">
+                        {group.partners.map((partner) => (
+                          <div key={partner.id} className="flex items-center justify-between p-3 border rounded-lg ml-6 bg-white">
+                            <div className="flex flex-col gap-2">
+                              <div className="flex items-center gap-3">
+                                <span className="font-medium">{partner.name}</span>
+                              </div>
+                              <div className="flex items-center gap-4 text-sm text-gray-600">
+                                {partner.phone && (
+                                  <span className="flex items-center gap-1">
+                                    📞 {partner.phone}
+                                  </span>
+                                )}
+                                {partner.email && (
+                                  <span className="flex items-center gap-1">
+                                    ✉️ {partner.email}
+                                  </span>
+                                )}
+                                {partner.address && (
+                                  <span className="flex items-center gap-1">
+                                    📍 {partner.address}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedPartner(partner)
+                                  setPartnerDialogOpen(true)
+                                }}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openDeleteConfirm('partner', partner)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </CollapsibleContent>
+                    </Collapsible>
                   ))}
                 </div>
               )}
