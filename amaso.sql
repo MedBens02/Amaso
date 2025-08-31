@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Aug 30, 2025 at 10:12 PM
+-- Generation Time: Aug 30, 2025 at 10:16 PM
 -- Server version: 8.0.40
 -- PHP Version: 8.2.18
 
@@ -82,6 +82,48 @@ INSERT INTO `bank_accounts` (`id`, `label`, `bank_name`, `account_number`, `bala
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `beneficiaries`
+--
+
+DROP TABLE IF EXISTS `beneficiaries`;
+CREATE TABLE IF NOT EXISTS `beneficiaries` (
+  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `type` enum('Widow','Orphan') NOT NULL,
+  `widow_id` bigint UNSIGNED DEFAULT NULL,
+  `orphan_id` bigint UNSIGNED DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_widow` (`widow_id`),
+  UNIQUE KEY `uniq_orphan` (`orphan_id`)
+) ;
+
+--
+-- Dumping data for table `beneficiaries`
+--
+
+INSERT INTO `beneficiaries` (`id`, `type`, `widow_id`, `orphan_id`, `created_at`, `updated_at`) VALUES
+(1, 'Widow', 1, NULL, '2025-08-30 22:13:19', '2025-08-30 22:13:19'),
+(2, 'Widow', 2, NULL, '2025-08-30 22:13:19', '2025-08-30 22:13:19'),
+(3, 'Widow', 3, NULL, '2025-08-30 22:13:19', '2025-08-30 22:13:19'),
+(4, 'Widow', 13, NULL, '2025-08-30 22:13:19', '2025-08-30 22:13:19'),
+(5, 'Widow', 15, NULL, '2025-08-30 22:13:19', '2025-08-30 22:13:19'),
+(6, 'Widow', 16, NULL, '2025-08-30 22:13:19', '2025-08-30 22:13:19'),
+(7, 'Widow', 17, NULL, '2025-08-30 22:13:19', '2025-08-30 22:13:19'),
+(8, 'Widow', 18, NULL, '2025-08-30 22:13:19', '2025-08-30 22:13:19'),
+(16, 'Orphan', NULL, 1, '2025-08-30 22:13:19', '2025-08-30 22:13:19'),
+(17, 'Orphan', NULL, 2, '2025-08-30 22:13:19', '2025-08-30 22:13:19'),
+(18, 'Orphan', NULL, 3, '2025-08-30 22:13:19', '2025-08-30 22:13:19'),
+(19, 'Orphan', NULL, 4, '2025-08-30 22:13:19', '2025-08-30 22:13:19'),
+(20, 'Orphan', NULL, 5, '2025-08-30 22:13:19', '2025-08-30 22:13:19'),
+(21, 'Orphan', NULL, 6, '2025-08-30 22:13:19', '2025-08-30 22:13:19'),
+(22, 'Orphan', NULL, 12, '2025-08-30 22:13:19', '2025-08-30 22:13:19'),
+(23, 'Orphan', NULL, 17, '2025-08-30 22:13:19', '2025-08-30 22:13:19'),
+(24, 'Orphan', NULL, 24, '2025-08-30 22:13:19', '2025-08-30 22:13:19');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `beneficiary_groups`
 --
 
@@ -105,11 +147,11 @@ CREATE TABLE IF NOT EXISTS `beneficiary_groups` (
 DROP TABLE IF EXISTS `beneficiary_group_members`;
 CREATE TABLE IF NOT EXISTS `beneficiary_group_members` (
   `group_id` bigint UNSIGNED NOT NULL,
-  `beneficiary_type` enum('Widow','Orphan') COLLATE utf8mb4_unicode_ci NOT NULL,
   `beneficiary_id` bigint UNSIGNED NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
-  PRIMARY KEY (`group_id`,`beneficiary_type`,`beneficiary_id`)
+  PRIMARY KEY (`group_id`,`beneficiary_id`),
+  KEY `idx_bgm_beneficiary_id` (`beneficiary_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -229,14 +271,14 @@ DROP TABLE IF EXISTS `expense_beneficiaries`;
 CREATE TABLE IF NOT EXISTS `expense_beneficiaries` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `expense_id` bigint UNSIGNED NOT NULL,
-  `beneficiary_type` enum('Widow','Orphan') COLLATE utf8mb4_unicode_ci NOT NULL,
   `beneficiary_id` bigint UNSIGNED NOT NULL,
   `amount` decimal(16,2) NOT NULL,
   `notes` text COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `expense_beneficiaries_expense_id_foreign` (`expense_id`)
+  KEY `expense_beneficiaries_expense_id_foreign` (`expense_id`),
+  KEY `idx_eb_beneficiary_id` (`beneficiary_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -1442,10 +1484,18 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 --
 
 --
+-- Constraints for table `beneficiaries`
+--
+ALTER TABLE `beneficiaries`
+  ADD CONSTRAINT `fk_benef_orphan` FOREIGN KEY (`orphan_id`) REFERENCES `orphans` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_benef_widow` FOREIGN KEY (`widow_id`) REFERENCES `widows` (`id`) ON DELETE CASCADE;
+
+--
 -- Constraints for table `beneficiary_group_members`
 --
 ALTER TABLE `beneficiary_group_members`
-  ADD CONSTRAINT `beneficiary_group_members_group_id_foreign` FOREIGN KEY (`group_id`) REFERENCES `beneficiary_groups` (`id`);
+  ADD CONSTRAINT `beneficiary_group_members_group_id_foreign` FOREIGN KEY (`group_id`) REFERENCES `beneficiary_groups` (`id`),
+  ADD CONSTRAINT `fk_bgm_beneficiaries` FOREIGN KEY (`beneficiary_id`) REFERENCES `beneficiaries` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `expenses`
@@ -1463,7 +1513,8 @@ ALTER TABLE `expenses`
 -- Constraints for table `expense_beneficiaries`
 --
 ALTER TABLE `expense_beneficiaries`
-  ADD CONSTRAINT `expense_beneficiaries_expense_id_foreign` FOREIGN KEY (`expense_id`) REFERENCES `expenses` (`id`);
+  ADD CONSTRAINT `expense_beneficiaries_expense_id_foreign` FOREIGN KEY (`expense_id`) REFERENCES `expenses` (`id`),
+  ADD CONSTRAINT `fk_eb_beneficiaries` FOREIGN KEY (`beneficiary_id`) REFERENCES `beneficiaries` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `expense_beneficiary_groups`

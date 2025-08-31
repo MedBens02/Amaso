@@ -48,6 +48,11 @@ const navigation = [
     href: "/dashboard/donors",
     icon: HandHeart,
   },
+  {
+    name: "مجموعات المستفيدين",
+    href: "/dashboard/beneficiary-groups",
+    icon: Users,
+  },
 ]
 
 const educationNavigation = [

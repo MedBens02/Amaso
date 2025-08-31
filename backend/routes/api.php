@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\TransferController;
 use App\Http\Controllers\Api\V1\ReferencesController;
 use App\Http\Controllers\Api\V1\FiscalYearController;
+use App\Http\Controllers\Api\V1\BeneficiaryGroupController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -60,6 +61,13 @@ Route::prefix('v1')->group(function () {
     // Transfers CRUD + approval
     Route::apiResource('transfers', TransferController::class);
     Route::post('transfers/{transfer}/approve', [TransferController::class, 'approve']);
+    
+    // Beneficiary Groups CRUD + member management
+    Route::apiResource('beneficiary-groups', BeneficiaryGroupController::class);
+    Route::get('beneficiary-groups/{beneficiaryGroup}/members', [BeneficiaryGroupController::class, 'getMembers']);
+    Route::post('beneficiary-groups/{beneficiaryGroup}/members', [BeneficiaryGroupController::class, 'addMembers']);
+    Route::delete('beneficiary-groups/{beneficiaryGroup}/members/{beneficiary}', [BeneficiaryGroupController::class, 'removeMember']);
+    Route::get('beneficiaries', [BeneficiaryGroupController::class, 'getBeneficiaries']);
     
     // Lookup data endpoints
     Route::get('fiscal-years', function () {
