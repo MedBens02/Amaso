@@ -22,6 +22,7 @@ export default function BeneficiaryGroupsPage() {
   const [memberToRemove, setMemberToRemove] = useState<GroupMember | null>(null)
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
   const [editDialogRefreshTrigger, setEditDialogRefreshTrigger] = useState(0)
+  const [isDeletingMember, setIsDeletingMember] = useState(false)
   const { toast } = useToast()
 
   const fetchGroupMembers = async (groupId: number) => {
@@ -60,6 +61,7 @@ export default function BeneficiaryGroupsPage() {
     console.log('Member ID:', member.id)
     console.log('Member full_name:', member.full_name)
     console.log('Current editingGroup:', editingGroup)
+    setIsDeletingMember(true)
     setMemberToRemove(member)
     setShowRemoveDialog(true)
     console.log('✅ Confirmation dialog should now be visible')
@@ -123,6 +125,8 @@ export default function BeneficiaryGroupsPage() {
       })
     } finally {
       setMemberToRemove(null)
+      setIsDeletingMember(false)
+      console.log('🏁 Reset isDeletingMember flag to false')
     }
   }
 
@@ -190,6 +194,10 @@ export default function BeneficiaryGroupsPage() {
           if (!open) {
             setViewingGroup(null)
             setGroupMembers([])
+            // Force clean up pointer-events
+            setTimeout(() => {
+              document.body.style.pointerEvents = 'auto'
+            }, 100)
           }
         }}
       />
@@ -200,8 +208,16 @@ export default function BeneficiaryGroupsPage() {
         open={!!editingGroup}
         onOpenChange={(open) => {
           console.log('EditBeneficiaryGroupDialog onOpenChange:', open)
-          if (!open) {
+          console.log('isDeletingMember:', isDeletingMember)
+          if (!open && !isDeletingMember) {
+            console.log('✅ Closing edit dialog (not deleting member)')
             setEditingGroup(null)
+            // Force clean up pointer-events
+            setTimeout(() => {
+              document.body.style.pointerEvents = 'auto'
+            }, 100)
+          } else if (!open && isDeletingMember) {
+            console.log('🚫 Prevented edit dialog from closing during member deletion')
           }
         }}
         onGroupUpdated={handleGroupUpdated}
@@ -209,7 +225,15 @@ export default function BeneficiaryGroupsPage() {
       />
 
       {/* Remove Member Confirmation Dialog */}
-      <AlertDialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
+      <AlertDialog open={showRemoveDialog} onOpenChange={(open) => {
+        setShowRemoveDialog(open)
+        if (!open) {
+          // Force clean up pointer-events when dialog closes
+          setTimeout(() => {
+            document.body.style.pointerEvents = 'auto'
+          }, 100)
+        }
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>تأكيد حذف العضو</AlertDialogTitle>
@@ -221,8 +245,11 @@ export default function BeneficiaryGroupsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel 
               onClick={() => {
+                console.log('❌ User cancelled member deletion')
                 setShowRemoveDialog(false)
                 setMemberToRemove(null)
+                setIsDeletingMember(false)
+                console.log('🏁 Reset isDeletingMember flag to false (cancelled)')
               }}
             >
               إلغاء
