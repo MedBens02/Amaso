@@ -139,6 +139,11 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
   const [groupMembers, setGroupMembers] = useState<Record<number, Beneficiary[]>>({})
   const [excludedMembers, setExcludedMembers] = useState<Record<number, Set<number>>>({})
   
+  // Beneficiary search
+  const [beneficiarySearchTerm, setBeneficiarySearchTerm] = useState("")
+  const [beneficiaryTypeFilter, setBeneficiaryTypeFilter] = useState<'all' | 'Widow' | 'Orphan'>('all')
+  const [beneficiarySearchLoading, setBeneficiarySearchLoading] = useState(false)
+  
   const { toast } = useToast()
   
   // Form setup
@@ -198,12 +203,11 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
     setLoading(true)
     try {
       // Try to load real data from API
-      const [subBudgetsRes, categoriesRes, partnersRes, bankAccountsRes, beneficiariesRes, groupsRes, fiscalYearRes] = await Promise.all([
+      const [subBudgetsRes, categoriesRes, partnersRes, bankAccountsRes, groupsRes, fiscalYearRes] = await Promise.all([
         api.getSubBudgets(),
         api.getExpenseCategories(),
         api.getPartners(),
         api.getBankAccounts(),
-        api.getBeneficiaries(),
         api.getBeneficiaryGroups(),
         api.getActiveFiscalYear()
       ])
@@ -213,7 +217,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       setExpenseCategories(categoriesRes.data || [])
       setPartners(partnersRes.data || [])
       setBankAccounts(bankAccountsRes.data || [])
-      setBeneficiaries(beneficiariesRes.data || [])
+      setBeneficiaries([]) // Start with empty - user must search
       setBeneficiaryGroups(groupsRes.data || [])
       setActiveFiscalYear(fiscalYearRes || null)
       
@@ -267,7 +271,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       setExpenseCategories(fallbackData.expenseCategories)
       setPartners(fallbackData.partners)
       setBankAccounts(fallbackData.bankAccounts)
-      setBeneficiaries(fallbackData.beneficiaries)
+      setBeneficiaries([]) // Start with empty - user must search
       setBeneficiaryGroups(fallbackData.beneficiaryGroups)
       setActiveFiscalYear(fallbackData.fiscalYear)
       
@@ -284,6 +288,61 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       setLoading(false)
     }
   }
+  
+  // Search beneficiaries
+  const searchBeneficiaries = async () => {
+    if (!beneficiarySearchTerm.trim() && beneficiaryTypeFilter === 'all') {
+      setBeneficiaries([])
+      return
+    }
+    
+    setBeneficiarySearchLoading(true)
+    try {
+      const params: any = {}
+      if (beneficiarySearchTerm.trim()) {
+        params.search = beneficiarySearchTerm.trim()
+      }
+      if (beneficiaryTypeFilter !== 'all') {
+        params.type = beneficiaryTypeFilter
+      }
+      
+      const response = await api.getBeneficiaries()
+      
+      // Filter results based on search criteria
+      let filteredBeneficiaries = response.data || []
+      
+      if (beneficiarySearchTerm.trim()) {
+        const searchLower = beneficiarySearchTerm.toLowerCase()
+        filteredBeneficiaries = filteredBeneficiaries.filter((b: any) => 
+          (b.full_name && b.full_name.toLowerCase().includes(searchLower)) ||
+          (b.first_name && b.first_name.toLowerCase().includes(searchLower)) ||
+          (b.last_name && b.last_name.toLowerCase().includes(searchLower))
+        )
+      }
+      
+      if (beneficiaryTypeFilter !== 'all') {
+        filteredBeneficiaries = filteredBeneficiaries.filter((b: any) => b.type === beneficiaryTypeFilter)
+      }
+      
+      setBeneficiaries(filteredBeneficiaries.slice(0, 50)) // Limit to 50 results
+    } catch (error) {
+      console.error('Error searching beneficiaries:', error)
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ في البحث عن المستفيدين",
+        variant: "destructive"
+      })
+    } finally {
+      setBeneficiarySearchLoading(false)
+    }
+  }
+  
+  // Search when filter changes
+  useEffect(() => {
+    if (beneficiaryTypeFilter !== 'all') {
+      searchBeneficiaries()
+    }
+  }, [beneficiaryTypeFilter])
   
   // Filter categories based on selected sub-budget
   const filteredCategories = expenseCategories.filter(cat => 
@@ -654,7 +713,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                           <SelectContent>
                             {bankAccounts.map(account => (
                               <SelectItem key={account.id} value={account.id.toString()}>
-                                {account.name} - {account.bank_name}
+                                {account.label || account.name} - {account.bank_name} (رصيد: {Number(account.balance).toLocaleString()} DH)
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -716,31 +775,88 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                       {/* Individual Beneficiaries */}
                       <div className="space-y-3">
                         <h4 className="font-medium">المستفيدون الأفراد</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto">
-                          {beneficiaries.map(beneficiary => (
-                            <div
-                              key={beneficiary.id}
-                              className={cn(
-                                "flex items-center space-x-3 space-x-reverse p-3 rounded-lg border cursor-pointer",
-                                selectedBeneficiaries.has(beneficiary.id) 
-                                  ? "border-blue-500 bg-blue-50" 
-                                  : "border-gray-200 hover:border-gray-300"
-                              )}
-                              onClick={() => handleBeneficiarySelect(beneficiary.id, !selectedBeneficiaries.has(beneficiary.id))}
-                            >
-                              <Checkbox
-                                checked={selectedBeneficiaries.has(beneficiary.id)}
-                                readOnly
-                              />
-                              <div className="flex-1">
-                                <p className="font-medium">{beneficiary.full_name || `${beneficiary.first_name} ${beneficiary.last_name}`}</p>
-                                <p className="text-sm text-gray-500">
-                                  {beneficiary.type === 'Widow' ? 'أرملة' : 'يتيم'}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
+                        
+                        {/* Search and Filter */}
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <Input
+                              type="text"
+                              placeholder="ابحث عن المستفيدين بالاسم..."
+                              value={beneficiarySearchTerm}
+                              onChange={(e) => setBeneficiarySearchTerm(e.target.value)}
+                              onKeyPress={(e) => e.key === 'Enter' && searchBeneficiaries()}
+                            />
+                          </div>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            onClick={searchBeneficiaries}
+                            disabled={beneficiarySearchLoading}
+                          >
+                            {beneficiarySearchLoading ? "جاري البحث..." : "بحث"}
+                          </Button>
                         </div>
+                        
+                        {/* Type Filter */}
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant={beneficiaryTypeFilter === 'all' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setBeneficiaryTypeFilter('all')}
+                          >
+                            الكل
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={beneficiaryTypeFilter === 'Widow' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setBeneficiaryTypeFilter('Widow')}
+                          >
+                            الأرامل
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={beneficiaryTypeFilter === 'Orphan' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setBeneficiaryTypeFilter('Orphan')}
+                          >
+                            الأيتام
+                          </Button>
+                        </div>
+                        
+                        {/* Search Results */}
+                        {beneficiaries.length === 0 && !beneficiarySearchLoading ? (
+                          <div className="text-center py-8 text-gray-500">
+                            <p>ابحث عن المستفيدين لإضافتهم</p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto">
+                            {beneficiaries.map(beneficiary => (
+                              <div
+                                key={beneficiary.id}
+                                className={cn(
+                                  "flex items-center space-x-3 space-x-reverse p-3 rounded-lg border cursor-pointer",
+                                  selectedBeneficiaries.has(beneficiary.id) 
+                                    ? "border-blue-500 bg-blue-50" 
+                                    : "border-gray-200 hover:border-gray-300"
+                                )}
+                                onClick={() => handleBeneficiarySelect(beneficiary.id, !selectedBeneficiaries.has(beneficiary.id))}
+                              >
+                                <Checkbox
+                                  checked={selectedBeneficiaries.has(beneficiary.id)}
+                                  readOnly
+                                />
+                                <div className="flex-1">
+                                  <p className="font-medium">{beneficiary.full_name || `${beneficiary.first_name} ${beneficiary.last_name}`}</p>
+                                  <p className="text-sm text-gray-500">
+                                    {beneficiary.type === 'Widow' ? 'أرملة' : 'يتيم'}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       
                       {/* Beneficiary Groups */}
