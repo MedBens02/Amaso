@@ -1,678 +1,821 @@
 "use client"
 
-import { useState } from "react"
-import { useForm, Controller, useFieldArray } from "react-hook-form"
+import { useState, useEffect } from "react"
+import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { z } from "zod"
+import * as z from "zod"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
+import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { CalendarIcon, Wallet, Trash2, Search, UserCheck } from "lucide-react"
+import { api } from "@/lib/api"
+import { CalendarIcon, Plus, Trash2, Users, DollarSign, FileText, CreditCard } from "lucide-react"
 import { format } from "date-fns"
 import { ar } from "date-fns/locale"
 import { cn } from "@/lib/utils"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { formatDateArabic } from "@/lib/date-utils"
 
-// Mock data for beneficiaries
-const widowsData = [
-  { id: "w1", name: "فاطمة أحمد محمد", type: "widow", neighborhood: "حي الزهراء", hasChronicDisease: true },
-  { id: "w2", name: "خديجة علي حسن", type: "widow", neighborhood: "حي النور", hasChronicDisease: false },
-  { id: "w3", name: "مريم محمود عبدالله", type: "widow", neighborhood: "حي السلام", hasChronicDisease: true },
-  { id: "w4", name: "عائشة يوسف إبراهيم", type: "widow", neighborhood: "حي الأمل", hasChronicDisease: false },
-]
-
-const orphansData = [
-  { id: "o1", name: "أحمد محمد علي", type: "orphan", age: 12, motherName: "فاطمة أحمد محمد" },
-  { id: "o2", name: "سارة علي حسن", type: "orphan", age: 9, motherName: "خديجة علي حسن" },
-  { id: "o3", name: "محمد عبدالله يوسف", type: "orphan", age: 15, motherName: "مريم محمود عبدالله" },
-  { id: "o4", name: "فاطمة يوسف إبراهيم", type: "orphan", age: 7, motherName: "عائشة يوسف إبراهيم" },
-]
-
-// Predefined groups
-const beneficiaryGroups = [
-  {
-    id: "chronic-widows",
-    name: "الأرامل ذوات الأمراض المزمنة",
-    description: "جميع الأرامل اللواتي يعانين من أمراض مزمنة",
-    count: 2,
-    beneficiaries: widowsData.filter((w) => w.hasChronicDisease),
-  },
-  {
-    id: "all-widows",
-    name: "جميع الأرامل",
-    description: "جميع الأرامل المسجلات في النظام",
-    count: 4,
-    beneficiaries: widowsData,
-  },
-  {
-    id: "school-age-orphans",
-    name: "الأيتام في سن المدرسة",
-    description: "الأيتام من عمر 6-18 سنة",
-    count: 4,
-    beneficiaries: orphansData.filter((o) => o.age >= 6 && o.age <= 18),
-  },
-  {
-    id: "zahra-neighborhood",
-    name: "مستفيدو حي الزهراء",
-    description: "جميع المستفيدين في حي الزهراء",
-    count: 2,
-    beneficiaries: [...widowsData, ...orphansData].filter(
-      (b) =>
-        b.neighborhood === "حي الزهراء" ||
-        (b.type === "orphan" && widowsData.find((w) => w.name === b.motherName)?.neighborhood === "حي الزهراء"),
-    ),
-  },
-]
-
-const expenseSchema = z
-  .object({
-    date: z.date({ required_error: "التاريخ مطلوب" }),
-    subBudget: z.string().min(1, "الميزانية الفرعية مطلوبة"),
-    category: z.string().min(1, "الفئة مطلوبة"),
-    partner: z.string().min(1, "الشريك مطلوب"),
-    budgetedProject: z.string().optional(),
-    totalAmount: z.number().positive("المبلغ الإجمالي يجب أن يكون موجباً"),
-    paymentMethod: z.enum(["cash", "cheque", "bank-wire"], { required_error: "طريقة الدفع مطلوبة" }),
-    chequeNumber: z.string().optional(),
-    receiptNumber: z.string().optional(),
-    bankAccount: z.string().optional(),
-    beneficiaries: z
-      .array(
-        z.object({
-          id: z.string(),
-          name: z.string(),
-          type: z.string(),
-          amount: z.number().positive("المبلغ يجب أن يكون موجباً"),
-        }),
-      )
-      .min(1, "يجب اختيار مستفيد واحد على الأقل"),
-    remarks: z.string().optional(),
-  })
-  .refine(
-    (data) => {
-      if (data.paymentMethod === "cheque") {
-        return data.chequeNumber && data.chequeNumber.length > 0
-      }
-      return true
-    },
-    {
-      message: "رقم الشيك مطلوب",
-      path: ["chequeNumber"],
-    },
-  )
-  .refine(
-    (data) => {
-      if (data.paymentMethod === "cash") {
-        return data.receiptNumber && data.receiptNumber.length > 0
-      }
-      return true
-    },
-    {
-      message: "رقم الإيصال مطلوب",
-      path: ["receiptNumber"],
-    },
-  )
-  .refine(
-    (data) => {
-      if (data.paymentMethod === "bank-wire") {
-        return data.bankAccount && data.bankAccount.length > 0
-      }
-      return true
-    },
-    {
-      message: "الحساب البنكي مطلوب",
-      path: ["bankAccount"],
-    },
-  )
-  .refine(
-    (data) => {
-      const totalBeneficiaryAmount = data.beneficiaries.reduce((sum, b) => sum + b.amount, 0)
-      return Math.abs(totalBeneficiaryAmount - data.totalAmount) < 0.01 // Allow for small rounding differences
-    },
-    {
-      message: "مجموع مبالغ المستفيدين يجب أن يساوي المبلغ الإجمالي",
-      path: ["beneficiaries"],
-    },
-  )
+// Form validation schema
+const expenseSchema = z.object({
+  fiscal_year_id: z.number().min(1, "السنة المالية مطلوبة"),
+  sub_budget_id: z.number().min(1, "الميزانية الفرعية مطلوبة"),
+  expense_category_id: z.number().min(1, "فئة المصروف مطلوبة"),
+  partner_id: z.number().optional(),
+  expense_date: z.date({ required_error: "تاريخ المصروف مطلوب" }),
+  amount: z.number().min(0.01, "المبلغ يجب أن يكون أكبر من صفر"),
+  payment_method: z.enum(["Cash", "Cheque", "BankWire"], { required_error: "طريقة الدفع مطلوبة" }),
+  cheque_number: z.string().optional(),
+  receipt_number: z.string().optional(),
+  bank_account_id: z.number().optional(),
+  details: z.string().optional(),
+  remarks: z.string().optional(),
+  unrelated_to_benef: z.boolean().default(false),
+  beneficiaries: z.array(z.object({
+    beneficiary_id: z.number(),
+    amount: z.number().min(0),
+    notes: z.string().optional()
+  })).optional(),
+  beneficiary_groups: z.array(z.object({
+    group_id: z.number(),
+    amount: z.number().min(0),
+    excluded_members: z.array(z.number()).optional(),
+    notes: z.string().optional()
+  })).optional()
+}).refine((data) => {
+  // Payment method specific validations
+  if (data.payment_method === "Cheque" && !data.cheque_number) {
+    return false
+  }
+  if ((data.payment_method === "Cheque" || data.payment_method === "BankWire") && !data.bank_account_id) {
+    return false
+  }
+  return true
+}, {
+  message: "تأكد من ملء جميع الحقول المطلوبة لطريقة الدفع المختارة"
+}).refine((data) => {
+  // Beneficiaries validation
+  if (!data.unrelated_to_benef) {
+    const hasBeneficiaries = data.beneficiaries && data.beneficiaries.length > 0
+    const hasGroups = data.beneficiary_groups && data.beneficiary_groups.length > 0
+    return hasBeneficiaries || hasGroups
+  }
+  return true
+}, {
+  message: "يجب اختيار مستفيدين أو مجموعات مستفيدين إذا كان المصروف مرتبط بالمستفيدين"
+})
 
 type ExpenseFormData = z.infer<typeof expenseSchema>
 
-interface NewExpenseDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+// Types
+interface SubBudget {
+  id: number
+  label: string
 }
 
-export function NewExpenseDialog({ open, onOpenChange }: NewExpenseDialogProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [activeTab, setActiveTab] = useState("basic")
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedBeneficiaries, setSelectedBeneficiaries] = useState<Set<string>>(new Set())
-  const { toast } = useToast()
+interface ExpenseCategory {
+  id: number
+  label: string
+  sub_budget_id: number
+}
 
+interface Partner {
+  id: number
+  name: string
+}
+
+interface BankAccount {
+  id: number
+  name: string
+  bank_name: string
+}
+
+interface Beneficiary {
+  id: number
+  first_name: string
+  last_name: string
+  type: 'Widow' | 'Orphan'
+  full_name?: string
+}
+
+interface BeneficiaryGroup {
+  id: number
+  label: string
+}
+
+interface NewExpenseFormProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSuccess?: () => void
+  initialData?: Partial<ExpenseFormData>
+}
+
+export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }: NewExpenseFormProps) {
+  // Form state
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState("basic")
+  
+  // Reference data
+  const [subBudgets, setSubBudgets] = useState<SubBudget[]>([])
+  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([])
+  const [partners, setPartners] = useState<Partner[]>([])
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
+  const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([])
+  const [beneficiaryGroups, setBeneficiaryGroups] = useState<BeneficiaryGroup[]>([])
+  const [activeFiscalYear, setActiveFiscalYear] = useState<any>(null)
+  
+  // Beneficiary selection
+  const [selectedBeneficiaries, setSelectedBeneficiaries] = useState<Set<number>>(new Set())
+  const [selectedGroups, setSelectedGroups] = useState<Set<number>>(new Set())
+  const [groupMembers, setGroupMembers] = useState<Record<number, Beneficiary[]>>({})
+  const [excludedMembers, setExcludedMembers] = useState<Record<number, Set<number>>>({})
+  
+  const { toast } = useToast()
+  
+  // Form setup
   const form = useForm<ExpenseFormData>({
     resolver: zodResolver(expenseSchema),
     defaultValues: {
-      paymentMethod: "cash",
+      payment_method: "Cash",
+      unrelated_to_benef: false,
+      amount: 0,
       beneficiaries: [],
-      budgetedProject: "",
-    },
+      beneficiary_groups: []
+    }
   })
-
-  const {
-    fields: beneficiaryFields,
-    append: appendBeneficiary,
-    remove: removeBeneficiary,
-    update: updateBeneficiary,
-  } = useFieldArray({
+  
+  const { fields: beneficiaryFields, append: addBeneficiary, remove: removeBeneficiary } = useFieldArray({
     control: form.control,
-    name: "beneficiaries",
+    name: "beneficiaries"
   })
-
-  const paymentMethod = form.watch("paymentMethod")
-  const totalAmount = form.watch("totalAmount") || 0
-
-  // Filter beneficiaries based on search
-  const allBeneficiaries = [...widowsData, ...orphansData]
-  const filteredBeneficiaries = allBeneficiaries.filter((b) => b.name.toLowerCase().includes(searchTerm.toLowerCase()))
-
-  const handleBeneficiaryToggle = (beneficiary: any) => {
+  
+  const { fields: groupFields, append: addGroup, remove: removeGroup } = useFieldArray({
+    control: form.control,
+    name: "beneficiary_groups"
+  })
+  
+  // Watch form values
+  const paymentMethod = form.watch("payment_method")
+  const subBudgetId = form.watch("sub_budget_id")
+  const unrelatedToBenef = form.watch("unrelated_to_benef")
+  const totalAmount = form.watch("amount") || 0
+  
+  // Load data when dialog opens
+  useEffect(() => {
+    if (open) {
+      loadReferenceData()
+      resetForm()
+    }
+  }, [open])
+  
+  // Reset form
+  const resetForm = () => {
+    form.reset({
+      payment_method: "Cash",
+      unrelated_to_benef: false,
+      amount: 0,
+      beneficiaries: [],
+      beneficiary_groups: [],
+      ...initialData
+    })
+    setSelectedBeneficiaries(new Set())
+    setSelectedGroups(new Set())
+    setExcludedMembers({})
+    setActiveTab("basic")
+  }
+  
+  // Load reference data
+  const loadReferenceData = async () => {
+    setLoading(true)
+    try {
+      // Try to load real data from API
+      const [subBudgetsRes, categoriesRes, partnersRes, bankAccountsRes, beneficiariesRes, groupsRes, fiscalYearRes] = await Promise.all([
+        api.getSubBudgets(),
+        api.getExpenseCategories(),
+        api.getPartners(),
+        api.getBankAccounts(),
+        api.getBeneficiaries(),
+        api.getBeneficiaryGroups(),
+        api.getActiveFiscalYear()
+      ])
+      
+      // Use real data from API
+      setSubBudgets(subBudgetsRes.data || [])
+      setExpenseCategories(categoriesRes.data || [])
+      setPartners(partnersRes.data || [])
+      setBankAccounts(bankAccountsRes.data || [])
+      setBeneficiaries(beneficiariesRes.data || [])
+      setBeneficiaryGroups(groupsRes.data || [])
+      setActiveFiscalYear(fiscalYearRes || null)
+      
+      if (fiscalYearRes) {
+        form.setValue("fiscal_year_id", fiscalYearRes.id)
+      }
+      
+      console.log('Successfully loaded real data from API')
+      
+    } catch (error) {
+      console.error('Error loading reference data from API:', error)
+      
+      // Fallback data only if API fails
+      const fallbackData = {
+        subBudgets: [
+          { id: 1, label: "المساعدات الشهرية" },
+          { id: 2, label: "التعليم" },
+          { id: 3, label: "الطوارئ" },
+          { id: 4, label: "الصحة" }
+        ],
+        expenseCategories: [
+          { id: 1, label: "مساعدات نقدية", sub_budget_id: 1 },
+          { id: 2, label: "رسوم دراسية", sub_budget_id: 2 },
+          { id: 3, label: "مساعدات طبية", sub_budget_id: 3 },
+          { id: 4, label: "أدوية", sub_budget_id: 4 }
+        ],
+        partners: [
+          { id: 1, name: "شريك المعونة الأول" },
+          { id: 2, name: "وزارة التعليم" },
+          { id: 3, name: "مستشفى الأمل" }
+        ],
+        bankAccounts: [
+          { id: 1, name: "الحساب الرئيسي", bank_name: "البنك الأهلي" },
+          { id: 2, name: "حساب المساعدات", bank_name: "بنك المغرب" }
+        ],
+        beneficiaries: [
+          { id: 1, first_name: "فاطمة", last_name: "أحمد محمد", type: "Widow" as const, full_name: "فاطمة أحمد محمد" },
+          { id: 2, first_name: "خديجة", last_name: "علي حسن", type: "Widow" as const, full_name: "خديجة علي حسن" },
+          { id: 3, first_name: "أحمد", last_name: "محمد علي", type: "Orphan" as const, full_name: "أحمد محمد علي" },
+          { id: 4, first_name: "سارة", last_name: "علي حسن", type: "Orphan" as const, full_name: "سارة علي حسن" }
+        ],
+        beneficiaryGroups: [
+          { id: 1, label: "مجموعة الأرامل" },
+          { id: 2, label: "مجموعة الأيتام" }
+        ],
+        fiscalYear: { id: 1, year: "2024", isActive: true }
+      }
+      
+      console.log('Using fallback data due to API error')
+      setSubBudgets(fallbackData.subBudgets)
+      setExpenseCategories(fallbackData.expenseCategories)
+      setPartners(fallbackData.partners)
+      setBankAccounts(fallbackData.bankAccounts)
+      setBeneficiaries(fallbackData.beneficiaries)
+      setBeneficiaryGroups(fallbackData.beneficiaryGroups)
+      setActiveFiscalYear(fallbackData.fiscalYear)
+      
+      if (fallbackData.fiscalYear) {
+        form.setValue("fiscal_year_id", fallbackData.fiscalYear.id)
+      }
+      
+      toast({
+        title: "تحذير",
+        description: "تم تحميل بيانات تجريبية، تأكد من اتصال الخادم",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  // Filter categories based on selected sub-budget
+  const filteredCategories = expenseCategories.filter(cat => 
+    !subBudgetId || cat.sub_budget_id === subBudgetId
+  )
+  
+  // Handle beneficiary selection
+  const handleBeneficiarySelect = (beneficiaryId: number, checked: boolean) => {
     const newSelected = new Set(selectedBeneficiaries)
-    if (newSelected.has(beneficiary.id)) {
-      newSelected.delete(beneficiary.id)
+    
+    if (checked) {
+      newSelected.add(beneficiaryId)
+      // Add to form
+      addBeneficiary({
+        beneficiary_id: beneficiaryId,
+        amount: totalAmount / (selectedBeneficiaries.size + selectedGroups.size + 1),
+        notes: ""
+      })
+    } else {
+      newSelected.delete(beneficiaryId)
       // Remove from form
-      const index = beneficiaryFields.findIndex((f) => f.id === beneficiary.id)
+      const index = beneficiaryFields.findIndex(field => field.beneficiary_id === beneficiaryId)
       if (index !== -1) {
         removeBeneficiary(index)
       }
+    }
+    
+    setSelectedBeneficiaries(newSelected)
+    redistributeAmounts()
+  }
+  
+  // Handle group selection
+  const handleGroupSelect = async (groupId: number, checked: boolean) => {
+    const newSelected = new Set(selectedGroups)
+    
+    if (checked) {
+      newSelected.add(groupId)
+      // Load group members
+      try {
+        const response = await api.getBeneficiaryGroupMembers(groupId)
+        setGroupMembers(prev => ({
+          ...prev,
+          [groupId]: response.data || []
+        }))
+        
+        // Add to form
+        addGroup({
+          group_id: groupId,
+          amount: totalAmount / (selectedBeneficiaries.size + selectedGroups.size + 1),
+          excluded_members: [],
+          notes: ""
+        })
+      } catch (error) {
+        console.error('Error loading group members:', error)
+      }
     } else {
-      newSelected.add(beneficiary.id)
-      // Add to form with equal distribution
-      const currentBeneficiaryCount = beneficiaryFields.length + 1
-      const amountPerBeneficiary = totalAmount / currentBeneficiaryCount
-
-      // Update existing beneficiaries with new amount
-      beneficiaryFields.forEach((field, index) => {
-        updateBeneficiary(index, { ...field, amount: amountPerBeneficiary })
+      newSelected.delete(groupId)
+      // Remove from form
+      const index = groupFields.findIndex(field => field.group_id === groupId)
+      if (index !== -1) {
+        removeGroup(index)
+      }
+      // Clean up group data
+      setGroupMembers(prev => {
+        const updated = { ...prev }
+        delete updated[groupId]
+        return updated
       })
-
-      // Add new beneficiary
-      appendBeneficiary({
-        id: beneficiary.id,
-        name: beneficiary.name,
-        type: beneficiary.type,
-        amount: amountPerBeneficiary,
+      setExcludedMembers(prev => {
+        const updated = { ...prev }
+        delete updated[groupId]
+        return updated
       })
     }
-    setSelectedBeneficiaries(newSelected)
+    
+    setSelectedGroups(newSelected)
+    redistributeAmounts()
   }
-
-  const handleGroupSelect = (group: any) => {
-    const newSelected = new Set<string>()
-
-    // Clear existing beneficiaries
-    while (beneficiaryFields.length > 0) {
-      removeBeneficiary(0)
-    }
-
-    // Add group beneficiaries
-    const amountPerBeneficiary = totalAmount / group.beneficiaries.length
-    group.beneficiaries.forEach((beneficiary: any) => {
-      newSelected.add(beneficiary.id)
-      appendBeneficiary({
-        id: beneficiary.id,
-        name: beneficiary.name,
-        type: beneficiary.type,
-        amount: amountPerBeneficiary,
-      })
-    })
-
-    setSelectedBeneficiaries(newSelected)
-    toast({
-      title: "تم اختيار المجموعة",
-      description: `تم اختيار ${group.beneficiaries.length} مستفيد من مجموعة "${group.name}"`,
-    })
-  }
-
+  
+  // Redistribute amounts when beneficiaries change
   const redistributeAmounts = () => {
-    if (beneficiaryFields.length === 0) return
-
-    const amountPerBeneficiary = totalAmount / beneficiaryFields.length
-    beneficiaryFields.forEach((field, index) => {
-      updateBeneficiary(index, { ...field, amount: amountPerBeneficiary })
-    })
+    if (totalAmount > 0) {
+      const totalRecipients = selectedBeneficiaries.size + selectedGroups.size
+      if (totalRecipients > 0) {
+        const amountPerRecipient = totalAmount / totalRecipients
+        
+        // Update beneficiary amounts
+        beneficiaryFields.forEach((_, index) => {
+          form.setValue(`beneficiaries.${index}.amount`, amountPerRecipient)
+        })
+        
+        // Update group amounts
+        groupFields.forEach((_, index) => {
+          form.setValue(`beneficiary_groups.${index}.amount`, amountPerRecipient)
+        })
+      }
+    }
   }
-
+  
+  // Handle form submission
   const onSubmit = async (data: ExpenseFormData) => {
     setIsSubmitting(true)
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      console.log("Submitting expense data:", data)
-
+      console.log('Submitting expense data:', data)
+      
+      // Prepare data for API
+      const apiData = {
+        ...data,
+        fiscal_year_id: activeFiscalYear?.id || 1,
+        sub_budget_id: Number(data.sub_budget_id),
+        expense_category_id: Number(data.expense_category_id),
+        partner_id: data.partner_id && data.partner_id > 0 ? Number(data.partner_id) : undefined,
+        bank_account_id: data.bank_account_id && data.bank_account_id > 0 ? Number(data.bank_account_id) : undefined,
+        expense_date: data.expense_date ? format(data.expense_date, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
+      }
+      
+      console.log('API data to be sent:', apiData)
+      
+      const response = await api.createExpense(apiData)
+      
+      console.log('Expense created successfully:', response)
+      
       toast({
-        title: "تم الحفظ بنجاح",
-        description: `تم إضافة المصروف بقيمة DH ${data.totalAmount.toLocaleString()} لـ ${data.beneficiaries.length} مستفيد`,
+        title: "تم إنشاء المصروف بنجاح",
+        description: "تم حفظ المصروف في قاعدة البيانات"
       })
-
-      form.reset()
-      setSelectedBeneficiaries(new Set())
       onOpenChange(false)
-    } catch (error) {
+      onSuccess?.()
+    } catch (error: any) {
+      console.error('Error creating expense:', error)
+      console.error('Error details:', error.errors)
+      
+      let errorMessage = "حدث خطأ أثناء حفظ المصروف"
+      
+      if (error.errors) {
+        // Show specific validation errors
+        const firstError = Object.values(error.errors)[0]
+        if (Array.isArray(firstError) && firstError.length > 0) {
+          errorMessage = firstError[0]
+        }
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
       toast({
-        title: "خطأ في الحفظ",
-        description: "حدث خطأ أثناء حفظ البيانات",
-        variant: "destructive",
+        title: "خطأ في إنشاء المصروف",
+        description: errorMessage,
+        variant: "destructive"
       })
     } finally {
       setIsSubmitting(false)
     }
   }
 
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Wallet className="h-5 w-5" />
-            إضافة مصروف جديد
+            <DollarSign className="h-5 w-5" />
+            إنشاء مصروف جديد
           </DialogTitle>
-          <DialogDescription>أدخل تفاصيل المصروف واختر المستفيدين</DialogDescription>
         </DialogHeader>
-
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="basic">المعلومات الأساسية</TabsTrigger>
-              <TabsTrigger value="beneficiaries">اختيار المستفيدين</TabsTrigger>
-              <TabsTrigger value="amounts">توزيع المبالغ</TabsTrigger>
-            </TabsList>
-
-            {/* Basic Information Tab */}
-            <TabsContent value="basic" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>التاريخ *</Label>
-                  <Controller
-                    name="date"
-                    control={form.control}
-                    render={({ field }) => (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !field.value && "text-muted-foreground",
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {field.value ? format(field.value, "PPP", { locale: ar }) : "اختر التاريخ"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-                        </PopoverContent>
-                      </Popover>
-                    )}
-                  />
-                  {form.formState.errors.date && (
-                    <p className="text-sm text-red-600">{form.formState.errors.date.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label>الميزانية الفرعية *</Label>
-                  <Controller
-                    name="subBudget"
-                    control={form.control}
-                    render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value}>
+        
+        {loading ? (
+          <div className="flex items-center justify-center p-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="mr-3">جاري التحميل...</span>
+          </div>
+        ) : (
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="basic" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  البيانات الأساسية
+                </TabsTrigger>
+                <TabsTrigger value="payment" className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  طريقة الدفع
+                </TabsTrigger>
+                <TabsTrigger value="beneficiaries" className="flex items-center gap-2" disabled={unrelatedToBenef}>
+                  <Users className="h-4 w-4" />
+                  المستفيدون
+                </TabsTrigger>
+              </TabsList>
+              
+              {/* Basic Information Tab */}
+              <TabsContent value="basic" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>معلومات المصروف</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Expense Date */}
+                    <div className="space-y-2">
+                      <Label>تاريخ المصروف *</Label>
+                      <Controller
+                        name="expense_date"
+                        control={form.control}
+                        render={({ field }) => (
+                          <Input
+                            type="date"
+                            value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                            onChange={(e) => {
+                              const dateValue = e.target.value ? new Date(e.target.value) : undefined
+                              field.onChange(dateValue)
+                            }}
+                            className="w-full"
+                          />
+                        )}
+                      />
+                      {form.formState.errors.expense_date && (
+                        <p className="text-sm text-red-600">{form.formState.errors.expense_date.message}</p>
+                      )}
+                    </div>
+                    
+                    {/* Sub Budget */}
+                    <div className="space-y-2">
+                      <Label>الميزانية الفرعية *</Label>
+                      <Select onValueChange={(value) => form.setValue("sub_budget_id", parseInt(value))}>
                         <SelectTrigger>
-                          <SelectValue placeholder="اختر الميزانية" />
+                          <SelectValue placeholder="اختر الميزانية الفرعية" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="monthly-aid">المساعدات الشهرية</SelectItem>
-                          <SelectItem value="education">التعليم</SelectItem>
-                          <SelectItem value="emergency">الطوارئ</SelectItem>
-                          <SelectItem value="medical">الطبية</SelectItem>
+                          {subBudgets.map(budget => (
+                            <SelectItem key={budget.id} value={budget.id.toString()}>
+                              {budget.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
-                    )}
-                  />
-                  {form.formState.errors.subBudget && (
-                    <p className="text-sm text-red-600">{form.formState.errors.subBudget.message}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>الفئة *</Label>
-                <Controller
-                  name="category"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="اختر الفئة" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cash-aid">مساعدات نقدية</SelectItem>
-                        <SelectItem value="medical-aid">مساعدات طبية</SelectItem>
-                        <SelectItem value="educational-fees">رسوم دراسية</SelectItem>
-                        <SelectItem value="emergency-aid">مساعدات طارئة</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {form.formState.errors.category && (
-                  <p className="text-sm text-red-600">{form.formState.errors.category.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>الشريك *</Label>
-                <Controller
-                  name="partner"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="اختر الشريك" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="partner1">شريك المعونة الأول</SelectItem>
-                        <SelectItem value="ministry">وزارة التعليم</SelectItem>
-                        <SelectItem value="hospital">مستشفى الأمل</SelectItem>
-                        <SelectItem value="direct">مباشر للمستفيدين</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {form.formState.errors.partner && (
-                  <p className="text-sm text-red-600">{form.formState.errors.partner.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>المشروع الممول</Label>
-                <Controller
-                  name="budgetedProject"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="اختر المشروع (اختياري)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">بدون مشروع</SelectItem>
-                        <SelectItem value="project1">مشروع كفالة الأيتام 2024</SelectItem>
-                        <SelectItem value="project2">مشروع التعليم المتميز</SelectItem>
-                        <SelectItem value="project3">مشروع الرعاية الصحية</SelectItem>
-                        <SelectItem value="project4">مشروع الإغاثة الطارئة</SelectItem>
-                        <SelectItem value="project5">مشروع بناء المدرسة</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {form.formState.errors.budgetedProject && (
-                  <p className="text-sm text-red-600">{form.formState.errors.budgetedProject.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>المبلغ الإجمالي (DH) *</Label>
-                <Input
-                  type="number"
-                  {...form.register("totalAmount", { valueAsNumber: true })}
-                  placeholder="أدخل المبلغ الإجمالي"
-                  onChange={(e) => {
-                    form.setValue("totalAmount", Number.parseFloat(e.target.value) || 0)
-                    // Auto-redistribute amounts when total changes
-                    setTimeout(redistributeAmounts, 100)
-                  }}
-                />
-                {form.formState.errors.totalAmount && (
-                  <p className="text-sm text-red-600">{form.formState.errors.totalAmount.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>طريقة الدفع *</Label>
-                <Controller
-                  name="paymentMethod"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="اختر الطريقة" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cash">نقدي</SelectItem>
-                        <SelectItem value="cheque">شيك</SelectItem>
-                        <SelectItem value="bank-wire">حوالة بنكية</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </div>
-
-              {/* Payment Method Specific Fields */}
-              {paymentMethod === "cheque" && (
-                <div className="space-y-2">
-                  <Label>رقم الشيك *</Label>
-                  <Input {...form.register("chequeNumber")} placeholder="أدخل رقم الشيك" />
-                  {form.formState.errors.chequeNumber && (
-                    <p className="text-sm text-red-600">{form.formState.errors.chequeNumber.message}</p>
-                  )}
-                </div>
-              )}
-
-              {paymentMethod === "cash" && (
-                <div className="space-y-2">
-                  <Label>رقم الإيصال *</Label>
-                  <Input {...form.register("receiptNumber")} placeholder="أدخل رقم الإيصال" />
-                  {form.formState.errors.receiptNumber && (
-                    <p className="text-sm text-red-600">{form.formState.errors.receiptNumber.message}</p>
-                  )}
-                </div>
-              )}
-
-              {paymentMethod === "bank-wire" && (
-                <div className="space-y-2">
-                  <Label>الحساب البنكي *</Label>
-                  <Input {...form.register("bankAccount")} placeholder="أدخل رقم الحساب البنكي" />
-                  {form.formState.errors.bankAccount && (
-                    <p className="text-sm text-red-600">{form.formState.errors.bankAccount.message}</p>
-                  )}
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label>ملاحظات</Label>
-                <Textarea {...form.register("remarks")} placeholder="أي ملاحظات إضافية" rows={3} />
-              </div>
-            </TabsContent>
-
-            {/* Beneficiaries Selection Tab */}
-            <TabsContent value="beneficiaries" className="space-y-4">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">اختيار المستفيدين</h3>
-                  <Badge variant="secondary">{selectedBeneficiaries.size} مستفيد محدد</Badge>
-                </div>
-
-                {/* Predefined Groups */}
-                <div className="space-y-3">
-                  <h4 className="font-medium">المجموعات المحددة مسبقاً</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {beneficiaryGroups.map((group) => (
-                      <div key={group.id} className="border rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <h5 className="font-medium">{group.name}</h5>
-                          <Badge variant="outline">{group.count} مستفيد</Badge>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-3">{group.description}</p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleGroupSelect(group)}
-                          className="w-full"
-                        >
-                          <UserCheck className="h-4 w-4 ml-1" />
-                          اختيار المجموعة
-                        </Button>
+                      {form.formState.errors.sub_budget_id && (
+                        <p className="text-sm text-red-600">{form.formState.errors.sub_budget_id.message}</p>
+                      )}
+                    </div>
+                    
+                    {/* Expense Category */}
+                    <div className="space-y-2">
+                      <Label>فئة المصروف *</Label>
+                      <Select onValueChange={(value) => form.setValue("expense_category_id", parseInt(value))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="اختر فئة المصروف" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {filteredCategories.map(category => (
+                            <SelectItem key={category.id} value={category.id.toString()}>
+                              {category.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {form.formState.errors.expense_category_id && (
+                        <p className="text-sm text-red-600">{form.formState.errors.expense_category_id.message}</p>
+                      )}
+                    </div>
+                    
+                    {/* Partner */}
+                    <div className="space-y-2">
+                      <Label>الشريك</Label>
+                      <Select onValueChange={(value) => form.setValue("partner_id", parseInt(value))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="اختر الشريك (اختياري)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">بدون شريك</SelectItem>
+                          {partners.map(partner => (
+                            <SelectItem key={partner.id} value={partner.id.toString()}>
+                              {partner.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Amount */}
+                    <div className="space-y-2">
+                      <Label>المبلغ الإجمالي (DH) *</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        {...form.register("amount", { valueAsNumber: true })}
+                        onChange={(e) => {
+                          form.setValue("amount", parseFloat(e.target.value) || 0)
+                          redistributeAmounts()
+                        }}
+                      />
+                      {form.formState.errors.amount && (
+                        <p className="text-sm text-red-600">{form.formState.errors.amount.message}</p>
+                      )}
+                    </div>
+                    
+                    {/* Project (Disabled) */}
+                    <div className="space-y-2">
+                      <Label className="text-gray-400">المشروع الممول</Label>
+                      <Select disabled>
+                        <SelectTrigger className="bg-gray-50 text-gray-400 cursor-not-allowed">
+                          <SelectValue placeholder="غير متاح حالياً" />
+                        </SelectTrigger>
+                      </Select>
+                      <p className="text-sm text-gray-400">إدارة المشاريع غير متاحة حالياً</p>
+                    </div>
+                    
+                    {/* Details */}
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>تفاصيل المصروف</Label>
+                      <Textarea
+                        placeholder="أدخل تفاصيل المصروف..."
+                        {...form.register("details")}
+                      />
+                    </div>
+                    
+                    {/* Unrelated to beneficiaries checkbox */}
+                    <div className="md:col-span-2 flex items-center space-x-2 space-x-reverse">
+                      <Checkbox
+                        id="unrelated_to_benef"
+                        checked={unrelatedToBenef}
+                        onCheckedChange={(checked) => {
+                          form.setValue("unrelated_to_benef", checked as boolean)
+                          if (checked) {
+                            setActiveTab("payment")
+                          }
+                        }}
+                      />
+                      <Label htmlFor="unrelated_to_benef" className="text-sm font-normal cursor-pointer">
+                        هذا المصروف غير مرتبط بالمستفيدين (مصروف إداري)
+                      </Label>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              {/* Payment Method Tab */}
+              <TabsContent value="payment" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>طريقة الدفع</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Payment Method Selection */}
+                    <div className="space-y-2">
+                      <Label>طريقة الدفع *</Label>
+                      <Select onValueChange={(value) => form.setValue("payment_method", value as any)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="اختر طريقة الدفع" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Cash">نقدي</SelectItem>
+                          <SelectItem value="Cheque">شيك</SelectItem>
+                          <SelectItem value="BankWire">حوالة بنكية</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {form.formState.errors.payment_method && (
+                        <p className="text-sm text-red-600">{form.formState.errors.payment_method.message}</p>
+                      )}
+                    </div>
+                    
+                    {/* Bank Account (for Cheque and BankWire) */}
+                    {(paymentMethod === "Cheque" || paymentMethod === "BankWire") && (
+                      <div className="space-y-2">
+                        <Label>الحساب البنكي *</Label>
+                        <Select onValueChange={(value) => form.setValue("bank_account_id", parseInt(value))}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="اختر الحساب البنكي" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {bankAccounts.map(account => (
+                              <SelectItem key={account.id} value={account.id.toString()}>
+                                {account.name} - {account.bank_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {form.formState.errors.bank_account_id && (
+                          <p className="text-sm text-red-600">{form.formState.errors.bank_account_id.message}</p>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Individual Selection */}
-                <div className="space-y-3">
-                  <h4 className="font-medium">اختيار فردي</h4>
-
-                  {/* Search */}
-                  <div className="relative">
-                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      placeholder="البحث في المستفيدين..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pr-10"
-                    />
-                  </div>
-
-                  {/* Beneficiaries List */}
-                  <div className="max-h-60 overflow-y-auto border rounded-lg">
-                    {filteredBeneficiaries.map((beneficiary) => (
-                      <div
-                        key={beneficiary.id}
-                        className="flex items-center space-x-3 space-x-reverse p-3 border-b last:border-b-0"
-                      >
-                        <Checkbox
-                          checked={selectedBeneficiaries.has(beneficiary.id)}
-                          onCheckedChange={() => handleBeneficiaryToggle(beneficiary)}
+                    )}
+                    
+                    {/* Cheque Number (for Cheque) */}
+                    {paymentMethod === "Cheque" && (
+                      <div className="space-y-2">
+                        <Label>رقم الشيك *</Label>
+                        <Input
+                          placeholder="أدخل رقم الشيك"
+                          {...form.register("cheque_number")}
                         />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{beneficiary.name}</span>
-                            <Badge variant={beneficiary.type === "widow" ? "default" : "secondary"}>
-                              {beneficiary.type === "widow" ? "أرملة" : "يتيم"}
-                            </Badge>
-                            {beneficiary.type === "widow" && beneficiary.hasChronicDisease && (
-                              <Badge variant="destructive" className="text-xs">
-                                مرض مزمن
-                              </Badge>
+                        {form.formState.errors.cheque_number && (
+                          <p className="text-sm text-red-600">{form.formState.errors.cheque_number.message}</p>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Receipt Number */}
+                    <div className="space-y-2">
+                      <Label>رقم الإيصال</Label>
+                      <Input
+                        placeholder="أدخل رقم الإيصال (اختياري)"
+                        {...form.register("receipt_number")}
+                      />
+                    </div>
+                    
+                    {/* Remarks */}
+                    <div className="space-y-2">
+                      <Label>ملاحظات</Label>
+                      <Textarea
+                        placeholder="أدخل أي ملاحظات إضافية..."
+                        {...form.register("remarks")}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              {/* Beneficiaries Tab */}
+              <TabsContent value="beneficiaries" className="space-y-4">
+                {!unrelatedToBenef && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between">
+                        المستفيدون من المصروف
+                        <Badge variant="outline">
+                          {selectedBeneficiaries.size + selectedGroups.size} محدد
+                        </Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Individual Beneficiaries */}
+                      <div className="space-y-3">
+                        <h4 className="font-medium">المستفيدون الأفراد</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto">
+                          {beneficiaries.map(beneficiary => (
+                            <div
+                              key={beneficiary.id}
+                              className={cn(
+                                "flex items-center space-x-3 space-x-reverse p-3 rounded-lg border cursor-pointer",
+                                selectedBeneficiaries.has(beneficiary.id) 
+                                  ? "border-blue-500 bg-blue-50" 
+                                  : "border-gray-200 hover:border-gray-300"
+                              )}
+                              onClick={() => handleBeneficiarySelect(beneficiary.id, !selectedBeneficiaries.has(beneficiary.id))}
+                            >
+                              <Checkbox
+                                checked={selectedBeneficiaries.has(beneficiary.id)}
+                                readOnly
+                              />
+                              <div className="flex-1">
+                                <p className="font-medium">{beneficiary.full_name || `${beneficiary.first_name} ${beneficiary.last_name}`}</p>
+                                <p className="text-sm text-gray-500">
+                                  {beneficiary.type === 'Widow' ? 'أرملة' : 'يتيم'}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Beneficiary Groups */}
+                      <div className="space-y-3">
+                        <h4 className="font-medium">المجموعات</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {beneficiaryGroups.map(group => (
+                            <div
+                              key={group.id}
+                              className={cn(
+                                "flex items-center space-x-3 space-x-reverse p-3 rounded-lg border cursor-pointer",
+                                selectedGroups.has(group.id) 
+                                  ? "border-green-500 bg-green-50" 
+                                  : "border-gray-200 hover:border-gray-300"
+                              )}
+                              onClick={() => handleGroupSelect(group.id, !selectedGroups.has(group.id))}
+                            >
+                              <Checkbox
+                                checked={selectedGroups.has(group.id)}
+                                readOnly
+                              />
+                              <div className="flex-1">
+                                <p className="font-medium">{group.label}</p>
+                                <p className="text-sm text-gray-500">
+                                  {groupMembers[group.id]?.length || 0} عضو
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Amount Distribution Summary */}
+                      {(selectedBeneficiaries.size > 0 || selectedGroups.size > 0) && (
+                        <div className="bg-blue-50 p-4 rounded-lg">
+                          <h4 className="font-medium mb-2">ملخص توزيع المبلغ</h4>
+                          <div className="text-sm space-y-1">
+                            <p>إجمالي المبلغ: <strong>{totalAmount.toFixed(2)} DH</strong></p>
+                            <p>عدد المستفيدين: <strong>{selectedBeneficiaries.size + selectedGroups.size}</strong></p>
+                            {(selectedBeneficiaries.size + selectedGroups.size > 0) && (
+                              <p>المبلغ لكل مستفيد: <strong>{(totalAmount / (selectedBeneficiaries.size + selectedGroups.size)).toFixed(2)} DH</strong></p>
                             )}
                           </div>
-                          <p className="text-sm text-gray-600">
-                            {beneficiary.type === "widow"
-                              ? beneficiary.neighborhood
-                              : `العمر: ${beneficiary.age} - الأم: ${beneficiary.motherName}`}
-                          </p>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Amount Distribution Tab */}
-            <TabsContent value="amounts" className="space-y-4">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">توزيع المبالغ</h3>
-                  <div className="flex items-center gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={redistributeAmounts}>
-                      توزيع متساوي
-                    </Button>
-                    <Badge variant="secondary">
-                      المجموع: DH{" "}
-                      {beneficiaryFields.reduce((sum, field) => sum + (field.amount || 0), 0).toLocaleString()}
-                    </Badge>
-                  </div>
-                </div>
-
-                {beneficiaryFields.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    لم يتم اختيار أي مستفيدين بعد. انتقل إلى تبويب "اختيار المستفيدين" لإضافة مستفيدين.
-                  </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+            </Tabs>
+            
+            {/* Form Actions */}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                إلغاء
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    جاري الحفظ...
+                  </>
                 ) : (
-                  <div className="space-y-3">
-                    {beneficiaryFields.map((field, index) => (
-                      <div key={field.id} className="flex items-center gap-4 p-3 border rounded-lg">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{field.name}</span>
-                            <Badge variant={field.type === "widow" ? "default" : "secondary"}>
-                              {field.type === "widow" ? "أرملة" : "يتيم"}
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Label className="text-sm">المبلغ (DH):</Label>
-                          <Input
-                            type="number"
-                            value={field.amount}
-                            onChange={(e) => {
-                              const newAmount = Number.parseFloat(e.target.value) || 0
-                              updateBeneficiary(index, { ...field, amount: newAmount })
-                            }}
-                            className="w-24"
-                          />
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            removeBeneficiary(index)
-                            const newSelected = new Set(selectedBeneficiaries)
-                            newSelected.delete(field.id)
-                            setSelectedBeneficiaries(newSelected)
-                          }}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+                  "حفظ المصروف"
                 )}
-
-                {form.formState.errors.beneficiaries && (
-                  <p className="text-sm text-red-600">{form.formState.errors.beneficiaries.message}</p>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-              إلغاء
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "جاري الحفظ..." : "حفظ المصروف"}
-            </Button>
-          </DialogFooter>
-        </form>
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   )
+}
+
+// Export the dialog for use in pages
+export function NewExpenseForm(props: NewExpenseFormProps) {
+  return <NewExpenseDialog {...props} />
 }

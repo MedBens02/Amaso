@@ -174,6 +174,11 @@ class ApiClient {
     })
   }
 
+  async getIncomes(params?: any) {
+    const queryString = params ? '?' + new URLSearchParams(params).toString() : ''
+    return this.request<any>(`/incomes${queryString}`)
+  }
+
   async getIncome(id: number) {
     return this.request<any>(`/incomes/${id}`)
   }
@@ -190,36 +195,63 @@ class ApiClient {
   }
 
   // Expenses API
-  async createExpense(data: {
-    fiscal_year_id: number
-    sub_budget_id: number
-    expense_category_id: number
-    partner_id?: number
-    details?: string
-    expense_date: string
-    amount: number
-    payment_method: 'Cash' | 'Cheque' | 'BankWire'
-    cheque_number?: string
-    receipt_number?: string
-    bank_account_id?: number
-    remarks?: string
-    unrelated_to_benef?: boolean
-    beneficiaries?: Array<{
-      type: 'Widow' | 'Orphan'
-      id: number
-      amount: number
-      notes?: string
-    }>
-    beneficiary_groups?: Array<{
-      group_id: number
-      amount: number
-      notes?: string
-    }>
-  }) {
+  async createExpense(data: any) {
+    // Transform the data for the API
+    const formattedData = {
+      ...data,
+      expense_date: data.expense_date instanceof Date 
+        ? data.expense_date.toISOString().split('T')[0] 
+        : data.expense_date
+    }
+    
     return this.request<any>('/expenses', {
       method: 'POST',
+      body: JSON.stringify(formattedData),
+    })
+  }
+
+  async updateExpense(id: number, data: any) {
+    return this.request<any>(`/expenses/${id}`, {
+      method: 'PUT',
       body: JSON.stringify(data),
     })
+  }
+
+  async getExpenses(params?: any) {
+    const queryString = params ? '?' + new URLSearchParams(params).toString() : ''
+    return this.request<any>(`/expenses${queryString}`)
+  }
+
+  async getExpense(id: number) {
+    return this.request<any>(`/expenses/${id}`)
+  }
+
+  async deleteExpense(id: number) {
+    return this.request<any>(`/expenses/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async approveExpense(id: number) {
+    return this.request<any>(`/expenses/${id}/approve`, {
+      method: 'POST',
+    })
+  }
+
+  async getBeneficiaryGroups() {
+    return this.request<any[]>('/beneficiary-groups')
+  }
+
+  async getBeneficiaryGroupMembers(groupId: number) {
+    return this.request<any[]>(`/beneficiary-groups/${groupId}/members`)
+  }
+
+  async getBeneficiaries() {
+    return this.request<any[]>('/beneficiaries')
+  }
+
+  async getPartners() {
+    return this.request<any[]>('/references/partners')
   }
 
   // Transfers API

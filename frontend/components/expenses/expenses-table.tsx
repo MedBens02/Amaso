@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -21,57 +21,46 @@ import { useToast } from "@/hooks/use-toast"
 import { formatDateArabic } from "@/lib/date-utils"
 import { NewExpenseDialog } from "@/components/forms/NewExpenseForm"
 
-// Sample data
-const expensesData = [
-  {
-    id: 1,
-    date: new Date("2024-01-15"),
-    subBudget: "المساعدات الشهرية",
-    category: "مساعدات نقدية",
-    partner: "شريك المعونة الأول",
-    budgetedProject: "مشروع كفالة الأيتام 2024",
-    amount: 7500,
-    paymentMethod: "نقدي",
-    status: "معتمد",
-    beneficiariesCount: 15,
-    remarks: "توزيع المساعدات الشهرية",
-    beneficiaries: [
-      { id: "w1", name: "فاطمة أحمد محمد", type: "widow", amount: 500 },
-      { id: "w2", name: "خديجة علي حسن", type: "widow", amount: 500 },
-    ],
-  },
-  {
-    id: 2,
-    date: new Date("2024-01-14"),
-    subBudget: "التعليم",
-    category: "رسوم دراسية",
-    partner: "وزارة التعليم",
-    budgetedProject: "مشروع التعليم المتميز",
-    amount: 3200,
-    paymentMethod: "شيك",
-    status: "مسودة",
-    beneficiariesCount: 8,
-    remarks: "رسوم الفصل الثاني",
-    beneficiaries: [
-      { id: "o1", name: "أحمد محمد علي", type: "orphan", amount: 400 },
-      { id: "o2", name: "سارة علي حسن", type: "orphan", amount: 400 },
-    ],
-  },
-  {
-    id: 3,
-    date: new Date("2024-01-13"),
-    subBudget: "الطوارئ",
-    category: "مساعدات طبية",
-    partner: "مستشفى الأمل",
-    budgetedProject: null,
-    amount: 2800,
-    paymentMethod: "حوالة بنكية",
-    status: "معتمد",
-    beneficiariesCount: 3,
-    remarks: "علاج طارئ",
-    beneficiaries: [{ id: "w3", name: "مريم محمود عبدالله", type: "widow", amount: 933.33 }],
-  },
-]
+interface Expense {
+  id: number
+  expense_date: string
+  amount: number
+  payment_method: string
+  status: string
+  details?: string
+  remarks?: string
+  cheque_number?: string
+  receipt_number?: string
+  unrelated_to_benef: boolean
+  sub_budget: {
+    id: number
+    label: string
+  }
+  expense_category: {
+    id: number
+    label: string
+  }
+  partner?: {
+    id: number
+    name: string
+  }
+  bank_account?: {
+    id: number
+    name: string
+    bank_name: string
+  }
+  beneficiaries: Array<{
+    id: number
+    beneficiary_id: number
+    amount: number
+    notes?: string
+    beneficiary: {
+      id: number
+      full_name: string
+      type: string
+    }
+  }>
+}
 
 interface ExpensesTableProps {
   searchTerm: string
@@ -79,31 +68,65 @@ interface ExpensesTableProps {
 
 export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 10
+  const itemsPerPage = 15
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [showValidateDialog, setShowValidateDialog] = useState(false)
   const [validateTarget, setValidateTarget] = useState<{ type: "single" | "bulk"; id?: number }>({ type: "single" })
   const [duplicateExpense, setDuplicateExpense] = useState<any>(null)
+  const [expenses, setExpenses] = useState<Expense[]>([])
+  const [loading, setLoading] = useState(true)
+  const [totalExpenses, setTotalExpenses] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
   const { toast } = useToast()
 
-  const filteredData = expensesData.filter(
-    (expense) =>
-      expense.subBudget.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      expense.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      expense.partner.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  useEffect(() => {
+    fetchExpenses()
+  }, [currentPage, searchTerm])
 
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const paginatedData = filteredData.slice(startIndex, startIndex + itemsPerPage)
+  const fetchExpenses = async () => {
+    setLoading(true)
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
+      const url = new URL(`${baseUrl}/expenses`)
+      
+      const params = new URLSearchParams()
+      params.append('page', currentPage.toString())
+      params.append('per_page', itemsPerPage.toString())
+      
+      if (searchTerm && searchTerm.trim()) {
+        params.append('search', searchTerm.trim())
+      }
+      
+      url.search = params.toString()
+      
+      const response = await fetch(url.toString())
+      if (!response.ok) {
+        throw new Error('Failed to fetch expenses')
+      }
+      
+      const result = await response.json()
+      setExpenses(result.data || [])
+      setTotalExpenses(result.meta?.total || 0)
+      setTotalPages(result.meta?.last_page || 1)
+    } catch (error) {
+      console.error('Error fetching expenses:', error)
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ في تحميل البيانات",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "معتمد":
+      case "Approved":
         return <Badge variant="default">معتمد</Badge>
-      case "مسودة":
+      case "Draft":
         return <Badge variant="secondary">مسودة</Badge>
-      case "مرفوض":
+      case "Rejected":
         return <Badge variant="destructive">مرفوض</Badge>
       default:
         return <Badge variant="outline">{status}</Badge>
@@ -111,18 +134,25 @@ export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
   }
 
   const getPaymentMethodBadge = (method: string) => {
-    const variants = {
-      نقدي: "default",
-      شيك: "secondary",
-      "حوالة بنكية": "outline",
+    const methodLabels = {
+      Cash: "نقدي",
+      Cheque: "شيك",
+      BankWire: "حوالة بنكية",
     } as const
 
-    return <Badge variant={variants[method as keyof typeof variants] || "outline"}>{method}</Badge>
+    const variants = {
+      Cash: "default",
+      Cheque: "secondary",
+      BankWire: "outline",
+    } as const
+
+    const label = methodLabels[method as keyof typeof methodLabels] || method
+    return <Badge variant={variants[method as keyof typeof variants] || "outline"}>{label}</Badge>
   }
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(new Set(filteredData.map((expense) => expense.id)))
+      setSelectedIds(new Set(expenses.map((expense) => expense.id)))
     } else {
       setSelectedIds(new Set())
     }
@@ -138,9 +168,22 @@ export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
     setSelectedIds(newSelected)
   }
 
-  const handleValidateExpense = (id: number) => {
-    setValidateTarget({ type: "single", id })
-    setShowValidateDialog(true)
+  const handleValidateExpense = async (id: number) => {
+    try {
+      await api.approveExpense(id)
+      toast({
+        title: "تم التأكيد بنجاح",
+        description: "تم تأكيد المصروف بنجاح",
+      })
+      fetchExpenses()
+    } catch (error) {
+      console.error('Error approving expense:', error)
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ في تأكيد المصروف",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleBulkValidate = () => {
@@ -201,7 +244,7 @@ export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
             <TableRow>
               <TableHead className="w-12 text-center">
                 <Checkbox
-                  checked={selectedIds.size === filteredData.length && filteredData.length > 0}
+                  checked={selectedIds.size === expenses.length && expenses.length > 0}
                   onCheckedChange={handleSelectAll}
                 />
               </TableHead>
@@ -218,73 +261,84 @@ export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paginatedData.map((expense) => (
-              <TableRow key={expense.id}>
-                <TableCell className="text-center">
-                  <Checkbox
-                    checked={selectedIds.has(expense.id)}
-                    onCheckedChange={(checked) => handleSelectRow(expense.id, checked as boolean)}
-                  />
-                </TableCell>
-                <TableCell className="text-right">{formatDateArabic(expense.date, "dd/MM/yyyy")}</TableCell>
-                <TableCell className="text-right font-medium">{expense.subBudget}</TableCell>
-                <TableCell className="text-right">{expense.category}</TableCell>
-                <TableCell className="text-right">{expense.partner}</TableCell>
-                <TableCell className="text-right">
-                  {expense.budgetedProject ? (
-                    <Badge variant="outline" className="text-xs">
-                      {expense.budgetedProject}
-                    </Badge>
-                  ) : (
-                    <span className="text-muted-foreground text-sm">غير مرتبط</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right font-bold text-red-600">DH {expense.amount.toLocaleString()}</TableCell>
-                <TableCell className="text-center">
-                  <Button variant="ghost" size="sm" className="h-8 px-2">
-                    <Users className="h-4 w-4 ml-1" />
-                    {expense.beneficiariesCount}
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                  </Button>
-                </TableCell>
-                <TableCell className="text-right">{getPaymentMethodBadge(expense.paymentMethod)}</TableCell>
-                <TableCell className="text-right">{getStatusBadge(expense.status)}</TableCell>
-                <TableCell className="text-center">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => handleValidateExpense(expense.id)}
-                        disabled={expense.status === "معتمد"}
-                      >
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        تأكيد
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDuplicateExpense(expense)}>
-                        <Copy className="mr-2 h-4 w-4" />
-                        نسخ
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Eye className="mr-2 h-4 w-4" />
-                        عرض التفاصيل
-                      </DropdownMenuItem>
-                      <DropdownMenuItem disabled={expense.status === "معتمد"}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        تعديل
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-red-600">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        حذف
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={11} className="text-center py-6">
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <span className="mr-2">جاري التحميل...</span>
+                  </div>
                 </TableCell>
               </TableRow>
-            ))}
+            ) : expenses.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={11} className="text-center py-6 text-gray-500">
+                  لا توجد مصروفات
+                </TableCell>
+              </TableRow>
+            ) : (
+              expenses.map((expense) => (
+                <TableRow key={expense.id}>
+                  <TableCell className="text-center">
+                    <Checkbox
+                      checked={selectedIds.has(expense.id)}
+                      onCheckedChange={(checked) => handleSelectRow(expense.id, checked as boolean)}
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">{formatDateArabic(new Date(expense.expense_date), "dd/MM/yyyy")}</TableCell>
+                  <TableCell className="text-right font-medium">{expense.sub_budget?.label || 'غير محدد'}</TableCell>
+                  <TableCell className="text-right">{expense.expense_category?.label || 'غير محدد'}</TableCell>
+                  <TableCell className="text-right">{expense.partner?.name || 'غير محدد'}</TableCell>
+                  <TableCell className="text-right">
+                    <span className="text-muted-foreground text-sm">غير مرتبط</span>
+                  </TableCell>
+                  <TableCell className="text-right font-bold text-red-600">DH {Number(expense.amount).toLocaleString()}</TableCell>
+                  <TableCell className="text-center">
+                    <Button variant="ghost" size="sm" className="h-8 px-2">
+                      <Users className="h-4 w-4 ml-1" />
+                      {expense.beneficiaries?.length || 0}
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                    </Button>
+                  </TableCell>
+                  <TableCell className="text-right">{getPaymentMethodBadge(expense.payment_method)}</TableCell>
+                  <TableCell className="text-right">{getStatusBadge(expense.status)}</TableCell>
+                  <TableCell className="text-center">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => handleValidateExpense(expense.id)}
+                          disabled={expense.status === "Approved"}
+                        >
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          تأكيد
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDuplicateExpense(expense)}>
+                          <Copy className="mr-2 h-4 w-4" />
+                          نسخ
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Eye className="mr-2 h-4 w-4" />
+                          عرض التفاصيل
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled={expense.status === "Approved"}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          تعديل
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-red-600">
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          حذف
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
@@ -293,7 +347,7 @@ export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-600">
-            عرض {startIndex + 1} إلى {Math.min(startIndex + itemsPerPage, filteredData.length)} من {filteredData.length}{" "}
+            عرض {((currentPage - 1) * itemsPerPage) + 1} إلى {Math.min(currentPage * itemsPerPage, totalExpenses)} من {totalExpenses}{" "}
             نتيجة
           </div>
           <div className="flex gap-2">
@@ -305,6 +359,9 @@ export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
             >
               السابق
             </Button>
+            <span className="flex items-center px-3 py-1 text-sm">
+              {currentPage} من {totalPages}
+            </span>
             <Button
               variant="outline"
               size="sm"
@@ -316,6 +373,7 @@ export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
           </div>
         </div>
       )}
+
 
       {/* Validation Confirmation Dialog */}
       <AlertDialog open={showValidateDialog} onOpenChange={setShowValidateDialog}>
