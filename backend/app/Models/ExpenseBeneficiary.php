@@ -12,8 +12,8 @@ class ExpenseBeneficiary extends Model
 
     protected $fillable = [
         'expense_id',
-        'beneficiary_type',
         'beneficiary_id',
+        'group_id',
         'amount',
         'notes',
     ];
@@ -27,19 +27,26 @@ class ExpenseBeneficiary extends Model
         return $this->belongsTo(Expense::class);
     }
 
-    public function getBeneficiaryAttribute()
+    public function beneficiary(): BelongsTo
     {
-        if ($this->beneficiary_type === 'Widow') {
-            return Widow::find($this->beneficiary_id);
-        } elseif ($this->beneficiary_type === 'Orphan') {
-            return Orphan::find($this->beneficiary_id);
-        }
-        return null;
+        return $this->belongsTo(Beneficiary::class);
+    }
+
+    public function beneficiaryGroup(): BelongsTo
+    {
+        return $this->belongsTo(BeneficiaryGroup::class, 'group_id');
     }
 
     public function getBeneficiaryNameAttribute(): string
     {
-        $beneficiary = $this->beneficiary;
-        return $beneficiary ? $beneficiary->full_name : 'غير محدد';
+        if ($this->beneficiary_id && $this->beneficiary) {
+            return $this->beneficiary->full_name;
+        }
+        
+        if ($this->group_id && $this->beneficiaryGroup) {
+            return $this->beneficiaryGroup->label . ' (مجموعة)';
+        }
+        
+        return 'غير محدد';
     }
 }

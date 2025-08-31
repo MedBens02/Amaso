@@ -73,7 +73,7 @@ class BeneficiaryGroup extends Model
         return $this->hasMany(BeneficiaryGroupMember::class, 'group_id');
     }
 
-    public function expenseGroups(): HasMany
+    public function expenseBeneficiaryGroups(): HasMany
     {
         return $this->hasMany(ExpenseBeneficiaryGroup::class, 'group_id');
     }

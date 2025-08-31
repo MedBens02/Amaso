@@ -16,7 +16,8 @@
       "Bash(cmd /c:*)",
       "Bash(find:*)",
       "Bash(npx tsc:*)",
-      "Bash(timeout 30 npm run build)"
+      "Bash(timeout 30 npm run build)",
+      "Bash(php:*)"
     ],
     "deny": [],
     "ask": [],

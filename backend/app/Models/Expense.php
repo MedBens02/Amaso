@@ -78,9 +78,16 @@ class Expense extends Model
         return $this->hasMany(ExpenseBeneficiary::class);
     }
 
+    // Get only individual beneficiaries (not groups)
+    public function individualBeneficiaries(): HasMany
+    {
+        return $this->hasMany(ExpenseBeneficiary::class)->whereNotNull('beneficiary_id');
+    }
+
+    // Get only beneficiary groups
     public function beneficiaryGroups(): HasMany
     {
-        return $this->hasMany(ExpenseBeneficiaryGroup::class);
+        return $this->hasMany(ExpenseBeneficiary::class)->whereNotNull('group_id');
     }
 
     public function scopeApproved($query)

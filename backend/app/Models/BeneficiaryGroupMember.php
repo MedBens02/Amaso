@@ -12,7 +12,6 @@ class BeneficiaryGroupMember extends Model
 
     protected $fillable = [
         'group_id',
-        'beneficiary_type',
         'beneficiary_id',
     ];
 
@@ -21,13 +20,8 @@ class BeneficiaryGroupMember extends Model
         return $this->belongsTo(BeneficiaryGroup::class, 'group_id');
     }
 
-    public function getBeneficiaryAttribute()
+    public function beneficiary(): BelongsTo
     {
-        if ($this->beneficiary_type === 'Widow') {
-            return Widow::find($this->beneficiary_id);
-        } elseif ($this->beneficiary_type === 'Orphan') {
-            return Orphan::find($this->beneficiary_id);
-        }
-        return null;
+        return $this->belongsTo(Beneficiary::class);
     }
 }

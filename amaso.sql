@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Aug 30, 2025 at 10:16 PM
+-- Generation Time: Aug 31, 2025 at 12:44 PM
 -- Server version: 8.0.40
 -- PHP Version: 8.2.18
 
@@ -30,7 +30,7 @@ SET time_zone = "+00:00";
 DROP TABLE IF EXISTS `aid_types`;
 CREATE TABLE IF NOT EXISTS `aid_types` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `label` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `label` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -60,11 +60,11 @@ INSERT INTO `aid_types` (`id`, `label`, `created_at`, `updated_at`) VALUES
 DROP TABLE IF EXISTS `bank_accounts`;
 CREATE TABLE IF NOT EXISTS `bank_accounts` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `label` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `bank_name` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `account_number` varchar(60) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `label` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bank_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `account_number` varchar(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `balance` decimal(16,2) NOT NULL DEFAULT '0.00',
-  `notes` text COLLATE utf8mb4_unicode_ci,
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS `beneficiaries` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_widow` (`widow_id`),
   UNIQUE KEY `uniq_orphan` (`orphan_id`)
-) ;
+) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `beneficiaries`
@@ -130,13 +130,21 @@ INSERT INTO `beneficiaries` (`id`, `type`, `widow_id`, `orphan_id`, `created_at`
 DROP TABLE IF EXISTS `beneficiary_groups`;
 CREATE TABLE IF NOT EXISTS `beneficiary_groups` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `label` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `description` text COLLATE utf8mb4_unicode_ci,
+  `label` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `beneficiary_groups_label_unique` (`label`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `beneficiary_groups`
+--
+
+INSERT INTO `beneficiary_groups` (`id`, `label`, `description`, `created_at`, `updated_at`) VALUES
+(2, 'widows', 'all widows', '2025-08-31 11:03:55', '2025-08-31 11:03:55'),
+(3, 'orphans', 'all orphans', '2025-08-31 11:04:17', '2025-08-31 11:04:17');
 
 -- --------------------------------------------------------
 
@@ -154,6 +162,29 @@ CREATE TABLE IF NOT EXISTS `beneficiary_group_members` (
   KEY `idx_bgm_beneficiary_id` (`beneficiary_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `beneficiary_group_members`
+--
+
+INSERT INTO `beneficiary_group_members` (`group_id`, `beneficiary_id`, `created_at`, `updated_at`) VALUES
+(2, 1, '2025-08-31 11:03:55', '2025-08-31 11:03:55'),
+(2, 2, '2025-08-31 11:03:55', '2025-08-31 11:03:55'),
+(2, 3, '2025-08-31 11:03:55', '2025-08-31 11:03:55'),
+(2, 4, '2025-08-31 11:03:55', '2025-08-31 11:03:55'),
+(2, 5, '2025-08-31 11:03:55', '2025-08-31 11:03:55'),
+(2, 6, '2025-08-31 11:03:55', '2025-08-31 11:03:55'),
+(2, 7, '2025-08-31 11:03:55', '2025-08-31 11:03:55'),
+(2, 8, '2025-08-31 11:03:55', '2025-08-31 11:03:55'),
+(3, 16, '2025-08-31 11:04:17', '2025-08-31 11:04:17'),
+(3, 17, '2025-08-31 11:04:17', '2025-08-31 11:04:17'),
+(3, 18, '2025-08-31 11:04:17', '2025-08-31 11:04:17'),
+(3, 19, '2025-08-31 11:04:17', '2025-08-31 11:04:17'),
+(3, 20, '2025-08-31 11:04:17', '2025-08-31 11:04:17'),
+(3, 21, '2025-08-31 11:04:17', '2025-08-31 11:04:17'),
+(3, 22, '2025-08-31 11:04:17', '2025-08-31 11:04:17'),
+(3, 23, '2025-08-31 11:04:17', '2025-08-31 11:04:17'),
+(3, 24, '2025-08-31 11:04:17', '2025-08-31 11:04:17');
+
 -- --------------------------------------------------------
 
 --
@@ -162,8 +193,8 @@ CREATE TABLE IF NOT EXISTS `beneficiary_group_members` (
 
 DROP TABLE IF EXISTS `cache`;
 CREATE TABLE IF NOT EXISTS `cache` (
-  `key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `value` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `value` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `expiration` int NOT NULL,
   PRIMARY KEY (`key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -176,8 +207,8 @@ CREATE TABLE IF NOT EXISTS `cache` (
 
 DROP TABLE IF EXISTS `cache_locks`;
 CREATE TABLE IF NOT EXISTS `cache_locks` (
-  `key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `owner` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `owner` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `expiration` int NOT NULL,
   PRIMARY KEY (`key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -191,11 +222,11 @@ CREATE TABLE IF NOT EXISTS `cache_locks` (
 DROP TABLE IF EXISTS `donors`;
 CREATE TABLE IF NOT EXISTS `donors` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `first_name` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `last_name` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `phone` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `email` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `address` text COLLATE utf8mb4_unicode_ci,
+  `first_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `last_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `address` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   `is_kafil` tinyint(1) NOT NULL DEFAULT '0',
@@ -227,16 +258,16 @@ CREATE TABLE IF NOT EXISTS `expenses` (
   `sub_budget_id` bigint UNSIGNED NOT NULL,
   `expense_category_id` bigint UNSIGNED NOT NULL,
   `partner_id` bigint UNSIGNED DEFAULT NULL,
-  `details` text COLLATE utf8mb4_unicode_ci,
+  `details` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `expense_date` date NOT NULL,
   `amount` decimal(16,2) NOT NULL,
-  `payment_method` enum('Cash','Cheque','BankWire') COLLATE utf8mb4_unicode_ci NOT NULL,
-  `cheque_number` varchar(60) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `receipt_number` varchar(60) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `payment_method` enum('Cash','Cheque','BankWire') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `cheque_number` varchar(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `receipt_number` varchar(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `bank_account_id` bigint UNSIGNED DEFAULT NULL,
-  `remarks` text COLLATE utf8mb4_unicode_ci,
+  `remarks` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `unrelated_to_benef` tinyint(1) NOT NULL DEFAULT '0',
-  `status` enum('Draft','Approved') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Draft',
+  `status` enum('Draft','Approved') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Draft',
   `created_by` bigint UNSIGNED DEFAULT NULL,
   `approved_by` bigint UNSIGNED DEFAULT NULL,
   `approved_at` timestamp NULL DEFAULT NULL,
@@ -271,34 +302,16 @@ DROP TABLE IF EXISTS `expense_beneficiaries`;
 CREATE TABLE IF NOT EXISTS `expense_beneficiaries` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `expense_id` bigint UNSIGNED NOT NULL,
-  `beneficiary_id` bigint UNSIGNED NOT NULL,
+  `beneficiary_id` bigint UNSIGNED DEFAULT NULL,
+  `group_id` bigint UNSIGNED DEFAULT NULL,
   `amount` decimal(16,2) NOT NULL,
-  `notes` text COLLATE utf8mb4_unicode_ci,
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `expense_beneficiaries_expense_id_foreign` (`expense_id`),
-  KEY `idx_eb_beneficiary_id` (`beneficiary_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `expense_beneficiary_groups`
---
-
-DROP TABLE IF EXISTS `expense_beneficiary_groups`;
-CREATE TABLE IF NOT EXISTS `expense_beneficiary_groups` (
-  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `expense_id` bigint UNSIGNED NOT NULL,
-  `group_id` bigint UNSIGNED NOT NULL,
-  `amount` decimal(16,2) NOT NULL,
-  `notes` text COLLATE utf8mb4_unicode_ci,
-  `created_at` timestamp NULL DEFAULT NULL,
-  `updated_at` timestamp NULL DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `expense_beneficiary_groups_expense_id_foreign` (`expense_id`),
-  KEY `expense_beneficiary_groups_group_id_foreign` (`group_id`)
+  KEY `idx_eb_beneficiary_id` (`beneficiary_id`),
+  KEY `fk_exp_ben_group` (`group_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -311,7 +324,7 @@ DROP TABLE IF EXISTS `expense_categories`;
 CREATE TABLE IF NOT EXISTS `expense_categories` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `sub_budget_id` bigint UNSIGNED NOT NULL,
-  `label` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `label` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -366,11 +379,11 @@ INSERT INTO `expense_categories` (`id`, `sub_budget_id`, `label`, `created_at`, 
 DROP TABLE IF EXISTS `failed_jobs`;
 CREATE TABLE IF NOT EXISTS `failed_jobs` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `connection` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `queue` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `payload` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
-  `exception` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `connection` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `queue` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `payload` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `exception` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `failed_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `failed_jobs_uuid_unique` (`uuid`)
@@ -413,7 +426,7 @@ INSERT INTO `fiscal_years` (`id`, `year`, `is_active`, `carryover_prev_year`, `c
 DROP TABLE IF EXISTS `housing_types`;
 CREATE TABLE IF NOT EXISTS `housing_types` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `label` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `label` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -440,7 +453,7 @@ INSERT INTO `housing_types` (`id`, `label`, `created_at`, `updated_at`) VALUES
 DROP TABLE IF EXISTS `illnesses`;
 CREATE TABLE IF NOT EXISTS `illnesses` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `label` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `label` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `is_chronic` tinyint(1) NOT NULL DEFAULT '0',
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -481,12 +494,12 @@ CREATE TABLE IF NOT EXISTS `incomes` (
   `kafil_id` bigint UNSIGNED DEFAULT NULL,
   `income_date` date NOT NULL,
   `amount` decimal(16,2) NOT NULL,
-  `payment_method` enum('Cash','Cheque','BankWire') COLLATE utf8mb4_unicode_ci NOT NULL,
-  `cheque_number` varchar(60) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `receipt_number` varchar(60) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `payment_method` enum('Cash','Cheque','BankWire') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `cheque_number` varchar(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `receipt_number` varchar(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `bank_account_id` bigint UNSIGNED DEFAULT NULL,
-  `remarks` text COLLATE utf8mb4_unicode_ci,
-  `status` enum('Draft','Approved') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Draft',
+  `remarks` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `status` enum('Draft','Approved') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Draft',
   `created_by` bigint UNSIGNED DEFAULT NULL,
   `approved_by` bigint UNSIGNED DEFAULT NULL,
   `approved_at` timestamp NULL DEFAULT NULL,
@@ -529,7 +542,7 @@ DROP TABLE IF EXISTS `income_categories`;
 CREATE TABLE IF NOT EXISTS `income_categories` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `sub_budget_id` bigint UNSIGNED NOT NULL,
-  `label` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `label` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -568,8 +581,8 @@ INSERT INTO `income_categories` (`id`, `sub_budget_id`, `label`, `created_at`, `
 DROP TABLE IF EXISTS `jobs`;
 CREATE TABLE IF NOT EXISTS `jobs` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `queue` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `payload` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `queue` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `payload` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `attempts` tinyint UNSIGNED NOT NULL,
   `reserved_at` int UNSIGNED DEFAULT NULL,
   `available_at` int UNSIGNED NOT NULL,
@@ -586,13 +599,13 @@ CREATE TABLE IF NOT EXISTS `jobs` (
 
 DROP TABLE IF EXISTS `job_batches`;
 CREATE TABLE IF NOT EXISTS `job_batches` (
-  `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `total_jobs` int NOT NULL,
   `pending_jobs` int NOT NULL,
   `failed_jobs` int NOT NULL,
-  `failed_job_ids` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
-  `options` mediumtext COLLATE utf8mb4_unicode_ci,
+  `failed_job_ids` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `options` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `cancelled_at` int DEFAULT NULL,
   `created_at` int NOT NULL,
   `finished_at` int DEFAULT NULL,
@@ -608,11 +621,11 @@ CREATE TABLE IF NOT EXISTS `job_batches` (
 DROP TABLE IF EXISTS `kafils`;
 CREATE TABLE IF NOT EXISTS `kafils` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `first_name` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `last_name` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `phone` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `email` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `address` text COLLATE utf8mb4_unicode_ci,
+  `first_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `last_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `address` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   `donor_id` bigint UNSIGNED DEFAULT NULL,
@@ -670,7 +683,7 @@ INSERT INTO `kafil_sponsorship` (`id`, `kafil_id`, `widow_id`, `amount`, `create
 DROP TABLE IF EXISTS `migrations`;
 CREATE TABLE IF NOT EXISTS `migrations` (
   `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
-  `migration` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `migration` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `batch` int NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -740,12 +753,12 @@ DROP TABLE IF EXISTS `orphans`;
 CREATE TABLE IF NOT EXISTS `orphans` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `widow_id` bigint UNSIGNED NOT NULL,
-  `first_name` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `last_name` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `gender` enum('male','female') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `first_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `last_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `gender` enum('male','female') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `birth_date` date DEFAULT NULL,
   `education_level_id` bigint UNSIGNED DEFAULT NULL,
-  `health_status` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `health_status` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -777,8 +790,8 @@ INSERT INTO `orphans` (`id`, `widow_id`, `first_name`, `last_name`, `gender`, `b
 DROP TABLE IF EXISTS `orphans_education_level`;
 CREATE TABLE IF NOT EXISTS `orphans_education_level` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name_ar` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name_en` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `name_ar` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name_en` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `sort_order` int NOT NULL DEFAULT '0',
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` timestamp NULL DEFAULT NULL,
@@ -818,10 +831,10 @@ INSERT INTO `orphans_education_level` (`id`, `name_ar`, `name_en`, `sort_order`,
 DROP TABLE IF EXISTS `partners`;
 CREATE TABLE IF NOT EXISTS `partners` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `phone` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `email` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `address` text COLLATE utf8mb4_unicode_ci,
+  `name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `address` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `field_id` bigint UNSIGNED DEFAULT NULL,
   `subfield_id` bigint UNSIGNED DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
@@ -855,7 +868,7 @@ INSERT INTO `partners` (`id`, `name`, `phone`, `email`, `address`, `field_id`, `
 DROP TABLE IF EXISTS `partner_fields`;
 CREATE TABLE IF NOT EXISTS `partner_fields` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `label` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `label` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -881,7 +894,7 @@ DROP TABLE IF EXISTS `partner_subfields`;
 CREATE TABLE IF NOT EXISTS `partner_subfields` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `field_id` bigint UNSIGNED NOT NULL,
-  `label` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `label` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -905,8 +918,8 @@ INSERT INTO `partner_subfields` (`id`, `field_id`, `label`, `created_at`, `updat
 
 DROP TABLE IF EXISTS `password_reset_tokens`;
 CREATE TABLE IF NOT EXISTS `password_reset_tokens` (
-  `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `token` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `token` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -919,11 +932,11 @@ CREATE TABLE IF NOT EXISTS `password_reset_tokens` (
 
 DROP TABLE IF EXISTS `sessions`;
 CREATE TABLE IF NOT EXISTS `sessions` (
-  `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `user_id` bigint UNSIGNED DEFAULT NULL,
-  `ip_address` varchar(45) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `user_agent` text COLLATE utf8mb4_unicode_ci,
-  `payload` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ip_address` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `user_agent` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `payload` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `last_activity` int NOT NULL,
   PRIMARY KEY (`id`),
   KEY `sessions_user_id_index` (`user_id`),
@@ -939,7 +952,7 @@ CREATE TABLE IF NOT EXISTS `sessions` (
 DROP TABLE IF EXISTS `skills`;
 CREATE TABLE IF NOT EXISTS `skills` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `label` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `label` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -974,7 +987,7 @@ INSERT INTO `skills` (`id`, `label`, `created_at`, `updated_at`) VALUES
 DROP TABLE IF EXISTS `sub_budgets`;
 CREATE TABLE IF NOT EXISTS `sub_budgets` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `label` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `label` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -1007,8 +1020,8 @@ CREATE TABLE IF NOT EXISTS `transfers` (
   `from_account_id` bigint UNSIGNED NOT NULL,
   `to_account_id` bigint UNSIGNED NOT NULL,
   `amount` decimal(16,2) NOT NULL,
-  `remarks` text COLLATE utf8mb4_unicode_ci,
-  `status` enum('Draft','Approved') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Draft',
+  `remarks` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `status` enum('Draft','Approved') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Draft',
   `created_by` bigint UNSIGNED DEFAULT NULL,
   `approved_by` bigint UNSIGNED DEFAULT NULL,
   `approved_at` timestamp NULL DEFAULT NULL,
@@ -1069,11 +1082,11 @@ INSERT INTO `transfers` (`id`, `fiscal_year_id`, `transfer_date`, `from_account_
 DROP TABLE IF EXISTS `users`;
 CREATE TABLE IF NOT EXISTS `users` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `email_verified_at` timestamp NULL DEFAULT NULL,
-  `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `remember_token` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `remember_token` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -1108,19 +1121,19 @@ CREATE TABLE IF NOT EXISTS `v_current_cash` (
 DROP TABLE IF EXISTS `widows`;
 CREATE TABLE IF NOT EXISTS `widows` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `first_name` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `last_name` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `phone` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `email` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `address` text COLLATE utf8mb4_unicode_ci,
-  `neighborhood` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `first_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `last_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `address` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `neighborhood` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `admission_date` date DEFAULT NULL,
-  `national_id` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `national_id` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `birth_date` date DEFAULT NULL,
-  `marital_status` enum('Single','Widowed','Remarried','Divorced') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Widowed',
-  `education_level` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `marital_status` enum('Single','Widowed','Remarried','Divorced') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Widowed',
+  `education_level` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `disability_flag` tinyint(1) NOT NULL DEFAULT '0',
-  `disability_type` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `disability_type` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -1185,7 +1198,7 @@ INSERT INTO `widow_aid` (`id`, `widow_id`, `aid_type_id`, `is_active`, `created_
 DROP TABLE IF EXISTS `widow_expense_categories`;
 CREATE TABLE IF NOT EXISTS `widow_expense_categories` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -1217,7 +1230,7 @@ DROP TABLE IF EXISTS `widow_files`;
 CREATE TABLE IF NOT EXISTS `widow_files` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `widow_id` bigint UNSIGNED NOT NULL,
-  `social_situation` enum('single','widow','divorced','remarried') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `social_situation` enum('single','widow','divorced','remarried') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `has_chronic_disease` tinyint(1) NOT NULL DEFAULT '0',
   `has_maouna` tinyint(1) NOT NULL DEFAULT '0',
   `created_at` timestamp NULL DEFAULT NULL,
@@ -1279,7 +1292,7 @@ INSERT INTO `widow_illness` (`id`, `widow_id`, `illness_id`, `created_at`, `upda
 DROP TABLE IF EXISTS `widow_income_categories`;
 CREATE TABLE IF NOT EXISTS `widow_income_categories` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -1374,7 +1387,7 @@ CREATE TABLE IF NOT EXISTS `widow_social` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `widow_id` bigint UNSIGNED NOT NULL,
   `housing_type_id` bigint UNSIGNED NOT NULL,
-  `housing_status` enum('owned','rented','free') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `housing_status` enum('owned','rented','free') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `has_water` tinyint(1) NOT NULL DEFAULT '0',
   `has_electricity` tinyint(1) NOT NULL DEFAULT '0',
   `has_furniture` int NOT NULL DEFAULT '0',
@@ -1411,7 +1424,7 @@ CREATE TABLE IF NOT EXISTS `widow_social_expense` (
   `widow_id` bigint UNSIGNED NOT NULL,
   `expense_category_id` bigint UNSIGNED NOT NULL,
   `amount` decimal(10,2) NOT NULL,
-  `remarks` text COLLATE utf8mb4_unicode_ci,
+  `remarks` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -1448,7 +1461,7 @@ CREATE TABLE IF NOT EXISTS `widow_social_income` (
   `widow_id` bigint UNSIGNED NOT NULL,
   `income_category_id` bigint UNSIGNED NOT NULL,
   `amount` decimal(10,2) NOT NULL,
-  `remarks` text COLLATE utf8mb4_unicode_ci,
+  `remarks` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -1514,14 +1527,8 @@ ALTER TABLE `expenses`
 --
 ALTER TABLE `expense_beneficiaries`
   ADD CONSTRAINT `expense_beneficiaries_expense_id_foreign` FOREIGN KEY (`expense_id`) REFERENCES `expenses` (`id`),
-  ADD CONSTRAINT `fk_eb_beneficiaries` FOREIGN KEY (`beneficiary_id`) REFERENCES `beneficiaries` (`id`) ON DELETE CASCADE;
-
---
--- Constraints for table `expense_beneficiary_groups`
---
-ALTER TABLE `expense_beneficiary_groups`
-  ADD CONSTRAINT `expense_beneficiary_groups_expense_id_foreign` FOREIGN KEY (`expense_id`) REFERENCES `expenses` (`id`),
-  ADD CONSTRAINT `expense_beneficiary_groups_group_id_foreign` FOREIGN KEY (`group_id`) REFERENCES `beneficiary_groups` (`id`);
+  ADD CONSTRAINT `fk_eb_beneficiaries` FOREIGN KEY (`beneficiary_id`) REFERENCES `beneficiaries` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_exp_ben_group` FOREIGN KEY (`group_id`) REFERENCES `beneficiary_groups` (`id`) ON DELETE RESTRICT;
 
 --
 -- Constraints for table `expense_categories`
