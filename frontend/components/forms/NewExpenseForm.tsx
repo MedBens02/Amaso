@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -42,12 +42,6 @@ const expenseSchema = z.object({
   beneficiaries: z.array(z.object({
     beneficiary_id: z.number(),
     amount: z.number().min(0),
-    notes: z.string().optional()
-  })).optional(),
-  beneficiary_groups: z.array(z.object({
-    group_id: z.number(),
-    amount: z.number().min(0),
-    excluded_members: z.array(z.number()).optional(),
     notes: z.string().optional()
   })).optional()
 }).refine((data) => {
@@ -106,10 +100,6 @@ interface Beneficiary {
   full_name?: string
 }
 
-interface BeneficiaryGroup {
-  id: number
-  label: string
-}
 
 interface NewExpenseFormProps {
   open: boolean
@@ -130,14 +120,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
   const [partners, setPartners] = useState<Partner[]>([])
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([])
-  const [beneficiaryGroups, setBeneficiaryGroups] = useState<BeneficiaryGroup[]>([])
   const [activeFiscalYear, setActiveFiscalYear] = useState<any>(null)
-  
-  // Beneficiary selection
-  const [selectedBeneficiaries, setSelectedBeneficiaries] = useState<Set<number>>(new Set())
-  const [selectedGroups, setSelectedGroups] = useState<Set<number>>(new Set())
-  const [groupMembers, setGroupMembers] = useState<Record<number, Beneficiary[]>>({})
-  const [excludedMembers, setExcludedMembers] = useState<Record<number, Set<number>>>({})
   
   // Beneficiary search
   const [beneficiarySearchTerm, setBeneficiarySearchTerm] = useState("")
@@ -163,10 +146,6 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
     name: "beneficiaries"
   })
   
-  const { fields: groupFields, append: addGroup, remove: removeGroup } = useFieldArray({
-    control: form.control,
-    name: "beneficiary_groups"
-  })
   
   // Watch form values
   const paymentMethod = form.watch("payment_method")
@@ -189,12 +168,8 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       unrelated_to_benef: false,
       amount: 0,
       beneficiaries: [],
-      beneficiary_groups: [],
       ...initialData
     })
-    setSelectedBeneficiaries(new Set())
-    setSelectedGroups(new Set())
-    setExcludedMembers({})
     setActiveTab("basic")
   }
   
@@ -203,12 +178,11 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
     setLoading(true)
     try {
       // Try to load real data from API
-      const [subBudgetsRes, categoriesRes, partnersRes, bankAccountsRes, groupsRes, fiscalYearRes] = await Promise.all([
+      const [subBudgetsRes, categoriesRes, partnersRes, bankAccountsRes, fiscalYearRes] = await Promise.all([
         api.getSubBudgets(),
         api.getExpenseCategories(),
         api.getPartners(),
         api.getBankAccounts(),
-        api.getBeneficiaryGroups(),
         api.getActiveFiscalYear()
       ])
       
@@ -218,7 +192,6 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       setPartners(partnersRes.data || [])
       setBankAccounts(bankAccountsRes.data || [])
       setBeneficiaries([]) // Start with empty - user must search
-      setBeneficiaryGroups(groupsRes.data || [])
       setActiveFiscalYear(fiscalYearRes || null)
       
       if (fiscalYearRes) {
@@ -259,10 +232,6 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
           { id: 3, first_name: "أحمد", last_name: "محمد علي", type: "Orphan" as const, full_name: "أحمد محمد علي" },
           { id: 4, first_name: "سارة", last_name: "علي حسن", type: "Orphan" as const, full_name: "سارة علي حسن" }
         ],
-        beneficiaryGroups: [
-          { id: 1, label: "مجموعة الأرامل" },
-          { id: 2, label: "مجموعة الأيتام" }
-        ],
         fiscalYear: { id: 1, year: "2024", isActive: true }
       }
       
@@ -272,7 +241,6 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       setPartners(fallbackData.partners)
       setBankAccounts(fallbackData.bankAccounts)
       setBeneficiaries([]) // Start with empty - user must search
-      setBeneficiaryGroups(fallbackData.beneficiaryGroups)
       setActiveFiscalYear(fallbackData.fiscalYear)
       
       if (fallbackData.fiscalYear) {
@@ -341,9 +309,19 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
   useEffect(() => {
     if (beneficiaryTypeFilter !== 'all') {
       searchBeneficiaries()
+    } else {
+      // Clear beneficiaries when switching to 'all' to force user to search
+      setBeneficiaries([])
     }
   }, [beneficiaryTypeFilter])
   
+  
+
+  // Memoized set for tracking beneficiary selections
+  const selectedBeneficiaryIds = useMemo(() => {
+    return new Set(beneficiaryFields.map(field => field.beneficiary_id))
+  }, [beneficiaryFields])
+
   // Filter categories based on selected sub-budget
   const filteredCategories = expenseCategories.filter(cat => 
     !subBudgetId || cat.sub_budget_id === subBudgetId
@@ -351,93 +329,21 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
   
   // Handle beneficiary selection
   const handleBeneficiarySelect = (beneficiaryId: number, checked: boolean) => {
-    const newSelected = new Set(selectedBeneficiaries)
-    
     if (checked) {
-      newSelected.add(beneficiaryId)
-      // Add to form
+      // Check if already selected
+      if (selectedBeneficiaryIds.has(beneficiaryId)) return
+      
+      // Add to form with default amount
       addBeneficiary({
         beneficiary_id: beneficiaryId,
-        amount: totalAmount / (selectedBeneficiaries.size + selectedGroups.size + 1),
+        amount: 0,
         notes: ""
       })
     } else {
-      newSelected.delete(beneficiaryId)
       // Remove from form
       const index = beneficiaryFields.findIndex(field => field.beneficiary_id === beneficiaryId)
       if (index !== -1) {
         removeBeneficiary(index)
-      }
-    }
-    
-    setSelectedBeneficiaries(newSelected)
-    redistributeAmounts()
-  }
-  
-  // Handle group selection
-  const handleGroupSelect = async (groupId: number, checked: boolean) => {
-    const newSelected = new Set(selectedGroups)
-    
-    if (checked) {
-      newSelected.add(groupId)
-      // Load group members
-      try {
-        const response = await api.getBeneficiaryGroupMembers(groupId)
-        setGroupMembers(prev => ({
-          ...prev,
-          [groupId]: response.data || []
-        }))
-        
-        // Add to form
-        addGroup({
-          group_id: groupId,
-          amount: totalAmount / (selectedBeneficiaries.size + selectedGroups.size + 1),
-          excluded_members: [],
-          notes: ""
-        })
-      } catch (error) {
-        console.error('Error loading group members:', error)
-      }
-    } else {
-      newSelected.delete(groupId)
-      // Remove from form
-      const index = groupFields.findIndex(field => field.group_id === groupId)
-      if (index !== -1) {
-        removeGroup(index)
-      }
-      // Clean up group data
-      setGroupMembers(prev => {
-        const updated = { ...prev }
-        delete updated[groupId]
-        return updated
-      })
-      setExcludedMembers(prev => {
-        const updated = { ...prev }
-        delete updated[groupId]
-        return updated
-      })
-    }
-    
-    setSelectedGroups(newSelected)
-    redistributeAmounts()
-  }
-  
-  // Redistribute amounts when beneficiaries change
-  const redistributeAmounts = () => {
-    if (totalAmount > 0) {
-      const totalRecipients = selectedBeneficiaries.size + selectedGroups.size
-      if (totalRecipients > 0) {
-        const amountPerRecipient = totalAmount / totalRecipients
-        
-        // Update beneficiary amounts
-        beneficiaryFields.forEach((_, index) => {
-          form.setValue(`beneficiaries.${index}.amount`, amountPerRecipient)
-        })
-        
-        // Update group amounts
-        groupFields.forEach((_, index) => {
-          form.setValue(`beneficiary_groups.${index}.amount`, amountPerRecipient)
-        })
       }
     }
   }
@@ -629,7 +535,6 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                         {...form.register("amount", { valueAsNumber: true })}
                         onChange={(e) => {
                           form.setValue("amount", parseFloat(e.target.value) || 0)
-                          redistributeAmounts()
                         }}
                       />
                       {form.formState.errors.amount && (
@@ -767,16 +672,13 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                       <CardTitle className="flex items-center justify-between">
                         المستفيدون من المصروف
                         <Badge variant="outline">
-                          {selectedBeneficiaries.size + selectedGroups.size} محدد
+                          {beneficiaryFields.length} محدد
                         </Badge>
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                      {/* Individual Beneficiaries */}
+                      {/* Search Section */}
                       <div className="space-y-3">
-                        <h4 className="font-medium">المستفيدون الأفراد</h4>
-                        
-                        {/* Search and Filter */}
                         <div className="flex gap-2">
                           <div className="flex-1">
                             <Input
@@ -824,81 +726,65 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                             الأيتام
                           </Button>
                         </div>
-                        
-                        {/* Search Results */}
-                        {beneficiaries.length === 0 && !beneficiarySearchLoading ? (
-                          <div className="text-center py-8 text-gray-500">
-                            <p>ابحث عن المستفيدين لإضافتهم</p>
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto">
-                            {beneficiaries.map(beneficiary => (
+                      </div>
+
+                      {/* Search Results */}
+                      {beneficiaries.length === 0 && !beneficiarySearchLoading ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <p>ابحث عن المستفيدين لإضافتهم</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3 max-h-60 overflow-y-auto">
+                          {beneficiaries.map(beneficiary => {
+                            const isSelected = selectedBeneficiaryIds.has(beneficiary.id)
+                            return (
                               <div
                                 key={beneficiary.id}
                                 className={cn(
-                                  "flex items-center space-x-3 space-x-reverse p-3 rounded-lg border cursor-pointer",
-                                  selectedBeneficiaries.has(beneficiary.id) 
-                                    ? "border-blue-500 bg-blue-50" 
-                                    : "border-gray-200 hover:border-gray-300"
+                                  "flex items-center justify-between p-3 rounded-lg border",
+                                  isSelected ? "border-blue-500 bg-blue-50" : "border-gray-200"
                                 )}
-                                onClick={() => handleBeneficiarySelect(beneficiary.id, !selectedBeneficiaries.has(beneficiary.id))}
                               >
-                                <Checkbox
-                                  checked={selectedBeneficiaries.has(beneficiary.id)}
-                                  readOnly
-                                />
-                                <div className="flex-1">
-                                  <p className="font-medium">{beneficiary.full_name || `${beneficiary.first_name} ${beneficiary.last_name}`}</p>
-                                  <p className="text-sm text-gray-500">
-                                    {beneficiary.type === 'Widow' ? 'أرملة' : 'يتيم'}
-                                  </p>
+                                <div className="flex items-center space-x-3 space-x-reverse">
+                                  <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={(checked) => handleBeneficiarySelect(beneficiary.id, checked as boolean)}
+                                  />
+                                  <div>
+                                    <p className="font-medium">{beneficiary.full_name || `${beneficiary.first_name} ${beneficiary.last_name}`}</p>
+                                    <p className="text-sm text-gray-500">
+                                      {beneficiary.type === 'Widow' ? 'أرملة' : 'يتيم'}
+                                    </p>
+                                  </div>
                                 </div>
+                                {isSelected && (
+                                  <div className="flex items-center space-x-2 space-x-reverse">
+                                    <Label className="text-sm">المبلغ:</Label>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      className="w-24"
+                                      placeholder="0.00"
+                                      {...form.register(`beneficiaries.${beneficiaryFields.findIndex(f => f.beneficiary_id === beneficiary.id)}.amount`, { valueAsNumber: true })}
+                                    />
+                                    <span className="text-sm text-gray-500">DH</span>
+                                  </div>
+                                )}
                               </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Beneficiary Groups */}
-                      <div className="space-y-3">
-                        <h4 className="font-medium">المجموعات</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {beneficiaryGroups.map(group => (
-                            <div
-                              key={group.id}
-                              className={cn(
-                                "flex items-center space-x-3 space-x-reverse p-3 rounded-lg border cursor-pointer",
-                                selectedGroups.has(group.id) 
-                                  ? "border-green-500 bg-green-50" 
-                                  : "border-gray-200 hover:border-gray-300"
-                              )}
-                              onClick={() => handleGroupSelect(group.id, !selectedGroups.has(group.id))}
-                            >
-                              <Checkbox
-                                checked={selectedGroups.has(group.id)}
-                                readOnly
-                              />
-                              <div className="flex-1">
-                                <p className="font-medium">{group.label}</p>
-                                <p className="text-sm text-gray-500">
-                                  {groupMembers[group.id]?.length || 0} عضو
-                                </p>
-                              </div>
-                            </div>
-                          ))}
+                            )
+                          })}
                         </div>
-                      </div>
-                      
-                      {/* Amount Distribution Summary */}
-                      {(selectedBeneficiaries.size > 0 || selectedGroups.size > 0) && (
+                      )}
+
+                      {/* Selected Beneficiaries Summary */}
+                      {beneficiaryFields.length > 0 && (
                         <div className="bg-blue-50 p-4 rounded-lg">
-                          <h4 className="font-medium mb-2">ملخص توزيع المبلغ</h4>
+                          <h4 className="font-medium mb-2">المستفيدون المحددون</h4>
                           <div className="text-sm space-y-1">
-                            <p>إجمالي المبلغ: <strong>{totalAmount.toFixed(2)} DH</strong></p>
-                            <p>عدد المستفيدين: <strong>{selectedBeneficiaries.size + selectedGroups.size}</strong></p>
-                            {(selectedBeneficiaries.size + selectedGroups.size > 0) && (
-                              <p>المبلغ لكل مستفيد: <strong>{(totalAmount / (selectedBeneficiaries.size + selectedGroups.size)).toFixed(2)} DH</strong></p>
-                            )}
+                            <p>عدد المستفيدين: <strong>{beneficiaryFields.length}</strong></p>
+                            <p>إجمالي المبلغ المخصص: <strong>{beneficiaryFields.reduce((sum, field) => sum + (field.amount || 0), 0).toFixed(2)} DH</strong></p>
+                            <p>المبلغ الإجمالي للمصروف: <strong>{totalAmount.toFixed(2)} DH</strong></p>
                           </div>
                         </div>
                       )}
