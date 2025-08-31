@@ -98,6 +98,23 @@ interface Beneficiary {
   last_name: string
   type: 'Widow' | 'Orphan'
   full_name?: string
+  orphan?: {
+    id: number
+    widow_id: number
+    birth_date: string
+    gender: string
+    health_status?: string
+    education_level?: {
+      name_ar: string
+    }
+  }
+  widow?: {
+    id: number
+    full_name: string
+    birth_date: string
+    disability_flag: boolean
+    disability_type?: string
+  }
 }
 
 
@@ -120,6 +137,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
   const [partners, setPartners] = useState<Partner[]>([])
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([])
+  const [widows, setWidows] = useState<Beneficiary[]>([])
   const [activeFiscalYear, setActiveFiscalYear] = useState<any>(null)
   
   // Beneficiary search
@@ -193,6 +211,15 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       setBankAccounts(bankAccountsRes.data || [])
       setBeneficiaries([]) // Start with empty - user must search
       setActiveFiscalYear(fiscalYearRes || null)
+      
+      // Load widows data for orphan mother names
+      try {
+        const widowsRes = await api.getBeneficiaries()
+        const widowsData = widowsRes.data?.filter((b: any) => b.type === 'Widow') || []
+        setWidows(widowsData)
+      } catch (error) {
+        console.error('Error loading widows data:', error)
+      }
       
       if (fiscalYearRes) {
         form.setValue("fiscal_year_id", fiscalYearRes.id)
@@ -316,6 +343,25 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
   }, [beneficiaryTypeFilter])
   
   
+
+  // Helper functions for orphan data
+  const calculateAge = (birthDate: string) => {
+    const today = new Date()
+    const birth = new Date(birthDate)
+    let age = today.getFullYear() - birth.getFullYear()
+    const monthDiff = today.getMonth() - birth.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--
+    }
+    return age
+  }
+
+  const findMotherName = (orphan: Beneficiary) => {
+    if (orphan.type !== 'Orphan' || !orphan.orphan?.widow_id) return null
+    
+    const mother = widows.find(w => w.widow?.id === orphan.orphan?.widow_id)
+    return mother?.widow?.full_name || mother?.full_name || 'غير محدد'
+  }
 
   // Memoized set for tracking beneficiary selections
   const selectedBeneficiaryIds = useMemo(() => {
@@ -734,43 +780,91 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                           <p>ابحث عن المستفيدين لإضافتهم</p>
                         </div>
                       ) : (
-                        <div className="space-y-3 max-h-60 overflow-y-auto">
+                        <div className="space-y-4 max-h-80 overflow-y-auto">
                           {beneficiaries.map(beneficiary => {
                             const isSelected = selectedBeneficiaryIds.has(beneficiary.id)
+                            const isOrphan = beneficiary.type === 'Orphan'
+                            const isWidow = beneficiary.type === 'Widow'
+                            const motherName = isOrphan ? findMotherName(beneficiary) : null
+                            const age = isOrphan && beneficiary.orphan?.birth_date ? calculateAge(beneficiary.orphan.birth_date) : null
+                            const hasDisability = isWidow && beneficiary.widow?.disability_flag
+                            const disabilityType = isWidow ? beneficiary.widow?.disability_type : null
+                            
                             return (
                               <div
                                 key={beneficiary.id}
                                 className={cn(
-                                  "flex items-center justify-between p-3 rounded-lg border",
-                                  isSelected ? "border-blue-500 bg-blue-50" : "border-gray-200"
+                                  "relative p-4 rounded-xl border-2 transition-all duration-200 hover:shadow-md",
+                                  isSelected 
+                                    ? "border-blue-400 bg-gradient-to-l from-blue-50 to-blue-100 shadow-lg" 
+                                    : "border-gray-200 hover:border-gray-300 bg-white"
                                 )}
                               >
-                                <div className="flex items-center space-x-3 space-x-reverse">
-                                  <Checkbox
-                                    checked={isSelected}
-                                    onCheckedChange={(checked) => handleBeneficiarySelect(beneficiary.id, checked as boolean)}
-                                  />
-                                  <div>
-                                    <p className="font-medium">{beneficiary.full_name || `${beneficiary.first_name} ${beneficiary.last_name}`}</p>
-                                    <p className="text-sm text-gray-500">
-                                      {beneficiary.type === 'Widow' ? 'أرملة' : 'يتيم'}
-                                    </p>
-                                  </div>
-                                </div>
-                                {isSelected && (
-                                  <div className="flex items-center space-x-2 space-x-reverse">
-                                    <Label className="text-sm">المبلغ:</Label>
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      className="w-24"
-                                      placeholder="0.00"
-                                      {...form.register(`beneficiaries.${beneficiaryFields.findIndex(f => f.beneficiary_id === beneficiary.id)}.amount`, { valueAsNumber: true })}
+                                <div className="flex items-start justify-between">
+                                  <div className="flex items-start justify-start">
+                                    <Checkbox
+                                      checked={isSelected}
+                                      onCheckedChange={(checked) => handleBeneficiarySelect(beneficiary.id, checked as boolean)}
+                                      className="mt-1 ml-4"
                                     />
-                                    <span className="text-sm text-gray-500">DH</span>
                                   </div>
-                                )}
+                                  
+                                  <div className="flex-1 space-y-2 text-right">
+                                    <div className="flex items-center justify-end space-x-2 space-x-reverse">
+                                      <h4 className="font-semibold text-gray-900 text-lg">
+                                        {beneficiary.full_name || `${beneficiary.first_name} ${beneficiary.last_name}`}
+                                      </h4>
+                                      <Badge variant={isWidow ? 'secondary' : 'outline'} className="text-xs">
+                                        {isWidow ? 'أرملة' : 'يتيم'}
+                                      </Badge>
+                                      {age && (
+                                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
+                                          {age} سنة
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    
+                                    {isOrphan && motherName && (
+                                      <div className="flex items-center justify-end space-x-2 space-x-reverse text-sm text-gray-600">
+                                        <span className="font-medium">{motherName}</span>
+                                        <span className="text-gray-500">:الأم</span>
+                                      </div>
+                                    )}
+                                    
+                                    {isOrphan && beneficiary.orphan?.education_level?.name_ar && (
+                                      <div className="flex items-center justify-end space-x-2 space-x-reverse text-sm text-gray-600">
+                                        <span>{beneficiary.orphan.education_level.name_ar}</span>
+                                        <span className="text-gray-500">:التعليم</span>
+                                      </div>
+                                    )}
+                                    
+                                    {isWidow && hasDisability && (
+                                      <div className="flex items-center justify-end space-x-2 space-x-reverse text-sm">
+                                        <Badge variant="destructive" className="text-xs">
+                                          إعاقة
+                                        </Badge>
+                                        {disabilityType && (
+                                          <span className="text-red-600 font-medium">{disabilityType}</span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  {isSelected && (
+                                    <div className="flex items-center space-x-3 space-x-reverse bg-white rounded-lg p-3 shadow-sm border mr-4">
+                                      <Label className="text-sm font-medium text-gray-700">:المبلغ</Label>
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        className="w-28 text-center font-semibold"
+                                        placeholder="0.00"
+                                        {...form.register(`beneficiaries.${beneficiaryFields.findIndex(f => f.beneficiary_id === beneficiary.id)}.amount`, { valueAsNumber: true })}
+                                      />
+                                      <span className="text-sm font-medium text-gray-600">DH</span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             )
                           })}
@@ -779,12 +873,26 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
 
                       {/* Selected Beneficiaries Summary */}
                       {beneficiaryFields.length > 0 && (
-                        <div className="bg-blue-50 p-4 rounded-lg">
-                          <h4 className="font-medium mb-2">المستفيدون المحددون</h4>
-                          <div className="text-sm space-y-1">
-                            <p>عدد المستفيدين: <strong>{beneficiaryFields.length}</strong></p>
-                            <p>إجمالي المبلغ المخصص: <strong>{beneficiaryFields.reduce((sum, field) => sum + (field.amount || 0), 0).toFixed(2)} DH</strong></p>
-                            <p>المبلغ الإجمالي للمصروف: <strong>{totalAmount.toFixed(2)} DH</strong></p>
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
+                          <div className="flex items-center space-x-2 space-x-reverse mb-4">
+                            <Users className="h-5 w-5 text-blue-600" />
+                            <h4 className="font-semibold text-blue-900">ملخص المستفيدين المحددين</h4>
+                          </div>
+                          <div className="grid grid-cols-3 gap-4 text-center">
+                            <div className="bg-white p-3 rounded-lg border border-blue-100">
+                              <p className="text-2xl font-bold text-blue-600">{beneficiaryFields.length}</p>
+                              <p className="text-xs text-gray-600">مستفيد</p>
+                            </div>
+                            <div className="bg-white p-3 rounded-lg border border-green-100">
+                              <p className="text-2xl font-bold text-green-600">
+                                {beneficiaryFields.reduce((sum, field) => sum + (parseFloat(field.amount) || 0), 0).toFixed(0)}
+                              </p>
+                              <p className="text-xs text-gray-600">DH موزع</p>
+                            </div>
+                            <div className="bg-white p-3 rounded-lg border border-orange-100">
+                              <p className="text-2xl font-bold text-orange-600">{(parseFloat(totalAmount) || 0).toFixed(0)}</p>
+                              <p className="text-xs text-gray-600">DH إجمالي</p>
+                            </div>
                           </div>
                         </div>
                       )}

@@ -305,16 +305,28 @@ class ExpenseController extends Controller
                 ], 400);
             }
 
-            $expense->update([
-                'status' => 'Approved',
-                'approved_by' => auth()->id() ?? 1,
-                'approved_at' => now(),
-            ]);
+            return DB::transaction(function () use ($expense) {
+                // Update expense status
+                $expense->update([
+                    'status' => 'Approved',
+                    'approved_by' => auth()->id() ?? 1,
+                    'approved_at' => now(),
+                ]);
 
-            return response()->json([
-                'message' => 'تم اعتماد المصروف بنجاح',
-                'data' => $expense->load(['approvedBy'])
-            ]);
+                // Deduct amount from bank account if bank account is assigned
+                if ($expense->bank_account_id) {
+                    $bankAccount = $expense->bankAccount;
+                    if ($bankAccount) {
+                        $newBalance = $bankAccount->balance - $expense->amount;
+                        $bankAccount->update(['balance' => $newBalance]);
+                    }
+                }
+
+                return response()->json([
+                    'message' => 'تم اعتماد المصروف بنجاح',
+                    'data' => $expense->load(['approvedBy'])
+                ]);
+            });
 
         } catch (\Exception $e) {
             return response()->json([

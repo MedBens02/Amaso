@@ -77,6 +77,14 @@ export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
   const [loading, setLoading] = useState(true)
   const [totalExpenses, setTotalExpenses] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
+  const [showBeneficiariesDialog, setShowBeneficiariesDialog] = useState(false)
+  const [selectedExpenseBeneficiaries, setSelectedExpenseBeneficiaries] = useState<any[]>([])
+  const [showBankAccountDialog, setShowBankAccountDialog] = useState(false)
+  const [pendingApprovalExpense, setPendingApprovalExpense] = useState<any>(null)
+  const [bankAccounts, setBankAccounts] = useState<any[]>([])
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null)
+  const [editingExpense, setEditingExpense] = useState<any>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -221,6 +229,170 @@ export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
     setShowValidateDialog(false)
   }
 
+  // Load bank accounts when needed
+  const loadBankAccounts = async () => {
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
+      const response = await fetch(`${baseUrl}/bank-accounts`)
+      if (response.ok) {
+        const result = await response.json()
+        setBankAccounts(result.data || [])
+      }
+    } catch (error) {
+      console.error('Error loading bank accounts:', error)
+    }
+  }
+
+  // Handle showing beneficiaries
+  const handleShowBeneficiaries = async (expenseId: number) => {
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
+      const response = await fetch(`${baseUrl}/expenses/${expenseId}`)
+      if (response.ok) {
+        const result = await response.json()
+        setSelectedExpenseBeneficiaries(result.data?.beneficiaries || [])
+        setShowBeneficiariesDialog(true)
+      }
+    } catch (error) {
+      console.error('Error loading expense beneficiaries:', error)
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ في تحميل بيانات المستفيدين",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Handle delete expense
+  const handleDeleteExpense = async (expenseId: number) => {
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
+      const response = await fetch(`${baseUrl}/expenses/${expenseId}`, {
+        method: 'DELETE'
+      })
+      if (response.ok) {
+        toast({
+          title: "تم الحذف بنجاح",
+          description: "تم حذف المصروف بنجاح",
+        })
+        fetchExpenses()
+      } else {
+        throw new Error('Failed to delete expense')
+      }
+    } catch (error) {
+      console.error('Error deleting expense:', error)
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ في حذف المصروف",
+        variant: "destructive",
+      })
+    }
+    setShowDeleteDialog(false)
+    setDeleteTargetId(null)
+  }
+
+  // Handle edit expense
+  const handleEditExpense = (expense: any) => {
+    setEditingExpense(expense)
+  }
+
+  // Handle approve expense (with bank account selection for cash)
+  const handleApproveExpense = async (expense: any) => {
+    if (expense.payment_method === 'Cash' && !expense.bank_account_id) {
+      // For cash expenses without bank account, show bank account selection
+      setPendingApprovalExpense(expense)
+      await loadBankAccounts()
+      setShowBankAccountDialog(true)
+    } else {
+      // Direct approval for expenses with bank accounts
+      await performApproval(expense.id, expense.bank_account_id)
+    }
+  }
+
+  // Perform the actual approval
+  const performApproval = async (expenseId: number, bankAccountId?: number) => {
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
+      
+      // First, if bank account is provided, get current expense data and update with bank account
+      if (bankAccountId) {
+        console.log('Updating expense with bank account:', bankAccountId)
+        
+        // Get current expense data
+        const expenseResponse = await fetch(`${baseUrl}/expenses/${expenseId}`)
+        if (!expenseResponse.ok) {
+          throw new Error('Failed to fetch expense data')
+        }
+        const expenseData = await expenseResponse.json()
+        const expense = expenseData.data
+        
+        // Update with all required fields plus the new bank account
+        const updateData = {
+          fiscal_year_id: expense.fiscal_year_id,
+          sub_budget_id: expense.sub_budget_id,
+          expense_category_id: expense.expense_category_id,
+          partner_id: expense.partner_id,
+          details: expense.details,
+          expense_date: expense.expense_date,
+          amount: expense.amount,
+          payment_method: expense.payment_method,
+          cheque_number: expense.cheque_number,
+          receipt_number: expense.receipt_number,
+          bank_account_id: bankAccountId,
+          remarks: expense.remarks,
+          unrelated_to_benef: expense.unrelated_to_benef,
+          beneficiaries: expense.beneficiaries || [],
+          beneficiary_groups: expense.beneficiary_groups || []
+        }
+        
+        const updateResponse = await fetch(`${baseUrl}/expenses/${expenseId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(updateData)
+        })
+        
+        if (!updateResponse.ok) {
+          const errorData = await updateResponse.text()
+          console.error('Failed to update bank account:', errorData)
+          throw new Error('Failed to update bank account')
+        }
+      }
+      
+      // Then approve the expense
+      console.log('Approving expense:', expenseId)
+      const response = await fetch(`${baseUrl}/expenses/${expenseId}/approve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ bank_account_id: bankAccountId })
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log('Approval response:', result)
+        toast({
+          title: "تم التأكيد بنجاح",
+          description: "تم تأكيد المصروف وتحديث رصيد الحساب",
+        })
+        fetchExpenses()
+      } else {
+        const errorData = await response.text()
+        console.error('Approval failed:', errorData)
+        throw new Error('Failed to approve expense')
+      }
+    } catch (error) {
+      console.error('Error approving expense:', error)
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ في تأكيد المصروف",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <div className="space-y-4">
       {selectedIds.size > 0 && (
@@ -294,7 +466,12 @@ export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
                   </TableCell>
                   <TableCell className="text-right font-bold text-red-600">DH {Number(expense.amount).toLocaleString()}</TableCell>
                   <TableCell className="text-center">
-                    <Button variant="ghost" size="sm" className="h-8 px-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 px-2 hover:bg-blue-50" 
+                      onClick={() => handleShowBeneficiaries(expense.id)}
+                    >
                       <Users className="h-4 w-4 ml-1" />
                       {expense.beneficiaries?.length || 0}
                       <ExternalLink className="h-3 w-3 mr-1" />
@@ -311,7 +488,7 @@ export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          onClick={() => handleValidateExpense(expense.id)}
+                          onClick={() => handleApproveExpense(expense)}
                           disabled={expense.status === "Approved"}
                         >
                           <CheckCircle className="mr-2 h-4 w-4" />
@@ -321,15 +498,25 @@ export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
                           <Copy className="mr-2 h-4 w-4" />
                           نسخ
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleShowBeneficiaries(expense.id)}>
                           <Eye className="mr-2 h-4 w-4" />
                           عرض التفاصيل
                         </DropdownMenuItem>
-                        <DropdownMenuItem disabled={expense.status === "Approved"}>
+                        <DropdownMenuItem 
+                          onClick={() => handleEditExpense(expense)}
+                          disabled={expense.status === "Approved"}
+                        >
                           <Edit className="mr-2 h-4 w-4" />
                           تعديل
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">
+                        <DropdownMenuItem 
+                          className="text-red-600"
+                          onClick={() => {
+                            setDeleteTargetId(expense.id)
+                            setShowDeleteDialog(true)
+                          }}
+                          disabled={expense.status === "Approved"}
+                        >
                           <Trash2 className="mr-2 h-4 w-4" />
                           حذف
                         </DropdownMenuItem>
@@ -405,6 +592,125 @@ export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
               title: "تم النسخ بنجاح",
               description: "تم إنشاء نسخة من المصروف بنجاح",
             })
+          }}
+        />
+      )}
+
+      {/* Beneficiaries Display Dialog */}
+      <AlertDialog open={showBeneficiariesDialog} onOpenChange={setShowBeneficiariesDialog}>
+        <AlertDialogContent className="max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>مستفيدو المصروف</AlertDialogTitle>
+            <AlertDialogDescription>
+              قائمة بجميع المستفيدين من هذا المصروف
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="max-h-96 overflow-y-auto space-y-3">
+            {selectedExpenseBeneficiaries.length === 0 ? (
+              <p className="text-center text-gray-500 py-8">لا توجد بيانات مستفيدين</p>
+            ) : (
+              selectedExpenseBeneficiaries.map((beneficiary, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="text-right">
+                    <p className="font-medium">{beneficiary.beneficiary?.full_name || beneficiary.beneficiary?.first_name + ' ' + beneficiary.beneficiary?.last_name}</p>
+                    <p className="text-sm text-gray-600">
+                      {beneficiary.beneficiary?.type === 'Widow' ? 'أرملة' : 'يتيم'}
+                    </p>
+                    {beneficiary.notes && (
+                      <p className="text-xs text-gray-500 mt-1">{beneficiary.notes}</p>
+                    )}
+                  </div>
+                  <div className="text-left">
+                    <p className="font-bold text-green-600">DH {Number(beneficiary.amount).toLocaleString()}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إغلاق</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bank Account Selection Dialog */}
+      <AlertDialog open={showBankAccountDialog} onOpenChange={setShowBankAccountDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>اختيار حساب بنكي</AlertDialogTitle>
+            <AlertDialogDescription>
+              هذا المصروف نقدي، يرجى اختيار الحساب البنكي الذي سيتم خصم المبلغ منه
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3">
+            {bankAccounts.map(account => (
+              <div
+                key={account.id}
+                className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
+                onClick={async () => {
+                  await performApproval(pendingApprovalExpense?.id, account.id)
+                  setShowBankAccountDialog(false)
+                  setPendingApprovalExpense(null)
+                }}
+              >
+                <div className="flex justify-between items-center">
+                  <div className="text-right">
+                    <p className="font-medium">{account.name}</p>
+                    <p className="text-sm text-gray-600">{account.bank_name}</p>
+                  </div>
+                  <div className="text-left">
+                    <p className="font-bold text-green-600">DH {Number(account.balance || 0).toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowBankAccountDialog(false)
+              setPendingApprovalExpense(null)
+            }}>إلغاء</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد من حذف هذا المصروف؟ لا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowDeleteDialog(false)
+              setDeleteTargetId(null)
+            }}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => deleteTargetId && handleDeleteExpense(deleteTargetId)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              حذف
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Expense Dialog */}
+      {editingExpense && (
+        <NewExpenseDialog
+          open={!!editingExpense}
+          onOpenChange={() => setEditingExpense(null)}
+          initialData={editingExpense}
+          onSuccess={() => {
+            setEditingExpense(null)
+            toast({
+              title: "تم التحديث بنجاح",
+              description: "تم تحديث المصروف بنجاح",
+            })
+            fetchExpenses()
           }}
         />
       )}
