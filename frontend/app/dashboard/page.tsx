@@ -1,57 +1,150 @@
 "use client"
+import { useState, useEffect } from "react"
 import { Users, Heart, TrendingUp, UserCheck, HandCoins, Wallet, Banknote, Download } from "lucide-react"
 import { StatsCard } from "@/components/dashboard/stats-card"
-import { RecentFinanceActivity } from "@/components/dashboard/recent-finance-activity"
+import { RecentIncomes } from "@/components/dashboard/recent-incomes"
+import { RecentExpenses } from "@/components/dashboard/recent-expenses"
+import { MonthlyCharts } from "@/components/dashboard/monthly-charts"
 import { QuickActions } from "@/components/dashboard/quick-actions"
 import { Button } from "@/components/ui/button"
 
+interface DashboardStats {
+  widowsCount: number
+  orphansCount: number
+  kafilsCount: number
+  monthlyIncomes: number
+  monthlyExpenses: number
+  currentCashBalance: number
+  previousMonthIncomes: number
+  previousMonthExpenses: number
+  previousCashBalance: number
+}
+
 export default function DashboardPage() {
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
+    widowsCount: 0,
+    orphansCount: 0,
+    kafilsCount: 0,
+    monthlyIncomes: 0,
+    monthlyExpenses: 0,
+    currentCashBalance: 0,
+    previousMonthIncomes: 0,
+    previousMonthExpenses: 0,
+    previousCashBalance: 0,
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchDashboardStats()
+  }, [])
+
+  const fetchDashboardStats = async () => {
+    try {
+      setLoading(true)
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
+      
+      // Calculate date ranges
+      const now = new Date()
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0) // Last day of previous month
+      
+      // Fetch counts and financial data with parallel requests
+      const [widowsRes, orphansRes, kafilsRes, bankAccountsRes, currentIncomesRes, currentExpensesRes, previousIncomesRes, previousExpensesRes] = await Promise.all([
+        fetch(`${baseUrl}/widows?per_page=1`).then(r => r.json()),
+        fetch(`${baseUrl}/orphans?per_page=1`).then(r => r.json()),
+        fetch(`${baseUrl}/kafils?per_page=1`).then(r => r.json()),
+        fetch(`${baseUrl}/bank-accounts`).then(r => r.json()),
+        // Current month's incomes
+        fetch(`${baseUrl}/incomes?per_page=1000&from_date=${currentMonthStart.toISOString().split('T')[0]}&to_date=${now.toISOString().split('T')[0]}&status=Approved`).then(r => r.json()),
+        // Current month's expenses  
+        fetch(`${baseUrl}/expenses?per_page=1000&from_date=${currentMonthStart.toISOString().split('T')[0]}&to_date=${now.toISOString().split('T')[0]}&status=Approved`).then(r => r.json()),
+        // Previous month's incomes
+        fetch(`${baseUrl}/incomes?per_page=1000&from_date=${previousMonthStart.toISOString().split('T')[0]}&to_date=${previousMonthEnd.toISOString().split('T')[0]}&status=Approved`).then(r => r.json()),
+        // Previous month's expenses
+        fetch(`${baseUrl}/expenses?per_page=1000&from_date=${previousMonthStart.toISOString().split('T')[0]}&to_date=${previousMonthEnd.toISOString().split('T')[0]}&status=Approved`).then(r => r.json()),
+      ])
+
+      // Calculate totals
+      const currentCashBalance = bankAccountsRes.data?.reduce((sum: number, account: any) => sum + parseFloat(account.balance), 0) || 0
+      const monthlyIncomes = currentIncomesRes.data?.reduce((sum: number, income: any) => sum + parseFloat(income.amount), 0) || 0
+      const monthlyExpenses = currentExpensesRes.data?.reduce((sum: number, expense: any) => sum + parseFloat(expense.amount), 0) || 0
+      const previousMonthIncomes = previousIncomesRes.data?.reduce((sum: number, income: any) => sum + parseFloat(income.amount), 0) || 0
+      const previousMonthExpenses = previousExpensesRes.data?.reduce((sum: number, expense: any) => sum + parseFloat(expense.amount), 0) || 0
+
+      setDashboardStats({
+        widowsCount: widowsRes.meta?.total || 0,
+        orphansCount: orphansRes.meta?.total || 0,
+        kafilsCount: kafilsRes.meta?.total || 0,
+        monthlyIncomes,
+        monthlyExpenses,
+        currentCashBalance,
+        previousMonthIncomes,
+        previousMonthExpenses,
+        previousCashBalance: currentCashBalance, // We'll use current as approximation
+      })
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Calculate month-over-month changes
+  const incomeChange = dashboardStats.previousMonthIncomes > 0 
+    ? ((dashboardStats.monthlyIncomes - dashboardStats.previousMonthIncomes) / dashboardStats.previousMonthIncomes * 100)
+    : 0
+
+  const expenseChange = dashboardStats.previousMonthExpenses > 0
+    ? ((dashboardStats.monthlyExpenses - dashboardStats.previousMonthExpenses) / dashboardStats.previousMonthExpenses * 100)
+    : 0
+
   const stats = [
     {
       title: "إجمالي الأرامل",
-      value: "247",
-      change: "+12",
-      changeType: "increase" as const,
+      value: loading ? "..." : dashboardStats.widowsCount.toString(),
+      change: "",
+      changeType: "neutral" as const,
       icon: Users,
       color: "blue",
     },
     {
       title: "إجمالي الأيتام",
-      value: "589",
-      change: "+23",
-      changeType: "increase" as const,
+      value: loading ? "..." : dashboardStats.orphansCount.toString(),
+      change: "",
+      changeType: "neutral" as const,
       icon: Heart,
       color: "pink",
     },
     {
       title: "الكفلاء النشطين",
-      value: "156",
-      change: "+5",
-      changeType: "increase" as const,
+      value: loading ? "..." : dashboardStats.kafilsCount.toString(),
+      change: "",
+      changeType: "neutral" as const,
       icon: UserCheck,
       color: "purple",
     },
     {
       title: "الإيرادات الشهرية",
-      value: "DH 85,430",
-      change: "+12.5%",
-      changeType: "increase" as const,
+      value: loading ? "..." : `${dashboardStats.monthlyIncomes.toFixed(2)} د.م`,
+      change: loading ? "" : `${incomeChange > 0 ? '+' : ''}${incomeChange.toFixed(1)}%`,
+      changeType: (incomeChange >= 0 ? "increase" : "decrease") as const,
       icon: HandCoins,
       color: "green",
     },
     {
       title: "المصروفات الشهرية",
-      value: "DH 72,150",
-      change: "+8.2%",
-      changeType: "increase" as const,
+      value: loading ? "..." : `${dashboardStats.monthlyExpenses.toFixed(2)} د.م`,
+      change: loading ? "" : `${expenseChange > 0 ? '+' : ''}${expenseChange.toFixed(1)}%`,
+      changeType: (expenseChange >= 0 ? "increase" : "decrease") as const,
       icon: Wallet,
       color: "orange",
     },
     {
       title: "الرصيد النقدي الحالي",
-      value: "DH 125,680",
-      change: "+15.3%",
-      changeType: "increase" as const,
+      value: loading ? "..." : `${dashboardStats.currentCashBalance.toFixed(2)} د.م`,
+      change: loading ? "" : `${(dashboardStats.monthlyIncomes - dashboardStats.monthlyExpenses).toFixed(2)} د.م`,
+      changeType: (dashboardStats.monthlyIncomes >= dashboardStats.monthlyExpenses ? "increase" : "decrease") as const,
       icon: Banknote,
       color: "indigo",
     },
@@ -150,15 +243,14 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <RecentFinanceActivity />
-        </div>
-        <div>
-          <QuickActions />
-        </div>
+      {/* Recent Activity Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <RecentIncomes />
+        <RecentExpenses />
       </div>
+
+      {/* Monthly Charts */}
+      <MonthlyCharts />
     </div>
   )
 }

@@ -6,7 +6,7 @@ interface StatsCardProps {
   title: string
   value: string
   change: string
-  changeType: "increase" | "decrease"
+  changeType: "increase" | "decrease" | "neutral"
   icon: LucideIcon
   color: "blue" | "pink" | "green" | "purple" | "orange" | "indigo"
 }
@@ -31,9 +31,16 @@ export function StatsCard({ title, value, change, changeType, icon: Icon, color 
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold text-gray-900">{value}</div>
-        <p className={cn("text-xs mt-1", changeType === "increase" ? "text-green-600" : "text-red-600")}>
-          {change} من الشهر الماضي
-        </p>
+        {change && (
+          <p className={cn(
+            "text-xs mt-1",
+            changeType === "increase" ? "text-green-600" : 
+            changeType === "decrease" ? "text-red-600" : 
+            "text-gray-600"
+          )}>
+            {change} من الشهر الماضي
+          </p>
+        )}
       </CardContent>
     </Card>
   )

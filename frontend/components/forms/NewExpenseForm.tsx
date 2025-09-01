@@ -35,7 +35,20 @@ const DatePicker = ({
   placeholder: string
 }) => {
   const [open, setOpen] = useState(false)
-  const [currentMonth, setCurrentMonth] = useState<Date>(value || new Date())
+  const [currentMonth, setCurrentMonth] = useState<Date>(() => {
+    // Ensure we always have a valid Date object
+    if (value && value instanceof Date && !isNaN(value.getTime())) {
+      return value
+    }
+    return new Date()
+  })
+  
+  // Update currentMonth when value changes
+  useEffect(() => {
+    if (value && value instanceof Date && !isNaN(value.getTime())) {
+      setCurrentMonth(value)
+    }
+  }, [value])
   
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen)
@@ -47,7 +60,9 @@ const DatePicker = ({
   }
   
   const handleMonthChange = (newMonth: Date) => {
-    setCurrentMonth(newMonth)
+    if (newMonth && newMonth instanceof Date && !isNaN(newMonth.getTime())) {
+      setCurrentMonth(newMonth)
+    }
   }
   
   const years = Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i)
@@ -82,9 +97,10 @@ const DatePicker = ({
         <div className="p-3 border-b">
           <div className="flex gap-2 mb-3">
             <Select
-              value={currentMonth.getFullYear().toString()}
+              value={currentMonth && currentMonth instanceof Date ? currentMonth.getFullYear().toString() : new Date().getFullYear().toString()}
               onValueChange={(year) => {
-                const newDate = new Date(currentMonth)
+                const baseDate = currentMonth && currentMonth instanceof Date ? currentMonth : new Date()
+                const newDate = new Date(baseDate)
                 newDate.setFullYear(parseInt(year))
                 setCurrentMonth(newDate)
               }}
@@ -102,9 +118,10 @@ const DatePicker = ({
             </Select>
             
             <Select
-              value={currentMonth.getMonth().toString()}
+              value={currentMonth && currentMonth instanceof Date ? currentMonth.getMonth().toString() : new Date().getMonth().toString()}
               onValueChange={(month) => {
-                const newDate = new Date(currentMonth)
+                const baseDate = currentMonth && currentMonth instanceof Date ? currentMonth : new Date()
+                const newDate = new Date(baseDate)
                 newDate.setMonth(parseInt(month))
                 setCurrentMonth(newDate)
               }}
@@ -127,7 +144,7 @@ const DatePicker = ({
           selected={value}
           onSelect={handleSelect}
           disabled={(date) => date > new Date()}
-          month={currentMonth}
+          month={currentMonth && currentMonth instanceof Date ? currentMonth : new Date()}
           onMonthChange={handleMonthChange}
           initialFocus
         />
@@ -168,15 +185,14 @@ const expenseSchema = z.object({
 }, {
   message: "تأكد من ملء جميع الحقول المطلوبة لطريقة الدفع المختارة"
 }).refine((data) => {
-  // Beneficiaries validation
+  // Beneficiaries validation - only check if not unrelated to beneficiaries
   if (!data.unrelated_to_benef) {
     const hasBeneficiaries = data.beneficiaries && data.beneficiaries.length > 0
-    const hasGroups = data.beneficiary_groups && data.beneficiary_groups.length > 0
-    return hasBeneficiaries || hasGroups
+    return hasBeneficiaries
   }
   return true
 }, {
-  message: "يجب اختيار مستفيدين أو مجموعات مستفيدين إذا كان المصروف مرتبط بالمستفيدين"
+  message: "يجب اختيار مستفيدين إذا كان المصروف مرتبط بالمستفيدين"
 })
 
 type ExpenseFormData = z.infer<typeof expenseSchema>
@@ -267,7 +283,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       unrelated_to_benef: false,
       amount: 0,
       beneficiaries: [],
-      beneficiary_groups: []
+      expense_date: new Date()
     }
   })
   
@@ -287,19 +303,52 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
   useEffect(() => {
     if (open) {
       loadReferenceData()
-      resetForm()
     }
   }, [open])
   
+  // Initialize form with data after reference data is loaded
+  useEffect(() => {
+    if (open && !loading) {
+      resetForm()
+    }
+  }, [open, loading, initialData])
+  
   // Reset form
   const resetForm = () => {
-    form.reset({
-      payment_method: "Cash",
+    const defaultValues = {
+      payment_method: "Cash" as const,
       unrelated_to_benef: false,
       amount: 0,
       beneficiaries: [],
+      expense_date: new Date(),
       ...initialData
-    })
+    }
+
+    // Convert string IDs to numbers if they exist in initialData
+    if (initialData) {
+      if (initialData.sub_budget_id && typeof initialData.sub_budget_id === 'string') {
+        defaultValues.sub_budget_id = Number(initialData.sub_budget_id)
+      }
+      if (initialData.expense_category_id && typeof initialData.expense_category_id === 'string') {
+        defaultValues.expense_category_id = Number(initialData.expense_category_id)
+      }
+      if (initialData.partner_id && typeof initialData.partner_id === 'string') {
+        defaultValues.partner_id = Number(initialData.partner_id)
+      }
+      if (initialData.bank_account_id && typeof initialData.bank_account_id === 'string') {
+        defaultValues.bank_account_id = Number(initialData.bank_account_id)
+      }
+      if (initialData.fiscal_year_id && typeof initialData.fiscal_year_id === 'string') {
+        defaultValues.fiscal_year_id = Number(initialData.fiscal_year_id)
+      }
+      // Convert date string to Date object
+      if (initialData.expense_date && typeof initialData.expense_date === 'string') {
+        defaultValues.expense_date = new Date(initialData.expense_date)
+      }
+    }
+
+    console.log('Resetting form with values:', defaultValues)
+    form.reset(defaultValues)
     setActiveTab("basic")
   }
   
@@ -333,7 +382,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
         console.error('Error loading widows data:', error)
       }
       
-      if (fiscalYearRes) {
+      if (fiscalYearRes && !initialData?.fiscal_year_id) {
         form.setValue("fiscal_year_id", fiscalYearRes.id)
       }
       
@@ -382,7 +431,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       setBeneficiaries([]) // Start with empty - user must search
       setActiveFiscalYear(fallbackData.fiscalYear)
       
-      if (fallbackData.fiscalYear) {
+      if (fallbackData.fiscalYear && !initialData?.fiscal_year_id) {
         form.setValue("fiscal_year_id", fallbackData.fiscalYear.id)
       }
       
@@ -624,7 +673,14 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                     {/* Sub Budget */}
                     <div className="space-y-2">
                       <Label>الميزانية الفرعية *</Label>
-                      <Select onValueChange={(value) => form.setValue("sub_budget_id", parseInt(value))}>
+                      <Select 
+                        value={form.watch("sub_budget_id")?.toString() || ""} 
+                        onValueChange={(value) => {
+                          form.setValue("sub_budget_id", parseInt(value))
+                          // Clear expense category when sub budget changes
+                          form.setValue("expense_category_id", undefined)
+                        }}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="اختر الميزانية الفرعية" />
                         </SelectTrigger>
@@ -644,7 +700,10 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                     {/* Expense Category */}
                     <div className="space-y-2">
                       <Label>فئة المصروف *</Label>
-                      <Select onValueChange={(value) => form.setValue("expense_category_id", parseInt(value))}>
+                      <Select 
+                        value={form.watch("expense_category_id")?.toString() || ""} 
+                        onValueChange={(value) => form.setValue("expense_category_id", parseInt(value))}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="اختر فئة المصروف" />
                         </SelectTrigger>
@@ -664,7 +723,10 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                     {/* Partner */}
                     <div className="space-y-2">
                       <Label>الشريك</Label>
-                      <Select onValueChange={(value) => form.setValue("partner_id", parseInt(value))}>
+                      <Select 
+                        value={form.watch("partner_id")?.toString() || "0"} 
+                        onValueChange={(value) => form.setValue("partner_id", parseInt(value))}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="اختر الشريك (اختياري)" />
                         </SelectTrigger>
@@ -746,7 +808,10 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                     {/* Payment Method Selection */}
                     <div className="space-y-2">
                       <Label>طريقة الدفع *</Label>
-                      <Select onValueChange={(value) => form.setValue("payment_method", value as any)}>
+                      <Select 
+                        value={form.watch("payment_method") || ""} 
+                        onValueChange={(value) => form.setValue("payment_method", value as any)}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="اختر طريقة الدفع" />
                         </SelectTrigger>
@@ -765,7 +830,10 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                     {(paymentMethod === "Cheque" || paymentMethod === "BankWire") && (
                       <div className="space-y-2">
                         <Label>الحساب البنكي *</Label>
-                        <Select onValueChange={(value) => form.setValue("bank_account_id", parseInt(value))}>
+                        <Select 
+                          value={form.watch("bank_account_id")?.toString() || ""} 
+                          onValueChange={(value) => form.setValue("bank_account_id", parseInt(value))}
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="اختر الحساب البنكي" />
                           </SelectTrigger>
