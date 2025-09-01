@@ -62,11 +62,25 @@ interface Expense {
   }>
 }
 
-interface ExpensesTableProps {
-  searchTerm: string
+interface FilterValues {
+  fromDate?: Date
+  toDate?: Date
+  subBudgetId?: string
+  expenseCategoryId?: string
+  partnerId?: string
+  paymentMethod?: string
+  status?: string
+  minAmount?: string
+  maxAmount?: string
+  fiscalYearId?: string
 }
 
-export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
+interface ExpensesTableProps {
+  searchTerm: string
+  appliedFilters?: FilterValues
+}
+
+export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 15
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
@@ -89,7 +103,7 @@ export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
 
   useEffect(() => {
     fetchExpenses()
-  }, [currentPage, searchTerm])
+  }, [currentPage, searchTerm, appliedFilters])
 
   const fetchExpenses = async () => {
     setLoading(true)
@@ -105,14 +119,57 @@ export function ExpensesTable({ searchTerm }: ExpensesTableProps) {
         params.append('search', searchTerm.trim())
       }
       
+      // Apply filters
+      if (appliedFilters) {
+        if (appliedFilters.fromDate) {
+          params.append('from_date', appliedFilters.fromDate.toISOString().split('T')[0])
+        }
+        if (appliedFilters.toDate) {
+          params.append('to_date', appliedFilters.toDate.toISOString().split('T')[0])
+        }
+        if (appliedFilters.subBudgetId) {
+          params.append('sub_budget_id', appliedFilters.subBudgetId)
+        }
+        if (appliedFilters.expenseCategoryId) {
+          params.append('expense_category_id', appliedFilters.expenseCategoryId)
+        }
+        if (appliedFilters.partnerId) {
+          params.append('partner_id', appliedFilters.partnerId)
+        }
+        if (appliedFilters.paymentMethod) {
+          params.append('payment_method', appliedFilters.paymentMethod)
+        }
+        if (appliedFilters.status) {
+          params.append('status', appliedFilters.status)
+        }
+        if (appliedFilters.minAmount) {
+          params.append('min_amount', appliedFilters.minAmount)
+        }
+        if (appliedFilters.maxAmount) {
+          params.append('max_amount', appliedFilters.maxAmount)
+        }
+        if (appliedFilters.fiscalYearId) {
+          params.append('fiscal_year_id', appliedFilters.fiscalYearId)
+        }
+      }
+      
       url.search = params.toString()
       
       const response = await fetch(url.toString())
       if (!response.ok) {
-        throw new Error('Failed to fetch expenses')
+        throw new Error(`Failed to fetch expenses: ${response.status} ${response.statusText}`)
       }
       
-      const result = await response.json()
+      const responseText = await response.text()
+      let result
+      try {
+        result = JSON.parse(responseText)
+      } catch (jsonError) {
+        console.error('JSON parsing error:', jsonError)
+        console.error('Response text:', responseText)
+        throw new Error('Server returned invalid JSON response')
+      }
+      
       setExpenses(result.data || [])
       setTotalExpenses(result.meta?.total || 0)
       setTotalPages(result.meta?.last_page || 1)

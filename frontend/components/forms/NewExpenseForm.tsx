@@ -284,8 +284,8 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
     }
   }
   
-  // Search beneficiaries
-  const searchBeneficiaries = async () => {
+  // Search beneficiaries  
+  const searchBeneficiaries = useCallback(async () => {
     if (!beneficiarySearchTerm.trim() && beneficiaryTypeFilter === 'all') {
       setBeneficiaries([])
       return
@@ -330,7 +330,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
     } finally {
       setBeneficiarySearchLoading(false)
     }
-  }
+  }, [beneficiarySearchTerm, beneficiaryTypeFilter, toast])
   
   // Search when filter changes
   useEffect(() => {
@@ -340,7 +340,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       // Clear beneficiaries when switching to 'all' to force user to search
       setBeneficiaries([])
     }
-  }, [beneficiaryTypeFilter])
+  }, [beneficiaryTypeFilter, searchBeneficiaries])
   
   
 

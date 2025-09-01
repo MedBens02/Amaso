@@ -41,8 +41,32 @@ class ExpenseController extends Controller
                 $query->where('fiscal_year_id', $request->fiscal_year_id);
             }
 
+            if ($request->filled('sub_budget_id')) {
+                $query->where('sub_budget_id', $request->sub_budget_id);
+            }
+
+            if ($request->filled('expense_category_id')) {
+                $query->where('expense_category_id', $request->expense_category_id);
+            }
+
+            if ($request->filled('partner_id')) {
+                $query->where('partner_id', $request->partner_id);
+            }
+
+            if ($request->filled('payment_method')) {
+                $query->where('payment_method', $request->payment_method);
+            }
+
             if ($request->filled('status')) {
                 $query->where('status', $request->status);
+            }
+
+            if ($request->filled('min_amount')) {
+                $query->where('amount', '>=', $request->min_amount);
+            }
+
+            if ($request->filled('max_amount')) {
+                $query->where('amount', '<=', $request->max_amount);
             }
 
             if ($request->filled('from_date')) {

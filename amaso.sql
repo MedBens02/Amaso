@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Aug 31, 2025 at 12:44 PM
+-- Generation Time: Aug 31, 2025 at 11:47 PM
 -- Server version: 8.0.40
 -- PHP Version: 8.2.18
 
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS `bank_accounts` (
 --
 
 INSERT INTO `bank_accounts` (`id`, `label`, `bank_name`, `account_number`, `balance`, `notes`, `created_at`, `updated_at`) VALUES
-(1, 'حساب البنك الشعبي الرئيسي', 'البنك الشعبي', '001234567890', 309700.00, 'الحساب الرئيسي للجمعية', '2025-08-28 23:19:23', '2025-08-30 16:06:20'),
+(1, 'حساب البنك الشعبي الرئيسي', 'البنك الشعبي', '001234567890', 307800.00, 'الحساب الرئيسي للجمعية', '2025-08-28 23:19:23', '2025-08-31 21:47:05'),
 (2, 'حساب التوفير - التجاري وفا', 'التجاري وفا بنك', '002345678901', 164000.00, 'حساب التوفير للطوارئ', '2025-08-28 23:19:23', '2025-08-29 13:30:29');
 
 -- --------------------------------------------------------
@@ -281,7 +281,7 @@ CREATE TABLE IF NOT EXISTS `expenses` (
   KEY `expenses_bank_account_id_foreign` (`bank_account_id`),
   KEY `expenses_created_by_foreign` (`created_by`),
   KEY `expenses_approved_by_foreign` (`approved_by`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `expenses`
@@ -290,7 +290,20 @@ CREATE TABLE IF NOT EXISTS `expenses` (
 INSERT INTO `expenses` (`id`, `fiscal_year_id`, `sub_budget_id`, `expense_category_id`, `partner_id`, `details`, `expense_date`, `amount`, `payment_method`, `cheque_number`, `receipt_number`, `bank_account_id`, `remarks`, `unrelated_to_benef`, `status`, `created_by`, `approved_by`, `approved_at`, `created_at`, `updated_at`) VALUES
 (1, 2, 1, 1, NULL, 'مساعدة شهرية للأرامل - مارس 2024', '2024-03-25', 15000.00, 'BankWire', NULL, 'EXP-2024-001', 1, 'دفعة مارس للأرامل المستفيدات', 0, 'Approved', 2, 2, '2025-08-16 23:19:23', '2025-08-28 23:19:23', '2025-08-28 23:19:23'),
 (2, 2, 2, 2, NULL, 'شراء مواد تعليمية للبرنامج', '2024-06-20', 3500.00, 'Cash', NULL, 'EXP-2024-002', NULL, 'مصروف في انتظار الموافقة', 0, 'Draft', 2, NULL, NULL, '2025-08-28 23:19:23', '2025-08-28 23:19:23'),
-(3, 2, 1, 1, NULL, 'مساعدة طبية عاجلة', '2024-05-30', 2500.00, 'Cheque', 'CHQ-EXP-001', 'EXP-2024-003', NULL, 'مساعدة طبية للأرملة خديجة', 0, 'Approved', 2, 2, '2025-08-22 23:19:23', '2025-08-28 23:19:23', '2025-08-28 23:19:23');
+(3, 2, 1, 1, NULL, 'مساعدة طبية عاجلة', '2024-05-30', 2500.00, 'Cheque', 'CHQ-EXP-001', 'EXP-2024-003', NULL, 'مساعدة طبية للأرملة خديجة', 0, 'Approved', 2, 2, '2025-08-22 23:19:23', '2025-08-28 23:19:23', '2025-08-28 23:19:23'),
+(5, 1, 1, 1, 1, NULL, '2024-01-15', 1000.00, 'Cash', NULL, 'REC-001', NULL, 'Test expense', 0, 'Approved', 1, 1, '2025-08-31 15:57:07', '2025-08-31 15:56:18', '2025-08-31 15:57:07'),
+(6, 1, 1, 1, NULL, NULL, '2024-01-15', 500.00, 'Cash', NULL, 'REC-002', NULL, 'Administrative expense - office supplies', 1, 'Draft', 1, NULL, NULL, '2025-08-31 15:56:36', '2025-08-31 15:56:36'),
+(7, 3, 1, 1, 1, NULL, '2024-01-15', 1500.00, 'Cash', NULL, 'REC-TEST-001', NULL, 'Test expense with real beneficiaries', 0, 'Draft', 1, NULL, NULL, '2025-08-31 16:02:02', '2025-08-31 16:02:02'),
+(8, 3, 5, 22, NULL, NULL, '2024-02-01', 4000.00, 'BankWire', NULL, NULL, 1, 'Monthly allowance for widows group', 0, 'Draft', 1, NULL, NULL, '2025-08-31 16:02:13', '2025-08-31 16:02:13'),
+(9, 3, 4, 18, NULL, 'dsdsd', '2025-08-01', 5000.00, 'Cash', NULL, NULL, NULL, NULL, 1, 'Draft', 1, NULL, NULL, '2025-08-31 16:39:31', '2025-08-31 16:39:31'),
+(10, 3, 4, 16, NULL, 'dffds', '2025-08-07', 7000.00, 'Cash', NULL, '4542432', 1, 'dafdafadf', 1, 'Approved', 1, 1, '2025-08-31 21:45:13', '2025-08-31 16:40:29', '2025-08-31 21:45:13'),
+(11, 3, 4, 19, NULL, 'feff', '2025-08-06', 500.00, 'Cheque', '343434', '4534344', 1, 'dfdfds', 1, 'Draft', 1, NULL, NULL, '2025-08-31 16:41:07', '2025-08-31 16:41:07'),
+(12, 1, 1, 1, NULL, NULL, '2024-08-31', 100.00, 'Cash', NULL, NULL, NULL, NULL, 1, 'Draft', 1, NULL, NULL, '2025-08-31 20:10:47', '2025-08-31 20:10:47'),
+(13, 3, 4, 16, NULL, 'Test expense from fixed form', '2025-08-31', 1500.00, 'Cash', NULL, NULL, 1, 'Testing complete workflow', 1, 'Approved', NULL, 1, '2025-08-31 21:47:05', '2025-08-31 20:11:21', '2025-08-31 21:47:05'),
+(14, 3, 4, 17, NULL, 'dsda', '2025-08-06', 400.00, 'Cash', NULL, '4343', 1, NULL, 1, 'Approved', 1, 1, '2025-08-31 21:46:07', '2025-08-31 20:36:05', '2025-08-31 21:46:07'),
+(15, 3, 4, 18, 9, 'fdfsf', '2025-08-05', 1000.00, 'Cheque', 'dsfdsaf', NULL, 1, 'dffsf', 1, 'Draft', 1, NULL, NULL, '2025-08-31 21:09:55', '2025-08-31 21:09:55'),
+(16, 3, 1, 4, NULL, 'fdssff', '2025-08-01', 1000.00, 'Cash', NULL, NULL, NULL, NULL, 0, 'Draft', 1, NULL, NULL, '2025-08-31 21:23:06', '2025-08-31 21:23:06'),
+(17, 3, 5, 24, 5, NULL, '2025-08-07', 1000.00, 'Cheque', '345234', NULL, 1, NULL, 0, 'Draft', 1, NULL, NULL, '2025-08-31 21:31:07', '2025-08-31 21:31:07');
 
 -- --------------------------------------------------------
 
@@ -312,7 +325,32 @@ CREATE TABLE IF NOT EXISTS `expense_beneficiaries` (
   KEY `expense_beneficiaries_expense_id_foreign` (`expense_id`),
   KEY `idx_eb_beneficiary_id` (`beneficiary_id`),
   KEY `fk_exp_ben_group` (`group_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `expense_beneficiaries`
+--
+
+INSERT INTO `expense_beneficiaries` (`id`, `expense_id`, `beneficiary_id`, `group_id`, `amount`, `notes`, `created_at`, `updated_at`) VALUES
+(1, 5, 1, NULL, 500.00, NULL, '2025-08-31 15:56:18', '2025-08-31 15:56:18'),
+(2, 5, 2, NULL, 500.00, NULL, '2025-08-31 15:56:18', '2025-08-31 15:56:18'),
+(3, 7, 1, NULL, 750.00, NULL, '2025-08-31 16:02:02', '2025-08-31 16:02:02'),
+(4, 7, 2, NULL, 750.00, NULL, '2025-08-31 16:02:02', '2025-08-31 16:02:02'),
+(5, 8, 1, 2, 500.00, NULL, '2025-08-31 16:02:13', '2025-08-31 16:02:13'),
+(6, 8, 2, 2, 500.00, NULL, '2025-08-31 16:02:13', '2025-08-31 16:02:13'),
+(7, 8, 3, 2, 500.00, NULL, '2025-08-31 16:02:13', '2025-08-31 16:02:13'),
+(8, 8, 4, 2, 500.00, NULL, '2025-08-31 16:02:13', '2025-08-31 16:02:13'),
+(9, 8, 5, 2, 500.00, NULL, '2025-08-31 16:02:13', '2025-08-31 16:02:13'),
+(10, 8, 6, 2, 500.00, NULL, '2025-08-31 16:02:13', '2025-08-31 16:02:13'),
+(11, 8, 7, 2, 500.00, NULL, '2025-08-31 16:02:13', '2025-08-31 16:02:13'),
+(12, 8, 8, 2, 500.00, NULL, '2025-08-31 16:02:13', '2025-08-31 16:02:13'),
+(13, 16, 21, NULL, 500.00, NULL, '2025-08-31 21:23:06', '2025-08-31 21:23:06'),
+(14, 16, 8, NULL, 300.00, NULL, '2025-08-31 21:23:06', '2025-08-31 21:23:06'),
+(15, 16, 7, NULL, 200.00, NULL, '2025-08-31 21:23:06', '2025-08-31 21:23:06'),
+(16, 17, 1, NULL, 200.00, NULL, '2025-08-31 21:31:07', '2025-08-31 21:31:07'),
+(17, 17, 2, NULL, 300.00, NULL, '2025-08-31 21:31:07', '2025-08-31 21:31:07'),
+(18, 17, 3, NULL, 300.00, NULL, '2025-08-31 21:31:07', '2025-08-31 21:31:07'),
+(19, 17, 4, NULL, 200.00, NULL, '2025-08-31 21:31:07', '2025-08-31 21:31:07');
 
 -- --------------------------------------------------------
 
@@ -942,6 +980,13 @@ CREATE TABLE IF NOT EXISTS `sessions` (
   KEY `sessions_user_id_index` (`user_id`),
   KEY `sessions_last_activity_index` (`last_activity`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `sessions`
+--
+
+INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`) VALUES
+('w4fh2Dnd2tJeGxFAjaoNk0RWHBaRgva2B7DSKrs1', NULL, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36', 'YTozOntzOjY6Il90b2tlbiI7czo0MDoiZURzaEtxQmJZd1lrTmlDRzFJN3N1SUF5N0pWTWQ0NTk3Qkl2VjY1ayI7czo5OiJfcHJldmlvdXMiO2E6MTp7czozOiJ1cmwiO3M6MjE6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMCI7fXM6NjoiX2ZsYXNoIjthOjI6e3M6Mzoib2xkIjthOjA6e31zOjM6Im5ldyI7YTowOnt9fX0=', 1756675008);
 
 -- --------------------------------------------------------
 
