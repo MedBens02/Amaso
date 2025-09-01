@@ -29,10 +29,12 @@ const DatePicker = ({
   value,
   onChange,
   placeholder,
+  dialogOpen,
 }: {
   value?: Date
   onChange: (date: Date | undefined) => void
   placeholder: string
+  dialogOpen?: boolean
 }) => {
   const [open, setOpen] = useState(false)
   const [currentMonth, setCurrentMonth] = useState<Date>(() => {
@@ -49,6 +51,13 @@ const DatePicker = ({
       setCurrentMonth(value)
     }
   }, [value])
+  
+  // Close popover when parent dialog closes
+  useEffect(() => {
+    if (dialogOpen === false) {
+      setOpen(false)
+    }
+  }, [dialogOpen])
   
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen)
@@ -72,7 +81,7 @@ const DatePicker = ({
   ]
   
   return (
-    <Popover open={open} onOpenChange={handleOpenChange} modal={true}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -92,7 +101,6 @@ const DatePicker = ({
         className="w-auto p-0" 
         align="start" 
         sideOffset={4}
-        onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="p-3 border-b">
           <div className="flex gap-2 mb-3">
@@ -254,6 +262,32 @@ interface NewExpenseFormProps {
 }
 
 export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }: NewExpenseFormProps) {
+  // Force cleanup function
+  const forceCleanup = () => {
+    // Close any open popovers
+    document.querySelectorAll('[data-radix-popper-content-wrapper]').forEach(element => {
+      const popoverElement = element as HTMLElement
+      if (popoverElement.style.pointerEvents !== 'none') {
+        popoverElement.style.pointerEvents = 'none'
+        popoverElement.style.opacity = '0'
+        setTimeout(() => {
+          popoverElement.style.display = 'none'
+        }, 100)
+      }
+    })
+    
+    // Remove any backdrop elements
+    document.querySelectorAll('[data-radix-portal]').forEach(portal => {
+      const portalElement = portal as HTMLElement
+      if (portalElement.querySelector('[data-radix-popper-content-wrapper]')) {
+        // Only hide if it contains popover content, not the main dialog
+        const dialogContent = portalElement.querySelector('[role="dialog"]')
+        if (!dialogContent) {
+          portalElement.style.display = 'none'
+        }
+      }
+    })
+  }
   // Form state
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -274,6 +308,19 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
   const [beneficiarySearchLoading, setBeneficiarySearchLoading] = useState(false)
   
   const { toast } = useToast()
+  
+  // Custom onOpenChange handler with proper cleanup
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      // Force cleanup before closing
+      forceCleanup()
+      setTimeout(() => {
+        onOpenChange(newOpen)
+      }, 50)
+    } else {
+      onOpenChange(newOpen)
+    }
+  }
   
   // Form setup
   const form = useForm<ExpenseFormData>({
@@ -299,10 +346,21 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
   const unrelatedToBenef = form.watch("unrelated_to_benef")
   const totalAmount = form.watch("amount") || 0
   
-  // Load data when dialog opens
+  // Load data when dialog opens and cleanup when it closes
   useEffect(() => {
     if (open) {
       loadReferenceData()
+    } else {
+      // Clean up when dialog closes
+      setBeneficiarySearchTerm("")
+      setBeneficiaryTypeFilter('all')
+      setBeneficiaries([])
+      setActiveTab("basic")
+      
+      // Force cleanup of any remaining UI elements
+      setTimeout(() => {
+        forceCleanup()
+      }, 100)
     }
   }, [open])
   
@@ -582,7 +640,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
         title: "تم إنشاء المصروف بنجاح",
         description: "تم حفظ المصروف في قاعدة البيانات"
       })
-      onOpenChange(false)
+      handleOpenChange(false)
       onSuccess?.()
     } catch (error: any) {
       console.error('Error creating expense:', error)
@@ -612,7 +670,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
 
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -662,6 +720,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                             value={field.value}
                             onChange={field.onChange}
                             placeholder="اختر تاريخ المصروف"
+                            dialogOpen={open}
                           />
                         )}
                       />
@@ -1080,7 +1139,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
             
             {/* Form Actions */}
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 إلغاء
               </Button>
               <Button type="submit" disabled={isSubmitting}>
