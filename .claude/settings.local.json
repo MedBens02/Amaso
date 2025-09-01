@@ -19,7 +19,8 @@
       "Bash(timeout 30 npm run build)",
       "Bash(php:*)",
       "Bash(timeout 10 curl -X GET \"http://localhost:3000/api/v1/expenses?page=1&per_page=5\" -H \"Accept: application/json\")",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": [],
