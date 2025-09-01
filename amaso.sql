@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Aug 31, 2025 at 11:47 PM
+-- Generation Time: Sep 01, 2025 at 08:23 AM
 -- Server version: 8.0.40
 -- PHP Version: 8.2.18
 
@@ -76,8 +76,8 @@ CREATE TABLE IF NOT EXISTS `bank_accounts` (
 --
 
 INSERT INTO `bank_accounts` (`id`, `label`, `bank_name`, `account_number`, `balance`, `notes`, `created_at`, `updated_at`) VALUES
-(1, 'حساب البنك الشعبي الرئيسي', 'البنك الشعبي', '001234567890', 307800.00, 'الحساب الرئيسي للجمعية', '2025-08-28 23:19:23', '2025-08-31 21:47:05'),
-(2, 'حساب التوفير - التجاري وفا', 'التجاري وفا بنك', '002345678901', 164000.00, 'حساب التوفير للطوارئ', '2025-08-28 23:19:23', '2025-08-29 13:30:29');
+(1, 'حساب البنك الشعبي الرئيسي', 'البنك الشعبي', '001234567890', 315300.00, 'الحساب الرئيسي للجمعية', '2025-08-28 23:19:23', '2025-09-01 07:13:51'),
+(2, 'حساب التوفير - التجاري وفا', 'التجاري وفا بنك', '002345678901', 169000.00, 'حساب التوفير للطوارئ', '2025-08-28 23:19:23', '2025-09-01 06:41:32');
 
 -- --------------------------------------------------------
 
@@ -281,7 +281,7 @@ CREATE TABLE IF NOT EXISTS `expenses` (
   KEY `expenses_bank_account_id_foreign` (`bank_account_id`),
   KEY `expenses_created_by_foreign` (`created_by`),
   KEY `expenses_approved_by_foreign` (`approved_by`)
-) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `expenses`
@@ -293,8 +293,8 @@ INSERT INTO `expenses` (`id`, `fiscal_year_id`, `sub_budget_id`, `expense_catego
 (3, 2, 1, 1, NULL, 'مساعدة طبية عاجلة', '2024-05-30', 2500.00, 'Cheque', 'CHQ-EXP-001', 'EXP-2024-003', NULL, 'مساعدة طبية للأرملة خديجة', 0, 'Approved', 2, 2, '2025-08-22 23:19:23', '2025-08-28 23:19:23', '2025-08-28 23:19:23'),
 (5, 1, 1, 1, 1, NULL, '2024-01-15', 1000.00, 'Cash', NULL, 'REC-001', NULL, 'Test expense', 0, 'Approved', 1, 1, '2025-08-31 15:57:07', '2025-08-31 15:56:18', '2025-08-31 15:57:07'),
 (6, 1, 1, 1, NULL, NULL, '2024-01-15', 500.00, 'Cash', NULL, 'REC-002', NULL, 'Administrative expense - office supplies', 1, 'Draft', 1, NULL, NULL, '2025-08-31 15:56:36', '2025-08-31 15:56:36'),
-(7, 3, 1, 1, 1, NULL, '2024-01-15', 1500.00, 'Cash', NULL, 'REC-TEST-001', NULL, 'Test expense with real beneficiaries', 0, 'Draft', 1, NULL, NULL, '2025-08-31 16:02:02', '2025-08-31 16:02:02'),
-(8, 3, 5, 22, NULL, NULL, '2024-02-01', 4000.00, 'BankWire', NULL, NULL, 1, 'Monthly allowance for widows group', 0, 'Draft', 1, NULL, NULL, '2025-08-31 16:02:13', '2025-08-31 16:02:13'),
+(7, 2, 1, 1, 1, NULL, '2024-01-15', 1500.00, 'Cash', NULL, 'REC-TEST-001', NULL, 'Test expense with real beneficiaries', 0, 'Draft', 1, NULL, NULL, '2025-08-31 16:02:02', '2025-08-31 16:02:02'),
+(8, 2, 5, 22, NULL, NULL, '2024-02-01', 4000.00, 'BankWire', NULL, NULL, 1, 'Monthly allowance for widows group', 0, 'Draft', 1, NULL, NULL, '2025-08-31 16:02:13', '2025-08-31 16:02:13'),
 (9, 3, 4, 18, NULL, 'dsdsd', '2025-08-01', 5000.00, 'Cash', NULL, NULL, NULL, NULL, 1, 'Draft', 1, NULL, NULL, '2025-08-31 16:39:31', '2025-08-31 16:39:31'),
 (10, 3, 4, 16, NULL, 'dffds', '2025-08-07', 7000.00, 'Cash', NULL, '4542432', 1, 'dafdafadf', 1, 'Approved', 1, 1, '2025-08-31 21:45:13', '2025-08-31 16:40:29', '2025-08-31 21:45:13'),
 (11, 3, 4, 19, NULL, 'feff', '2025-08-06', 500.00, 'Cheque', '343434', '4534344', 1, 'dfdfds', 1, 'Draft', 1, NULL, NULL, '2025-08-31 16:41:07', '2025-08-31 16:41:07'),
@@ -303,7 +303,8 @@ INSERT INTO `expenses` (`id`, `fiscal_year_id`, `sub_budget_id`, `expense_catego
 (14, 3, 4, 17, NULL, 'dsda', '2025-08-06', 400.00, 'Cash', NULL, '4343', 1, NULL, 1, 'Approved', 1, 1, '2025-08-31 21:46:07', '2025-08-31 20:36:05', '2025-08-31 21:46:07'),
 (15, 3, 4, 18, 9, 'fdfsf', '2025-08-05', 1000.00, 'Cheque', 'dsfdsaf', NULL, 1, 'dffsf', 1, 'Draft', 1, NULL, NULL, '2025-08-31 21:09:55', '2025-08-31 21:09:55'),
 (16, 3, 1, 4, NULL, 'fdssff', '2025-08-01', 1000.00, 'Cash', NULL, NULL, NULL, NULL, 0, 'Draft', 1, NULL, NULL, '2025-08-31 21:23:06', '2025-08-31 21:23:06'),
-(17, 3, 5, 24, 5, NULL, '2025-08-07', 1000.00, 'Cheque', '345234', NULL, 1, NULL, 0, 'Draft', 1, NULL, NULL, '2025-08-31 21:31:07', '2025-08-31 21:31:07');
+(17, 3, 5, 24, 5, NULL, '2025-08-07', 1000.00, 'Cheque', '345234', NULL, 1, NULL, 0, 'Approved', 1, 1, '2025-09-01 07:13:51', '2025-08-31 21:31:07', '2025-09-01 07:13:51'),
+(18, 3, 1, 1, 8, 'erw wrf', '2025-09-01', 1500.00, 'BankWire', NULL, NULL, 1, NULL, 0, 'Approved', 1, 1, '2025-09-01 07:08:51', '2025-09-01 07:08:12', '2025-09-01 07:08:51');
 
 -- --------------------------------------------------------
 
@@ -325,7 +326,7 @@ CREATE TABLE IF NOT EXISTS `expense_beneficiaries` (
   KEY `expense_beneficiaries_expense_id_foreign` (`expense_id`),
   KEY `idx_eb_beneficiary_id` (`beneficiary_id`),
   KEY `fk_exp_ben_group` (`group_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `expense_beneficiaries`
@@ -347,10 +348,13 @@ INSERT INTO `expense_beneficiaries` (`id`, `expense_id`, `beneficiary_id`, `grou
 (13, 16, 21, NULL, 500.00, NULL, '2025-08-31 21:23:06', '2025-08-31 21:23:06'),
 (14, 16, 8, NULL, 300.00, NULL, '2025-08-31 21:23:06', '2025-08-31 21:23:06'),
 (15, 16, 7, NULL, 200.00, NULL, '2025-08-31 21:23:06', '2025-08-31 21:23:06'),
-(16, 17, 1, NULL, 200.00, NULL, '2025-08-31 21:31:07', '2025-08-31 21:31:07'),
-(17, 17, 2, NULL, 300.00, NULL, '2025-08-31 21:31:07', '2025-08-31 21:31:07'),
-(18, 17, 3, NULL, 300.00, NULL, '2025-08-31 21:31:07', '2025-08-31 21:31:07'),
-(19, 17, 4, NULL, 200.00, NULL, '2025-08-31 21:31:07', '2025-08-31 21:31:07');
+(23, 18, 1, NULL, 500.00, NULL, '2025-09-01 07:08:51', '2025-09-01 07:08:51'),
+(24, 18, 2, NULL, 500.00, NULL, '2025-09-01 07:08:51', '2025-09-01 07:08:51'),
+(25, 18, 3, NULL, 500.00, NULL, '2025-09-01 07:08:51', '2025-09-01 07:08:51'),
+(26, 17, 1, NULL, 200.00, NULL, '2025-09-01 07:13:50', '2025-09-01 07:13:50'),
+(27, 17, 2, NULL, 300.00, NULL, '2025-09-01 07:13:50', '2025-09-01 07:13:50'),
+(28, 17, 3, NULL, 300.00, NULL, '2025-09-01 07:13:50', '2025-09-01 07:13:50'),
+(29, 17, 4, NULL, 200.00, NULL, '2025-09-01 07:13:50', '2025-09-01 07:13:50');
 
 -- --------------------------------------------------------
 
@@ -553,7 +557,7 @@ CREATE TABLE IF NOT EXISTS `incomes` (
   KEY `incomes_bank_account_id_foreign` (`bank_account_id`),
   KEY `incomes_created_by_foreign` (`created_by`),
   KEY `incomes_approved_by_foreign` (`approved_by`)
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `incomes`
@@ -568,7 +572,8 @@ INSERT INTO `incomes` (`id`, `fiscal_year_id`, `sub_budget_id`, `income_category
 (16, 3, 5, 12, 11, NULL, '2025-02-28', 1500.00, 'BankWire', NULL, NULL, 1, 'fdsdf', 'Approved', 1, 1, '2025-08-30 12:13:15', '2025-02-28 00:00:00', '2025-08-30 12:11:02', '2025-08-30 12:13:15'),
 (17, 3, 8, 1002, NULL, 16, '2025-06-12', 1200.00, 'BankWire', NULL, NULL, 1, 'kafala', 'Approved', 1, 1, '2025-08-30 15:38:07', '2025-06-11 23:00:00', '2025-08-30 15:37:54', '2025-08-30 15:38:07'),
 (18, 3, 4, 10, 15, NULL, '2025-06-29', 6000.00, 'Cash', NULL, '55446', 1, 'dsfsdf sdfsdfs', 'Approved', 1, 1, '2025-08-30 15:53:52', '2025-08-29 23:00:00', '2025-08-30 15:46:07', '2025-08-30 15:56:25'),
-(19, 3, 4, 10, 14, NULL, '2025-08-14', 5000.00, 'Cash', NULL, '55446', 1, 'dsfsdf sdfsdfs', 'Approved', 1, 1, '2025-08-30 16:00:10', '2025-07-28 23:00:00', '2025-08-30 15:46:55', '2025-08-30 16:06:20');
+(19, 3, 4, 10, 14, NULL, '2025-08-14', 5000.00, 'Cash', NULL, '55446', 1, 'dsfsdf sdfsdfs', 'Approved', 1, 1, '2025-08-30 16:00:10', '2025-07-28 23:00:00', '2025-08-30 15:46:55', '2025-08-30 16:06:20'),
+(21, 3, 4, 10, 1, NULL, '2025-09-01', 15000.00, 'BankWire', NULL, NULL, 1, 'gfgfdgd', 'Approved', 1, 1, '2025-09-01 06:51:14', '2025-08-31 23:00:00', '2025-09-01 06:51:04', '2025-09-01 06:51:14');
 
 -- --------------------------------------------------------
 
@@ -1115,7 +1120,7 @@ INSERT INTO `transfers` (`id`, `fiscal_year_id`, `transfer_date`, `from_account_
 (33, 3, '2025-05-12', 1, 2, 18000.00, 'استثمار في الأسهم', 'Draft', NULL, NULL, NULL, '2025-05-12 01:00:00', '2025-05-12 08:00:00'),
 (34, 3, '2025-06-18', 2, 2, 7500.00, 'تسوية حسابات ربع السنة', 'Approved', NULL, NULL, '2025-06-18 10:30:00', '2025-06-18 01:00:00', '2025-06-18 07:00:00'),
 (35, 3, '2025-07-25', 2, 2, 22000.00, 'تمويل مشروع جديد', 'Approved', NULL, NULL, '2025-07-25 12:20:00', '2025-07-25 00:00:00', '2025-07-25 07:00:00'),
-(36, 3, '2025-08-10', 1, 2, 5000.00, 'مصاريف إدارية', 'Draft', NULL, NULL, NULL, '2025-08-10 00:00:00', '2025-08-10 05:00:00'),
+(36, 3, '2025-08-10', 1, 2, 5000.00, 'مصاريف إدارية', 'Approved', NULL, 1, '2025-09-01 06:41:32', '2025-08-10 00:00:00', '2025-09-01 06:41:32'),
 (37, 3, '2025-08-28', 2, 1, 35000.00, 'إيرادات شهر أغسطس', 'Draft', NULL, NULL, NULL, '2025-08-28 01:00:00', '2025-08-28 07:00:00');
 
 -- --------------------------------------------------------
