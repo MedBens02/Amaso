@@ -1,0 +1,46 @@
+# Production Dockerfile for Laravel Backend (Git-based deployment)
+FROM php:8.2-fpm-alpine
+
+# Install system dependencies
+RUN apk add --no-cache \
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip \
+    nodejs \
+    npm \
+    mysql-client \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Set working directory
+WORKDIR /var/www
+
+# Wait for volume to be populated by init service
+COPY docker-entrypoint-backend.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint-backend.sh
+
+# Create laravel user
+RUN addgroup -g 1000 -S laravel && \
+    adduser -u 1000 -S laravel -G laravel
+
+# Create necessary directories
+RUN mkdir -p /var/www/storage /var/www/bootstrap/cache && \
+    chown -R laravel:laravel /var/www
+
+# Expose port
+EXPOSE 8000
+
+# Switch to laravel user
+USER laravel
+
+# Use custom entrypoint
+ENTRYPOINT ["docker-entrypoint-backend.sh"]
+
+# Default command
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]

@@ -1,0 +1,57 @@
+version: '3.8'
+
+# Development overrides for docker-compose.yml
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  # Database with development settings
+  db:
+    ports:
+      - "3306:3306"  # Expose MySQL for external tools
+    environment:
+      MYSQL_ROOT_PASSWORD: root  # Simpler password for dev
+      MYSQL_PASSWORD: password
+
+  # Laravel Backend - Development mode
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev  # Use development Dockerfile
+    volumes:
+      - ./backend:/var/www:cached  # Bind mount for hot reload
+      - vendor_cache:/var/www/vendor  # Cache vendor for performance
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - LOG_LEVEL=debug
+      - DB_PASSWORD=password
+    command: >
+      sh -c "
+        composer install &&
+        php artisan serve --host=0.0.0.0 --port=8000 & 
+        npm run dev
+      "
+
+  # Next.js Frontend - Development mode  
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend:/app:cached
+      - node_modules_cache:/app/node_modules
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+      - WATCHPACK_POLLING=true  # Fix for Windows file watching
+    command: npm run dev
+
+  # Remove nginx in development (direct access to services)
+  nginx:
+    profiles: ["production"]  # Only run in production profile
+
+volumes:
+  vendor_cache:
+    driver: local
+  node_modules_cache:
+    driver: local

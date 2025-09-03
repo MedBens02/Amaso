@@ -170,6 +170,9 @@ Thumbs.db
 scratch/
 sandbox/
 
+# Local deployment folder - allow pushing to repository
+!local/
+
 # Backup files
 *.bak
 *.backup

@@ -70,8 +70,8 @@ export default function ReferencesPage() {
         fetch(`${baseUrl}/references/skills`).then(res => res.ok ? res.json() : { data: [] }),
         fetch(`${baseUrl}/references/illnesses`).then(res => res.ok ? res.json() : { data: [] }),
         fetch(`${baseUrl}/references/aid-types`).then(res => res.ok ? res.json() : { data: [] }),
-        fetch(`${baseUrl}/references/income-categories`).then(res => res.ok ? res.json() : { data: [] }),
-        fetch(`${baseUrl}/references/expense-categories`).then(res => res.ok ? res.json() : { data: [] }),
+        fetch(`${baseUrl}/references/widow-income-categories`).then(res => res.ok ? res.json() : { data: [] }),
+        fetch(`${baseUrl}/references/widow-expense-categories`).then(res => res.ok ? res.json() : { data: [] }),
         fetch(`${baseUrl}/references/partners`).then(res => res.ok ? res.json() : { data: [] }),
         fetch(`${baseUrl}/references/education-levels`).then(res => res.ok ? res.json() : { data: [] })
       ])
@@ -153,8 +153,8 @@ export default function ReferencesPage() {
         'illness': 'references/illnesses',
         'skill': 'references/skills',
         'aid-type': 'references/aid-types',
-        'income-category': 'references/income-categories',
-        'expense-category': 'references/expense-categories',
+        'income-category': 'references/widow-income-categories',
+        'expense-category': 'references/widow-expense-categories',
         'partner': 'references/partners',
         'education-level': 'references/education-levels'
       }

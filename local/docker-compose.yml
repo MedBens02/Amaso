@@ -1,0 +1,164 @@
+version: '3.8'
+
+# Production deployment using Git clone
+# This setup clones the repository and installs dependencies automatically
+
+services:
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: amaso_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: amaso
+      MYSQL_USER: amaso_user
+      MYSQL_PASSWORD: amaso_password
+    volumes:
+      - db_data:/var/lib/mysql
+      # Clone and use SQL file from repository
+      - app_data:/tmp/app:ro
+    ports:
+      - "3306:3306"
+    networks:
+      - amaso_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    # Import database after repository is cloned
+    depends_on:
+      - init
+
+  # Repository initialization service
+  init:
+    image: alpine/git
+    container_name: amaso_init
+    environment:
+      - REPO_URL=${REPO_URL:-https://github.com/yourusername/amaso.git}
+      - BRANCH=${BRANCH:-main}
+    volumes:
+      - app_data:/app
+    command: >
+      sh -c "
+        if [ ! -d /app/.git ]; then
+          echo 'Cloning repository...';
+          git clone --depth 1 --branch $${BRANCH} $${REPO_URL} /tmp/repo &&
+          cp -r /tmp/repo/* /app/ &&
+          cp -r /tmp/repo/.* /app/ 2>/dev/null || true &&
+          echo 'Repository cloned successfully';
+        else
+          echo 'Repository already exists, pulling latest changes...';
+          cd /app && git pull origin $${BRANCH};
+        fi
+      "
+    networks:
+      - amaso_network
+
+  # Laravel Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: amaso_backend
+    restart: unless-stopped
+    volumes:
+      - app_data:/var/www:ro
+      - backend_storage:/var/www/storage
+      - backend_cache:/var/www/bootstrap/cache
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=db
+      - DB_DATABASE=amaso
+      - DB_USERNAME=amaso_user
+      - DB_PASSWORD=amaso_password
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_URL=http://localhost:8000
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+    networks:
+      - amaso_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: amaso_frontend
+    restart: unless-stopped
+    volumes:
+      - app_data:/app:ro
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      backend:
+        condition: service_healthy
+    networks:
+      - amaso_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Database initialization service
+  db_init:
+    image: mysql:8.0
+    container_name: amaso_db_init
+    volumes:
+      - app_data:/app:ro
+    environment:
+      - MYSQL_HOST=db
+      - MYSQL_DATABASE=amaso
+      - MYSQL_USER=amaso_user
+      - MYSQL_PASSWORD=amaso_password
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+    networks:
+      - amaso_network
+    command: >
+      sh -c "
+        echo 'Waiting for database to be ready...' &&
+        sleep 10 &&
+        if mysql -h db -u amaso_user -pamaso_password amaso -e 'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \"amaso\";' | grep -q '^0$$'; then
+          echo 'Database is empty, importing amaso.sql...' &&
+          mysql -h db -u amaso_user -pamaso_password amaso < /app/amaso.sql &&
+          echo 'Database import completed!';
+        else
+          echo 'Database already contains data, skipping import.';
+        fi
+      "
+    restart: "no"
+
+networks:
+  amaso_network:
+    driver: bridge
+
+volumes:
+  db_data:
+    driver: local
+  app_data:
+    driver: local
+  backend_storage:
+    driver: local
+  backend_cache:
+    driver: local

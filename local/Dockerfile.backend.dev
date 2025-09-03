@@ -1,0 +1,50 @@
+# Development Dockerfile for Laravel Backend (Git-based deployment)
+FROM php:8.2-fpm-alpine
+
+# Install system dependencies + development tools
+RUN apk add --no-cache \
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip \
+    nodejs \
+    npm \
+    mysql-client \
+    bash \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Install Xdebug for development
+RUN pecl install xdebug && docker-php-ext-enable xdebug
+
+# Set working directory
+WORKDIR /var/www
+
+# Copy entrypoint script
+COPY docker-entrypoint-backend-dev.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint-backend-dev.sh
+
+# Create laravel user
+RUN addgroup -g 1000 -S laravel && \
+    adduser -u 1000 -S laravel -G laravel
+
+# Create necessary directories
+RUN mkdir -p /var/www/storage /var/www/bootstrap/cache && \
+    chown -R laravel:laravel /var/www
+
+# Expose ports
+EXPOSE 8000 5173
+
+# Switch to laravel user
+USER laravel
+
+# Use custom entrypoint
+ENTRYPOINT ["docker-entrypoint-backend-dev.sh"]
+
+# Default command
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]

@@ -112,6 +112,12 @@ export function AccountingReferenceDialog({ open, onOpenChange, type, item, onSu
   }, [item, form])
 
   const onSubmit = async (data: any) => {
+    console.log('=== ACCOUNTING DIALOG FORM SUBMISSION ===')
+    console.log('Type:', type)
+    console.log('Form data:', data)
+    console.log('Form errors:', form.formState.errors)
+    console.log('Sub budgets loaded:', subBudgets)
+    
     setIsSubmitting(true)
     try {
       const apiUrls = {
@@ -210,7 +216,10 @@ export function AccountingReferenceDialog({ open, onOpenChange, type, item, onSu
                 control={form.control}
                 name="sub_budget_id"
                 render={({ field }) => (
-                  <Select value={field.value?.toString()} onValueChange={(value) => field.onChange(parseInt(value))}>
+                  <Select 
+                    value={field.value && field.value > 0 ? field.value.toString() : ""} 
+                    onValueChange={(value) => field.onChange(parseInt(value))}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="اختر الميزانية الفرعية" />
                     </SelectTrigger>

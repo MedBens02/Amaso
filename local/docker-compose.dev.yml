@@ -1,0 +1,52 @@
+version: '3.8'
+
+# Development deployment using Git clone
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  # Repository initialization service with development settings
+  init:
+    environment:
+      - REPO_URL=${REPO_URL:-https://github.com/yourusername/amaso.git}
+      - BRANCH=${BRANCH:-develop}  # Use develop branch for development
+
+  # Database with development settings
+  db:
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_PASSWORD: password
+    ports:
+      - "3306:3306"  # Expose for external database tools
+
+  # Database initialization with development settings
+  db_init:
+    environment:
+      - MYSQL_PASSWORD=password
+
+  # Laravel Backend - Development mode
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend.dev
+    volumes:
+      - app_data:/var/www
+      - backend_storage:/var/www/storage
+      - backend_cache:/var/www/bootstrap/cache
+      # Enable live reload by mounting source files
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - LOG_LEVEL=debug
+      - DB_PASSWORD=password
+
+  # Next.js Frontend - Development mode  
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend.dev
+    volumes:
+      - app_data:/app
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+      - WATCHPACK_POLLING=true

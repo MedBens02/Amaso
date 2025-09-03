@@ -177,8 +177,8 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
         'illness': 'references/illnesses',
         'skill': 'references/skills',
         'aid-type': 'references/aid-types',
-        'income-category': 'references/income-categories',
-        'expense-category': 'references/expense-categories',
+        'income-category': 'references/widow-income-categories',
+        'expense-category': 'references/widow-expense-categories',
         'partner': 'references/partners',
         'education-level': 'references/education-levels',
         'partner-field': 'references/partner-fields',
@@ -508,12 +508,14 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
                 {type === 'skill' ? 'اسم المهارة' :
                  type === 'aid-type' ? 'نوع المساعدة' :
                  type === 'illness' ? 'المرض' :
+                 type === 'income-category' ? 'اسم فئة الدخل' :
+                 type === 'expense-category' ? 'اسم فئة المصروف' :
                  'الاسم'} *
               </Label>
               <Input
                 id={type === 'skill' || type === 'aid-type' || type === 'illness' ? 'label' : 'name'}
                 {...form.register(type === 'skill' || type === 'aid-type' || type === 'illness' ? 'label' : 'name')}
-                placeholder="ادخل الاسم"
+                placeholder={type === 'income-category' ? 'مثال: راتب، مساعدات خارجية' : type === 'expense-category' ? 'مثال: رواتب، مصاريف إدارية' : 'ادخل الاسم'}
               />
               {form.formState.errors.name && (
                 <p className="text-sm text-red-600">{form.formState.errors.name.message}</p>

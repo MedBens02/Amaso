@@ -171,6 +171,18 @@ Route::prefix('v1')->group(function () {
     Route::put('references/sub-budgets/{subBudget}', [ReferencesController::class, 'updateSubBudget']);
     Route::delete('references/sub-budgets/{subBudget}', [ReferencesController::class, 'destroySubBudget']);
     
+    // References Management - Widow Income Categories
+    Route::get('references/widow-income-categories', [ReferencesController::class, 'getIncomeCategories']);
+    Route::post('references/widow-income-categories', [ReferencesController::class, 'storeIncomeCategory']);
+    Route::put('references/widow-income-categories/{category}', [ReferencesController::class, 'updateIncomeCategory']);
+    Route::delete('references/widow-income-categories/{category}', [ReferencesController::class, 'destroyIncomeCategory']);
+    
+    // References Management - Widow Expense Categories
+    Route::get('references/widow-expense-categories', [ReferencesController::class, 'getExpenseCategories']);
+    Route::post('references/widow-expense-categories', [ReferencesController::class, 'storeExpenseCategory']);
+    Route::put('references/widow-expense-categories/{category}', [ReferencesController::class, 'updateExpenseCategory']);
+    Route::delete('references/widow-expense-categories/{category}', [ReferencesController::class, 'destroyExpenseCategory']);
+    
     // Fiscal Year Management
     Route::get('fiscal-years', [FiscalYearController::class, 'index']);
     Route::get('fiscal-years/{fiscalYear}/closing-status', [FiscalYearController::class, 'getClosingStatus']);
