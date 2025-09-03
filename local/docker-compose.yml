@@ -40,19 +40,26 @@ services:
       - BRANCH=${BRANCH:-main}
     volumes:
       - app_data:/app
-    command: >
-      sh -c "
+    command: 
+      - sh
+      - -c
+      - |
         if [ ! -d /app/.git ]; then
-          echo 'Cloning repository...';
-          git clone --depth 1 --branch $${BRANCH} $${REPO_URL} /tmp/repo &&
-          cp -r /tmp/repo/* /app/ &&
-          cp -r /tmp/repo/.* /app/ 2>/dev/null || true &&
-          echo 'Repository cloned successfully';
+          echo "Cloning repository from $$REPO_URL (branch: $$BRANCH)..."
+          git clone --depth 1 --branch "$$BRANCH" "$$REPO_URL" /tmp/repo
+          if [ $$? -eq 0 ]; then
+            echo "Copying files to /app..."
+            cp -r /tmp/repo/* /app/ 2>/dev/null || true
+            cp -r /tmp/repo/.* /app/ 2>/dev/null || true
+            echo "Repository cloned successfully"
+          else
+            echo "Failed to clone repository"
+            exit 1
+          fi
         else
-          echo 'Repository already exists, pulling latest changes...';
-          cd /app && git pull origin $${BRANCH};
+          echo "Repository already exists, pulling latest changes..."
+          cd /app && git pull origin "$$BRANCH"
         fi
-      "
     networks:
       - amaso_network
 
