@@ -16,7 +16,7 @@ services:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_PASSWORD: password
     ports:
-      - "3306:3306"  # Expose for external database tools
+      - "3307:3306"  # Expose for external database tools (using 3307 to avoid conflict)
 
   # Database initialization with development settings
   db_init:

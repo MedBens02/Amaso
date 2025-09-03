@@ -19,7 +19,7 @@ services:
       # Clone and use SQL file from repository
       - app_data:/tmp/app:ro
     ports:
-      - "3306:3306"
+      - "3307:3306"
     networks:
       - amaso_network
     healthcheck:
@@ -68,7 +68,7 @@ services:
       - backend_storage:/var/www/storage
       - backend_cache:/var/www/bootstrap/cache
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
       - DB_HOST=db
       - DB_DATABASE=amaso
@@ -100,7 +100,7 @@ services:
     volumes:
       - app_data:/app:ro
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1

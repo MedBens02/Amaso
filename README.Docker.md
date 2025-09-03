@@ -42,9 +42,9 @@ docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ## 🌐 Access Your Application
 
 Once deployment completes (5-10 minutes):
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000  
-- **Database**: localhost:3306
+- **Frontend**: http://localhost:3001
+- **Backend API**: http://localhost:8001  
+- **Database**: localhost:3307
 
 ## ⚙️ How Git-Based Deployment Works
 
@@ -104,10 +104,10 @@ The MySQL database is automatically configured and populated:
 | Service | Description | Port | URL |
 |---------|-------------|------|-----|
 | init | Repository cloning service | - | - |
-| db | MySQL 8.0 database | 3306 | localhost:3306 |
+| db | MySQL 8.0 database | 3307 | localhost:3307 |
 | db_init | Database import service | - | - |
-| backend | Laravel API server | 8000 | http://localhost:8000 |
-| frontend | Next.js application | 3000 | http://localhost:3000 |
+| backend | Laravel API server | 8001 | http://localhost:8001 |
+| frontend | Next.js application | 3001 | http://localhost:3001 |
 
 ## Common Commands
 
