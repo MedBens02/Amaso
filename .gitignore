@@ -17,6 +17,12 @@ frontend/dist/
 */.env
 */.env.*
 
+# Allow environment templates to be committed
+!.env.example
+!.env.*.example
+!*/.env.example
+!*/.env.*.example
+
 # Database
 *.sqlite
 *.sqlite3

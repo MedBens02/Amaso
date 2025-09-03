@@ -34,29 +34,27 @@ fi
 
 echo -e "${GREEN}✅ Docker and Docker Compose are installed${NC}"
 
-# Check if .env file exists
+# Check if .env file exists, create from template if needed
 if [ ! -f .env ]; then
     echo -e "${YELLOW}⚠️  .env file not found${NC}"
-    echo -e "${BLUE}Creating .env file from template...${NC}"
     
     if [ -f .env.example ]; then
+        echo -e "${BLUE}Creating .env file from .env.example template...${NC}"
         cp .env.example .env
+        echo -e "${GREEN}✅ .env file created successfully${NC}"
     else
-        cp .env .env
+        echo -e "${RED}❌ Neither .env nor .env.example found${NC}"
+        echo -e "${BLUE}Please ensure you're running this script from the local/ directory${NC}"
+        exit 1
     fi
-    
-    echo -e "${YELLOW}📝 Please edit .env file and set your REPO_URL:${NC}"
-    echo "   REPO_URL=https://github.com/yourusername/amaso.git"
-    echo ""
-    read -p "Press Enter after editing .env file..."
 fi
 
 # Load environment variables
 source .env
 
 # Validate REPO_URL
-if [[ $REPO_URL == *"yourusername"* ]] || [ -z "$REPO_URL" ]; then
-    echo -e "${RED}❌ Please set a valid REPO_URL in .env file${NC}"
+if [ -z "$REPO_URL" ]; then
+    echo -e "${RED}❌ REPO_URL is not set in .env file${NC}"
     exit 1
 fi
 
@@ -74,10 +72,19 @@ case $mode in
     1)
         echo -e "${BLUE}🏭 Starting production deployment...${NC}"
         COMPOSE_FILE="docker-compose.yml"
+        # Use production environment if .env doesn't exist or is from template
+        if [ ! -f .env ] && [ -f .env.example ]; then
+            cp .env.example .env
+        fi
         ;;
     2)
         echo -e "${BLUE}🔧 Starting development deployment...${NC}"
         COMPOSE_FILE="docker-compose.yml -f docker-compose.dev.yml"
+        # Use development environment
+        if [ -f .env.dev.example ]; then
+            echo -e "${BLUE}Using development environment configuration...${NC}"
+            cp .env.dev.example .env
+        fi
         ;;
     *)
         echo -e "${RED}❌ Invalid choice${NC}"
