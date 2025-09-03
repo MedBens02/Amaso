@@ -13,8 +13,8 @@ This directory contains Docker configuration files for deploying the Amaso appli
 
 ```bash
 # Clone or copy just the /local directory to your deployment machine
-git clone <your-repo-url>
-cd amaso/local
+git clone https://github.com/MedBens02/Amaso.git
+cd Amaso/local
 
 # Configure the repository URL
 cp .env.example .env
@@ -59,7 +59,7 @@ The deployment process:
 
 ```bash
 # Required: Your Git repository URL
-REPO_URL=https://github.com/yourusername/amaso.git
+REPO_URL=https://github.com/MedBens02/Amaso.git
 
 # Branch to deploy (main/master for production, develop for development)
 BRANCH=main

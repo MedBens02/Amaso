@@ -36,7 +36,7 @@ services:
     image: alpine/git
     container_name: amaso_init
     environment:
-      - REPO_URL=${REPO_URL:-https://github.com/yourusername/amaso.git}
+      - REPO_URL=${REPO_URL:-https://github.com/MedBens02/Amaso.git}
       - BRANCH=${BRANCH:-main}
     volumes:
       - app_data:/app

@@ -7,7 +7,7 @@ services:
   # Repository initialization service with development settings
   init:
     environment:
-      - REPO_URL=${REPO_URL:-https://github.com/yourusername/amaso.git}
+      - REPO_URL=${REPO_URL:-https://github.com/MedBens02/Amaso.git}
       - BRANCH=${BRANCH:-develop}  # Use develop branch for development
 
   # Database with development settings
