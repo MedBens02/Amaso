@@ -1,149 +1,268 @@
 # Docker Setup for Amaso Application
 
-This Docker setup allows you to run the entire Amaso application (Next.js frontend + Laravel backend + MySQL database) on any PC with Docker installed.
+This Docker setup allows you to run the entire Amaso application (Next.js frontend + Laravel backend + MySQL database) on any PC with Docker installed using **Git-based deployment**.
 
-## Prerequisites
+## 📋 Prerequisites
 
-- Docker Desktop installed
-- Docker Compose v3.8 or higher
+- Docker Desktop installed and running
+- Git installed
+- Internet connection
 
-## Quick Start
+## 🚀 Quick Start (Git-Based Deployment)
 
-### 1. Development Mode (with hot reload)
+### Automated Deployment (Recommended)
 
 ```bash
-# Clone/copy the application to your new PC
-# Navigate to the app directory
-cd /path/to/amaso/app
+# Clone the repository
+git clone https://github.com/MedBens02/Amaso.git
+cd Amaso/local
 
-# Start development environment
+# Run automated deployment script
+./deploy.sh
+
+# Choose your deployment mode when prompted:
+# 1 = Production (stable, optimized)
+# 2 = Development (hot reload, debug mode)
+```
+
+### Manual Deployment
+
+```bash
+# Clone the repository
+git clone https://github.com/MedBens02/Amaso.git
+cd Amaso/local
+
+# Production Mode
+docker-compose up -d --build
+
+# Development Mode (with hot reload)
 docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-
-# Access the application
-# Frontend: http://localhost:3000
-# Backend API: http://localhost:8000
-# Database: localhost:3306
 ```
 
-### 2. Production Mode
+## 🌐 Access Your Application
 
+Once deployment completes (5-10 minutes):
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8000  
+- **Database**: localhost:3306
+
+## ⚙️ How Git-Based Deployment Works
+
+### Automatic Setup Process
+1. **Repository Clone**: Docker automatically clones code from https://github.com/MedBens02/Amaso.git
+2. **Database Import**: Automatically imports `amaso.sql` with all tables and data
+3. **Dependencies**: Installs all PHP (Composer) and Node.js (NPM) dependencies  
+4. **Configuration**: Generates Laravel app keys and optimizes configurations
+5. **Service Start**: Starts frontend, backend, and database with health monitoring
+
+### Environment Configuration
+
+The deployment automatically configures different environments:
+
+**Production** (uses `local/.env`):
 ```bash
-# Start production environment
-docker-compose up --build -d
-
-# Access the application
-# Frontend: http://localhost:3000
-# Backend API: http://localhost:8000
-# Nginx (if enabled): http://localhost:80
+REPO_URL=https://github.com/MedBens02/Amaso.git
+BRANCH=main
+MYSQL_ROOT_PASSWORD=root_password
+MYSQL_PASSWORD=amaso_password
+NODE_ENV=production
+APP_ENV=production
 ```
 
-## Configuration
+**Development** (uses `local/.env.dev`):
+```bash  
+REPO_URL=https://github.com/MedBens02/Amaso.git
+BRANCH=main
+MYSQL_ROOT_PASSWORD=root
+MYSQL_PASSWORD=password
+NODE_ENV=development
+APP_ENV=local
+```
 
-### Environment Variables
+### Database Setup
 
-1. **For Development:**
-   - Copy `.env.docker.dev` to `backend/.env`
-   - Run `docker exec -it amaso_backend php artisan key:generate`
+The MySQL database is automatically configured and populated:
 
-2. **For Production:**
-   - Copy `.env.docker` to `backend/.env`
-   - Run `docker exec -it amaso_backend php artisan key:generate`
-
-### Database
-
-The MySQL database will be automatically created and populated with data from `amaso.sql` on first run. The SQL file is automatically imported during database initialization - no migrations or seeders needed.
-
-**Default Database Credentials:**
+**Connection Details:**
+- **Host:** localhost (or `db` from containers)
+- **Port:** 3306
 - **Database:** amaso
 - **Username:** amaso_user  
 - **Password:** amaso_password (production) / password (development)
 - **Root Password:** root_password (production) / root (development)
 
-**Note:** The application uses direct SQL import instead of Laravel migrations/seeders. All your existing data in `amaso.sql` will be automatically imported when the database container starts for the first time.
+**Data Import:** The `amaso.sql` file is automatically imported during first startup, including:
+- All application tables
+- Sample widow records and reference data
+- User accounts and permissions
+- Configuration settings
+
+**Note:** Uses direct SQL import instead of Laravel migrations for faster setup.
 
 ## Available Services
 
 | Service | Description | Port | URL |
 |---------|-------------|------|-----|
+| init | Repository cloning service | - | - |
+| db | MySQL 8.0 database | 3306 | localhost:3306 |
+| db_init | Database import service | - | - |
+| backend | Laravel API server | 8000 | http://localhost:8000 |
 | frontend | Next.js application | 3000 | http://localhost:3000 |
-| backend | Laravel API | 8000 | http://localhost:8000 |
-| db | MySQL database | 3306 | localhost:3306 |
-| nginx | Reverse proxy (production only) | 80 | http://localhost:80 |
 
 ## Common Commands
 
 ```bash
-# Start services
+# Start services (from local/ directory)
 docker-compose up -d
 
 # Stop services
 docker-compose down
 
-# Rebuild containers
-docker-compose up --build
+# Update to latest code and rebuild
+docker-compose down && docker-compose up -d --build
 
 # View logs
 docker-compose logs -f [service-name]
 
-# Access container shell
+# View all logs in real-time
+docker-compose logs -f --tail=100
+
+# Access container shells
 docker exec -it amaso_backend bash
 docker exec -it amaso_frontend sh
+docker exec -it amaso_db mysql -u root -proot_password
 
 # Run Laravel commands
 docker exec -it amaso_backend php artisan cache:clear
 docker exec -it amaso_backend php artisan config:cache
+docker exec -it amaso_backend composer install
 
-# Run database backup
-docker exec amaso_db mysqldump -u root -proot_password amaso > backup.sql
+# Database backup
+docker exec amaso_db mysqldump -u root -proot_password amaso > backup_$(date +%Y%m%d).sql
+
+# Force repository update (removes cached data)
+docker-compose down -v
+docker-compose up -d --build
 ```
 
 ## Troubleshooting
 
-### Port Conflicts
-If ports 3000, 8000, or 3306 are already in use:
+### Common Issues & Solutions
 
-1. Stop the conflicting services
-2. Or modify ports in `docker-compose.yml`:
-   ```yaml
-   ports:
-     - "3001:3000"  # Change 3000 to 3001
-   ```
+#### 1. Port Conflicts
+**Problem:** "Port already in use" errors  
+**Solution:**
+```bash
+# Check what's using the ports
+netstat -an | findstr :3000
+netstat -an | findstr :8000
+netstat -an | findstr :3306
 
-### Database Connection Issues
+# Stop conflicting services or modify ports in docker-compose.yml
+```
+
+#### 2. Repository Clone Issues
+**Problem:** Git clone fails or repository not accessible  
+**Solution:**
+```bash
+# Test repository access
+docker run --rm alpine/git git ls-remote https://github.com/MedBens02/Amaso.git
+
+# Check init service logs
+docker-compose logs init
+```
+
+#### 3. Database Connection Issues
+**Problem:** Database connection errors or import fails  
+**Solution:**
 ```bash
 # Check database status
-docker exec -it amaso_db mysql -u root -p -e "SHOW DATABASES;"
+docker exec -it amaso_db mysql -u root -proot_password -e "SHOW DATABASES;"
 
-# Reset database
-docker-compose down -v  # WARNING: This removes all data
+# Check database import logs
+docker-compose logs db_init
+
+# Reset database (WARNING: This removes all data)
+docker-compose down -v
 docker-compose up --build
 ```
 
-### Permission Issues
+#### 4. Service Startup Issues
+**Problem:** Containers exit or restart repeatedly  
+**Solution:**
 ```bash
-# Fix Laravel permissions
+# Check service health
+docker-compose ps
+
+# View service logs for errors
+docker-compose logs backend
+docker-compose logs frontend
+docker-compose logs db
+```
+
+#### 5. Permission Issues
+**Problem:** File permission errors  
+**Solution:**
+```bash
+# Fix Laravel storage permissions
 docker exec -it amaso_backend chown -R www-data:www-data /var/www/storage
 docker exec -it amaso_backend chmod -R 775 /var/www/storage
 ```
 
+### Complete Reset
+If all else fails:
+```bash
+cd Amaso/local
+docker-compose down -v
+docker system prune -f
+docker volume prune -f
+docker-compose up -d --build
+```
+
 ## Migration to New PC
 
-1. Copy the entire application directory
-2. Install Docker Desktop on the new PC
-3. Run `docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build`
-4. The application will automatically set up and be ready to use
+### Quick Migration Steps:
+1. **Install Docker Desktop** on the new PC
+2. **Clone the repository:**
+   ```bash
+   git clone https://github.com/MedBens02/Amaso.git
+   cd Amaso/local
+   ```
+3. **Deploy automatically:**
+   ```bash
+   ./deploy.sh
+   ```
+4. **Access the application** at http://localhost:3000
 
-## Data Persistence
+### Manual Migration:
+1. Install Docker Desktop
+2. Copy only the `/local` directory to the new PC
+3. Run `docker-compose up -d --build`
+4. Wait for automatic setup (5-10 minutes)
 
-- Database data is stored in Docker volumes and persists across restarts
-- To backup data: Use the mysqldump command above
-- To restore data: Copy the SQL file to the container and import it
+## Data Persistence & Backup
 
-## Production Deployment
+### Automatic Persistence:
+- **Database data:** Stored in Docker volumes, persists across restarts
+- **Application files:** Automatically pulled from Git repository
+- **User uploads:** Stored in backend storage volume
 
-For production deployment, consider:
-- Using environment variables for secrets
-- Setting up SSL certificates
-- Configuring proper logging
-- Setting up monitoring and health checks
-- Using Docker Swarm or Kubernetes for scaling
+### Manual Backup:
+```bash
+# Database backup with timestamp
+docker exec amaso_db mysqldump -u root -proot_password amaso > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Restore from backup
+docker exec -i amaso_db mysql -u root -proot_password amaso < backup_file.sql
+```
+
+## Production Deployment Considerations
+
+For production environments:
+- ✅ Use environment variables for sensitive data
+- ✅ Set up SSL certificates and reverse proxy
+- ✅ Configure proper logging and monitoring
+- ✅ Use production branch (`main`) instead of development
+- ✅ Set up automated health checks
+- ✅ Consider Docker Swarm or Kubernetes for scaling
+- ✅ Regular database backups and monitoring
