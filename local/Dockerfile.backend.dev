@@ -22,8 +22,11 @@ RUN apk update && apk add --no-cache \
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Install Xdebug for development
-RUN pecl install xdebug && docker-php-ext-enable xdebug
+# Install development dependencies for Xdebug
+RUN apk add --no-cache $PHPIZE_DEPS linux-headers
+
+# Install Xdebug for development (optional - continue if it fails)
+RUN pecl install xdebug && docker-php-ext-enable xdebug || echo "Xdebug installation failed - continuing without it"
 
 # Set working directory
 WORKDIR /var/www
