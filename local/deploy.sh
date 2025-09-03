@@ -71,7 +71,7 @@ read -p "Enter choice (1 or 2): " mode
 case $mode in
     1)
         echo -e "${BLUE}🏭 Starting production deployment...${NC}"
-        COMPOSE_FILE="docker-compose.yml"
+        COMPOSE_FILES="-f docker-compose.yml"
         # Use production environment if .env doesn't exist or is from template
         if [ ! -f .env ] && [ -f .env.example ]; then
             cp .env.example .env
@@ -79,7 +79,7 @@ case $mode in
         ;;
     2)
         echo -e "${BLUE}🔧 Starting development deployment...${NC}"
-        COMPOSE_FILE="docker-compose.yml -f docker-compose.dev.yml"
+        COMPOSE_FILES="-f docker-compose.yml -f docker-compose.dev.yml"
         # Use development environment
         if [ -f .env.dev.example ]; then
             echo -e "${BLUE}Using development environment configuration...${NC}"
@@ -98,7 +98,7 @@ read -p "🧹 Clean up previous deployment? (y/N): " cleanup
 
 if [[ $cleanup =~ ^[Yy]$ ]]; then
     echo -e "${YELLOW}🧹 Cleaning up previous deployment...${NC}"
-    docker-compose down -v 2>/dev/null || true
+    docker compose down -v 2>/dev/null || docker-compose down -v 2>/dev/null || true
     docker system prune -f >/dev/null 2>&1 || true
 fi
 
@@ -109,8 +109,8 @@ echo "Repository: $REPO_URL"
 echo "Branch: ${BRANCH:-main}"
 echo ""
 
-# Run docker-compose
-if eval "docker-compose $COMPOSE_FILE up -d --build"; then
+# Run docker compose (try V2 first, fallback to V1)
+if eval "docker compose $COMPOSE_FILES up -d --build" 2>/dev/null || eval "docker-compose $COMPOSE_FILES up -d --build"; then
     echo ""
     echo -e "${GREEN}🎉 Deployment successful!${NC}"
     echo ""
@@ -120,8 +120,8 @@ if eval "docker-compose $COMPOSE_FILE up -d --build"; then
     echo "   Database:  localhost:3306"
     echo ""
     echo -e "${BLUE}📊 Monitor deployment:${NC}"
-    echo "   docker-compose logs -f"
-    echo "   docker-compose ps"
+    echo "   docker compose logs -f"
+    echo "   docker compose ps"
     echo ""
     
     # Wait for services to be healthy
@@ -129,7 +129,7 @@ if eval "docker-compose $COMPOSE_FILE up -d --build"; then
     sleep 10
     
     # Check service status
-    if docker-compose ps | grep -q "Up"; then
+    if (docker compose ps || docker-compose ps) | grep -q "Up"; then
         echo -e "${GREEN}✅ Services are running!${NC}"
         
         # Optional: Open browser
@@ -147,12 +147,12 @@ if eval "docker-compose $COMPOSE_FILE up -d --build"; then
         fi
     else
         echo -e "${YELLOW}⚠️  Some services may still be starting up${NC}"
-        echo "Run 'docker-compose logs -f' to monitor progress"
+        echo "Run 'docker compose logs -f' to monitor progress"
     fi
     
 else
     echo ""
     echo -e "${RED}❌ Deployment failed${NC}"
-    echo "Check the logs with: docker-compose logs"
+    echo "Check the logs with: docker compose logs"
     exit 1
 fi
