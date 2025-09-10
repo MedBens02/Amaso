@@ -9,8 +9,9 @@ import { Separator } from "@/components/ui/separator"
 import { 
   Phone, Mail, MapPin, Users, Heart, GraduationCap, Calendar, IdCard, 
   Home, DollarSign, HandHeart, Briefcase, Activity, FileText,
-  Star, Building2, Droplets, Zap, Sofa, ShoppingCart, TrendingUp, TrendingDown
+  Star, Building2, Droplets, Zap, Sofa, ShoppingCart, TrendingUp, TrendingDown, Printer
 } from "lucide-react"
+import { PrintWidowPDF } from "./print-widow-pdf"
 
 interface Widow {
   id: number
@@ -159,9 +160,12 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            تفاصيل الأرملة - {widow.full_name}
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              تفاصيل الأرملة - {widow.full_name}
+            </div>
+            <PrintWidowPDF widow={widow} variant="icon" />
           </DialogTitle>
         </DialogHeader>
         

@@ -4,11 +4,12 @@ import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Edit, Trash2, Phone, Mail, Loader2, Users, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react"
+import { Eye, Edit, Trash2, Phone, Mail, Loader2, Users, ChevronUp, ChevronDown, ChevronsUpDown, Printer } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
 import { ViewWidowDialog } from "./view-widow-dialog"
 import { EditWidowDialog } from "./edit-widow-dialog"
+import { PrintWidowPDF } from "./print-widow-pdf"
 
 interface Widow {
   id: number
@@ -62,6 +63,7 @@ interface WidowsTableProps {
   filters?: any
   refreshTrigger?: number
 }
+
 
 export function WidowsTable({ 
   searchTerm, 
@@ -161,6 +163,60 @@ export function WidowsTable({
     }
   }
 
+  const handlePrint = async (widow: Widow) => {
+    try {
+      // Fetch detailed widow data with all relationships for printing
+      const response = await api.getWidow(widow.id)
+      const detailedWidow = response.data
+      
+      // Use the PrintWidowPDF component by creating a temporary instance
+      const React = (await import('react')).default
+      const { createRoot } = await import('react-dom/client')
+      const { PrintWidowPDF } = await import('./print-widow-pdf')
+      
+      // Create temporary container
+      const tempContainer = document.createElement('div')
+      tempContainer.style.position = 'fixed'
+      tempContainer.style.left = '-9999px'
+      tempContainer.style.top = '0'
+      document.body.appendChild(tempContainer)
+      
+      const root = createRoot(tempContainer)
+      
+      // Render PrintWidowPDF component and trigger PDF generation
+      const PrintComponent = () => {
+        React.useEffect(() => {
+          // Auto-click the button after a short delay
+          setTimeout(() => {
+            const button = tempContainer.querySelector('button')
+            if (button) {
+              button.click()
+            }
+            // Clean up after PDF generation
+            setTimeout(() => {
+              root.unmount()
+              document.body.removeChild(tempContainer)
+            }, 2000)
+          }, 500)
+        }, [])
+        
+        return React.createElement(PrintWidowPDF, {
+          widow: detailedWidow,
+          variant: 'default'
+        })
+      }
+      
+      root.render(React.createElement(PrintComponent))
+      
+    } catch (error: any) {
+      toast({
+        title: "خطأ في الطباعة",
+        description: error.message || "فشل في طباعة بطاقة الأرملة",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleDelete = async (id: number, name: string) => {
     if (!confirm(`هل أنت متأكد من حذف الأرملة "${name}"؟`)) {
       return
@@ -217,8 +273,8 @@ export function WidowsTable({
         </p>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
+      <div className="rounded-md border overflow-x-auto">
+        <Table className="min-w-full">
           <TableHeader>
             <TableRow>
               <TableHead className="text-right">
@@ -273,7 +329,7 @@ export function WidowsTable({
                   {getSortIcon('disability_flag')}
                 </Button>
               </TableHead>
-              <TableHead className="text-center">الإجراءات</TableHead>
+              <TableHead className="text-center w-[180px] min-w-[180px]">الإجراءات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -336,21 +392,43 @@ export function WidowsTable({
                       <Badge variant="secondary">لا توجد</Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleView(widow)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleEdit(widow)}>
-                        <Edit className="h-4 w-4" />
+                  <TableCell className="text-center w-[180px] min-w-[180px]">
+                    <div className="flex items-center justify-center gap-1 px-1 whitespace-nowrap">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-7 w-7 p-0 flex-shrink-0" 
+                        onClick={() => handleView(widow)}
+                        title="عرض التفاصيل"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
                       </Button>
                       <Button 
                         size="sm" 
                         variant="outline" 
-                        className="h-8 w-8 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                        onClick={() => handleDelete(widow.id, widow.full_name)}
+                        className="h-7 w-7 p-0 flex-shrink-0" 
+                        onClick={() => handleEdit(widow)}
+                        title="تحرير البيانات"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-7 w-7 p-0 flex-shrink-0 hover:bg-blue-50 hover:text-blue-600"
+                        onClick={() => handlePrint(widow)}
+                        title="طباعة بطاقة الأرملة"
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-7 w-7 p-0 flex-shrink-0 hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={() => handleDelete(widow.id, widow.full_name)}
+                        title="حذف الأرملة"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </TableCell>
