@@ -399,8 +399,8 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
 
     const years = Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i)
     const months = [
-      "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
-      "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"
+      "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+      "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
     ]
     
     return (

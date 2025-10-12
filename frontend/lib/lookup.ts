@@ -84,8 +84,8 @@ export async function fetchAidTypes(): Promise<LookupOption[]> {
 
 export async function fetchPartners(): Promise<LookupOption[]> {
   return [
-    { id: "partner1", name: "شريك المعونة الأول" },
-    { id: "partner2", name: "شريك المعونة الثاني" },
+    { id: "partner1", name: "شريك المؤونة الأول" },
+    { id: "partner2", name: "شريك المؤونة الثاني" },
   ]
 }
 

@@ -106,7 +106,7 @@ export function AddOrphanDialog({ open, onOpenChange }: AddOrphanDialogProps) {
                 id="school"
                 value={formData.school}
                 onChange={(e) => setFormData({ ...formData, school: e.target.value })}
-                placeholder="أدخل اسم المدرسة"
+                placeholder="أدخل اسم المؤسسة "
               />
             </div>
             <div className="space-y-2">

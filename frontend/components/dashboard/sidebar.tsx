@@ -44,7 +44,7 @@ const navigation = [
     icon: Heart,
   },
   {
-    name: "المتبرعين",
+    name: "المتبرعون",
     href: "/dashboard/donors",
     icon: HandHeart,
   },

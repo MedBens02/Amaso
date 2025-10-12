@@ -506,8 +506,8 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
 
     const years = Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i)
     const months = [
-      "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
-      "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"
+      "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+      "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
     ]
 
     return (
@@ -691,11 +691,11 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="nationalId">رقم الهوية</Label>
+                    <Label htmlFor="nationalId">رقم البطاقة الوطنية</Label>
                     <Input
                       id="nationalId"
                       {...form.register("nationalId")}
-                      placeholder="أدخل رقم الهوية"
+                      placeholder="أدخل رقم البطاقة الوطنية"
                     />
                   </div>
                 </div>
@@ -731,7 +731,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                             <SelectValue placeholder="اختر المستوى التعليمي" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="لا يقرأ ولا يكتب">لا يقرأ ولا يكتب</SelectItem>
+                            <SelectItem value="أمية">أمية</SelectItem>
                             <SelectItem value="يقرأ ويكتب">يقرأ ويكتب</SelectItem>
                             <SelectItem value="ابتدائي">ابتدائي</SelectItem>
                             <SelectItem value="إعدادي">إعدادي</SelectItem>
@@ -908,8 +908,8 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>اسم المدرسة</Label>
-                        <Input {...form.register(`children.${index}.schoolName`)} placeholder="اسم المدرسة" />
+                        <Label>اسم المؤسسة </Label>
+                        <Input {...form.register(`children.${index}.schoolName`)} placeholder="اسم المؤسسة " />
                       </div>
                     </div>
 
@@ -1261,7 +1261,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
               <TabsContent value="support" className="space-y-6">
                 {/* Maouna Section */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">المعونة</h3>
+                  <h3 className="text-lg font-semibold">المؤونة</h3>
                   <div className="flex items-center space-x-2 space-x-reverse">
                     <Controller
                       name="maounaActive"
@@ -1270,14 +1270,14 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                         <Switch id="maounaActive" checked={field.value} onCheckedChange={field.onChange} />
                       )}
                     />
-                    <Label htmlFor="maounaActive">المعونة نشطة</Label>
+                    <Label htmlFor="maounaActive">المؤونة نشطة</Label>
                   </div>
 
                   {form.watch("maounaActive") && (
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label>مبلغ المعونة (DH)</Label>
+                          <Label>مبلغ المؤونة (DH)</Label>
                           <Input
                             type="number"
                             {...form.register("maounaAmount", { valueAsNumber: true })}

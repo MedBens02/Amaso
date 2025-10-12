@@ -158,10 +158,10 @@ export function WidowFilters({ onFiltersChange, initialFilters = {} }: WidowFilt
 
         {/* Active Maouna Filter */}
         <div className="space-y-2">
-          <Label>المعونة النشطة</Label>
+          <Label>المؤونة النشطة</Label>
           <Select value={filters.has_active_maouna} onValueChange={(value) => handleFilterChange('has_active_maouna', value)}>
             <SelectTrigger>
-              <SelectValue placeholder="اختر حالة المعونة" />
+              <SelectValue placeholder="اختر حالة المؤونة" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">جميع الحالات</SelectItem>
@@ -173,10 +173,10 @@ export function WidowFilters({ onFiltersChange, initialFilters = {} }: WidowFilt
 
         {/* Maouna Partner Filter */}
         <div className="space-y-2">
-          <Label>شريك المعونة</Label>
+          <Label>شريك المؤونة</Label>
           <Select value={filters.maouna_partner_id} onValueChange={(value) => handleFilterChange('maouna_partner_id', value)}>
             <SelectTrigger>
-              <SelectValue placeholder="اختر شريك المعونة" />
+              <SelectValue placeholder="اختر شريك المؤونة" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">جميع الشركاء</SelectItem>

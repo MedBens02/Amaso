@@ -111,8 +111,8 @@ class UpdateWidowRequest extends FormRequest
             'address.max' => 'العنوان يجب أن يكون أقل من 500 حرف',
             'neighborhood.max' => 'الحي يجب أن يكون أقل من 100 حرف',
             'admission_date.date' => 'تاريخ الانتساب يجب أن يكون تاريخاً صحيحاً',
-            'national_id.unique' => 'رقم الهوية مسجل مسبقاً',
-            'national_id.max' => 'رقم الهوية يجب أن يكون أقل من 20 رقم',
+            'national_id.unique' => 'رقم البطاقة الوطنية مسجل مسبقاً',
+            'national_id.max' => 'رقم البطاقة الوطنية يجب أن يكون أقل من 20 رقم',
             'birth_date.date' => 'تاريخ الميلاد يجب أن يكون تاريخاً صحيحاً',
             'birth_date.before' => 'تاريخ الميلاد يجب أن يكون قبل اليوم',
             'marital_status.in' => 'الحالة الاجتماعية يجب أن تكون: أرملة، مطلقة، أو عزباء',
@@ -133,9 +133,9 @@ class UpdateWidowRequest extends FormRequest
             'expenses.*.amount.min' => 'مبلغ المصروف يجب أن يكون موجباً',
 
             // Maouna validation messages
-            'maouna.*.partner_id.required' => 'شريك المعونة مطلوب',
-            'maouna.*.amount.required' => 'مبلغ المعونة مطلوب',
-            'maouna.*.amount.min' => 'مبلغ المعونة يجب أن يكون موجباً',
+            'maouna.*.partner_id.required' => 'شريك المؤونة مطلوب',
+            'maouna.*.amount.required' => 'مبلغ المؤونة مطلوب',
+            'maouna.*.amount.min' => 'مبلغ المؤونة يجب أن يكون موجباً',
 
             // Housing validation messages
             'housing_type_id.exists' => 'نوع السكن غير موجود',

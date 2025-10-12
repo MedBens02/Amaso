@@ -196,7 +196,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                       <p className="text-lg font-semibold">{widow.full_name}</p>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">رقم الهوية</Label>
+                      <Label className="text-sm font-medium text-muted-foreground">رقم البطاقة الوطنية</Label>
                       <p className="flex items-center gap-2">
                         <IdCard className="h-4 w-4 text-muted-foreground" />
                         {widow.national_id}
@@ -373,7 +373,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                       </Badge>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">المعونة</Label>
+                      <Label className="text-sm font-medium text-muted-foreground">المؤونة</Label>
                       <Badge variant={widow.widow_files?.has_maouna ? "secondary" : "outline"}>
                         {widow.widow_files?.has_maouna ? "نشطة" : "غير نشطة"}
                       </Badge>
@@ -610,7 +610,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <HandHeart className="h-5 w-5 text-purple-600" />
-                      المعونة
+                      المؤونة
                     </CardTitle>
                   </CardHeader>
                   <CardContent>

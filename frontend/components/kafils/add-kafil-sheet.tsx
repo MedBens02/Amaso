@@ -345,7 +345,7 @@ export function AddKafilSheet({ open, onOpenChange, onSuccess }: AddKafilSheetPr
                               <span className="font-medium">{widow.full_name}</span>
                               {widow.national_id && (
                                 <span className="text-sm text-muted-foreground">
-                                  رقم الهوية: {widow.national_id}
+                                  رقم البطاقة الوطنية: {widow.national_id}
                                 </span>
                               )}
                               {widow.neighborhood && (

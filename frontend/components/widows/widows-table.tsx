@@ -353,7 +353,7 @@ export function WidowsTable({
                     {widow.full_name}
                     <br />
                     <span className="text-xs text-muted-foreground">
-                      رقم الهوية: {widow.national_id}
+                      رقم البطاقة الوطنية: {widow.national_id}
                     </span>
                   </TableCell>
                   <TableCell className="text-right">{Math.floor(widow.age)} سنة</TableCell>

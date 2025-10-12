@@ -219,7 +219,7 @@ export function ViewKafilDialog({ open, onOpenChange, onEdit, kafilId }: ViewKaf
                       </div>
                       {sponsorship.widow?.national_id && (
                         <div className="text-sm text-gray-600">
-                          رقم الهوية: {sponsorship.widow.national_id}
+                          رقم البطاقة الوطنية: {sponsorship.widow.national_id}
                         </div>
                       )}
                       {sponsorship.widow?.neighborhood && (

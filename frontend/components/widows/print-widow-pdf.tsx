@@ -299,7 +299,7 @@ export function PrintWidowPDF({ widow, variant = 'default' }: PrintWidowPDFProps
               {widow.full_name}
             </p>
             <p className="text-sm text-gray-600">
-              رقم الهوية: {widow.national_id}
+              رقم البطاقة الوطنية: {widow.national_id}
             </p>
           </div>
         </div>

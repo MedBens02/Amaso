@@ -464,7 +464,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
           { id: 4, label: "أدوية", sub_budget_id: 4 }
         ],
         partners: [
-          { id: 1, name: "شريك المعونة الأول" },
+          { id: 1, name: "شريك المؤونة الأول" },
           { id: 2, name: "وزارة التعليم" },
           { id: 3, name: "مستشفى الأمل" }
         ],
