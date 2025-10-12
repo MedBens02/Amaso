@@ -22,7 +22,11 @@
       "Bash(timeout:*)",
       "Bash(grep:*)",
       "Bash(dir:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(pdflatex:*)",
+      "Bash(cat:*)",
+      "Bash(python:*)",
+      "Bash(\"/c/Users/PC/AppData/Local/Programs/MiKTeX/miktex/bin/x64/pdflatex.exe\" -interaction=nonstopmode main.tex)"
     ],
     "deny": [],
     "ask": [],

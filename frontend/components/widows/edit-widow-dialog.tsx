@@ -479,6 +479,117 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
     }
   }
 
+  const DatePicker = ({
+    value,
+    onChange,
+    placeholder,
+  }: {
+    value?: Date
+    onChange: (date: Date | undefined) => void
+    placeholder: string
+  }) => {
+    const [open, setOpen] = useState(false)
+    const [currentMonth, setCurrentMonth] = useState<Date>(value || new Date())
+
+    const handleOpenChange = (newOpen: boolean) => {
+      setOpen(newOpen)
+    }
+
+    const handleSelect = (date: Date | undefined) => {
+      onChange(date)
+      setOpen(false)
+    }
+
+    const handleMonthChange = (newMonth: Date) => {
+      setCurrentMonth(newMonth)
+    }
+
+    const years = Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i)
+    const months = [
+      "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+      "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"
+    ]
+
+    return (
+      <Popover open={open} onOpenChange={handleOpenChange} modal={true}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className={cn("w-full justify-start text-left font-normal", !value && "text-muted-foreground")}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setOpen(!open)
+            }}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {value ? formatDateArabic(value, "PPP") : placeholder}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-auto p-0"
+          align="start"
+          sideOffset={4}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <div className="p-3 border-b">
+            <div className="flex gap-2 mb-3">
+              <Select
+                value={currentMonth.getFullYear().toString()}
+                onValueChange={(year) => {
+                  const newDate = new Date(currentMonth)
+                  newDate.setFullYear(parseInt(year))
+                  setCurrentMonth(newDate)
+                }}
+              >
+                <SelectTrigger className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {years.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={currentMonth.getMonth().toString()}
+                onValueChange={(month) => {
+                  const newDate = new Date(currentMonth)
+                  newDate.setMonth(parseInt(month))
+                  setCurrentMonth(newDate)
+                }}
+              >
+                <SelectTrigger className="flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {months.map((month, index) => (
+                    <SelectItem key={index} value={index.toString()}>
+                      {month}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <Calendar
+            mode="single"
+            selected={value}
+            onSelect={handleSelect}
+            disabled={(date) => date > new Date()}
+            month={currentMonth}
+            onMonthChange={handleMonthChange}
+            initialFocus
+          />
+        </PopoverContent>
+      </Popover>
+    )
+  }
+
   if (!widow) return null
 
   return (
@@ -569,29 +680,9 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                       name="birthDate"
                       control={form.control}
                       render={({ field }) => (
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="ml-2 h-4 w-4" />
-                              {field.value ? formatDateArabic(field.value) : "اختر التاريخ"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <DatePicker value={field.value} onChange={field.onChange} placeholder="اختر تاريخ الميلاد" />
+                        </div>
                       )}
                     />
                     {form.formState.errors.birthDate && (
@@ -674,29 +765,9 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                       name="admissionDate"
                       control={form.control}
                       render={({ field }) => (
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="ml-2 h-4 w-4" />
-                              {field.value ? formatDateArabic(field.value) : "اختر تاريخ الانضمام"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <DatePicker value={field.value} onChange={field.onChange} placeholder="اختر تاريخ الانضمام" />
+                        </div>
                       )}
                     />
                     {form.formState.errors.admissionDate && (
@@ -848,29 +919,9 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                         name={`children.${index}.birthDate`}
                         control={form.control}
                         render={({ field }) => (
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full justify-start text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                <CalendarIcon className="ml-2 h-4 w-4" />
-                                {field.value ? formatDateArabic(field.value) : "اختر تاريخ الميلاد"}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <DatePicker value={field.value} onChange={field.onChange} placeholder="اختر تاريخ الميلاد" />
+                          </div>
                         )}
                       />
                       {form.formState.errors.children?.[index]?.birthDate && (

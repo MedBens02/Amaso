@@ -206,3 +206,7 @@ progress.md
 ARCHITECTURE_DECISIONS.md
 DEVELOPMENT_PROGRESS.md
 CLAUDE.md
+.claude/
+settings.local.json
+
+rapport/
