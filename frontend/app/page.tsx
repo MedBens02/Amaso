@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Heart, Users, GraduationCap, HandHeart } from "lucide-react"
@@ -23,8 +24,8 @@ export default function HomePage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <Heart className="w-6 h-6 text-primary-foreground" />
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center">
+                <Image src="/favicon.ico" alt="AMASO Logo" width={40} height={40} className="rounded-lg" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-foreground">جمعية أماسو الخيرية</h1>
@@ -138,8 +139,8 @@ export default function HomePage() {
       <footer className="bg-background border-t border-border py-8">
         <div className="container mx-auto px-4 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <Heart className="w-5 h-5 text-primary-foreground" />
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+              <Image src="/favicon.ico" alt="AMASO Logo" width={32} height={32} className="rounded-lg" />
             </div>
             <span className="text-lg font-semibold text-foreground">جمعية أماسو الخيرية</span>
           </div>

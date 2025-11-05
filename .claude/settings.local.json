@@ -26,7 +26,10 @@
       "Bash(pdflatex:*)",
       "Bash(cat:*)",
       "Bash(python:*)",
-      "Bash(\"/c/Users/PC/AppData/Local/Programs/MiKTeX/miktex/bin/x64/pdflatex.exe\" -interaction=nonstopmode main.tex)"
+      "Bash(\"/c/Users/PC/AppData/Local/Programs/MiKTeX/miktex/bin/x64/pdflatex.exe\" -interaction=nonstopmode main.tex)",
+      "Bash(c:UsersPCDesktopAmasoapprapportchapitre2_diagrammes_sequence.tex)",
+      "Bash(\"c:\\Users\\PC\\Desktop\\Amaso\\app\\rapport\\chapitre2_exigences_non_fonctionnelles.tex\")",
+      "Bash(nul)"
     ],
     "deny": [],
     "ask": [],

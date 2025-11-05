@@ -4,12 +4,13 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Heart, Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff } from "lucide-react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -46,8 +47,8 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4 transition-colors">
       <Card className="w-full max-w-md border-border bg-card shadow-lg">
         <CardHeader className="text-center">
-          <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-            <Heart className="w-8 h-8 text-primary-foreground" />
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Image src="/favicon.ico" alt="AMASO Logo" width={64} height={64} className="rounded-full" />
           </div>
           <CardTitle className="text-2xl font-bold text-foreground">تسجيل الدخول</CardTitle>
           <CardDescription className="text-muted-foreground">
