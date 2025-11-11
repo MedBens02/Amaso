@@ -210,3 +210,4 @@ CLAUDE.md
 settings.local.json
 
 rapport/
+backend\app\Providers\AppServiceProvider.php
