@@ -1,11 +1,12 @@
 "use client"
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { formatDateArabic } from "@/lib/date-utils"
 import { Eye, User, Users, Calendar, MapPin, Phone, Mail, GraduationCap, Heart } from "lucide-react"
+import { PrintOrphanPDF } from "./print-orphan-pdf"
 
 interface Orphan {
   id: number
@@ -201,6 +202,10 @@ export function ViewOrphanDialog({ orphan, open, onOpenChange }: ViewOrphanDialo
             </CardContent>
           </Card>
         </div>
+
+        <DialogFooter>
+          <PrintOrphanPDF orphan={orphan} />
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

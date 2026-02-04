@@ -9,6 +9,9 @@ import { DonorsTable } from "@/components/donors/donors-table"
 import { AddDonorSheet } from "@/components/donors/add-donor-sheet"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { ExportDonors } from "@/components/donors/export-donors"
+import { useToast } from "@/hooks/use-toast"
+import api from "@/lib/api"
 
 export default function DonorsPage() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -17,6 +20,9 @@ export default function DonorsPage() {
   const [isKafilFilter, setIsKafilFilter] = useState<boolean | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [convertDonorData, setConvertDonorData] = useState<any>(null)
+  const [allDonors, setAllDonors] = useState<any[]>([])
+  const [loadingExport, setLoadingExport] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     const handleConvertToKafil = (event: CustomEvent) => {
@@ -26,11 +32,32 @@ export default function DonorsPage() {
     }
 
     window.addEventListener('convertToKafil', handleConvertToKafil as EventListener)
-    
+
     return () => {
       window.removeEventListener('convertToKafil', handleConvertToKafil as EventListener)
     }
   }, [])
+
+  // Fetch all donors for export purposes
+  useEffect(() => {
+    const fetchAllDonors = async () => {
+      try {
+        setLoadingExport(true)
+        const response = await api.getDonors({
+          search: searchTerm || undefined,
+          is_kafil: isKafilFilter ?? undefined,
+          per_page: 1000, // Fetch large number for export
+        })
+        setAllDonors(response.data || [])
+      } catch (error: any) {
+        console.error('Error fetching donors for export:', error)
+      } finally {
+        setLoadingExport(false)
+      }
+    }
+
+    fetchAllDonors()
+  }, [searchTerm, isKafilFilter, refreshTrigger])
 
   return (
     <div className="space-y-6">
@@ -96,12 +123,19 @@ export default function DonorsPage() {
       {/* Donors Table */}
       <Card>
         <CardHeader>
-          <CardTitle>قائمة المتبرعين والكفلاء</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>قائمة المتبرعين والكفلاء</CardTitle>
+            <ExportDonors
+              donors={allDonors}
+              filters={{ is_kafil: isKafilFilter }}
+              searchTerm={searchTerm}
+            />
+          </div>
         </CardHeader>
         <CardContent>
-          <DonorsTable 
-            searchTerm={searchTerm} 
-            isKafilFilter={isKafilFilter} 
+          <DonorsTable
+            searchTerm={searchTerm}
+            isKafilFilter={isKafilFilter}
             refreshTrigger={refreshTrigger}
           />
         </CardContent>

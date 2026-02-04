@@ -1,9 +1,14 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useState, useEffect } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Phone, Mail, MapPin, HandCoins, Users } from "lucide-react"
+import { DonationHistoryPrint } from "./donation-history-print"
+import { PrintDonorPDF } from "./print-donor-pdf"
+import api from "@/lib/api"
 
 interface Donor {
   id: number
@@ -38,6 +43,32 @@ interface ViewDonorDialogProps {
 }
 
 export function ViewDonorDialog({ donor, open, onOpenChange }: ViewDonorDialogProps) {
+  const [incomes, setIncomes] = useState<any[]>([])
+  const [loadingIncomes, setLoadingIncomes] = useState(false)
+
+  // Fetch donor's incomes when dialog opens
+  useEffect(() => {
+    const fetchIncomes = async () => {
+      if (open && donor) {
+        setLoadingIncomes(true)
+        try {
+          const response = await api.getIncomes({
+            donor_id: donor.id,
+            per_page: 100 // Fetch recent incomes
+          })
+          setIncomes(response.data || [])
+        } catch (error) {
+          console.error('Error fetching incomes:', error)
+          setIncomes([])
+        } finally {
+          setLoadingIncomes(false)
+        }
+      }
+    }
+
+    fetchIncomes()
+  }, [open, donor?.id])
+
   if (!donor) return null
 
   return (
@@ -163,6 +194,14 @@ export function ViewDonorDialog({ donor, open, onOpenChange }: ViewDonorDialogPr
             )}
           </div>
         </div>
+
+        <DialogFooter className="flex gap-2">
+          <PrintDonorPDF donor={donor} />
+          <DonationHistoryPrint
+            donor={donor}
+            incomes={incomes}
+          />
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

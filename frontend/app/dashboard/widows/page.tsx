@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,6 +8,9 @@ import { Plus, Search, Filter } from "lucide-react"
 import { WidowsTable } from "@/components/widows/widows-table"
 import { WidowFilters } from "@/components/widows/widow-filters"
 import { AddWidowDialog } from "@/components/widows/add-widow-dialog"
+import { ExportWidows } from "@/components/widows/export-widows"
+import { useToast } from "@/hooks/use-toast"
+import api from "@/lib/api"
 
 export default function WidowsPage() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -15,6 +18,30 @@ export default function WidowsPage() {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [filters, setFilters] = useState({})
+  const [allWidows, setAllWidows] = useState<any[]>([])
+  const [loadingExport, setLoadingExport] = useState(false)
+  const { toast } = useToast()
+
+  // Fetch all widows for export purposes
+  useEffect(() => {
+    const fetchAllWidows = async () => {
+      try {
+        setLoadingExport(true)
+        const response = await api.getWidows({
+          search: searchTerm || undefined,
+          per_page: 1000, // Fetch large number for export
+          ...filters
+        })
+        setAllWidows(response.data || [])
+      } catch (error: any) {
+        console.error('Error fetching widows for export:', error)
+      } finally {
+        setLoadingExport(false)
+      }
+    }
+
+    fetchAllWidows()
+  }, [searchTerm, filters, refreshTrigger])
 
   return (
     <div className="space-y-6">
@@ -58,7 +85,14 @@ export default function WidowsPage() {
       {/* Widows Table */}
       <Card>
         <CardHeader>
-          <CardTitle>قائمة الأرامل</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>قائمة الأرامل</CardTitle>
+            <ExportWidows
+              widows={allWidows}
+              filters={filters}
+              searchTerm={searchTerm}
+            />
+          </div>
         </CardHeader>
         <CardContent>
           <WidowsTable searchTerm={searchTerm} filters={filters} refreshTrigger={refreshTrigger} />

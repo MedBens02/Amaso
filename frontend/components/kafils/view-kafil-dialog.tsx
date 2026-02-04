@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { User, Phone, Mail, MapPin, HandCoins, Edit, Eye } from "lucide-react"
 import api from "@/lib/api"
+import { PrintKafilPDF } from "../donors/print-kafil-pdf"
 
 interface ViewKafilDialogProps {
   open: boolean
@@ -241,7 +242,8 @@ export function ViewKafilDialog({ open, onOpenChange, onEdit, kafilId }: ViewKaf
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex gap-2">
+          <PrintKafilPDF kafil={kafil} />
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             <Eye className="h-4 w-4 mr-2" />
             إغلاق
