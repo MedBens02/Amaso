@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS `beneficiaries` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_widow` (`widow_id`),
   UNIQUE KEY `uniq_orphan` (`orphan_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `beneficiaries`
