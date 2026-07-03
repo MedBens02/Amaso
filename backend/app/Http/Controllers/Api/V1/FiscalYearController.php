@@ -106,9 +106,10 @@ class FiscalYearController extends Controller
             $result = $this->closingService->closeFiscalYear($fiscalYear);
             return response()->json($result, $result['success'] ? 200 : 422);
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
-                'message' => 'خطأ في إغلاق السنة المالية: ' . $e->getMessage()
+                'message' => 'خطأ في إغلاق السنة المالية'
             ], 500);
         }
     }

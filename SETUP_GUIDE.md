@@ -171,6 +171,31 @@ The MySQL database is automatically configured with:
 - ✅ User accounts and permissions
 - ✅ Configuration settings
 
+### Migrations vs. amaso.sql
+
+The full schema now lives in Laravel migrations (`backend/database/migrations/`), so
+`amaso.sql` is no longer required to set up a database:
+
+```bash
+# Fresh install (empty database)
+cd backend
+php artisan migrate --seed     # creates all 45 tables + the v_current_cash view,
+                               # then seeds users, reference data, accounting
+                               # categories (incl. the required fallback category
+                               # id 999) and the current fiscal year
+```
+
+```bash
+# Existing database that was imported from amaso.sql
+cd backend
+php artisan migrate            # safe: each migration skips tables that already
+                               # exist, and only records itself as run
+php artisan db:seed            # optional; seeders are idempotent (updateOrInsert)
+```
+
+Keep `amaso.sql` only as a sample-data snapshot — new environments should prefer
+`migrate --seed`.
+
 ## 🔄 Managing the Application
 
 ### Starting/Stopping Services

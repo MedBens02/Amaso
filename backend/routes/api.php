@@ -9,9 +9,9 @@ use App\Http\Controllers\Api\V1\OrphanController;
 use App\Http\Controllers\Api\V1\IncomeController;
 use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\TransferController;
-use App\Http\Controllers\Api\V1\ReferencesController;
 use App\Http\Controllers\Api\V1\FiscalYearController;
 use App\Http\Controllers\Api\V1\BeneficiaryGroupController;
+use App\Http\Controllers\Api\V1\References;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -22,167 +22,168 @@ Route::get('/health', function () {
     return response()->json([
         'status' => 'ok',
         'timestamp' => now(),
-        'service' => 'Amaso API'
+        'service' => 'Amaso API',
     ]);
 });
 
 // API v1 routes
 Route::prefix('v1')->group(function () {
-    
+
     // Donors CRUD
     Route::apiResource('donors', DonorController::class);
-    
+
     // Widows CRUD
     Route::apiResource('widows', WidowController::class);
     Route::get('widows-reference-data', [WidowController::class, 'getReferenceData']);
-    
+
     // Orphans CRUD (read-only, managed through widows)
     Route::get('orphans', [OrphanController::class, 'index']);
     Route::get('orphans/{orphan}', [OrphanController::class, 'show']);
     Route::post('orphans', [OrphanController::class, 'store']); // Returns error message
     Route::put('orphans/{orphan}', [OrphanController::class, 'update']); // Returns error message
     Route::delete('orphans/{orphan}', [OrphanController::class, 'destroy']); // Returns error message
-    
+
     // Kafils CRUD
     Route::apiResource('kafils', KafilController::class);
     Route::post('kafils/{kafil}/remove-status', [KafilController::class, 'removeKafilStatus']);
     Route::get('kafils-for-sponsorship', [KafilController::class, 'getKafilsForSponsorship']);
     Route::post('sponsorships', [KafilController::class, 'createSponsorship']);
-    
+
     // Incomes CRUD + approval
     Route::apiResource('incomes', IncomeController::class);
     Route::post('incomes/{income}/approve', [IncomeController::class, 'approve']);
     Route::post('incomes/{income}/transfer-to-bank', [IncomeController::class, 'transferToBank']);
-    
+
     // Expenses CRUD + approval
     Route::apiResource('expenses', ExpenseController::class);
     Route::post('expenses/{expense}/approve', [ExpenseController::class, 'approve']);
-    
+
     // Transfers CRUD + approval
     Route::apiResource('transfers', TransferController::class);
     Route::post('transfers/{transfer}/approve', [TransferController::class, 'approve']);
-    
+
     // Beneficiary Groups CRUD + member management
     Route::apiResource('beneficiary-groups', BeneficiaryGroupController::class);
     Route::get('beneficiary-groups/{beneficiaryGroup}/members', [BeneficiaryGroupController::class, 'getMembers']);
     Route::post('beneficiary-groups/{beneficiaryGroup}/members', [BeneficiaryGroupController::class, 'addMembers']);
     Route::delete('beneficiary-groups/{beneficiaryGroup}/members/{beneficiary}', [BeneficiaryGroupController::class, 'removeMember']);
     Route::get('beneficiaries', [BeneficiaryGroupController::class, 'getBeneficiaries']);
-    
+
     // Lookup data endpoints
-    Route::get('fiscal-years', function () {
-        return response()->json([
-            'data' => \App\Models\FiscalYear::orderBy('year', 'desc')->get()
-        ]);
-    });
-    
     Route::get('bank-accounts', function () {
         return response()->json([
-            'data' => \App\Models\BankAccount::orderBy('label')->get()
+            'data' => \App\Models\BankAccount::orderBy('label')->get(),
         ]);
     });
-    
-    // Removed: kafils endpoint handled by KafilController::index
-    
+
     Route::get('sub-budgets', function () {
         return response()->json([
-            'data' => \App\Models\SubBudget::orderBy('label')->get()
+            'data' => \App\Models\SubBudget::orderBy('label')->get(),
         ]);
     });
-    
+
     Route::get('income-categories', function () {
         return response()->json([
-            'data' => \App\Models\IncomeCategory::with('subBudget')->where('id', '!=', 999)->orderBy('label')->get()
+            'data' => \App\Models\IncomeCategory::with('subBudget')
+                ->where('id', '!=', \App\Models\IncomeCategory::DELETED_CATEGORY_ID)
+                ->orderBy('label')
+                ->get(),
         ]);
     });
-    
+
     Route::get('expense-categories', function () {
         return response()->json([
-            'data' => \App\Models\ExpenseCategory::with('subBudget')->where('id', '!=', 999)->orderBy('label')->get()
+            'data' => \App\Models\ExpenseCategory::with('subBudget')
+                ->where('id', '!=', \App\Models\ExpenseCategory::DELETED_CATEGORY_ID)
+                ->orderBy('label')
+                ->get(),
         ]);
     });
 
     Route::get('orphans-education-levels', function () {
         return response()->json([
-            'data' => \App\Models\OrphansEducationLevel::active()->ordered()->get()
+            'data' => \App\Models\OrphansEducationLevel::active()->ordered()->get(),
         ]);
     });
 
-    // References Management - Skills
-    Route::get('references/skills', [ReferencesController::class, 'getSkills']);
-    Route::post('references/skills', [ReferencesController::class, 'storeSkill']);
-    Route::put('references/skills/{skill}', [ReferencesController::class, 'updateSkill']);
-    Route::delete('references/skills/{skill}', [ReferencesController::class, 'destroySkill']);
-    
-    // References Management - Illnesses
-    Route::get('references/illnesses', [ReferencesController::class, 'getIllnesses']);
-    Route::post('references/illnesses', [ReferencesController::class, 'storeIllness']);
-    Route::put('references/illnesses/{illness}', [ReferencesController::class, 'updateIllness']);
-    Route::delete('references/illnesses/{illness}', [ReferencesController::class, 'destroyIllness']);
-    
-    // References Management - Aid Types
-    Route::get('references/aid-types', [ReferencesController::class, 'getAidTypes']);
-    Route::post('references/aid-types', [ReferencesController::class, 'storeAidType']);
-    Route::put('references/aid-types/{aidType}', [ReferencesController::class, 'updateAidType']);
-    Route::delete('references/aid-types/{aidType}', [ReferencesController::class, 'destroyAidType']);
-    
-    // References Management - Income Categories (Accounting)
-    Route::get('references/income-categories', [ReferencesController::class, 'getAccountingIncomeCategories']);
-    Route::post('references/income-categories', [ReferencesController::class, 'storeAccountingIncomeCategory']);
-    Route::put('references/income-categories/{category}', [ReferencesController::class, 'updateAccountingIncomeCategory']);
-    Route::get('references/income-categories/{category}/related-count', [ReferencesController::class, 'getAccountingIncomeCategoryRelatedCount']);
-    Route::delete('references/income-categories/{category}', [ReferencesController::class, 'destroyAccountingIncomeCategory']);
-    
-    // References Management - Expense Categories (Accounting)
-    Route::get('references/expense-categories', [ReferencesController::class, 'getAccountingExpenseCategories']);
-    Route::post('references/expense-categories', [ReferencesController::class, 'storeAccountingExpenseCategory']);
-    Route::put('references/expense-categories/{category}', [ReferencesController::class, 'updateAccountingExpenseCategory']);
-    Route::get('references/expense-categories/{category}/related-count', [ReferencesController::class, 'getAccountingExpenseCategoryRelatedCount']);
-    Route::delete('references/expense-categories/{category}', [ReferencesController::class, 'destroyAccountingExpenseCategory']);
-    
-    // References Management - Partner Fields
-    Route::get('references/partner-fields', [ReferencesController::class, 'getPartnerFields']);
-    Route::post('references/partner-fields', [ReferencesController::class, 'storePartnerField']);
-    Route::put('references/partner-fields/{field}', [ReferencesController::class, 'updatePartnerField']);
-    Route::delete('references/partner-fields/{field}', [ReferencesController::class, 'destroyPartnerField']);
-    
-    // References Management - Partner Subfields
-    Route::get('references/partner-subfields', [ReferencesController::class, 'getPartnerSubfields']);
-    Route::post('references/partner-subfields', [ReferencesController::class, 'storePartnerSubfield']);
-    Route::put('references/partner-subfields/{subfield}', [ReferencesController::class, 'updatePartnerSubfield']);
-    Route::delete('references/partner-subfields/{subfield}', [ReferencesController::class, 'destroyPartnerSubfield']);
-    
-    // References Management - Partners
-    Route::get('references/partners', [ReferencesController::class, 'getPartners']);
-    Route::post('references/partners', [ReferencesController::class, 'storePartner']);
-    Route::put('references/partners/{partner}', [ReferencesController::class, 'updatePartner']);
-    Route::delete('references/partners/{partner}', [ReferencesController::class, 'destroyPartner']);
-    
-    // References Management - Education Levels (CRUD)
-    Route::get('references/education-levels', [ReferencesController::class, 'getEducationLevels']);
-    Route::post('references/education-levels', [ReferencesController::class, 'storeEducationLevel']);
-    Route::put('references/education-levels/{level}', [ReferencesController::class, 'updateEducationLevel']);
-    Route::delete('references/education-levels/{level}', [ReferencesController::class, 'destroyEducationLevel']);
-    Route::post('references/education-levels/reorder', [ReferencesController::class, 'reorderEducationLevels']);
-    
-    // References Management - Sub-Budgets
-    Route::get('references/sub-budgets', [ReferencesController::class, 'getSubBudgets']);
-    Route::post('references/sub-budgets', [ReferencesController::class, 'storeSubBudget']);
-    Route::put('references/sub-budgets/{subBudget}', [ReferencesController::class, 'updateSubBudget']);
-    Route::delete('references/sub-budgets/{subBudget}', [ReferencesController::class, 'destroySubBudget']);
-    
-    // References Management - Widow Income Categories
-    Route::get('references/widow-income-categories', [ReferencesController::class, 'getIncomeCategories']);
-    Route::post('references/widow-income-categories', [ReferencesController::class, 'storeIncomeCategory']);
-    Route::put('references/widow-income-categories/{category}', [ReferencesController::class, 'updateIncomeCategory']);
-    Route::delete('references/widow-income-categories/{category}', [ReferencesController::class, 'destroyIncomeCategory']);
-    
-    // References Management - Widow Expense Categories
-    Route::get('references/widow-expense-categories', [ReferencesController::class, 'getExpenseCategories']);
-    Route::post('references/widow-expense-categories', [ReferencesController::class, 'storeExpenseCategory']);
-    Route::put('references/widow-expense-categories/{category}', [ReferencesController::class, 'updateExpenseCategory']);
-    Route::delete('references/widow-expense-categories/{category}', [ReferencesController::class, 'destroyExpenseCategory']);
-    
+    // References Management
+    Route::prefix('references')->group(function () {
+        // Skills
+        Route::get('skills', [References\SkillController::class, 'index']);
+        Route::post('skills', [References\SkillController::class, 'store']);
+        Route::put('skills/{skill}', [References\SkillController::class, 'update']);
+        Route::delete('skills/{skill}', [References\SkillController::class, 'destroy']);
+
+        // Illnesses
+        Route::get('illnesses', [References\IllnessController::class, 'index']);
+        Route::post('illnesses', [References\IllnessController::class, 'store']);
+        Route::put('illnesses/{illness}', [References\IllnessController::class, 'update']);
+        Route::delete('illnesses/{illness}', [References\IllnessController::class, 'destroy']);
+
+        // Aid Types
+        Route::get('aid-types', [References\AidTypeController::class, 'index']);
+        Route::post('aid-types', [References\AidTypeController::class, 'store']);
+        Route::put('aid-types/{aidType}', [References\AidTypeController::class, 'update']);
+        Route::delete('aid-types/{aidType}', [References\AidTypeController::class, 'destroy']);
+
+        // Income Categories (Accounting)
+        Route::get('income-categories', [References\AccountingIncomeCategoryController::class, 'index']);
+        Route::post('income-categories', [References\AccountingIncomeCategoryController::class, 'store']);
+        Route::put('income-categories/{category}', [References\AccountingIncomeCategoryController::class, 'update']);
+        Route::get('income-categories/{category}/related-count', [References\AccountingIncomeCategoryController::class, 'relatedCount']);
+        Route::delete('income-categories/{category}', [References\AccountingIncomeCategoryController::class, 'destroy']);
+
+        // Expense Categories (Accounting)
+        Route::get('expense-categories', [References\AccountingExpenseCategoryController::class, 'index']);
+        Route::post('expense-categories', [References\AccountingExpenseCategoryController::class, 'store']);
+        Route::put('expense-categories/{category}', [References\AccountingExpenseCategoryController::class, 'update']);
+        Route::get('expense-categories/{category}/related-count', [References\AccountingExpenseCategoryController::class, 'relatedCount']);
+        Route::delete('expense-categories/{category}', [References\AccountingExpenseCategoryController::class, 'destroy']);
+
+        // Partner Fields
+        Route::get('partner-fields', [References\PartnerFieldController::class, 'index']);
+        Route::post('partner-fields', [References\PartnerFieldController::class, 'store']);
+        Route::put('partner-fields/{field}', [References\PartnerFieldController::class, 'update']);
+        Route::delete('partner-fields/{field}', [References\PartnerFieldController::class, 'destroy']);
+
+        // Partner Subfields
+        Route::get('partner-subfields', [References\PartnerSubfieldController::class, 'index']);
+        Route::post('partner-subfields', [References\PartnerSubfieldController::class, 'store']);
+        Route::put('partner-subfields/{subfield}', [References\PartnerSubfieldController::class, 'update']);
+        Route::delete('partner-subfields/{subfield}', [References\PartnerSubfieldController::class, 'destroy']);
+
+        // Partners
+        Route::get('partners', [References\PartnerController::class, 'index']);
+        Route::post('partners', [References\PartnerController::class, 'store']);
+        Route::put('partners/{partner}', [References\PartnerController::class, 'update']);
+        Route::delete('partners/{partner}', [References\PartnerController::class, 'destroy']);
+
+        // Education Levels
+        Route::get('education-levels', [References\EducationLevelController::class, 'index']);
+        Route::post('education-levels', [References\EducationLevelController::class, 'store']);
+        Route::put('education-levels/{level}', [References\EducationLevelController::class, 'update']);
+        Route::delete('education-levels/{level}', [References\EducationLevelController::class, 'destroy']);
+        Route::post('education-levels/reorder', [References\EducationLevelController::class, 'reorder']);
+
+        // Sub-Budgets
+        Route::get('sub-budgets', [References\SubBudgetController::class, 'index']);
+        Route::post('sub-budgets', [References\SubBudgetController::class, 'store']);
+        Route::put('sub-budgets/{subBudget}', [References\SubBudgetController::class, 'update']);
+        Route::delete('sub-budgets/{subBudget}', [References\SubBudgetController::class, 'destroy']);
+
+        // Widow Income Categories
+        Route::get('widow-income-categories', [References\WidowIncomeCategoryController::class, 'index']);
+        Route::post('widow-income-categories', [References\WidowIncomeCategoryController::class, 'store']);
+        Route::put('widow-income-categories/{category}', [References\WidowIncomeCategoryController::class, 'update']);
+        Route::delete('widow-income-categories/{category}', [References\WidowIncomeCategoryController::class, 'destroy']);
+
+        // Widow Expense Categories
+        Route::get('widow-expense-categories', [References\WidowExpenseCategoryController::class, 'index']);
+        Route::post('widow-expense-categories', [References\WidowExpenseCategoryController::class, 'store']);
+        Route::put('widow-expense-categories/{category}', [References\WidowExpenseCategoryController::class, 'update']);
+        Route::delete('widow-expense-categories/{category}', [References\WidowExpenseCategoryController::class, 'destroy']);
+    });
+
     // Fiscal Year Management
     Route::get('fiscal-years', [FiscalYearController::class, 'index']);
     Route::get('fiscal-years/{fiscalYear}/closing-status', [FiscalYearController::class, 'getClosingStatus']);
@@ -190,5 +191,5 @@ Route::prefix('v1')->group(function () {
     Route::post('fiscal-years/{fiscalYear}/close', [FiscalYearController::class, 'closeFiscalYear']);
     Route::get('fiscal-years/{fiscalYear}/untransferred-incomes', [FiscalYearController::class, 'getUntransferredIncomes']);
     Route::post('incomes/{income}/transfer', [FiscalYearController::class, 'transferIncome']);
-    
+
 });

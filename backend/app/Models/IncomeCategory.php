@@ -11,6 +11,13 @@ class IncomeCategory extends Model
 {
     use HasFactory;
 
+    /**
+     * Sentinel category that incomes fall back to when their category is
+     * deleted. The row is created by AccountingSeeder and must never be
+     * deleted itself.
+     */
+    public const DELETED_CATEGORY_ID = 999;
+
     protected $fillable = [
         'sub_budget_id',
         'label',
@@ -29,10 +36,10 @@ class IncomeCategory extends Model
     protected static function booted()
     {
         static::deleting(function ($incomeCategory) {
-            if ($incomeCategory->id === 999) {
+            if ($incomeCategory->id === self::DELETED_CATEGORY_ID) {
                 throw new \Exception('Cannot delete the default income category.');
             }
-            $incomeCategory->incomes()->update(['income_category_id' => 999]);
+            $incomeCategory->incomes()->update(['income_category_id' => self::DELETED_CATEGORY_ID]);
         });
     }
 }

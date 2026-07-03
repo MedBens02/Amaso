@@ -296,10 +296,11 @@ class FiscalYearClosingService
 
         } catch (Exception $e) {
             DB::rollBack();
-            
+            report($e);
+
             return [
                 'success' => false,
-                'message' => 'خطأ في تحويل الإيراد: ' . $e->getMessage()
+                'message' => 'خطأ في تحويل الإيراد',
             ];
         }
     }

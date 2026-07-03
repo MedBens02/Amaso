@@ -3,14 +3,19 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\V1\StoreTransferRequest;
+use App\Http\Requests\V1\UpdateTransferRequest;
 use App\Models\Transfer;
-use App\Models\BankAccount;
-use Illuminate\Http\Request;
+use App\Services\TransferService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 
 class TransferController extends Controller
 {
+    public function __construct(private readonly TransferService $transfers)
+    {
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = Transfer::with([
@@ -18,66 +23,30 @@ class TransferController extends Controller
             'fromAccount',
             'toAccount',
             'createdBy',
-            'approvedBy'
-        ]);
+            'approvedBy',
+        ])
+            ->when($request->fiscal_year_id, fn ($query, $fiscalYearId) => $query->where('fiscal_year_id', $fiscalYearId))
+            ->when($request->status, fn ($query, $status) => $query->where('status', $status))
+            ->when($request->from_date, fn ($query, $fromDate) => $query->whereDate('transfer_date', '>=', $fromDate))
+            ->when($request->to_date, fn ($query, $toDate) => $query->whereDate('transfer_date', '<=', $toDate))
+            ->when($request->month, fn ($query, $month) => $query->whereMonth('transfer_date', $month))
+            ->when($request->year, fn ($query, $year) => $query->whereYear('transfer_date', $year))
+            ->when($request->min_amount, fn ($query, $minAmount) => $query->where('amount', '>=', $minAmount))
+            ->when($request->max_amount, fn ($query, $maxAmount) => $query->where('amount', '<=', $maxAmount))
+            ->when($request->from_account_id, fn ($query, $fromAccountId) => $query->where('from_account_id', $fromAccountId))
+            ->when($request->to_account_id, fn ($query, $toAccountId) => $query->where('to_account_id', $toAccountId));
 
-        // Basic filters
-        $query->when($request->fiscal_year_id, function ($query, $fiscalYearId) {
-            return $query->where('fiscal_year_id', $fiscalYearId);
-        });
-
-        $query->when($request->status, function ($query, $status) {
-            return $query->where('status', $status);
-        });
-
-        // Date range filtering
-        $query->when($request->from_date, function ($query, $fromDate) {
-            return $query->whereDate('transfer_date', '>=', $fromDate);
-        });
-
-        $query->when($request->to_date, function ($query, $toDate) {
-            return $query->whereDate('transfer_date', '<=', $toDate);
-        });
-
-        // Month filtering
-        $query->when($request->month, function ($query, $month) {
-            return $query->whereMonth('transfer_date', $month);
-        });
-
-        $query->when($request->year, function ($query, $year) {
-            return $query->whereYear('transfer_date', $year);
-        });
-
-        // Amount range filtering
-        $query->when($request->min_amount, function ($query, $minAmount) {
-            return $query->where('amount', '>=', $minAmount);
-        });
-
-        $query->when($request->max_amount, function ($query, $maxAmount) {
-            return $query->where('amount', '<=', $maxAmount);
-        });
-
-        // Account-specific filtering
-        $query->when($request->from_account_id, function ($query, $fromAccountId) {
-            return $query->where('from_account_id', $fromAccountId);
-        });
-
-        $query->when($request->to_account_id, function ($query, $toAccountId) {
-            return $query->where('to_account_id', $toAccountId);
-        });
-
-        // Search filtering (remarks or account names)
         $query->when($request->search, function ($query, $search) {
             return $query->where(function ($q) use ($search) {
                 $q->where('remarks', 'like', "%{$search}%")
-                  ->orWhereHas('fromAccount', function ($accountQuery) use ($search) {
-                      $accountQuery->where('label', 'like', "%{$search}%")
-                                  ->orWhere('bank_name', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('toAccount', function ($accountQuery) use ($search) {
-                      $accountQuery->where('label', 'like', "%{$search}%")
-                                  ->orWhere('bank_name', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('fromAccount', function ($account) use ($search) {
+                        $account->where('label', 'like', "%{$search}%")
+                            ->orWhere('bank_name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('toAccount', function ($account) use ($search) {
+                        $account->where('label', 'like', "%{$search}%")
+                            ->orWhere('bank_name', 'like', "%{$search}%");
+                    });
             });
         });
 
@@ -92,29 +61,21 @@ class TransferController extends Controller
                 'last_page' => $transfers->lastPage(),
                 'per_page' => $transfers->perPage(),
                 'total' => $transfers->total(),
-            ]
+            ],
         ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreTransferRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'fiscal_year_id' => 'required|exists:fiscal_years,id',
-            'transfer_date' => 'required|date',
-            'from_account_id' => 'required|exists:bank_accounts,id',
-            'to_account_id' => 'required|exists:bank_accounts,id|different:from_account_id',
-            'amount' => 'required|numeric|min:0',
-            'remarks' => 'nullable|string|max:1000',
+        $transfer = Transfer::create([
+            ...$request->validated(),
+            'status' => 'Draft',
+            'created_by' => auth()->id() ?? 1,
         ]);
-
-        $validated['created_by'] = 1; // Mock user ID
-        $validated['status'] = 'Draft'; // All new transfers start as Draft
-        
-        $transfer = Transfer::create($validated);
 
         return response()->json([
             'message' => 'تم إنشاء التحويل بنجاح. سيتم تحديث الأرصدة عند الاعتماد.',
-            'data' => $transfer->load(['fromAccount', 'toAccount'])
+            'data' => $transfer->load(['fromAccount', 'toAccount']),
         ], 201);
     }
 
@@ -125,34 +86,25 @@ class TransferController extends Controller
             'fromAccount',
             'toAccount',
             'createdBy',
-            'approvedBy'
+            'approvedBy',
         ]);
 
         return response()->json(['data' => $transfer]);
     }
 
-    public function update(Request $request, Transfer $transfer): JsonResponse
+    public function update(UpdateTransferRequest $request, Transfer $transfer): JsonResponse
     {
         if ($transfer->status === 'Approved') {
             return response()->json([
-                'message' => 'لا يمكن تعديل التحويلات المعتمدة'
+                'message' => 'لا يمكن تعديل التحويلات المعتمدة',
             ], 403);
         }
 
-        $validated = $request->validate([
-            'fiscal_year_id' => 'required|exists:fiscal_years,id',
-            'transfer_date' => 'required|date',
-            'from_account_id' => 'required|exists:bank_accounts,id',
-            'to_account_id' => 'required|exists:bank_accounts,id|different:from_account_id',
-            'amount' => 'required|numeric|min:0',
-            'remarks' => 'nullable|string',
-        ]);
-
-        $transfer->update($validated);
+        $transfer->update($request->validated());
 
         return response()->json([
             'message' => 'تم تحديث التحويل بنجاح',
-            'data' => $transfer->load(['fromAccount', 'toAccount'])
+            'data' => $transfer->load(['fromAccount', 'toAccount']),
         ]);
     }
 
@@ -160,61 +112,28 @@ class TransferController extends Controller
     {
         if ($transfer->status === 'Approved') {
             return response()->json([
-                'message' => 'لا يمكن حذف التحويلات المعتمدة'
+                'message' => 'لا يمكن حذف التحويلات المعتمدة',
             ], 403);
         }
 
         $transfer->delete();
 
         return response()->json([
-            'message' => 'تم حذف التحويل بنجاح'
+            'message' => 'تم حذف التحويل بنجاح',
         ]);
     }
 
     public function approve(Request $request, Transfer $transfer): JsonResponse
     {
-        if ($transfer->status === 'Approved') {
-            return response()->json([
-                'message' => 'التحويل معتمد مسبقاً'
-            ], 400);
-        }
-
         $validated = $request->validate([
-            'remarks' => 'nullable|string|max:1000'
+            'remarks' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        return DB::transaction(function () use ($transfer, $validated) {
-            // Check if source account has sufficient balance
-            $fromAccount = BankAccount::findOrFail($transfer->from_account_id);
-            if ($fromAccount->balance < $transfer->amount) {
-                return response()->json([
-                    'message' => 'الرصيد في الحساب المصدر غير كافي لاعتماد التحويل',
-                    'errors' => ['balance' => ['الرصيد غير كافي']]
-                ], 422);
-            }
+        $transfer = $this->transfers->approve($transfer, $validated['remarks'] ?? null);
 
-            // Update account balances
-            $fromAccount->decrement('balance', $transfer->amount);
-            $toAccount = BankAccount::findOrFail($transfer->to_account_id);
-            $toAccount->increment('balance', $transfer->amount);
-
-            // Approve the transfer and update remarks if provided
-            $updateData = [
-                'status' => 'Approved',
-                'approved_by' => 1, // Mock user ID
-                'approved_at' => now(),
-            ];
-
-            if (isset($validated['remarks'])) {
-                $updateData['remarks'] = $validated['remarks'];
-            }
-
-            $transfer->update($updateData);
-
-            return response()->json([
-                'message' => 'تم اعتماد التحويل وتحديث أرصدة الحسابات بنجاح',
-                'data' => $transfer->load(['fromAccount', 'toAccount'])
-            ]);
-        });
+        return response()->json([
+            'message' => 'تم اعتماد التحويل وتحديث أرصدة الحسابات بنجاح',
+            'data' => $transfer->load(['fromAccount', 'toAccount']),
+        ]);
     }
 }
