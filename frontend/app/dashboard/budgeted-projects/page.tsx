@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { BudgetedProjectsTable } from "@/components/budgeted-projects/budgeted-projects-table"
 import { NewBudgetedProjectDialog } from "@/components/forms/NewBudgetedProjectForm"
+import { WorkInProgressBanner } from "@/components/common/work-in-progress-banner"
 import { Plus, Search, FolderOpen } from "lucide-react"
 
 export default function BudgetedProjectsPage() {
@@ -14,6 +15,8 @@ export default function BudgetedProjectsPage() {
 
   return (
     <div className="space-y-6">
+      <WorkInProgressBanner />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

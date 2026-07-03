@@ -5,10 +5,13 @@ import { InstitutionsTab } from "@/components/education/institutions-tab"
 import { StudentsTab } from "@/components/education/students-tab"
 import { ResultsTab } from "@/components/education/results-tab"
 import { TransportTab } from "@/components/education/transport-tab"
+import { WorkInProgressBanner } from "@/components/common/work-in-progress-banner"
 
 export default function EducationPage() {
   return (
     <div className="space-y-6">
+      <WorkInProgressBanner />
+
       <div>
         <h1 className="text-3xl font-bold text-gray-900">النظام التعليمي</h1>
         <p className="text-gray-600 mt-2">إدارة المؤسسات التعليمية والطلاب والنتائج</p>

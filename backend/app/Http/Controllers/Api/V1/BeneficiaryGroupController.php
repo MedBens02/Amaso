@@ -3,33 +3,26 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Models\BeneficiaryGroup;
 use App\Models\Beneficiary;
-use Illuminate\Http\Request;
+use App\Models\BeneficiaryGroup;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 class BeneficiaryGroupController extends Controller
 {
-    /**
-     * Display a listing of beneficiary groups
-     */
     public function index(Request $request): JsonResponse
     {
         $query = BeneficiaryGroup::query();
 
-        // Search functionality
-        if ($request->has('search') && $request->search) {
-            $searchTerm = $request->search;
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('label', 'like', "%{$searchTerm}%")
-                  ->orWhere('description', 'like', "%{$searchTerm}%");
+        if ($search = $request->search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('label', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
-        $perPage = $request->get('per_page', 15);
-        $groups = $query->latest()->paginate($perPage);
+        $groups = $query->latest()->paginate($request->get('per_page', 15));
 
         return response()->json([
             'data' => $groups->items(),
@@ -38,13 +31,10 @@ class BeneficiaryGroupController extends Controller
                 'last_page' => $groups->lastPage(),
                 'per_page' => $groups->perPage(),
                 'total' => $groups->total(),
-            ]
+            ],
         ]);
     }
 
-    /**
-     * Store a new beneficiary group
-     */
     public function store(Request $request): JsonResponse
     {
         $request->validate([
@@ -54,49 +44,32 @@ class BeneficiaryGroupController extends Controller
             'beneficiary_ids.*' => 'exists:beneficiaries,id',
         ]);
 
-        try {
-            DB::beginTransaction();
-
-            // Create the group
+        $group = DB::transaction(function () use ($request) {
             $group = BeneficiaryGroup::create([
                 'label' => $request->name,
                 'description' => $request->description,
             ]);
 
-            // Add beneficiaries to the group
             $group->syncBeneficiaries($request->beneficiary_ids);
 
-            DB::commit();
+            return $group;
+        });
 
-            // Load the group with beneficiaries
-            $group->load(['beneficiaries.widow', 'beneficiaries.orphan']);
+        $group->load(['beneficiaries.widow', 'beneficiaries.orphan']);
 
-            return response()->json([
-                'data' => $group,
-                'message' => 'تم إنشاء المجموعة بنجاح'
-            ], 201);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'خطأ في إنشاء المجموعة',
-                'errors' => ['general' => [$e->getMessage()]]
-            ], 422);
-        }
+        return response()->json([
+            'data' => $group,
+            'message' => 'تم إنشاء المجموعة بنجاح',
+        ], 201);
     }
 
-    /**
-     * Display the specified beneficiary group
-     */
     public function show(BeneficiaryGroup $beneficiaryGroup): JsonResponse
     {
         $beneficiaryGroup->load(['beneficiaries.widow', 'beneficiaries.orphan']);
+
         return response()->json(['data' => $beneficiaryGroup]);
     }
 
-    /**
-     * Update the specified beneficiary group
-     */
     public function update(Request $request, BeneficiaryGroup $beneficiaryGroup): JsonResponse
     {
         $request->validate([
@@ -106,67 +79,35 @@ class BeneficiaryGroupController extends Controller
             'beneficiary_ids.*' => 'exists:beneficiaries,id',
         ]);
 
-        try {
-            DB::beginTransaction();
-
+        DB::transaction(function () use ($request, $beneficiaryGroup) {
             $beneficiaryGroup->update([
                 'label' => $request->name,
-                'description' => $request->description
+                'description' => $request->description,
             ]);
 
-            // Update beneficiaries if provided
             if ($request->has('beneficiary_ids')) {
                 $beneficiaryGroup->syncBeneficiaries($request->beneficiary_ids);
             }
+        });
 
-            DB::commit();
+        $beneficiaryGroup->load(['beneficiaries.widow', 'beneficiaries.orphan']);
 
-            $beneficiaryGroup->load(['beneficiaries.widow', 'beneficiaries.orphan']);
-
-            return response()->json([
-                'data' => $beneficiaryGroup,
-                'message' => 'تم تحديث المجموعة بنجاح'
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'خطأ في تحديث المجموعة',
-                'errors' => ['general' => [$e->getMessage()]]
-            ], 422);
-        }
+        return response()->json([
+            'data' => $beneficiaryGroup,
+            'message' => 'تم تحديث المجموعة بنجاح',
+        ]);
     }
 
-    /**
-     * Remove the specified beneficiary group
-     */
     public function destroy(BeneficiaryGroup $beneficiaryGroup): JsonResponse
     {
-        try {
-            DB::beginTransaction();
-
-            // Remove all members first
+        DB::transaction(function () use ($beneficiaryGroup) {
             $beneficiaryGroup->beneficiaries()->detach();
-            
-            // Delete the group
             $beneficiaryGroup->delete();
+        });
 
-            DB::commit();
-
-            return response()->json(['message' => 'تم حذف المجموعة بنجاح']);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'خطأ في حذف المجموعة',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        return response()->json(['message' => 'تم حذف المجموعة بنجاح']);
     }
 
-    /**
-     * Get members of a specific group
-     */
     public function getMembers(BeneficiaryGroup $beneficiaryGroup): JsonResponse
     {
         $members = $beneficiaryGroup->beneficiaries()
@@ -176,9 +117,6 @@ class BeneficiaryGroupController extends Controller
         return response()->json(['data' => $members]);
     }
 
-    /**
-     * Add members to a group
-     */
     public function addMembers(Request $request, BeneficiaryGroup $beneficiaryGroup): JsonResponse
     {
         $request->validate([
@@ -186,71 +124,48 @@ class BeneficiaryGroupController extends Controller
             'beneficiary_ids.*' => 'exists:beneficiaries,id',
         ]);
 
-        try {
-            $beneficiaryGroup->addBeneficiaries($request->beneficiary_ids);
+        $beneficiaryGroup->addBeneficiaries($request->beneficiary_ids);
 
-            return response()->json([
-                'message' => 'تم إضافة الأعضاء بنجاح',
-                'members_count' => $beneficiaryGroup->members_count
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'خطأ في إضافة الأعضاء',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        return response()->json([
+            'message' => 'تم إضافة الأعضاء بنجاح',
+            'members_count' => $beneficiaryGroup->members_count,
+        ]);
     }
 
-    /**
-     * Remove a specific member from a group
-     */
     public function removeMember(BeneficiaryGroup $beneficiaryGroup, Beneficiary $beneficiary): JsonResponse
     {
-        try {
-            $beneficiaryGroup->removeBeneficiaries([$beneficiary->id]);
+        $beneficiaryGroup->removeBeneficiaries([$beneficiary->id]);
 
-            return response()->json([
-                'message' => 'تم حذف العضو بنجاح',
-                'members_count' => $beneficiaryGroup->members_count
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'خطأ في حذف العضو',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        return response()->json([
+            'message' => 'تم حذف العضو بنجاح',
+            'members_count' => $beneficiaryGroup->members_count,
+        ]);
     }
 
     /**
-     * Get all beneficiaries for selection
+     * List beneficiaries (widows and orphans) for selection UIs.
      */
     public function getBeneficiaries(Request $request): JsonResponse
     {
         $query = Beneficiary::with(['widow', 'orphan']);
 
-        // Filter by type if provided
-        if ($request->has('type') && in_array($request->type, ['Widow', 'Orphan'])) {
+        if (in_array($request->type, ['Widow', 'Orphan'])) {
             $query->where('type', $request->type);
         }
 
-        // Search functionality
-        if ($request->has('search') && $request->search) {
-            $searchTerm = $request->search;
-            $query->where(function ($q) use ($searchTerm) {
-                $q->whereHas('widow', function ($widowQuery) use ($searchTerm) {
-                    $widowQuery->where('first_name', 'like', "%{$searchTerm}%")
-                               ->orWhere('last_name', 'like', "%{$searchTerm}%");
-                })->orWhereHas('orphan', function ($orphanQuery) use ($searchTerm) {
-                    $orphanQuery->where('first_name', 'like', "%{$searchTerm}%")
-                                ->orWhere('last_name', 'like', "%{$searchTerm}%");
+        if ($search = $request->search) {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('widow', function ($widow) use ($search) {
+                    $widow->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%");
+                })->orWhereHas('orphan', function ($orphan) use ($search) {
+                    $orphan->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%");
                 });
             });
         }
 
-        $perPage = $request->get('per_page', 100); // Higher limit for selection
-        $beneficiaries = $query->paginate($perPage);
+        $beneficiaries = $query->paginate($request->get('per_page', 100));
 
         return response()->json([
             'data' => $beneficiaries->items(),
@@ -259,7 +174,7 @@ class BeneficiaryGroupController extends Controller
                 'last_page' => $beneficiaries->lastPage(),
                 'per_page' => $beneficiaries->perPage(),
                 'total' => $beneficiaries->total(),
-            ]
+            ],
         ]);
     }
 }

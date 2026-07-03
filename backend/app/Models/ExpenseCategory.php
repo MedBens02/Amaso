@@ -11,6 +11,13 @@ class ExpenseCategory extends Model
 {
     use HasFactory;
 
+    /**
+     * Sentinel category that expenses fall back to when their category is
+     * deleted. The row is created by AccountingSeeder and must never be
+     * deleted itself.
+     */
+    public const DELETED_CATEGORY_ID = 999;
+
     protected $fillable = [
         'sub_budget_id',
         'label',
@@ -29,10 +36,10 @@ class ExpenseCategory extends Model
     protected static function booted()
     {
         static::deleting(function ($expenseCategory) {
-            if ($expenseCategory->id === 999) {
+            if ($expenseCategory->id === self::DELETED_CATEGORY_ID) {
                 throw new \Exception('Cannot delete the default expense category.');
             }
-            $expenseCategory->expenses()->update(['expense_category_id' => 999]);
+            $expenseCategory->expenses()->update(['expense_category_id' => self::DELETED_CATEGORY_ID]);
         });
     }
 }
