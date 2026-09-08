@@ -54,7 +54,9 @@ const defaultOptions: PDFGenerationOptions = {
  * Handles dynamic imports, multi-page splitting, and error handling
  */
 export async function generatePDFFromHTML(
-  elementRef: React.RefObject<HTMLElement>,
+  // React 19 types useRef<T>(null) as RefObject<T | null>; the current value
+  // is null-checked below either way.
+  elementRef: React.RefObject<HTMLElement | null>,
   filename: string,
   options?: Partial<PDFGenerationOptions>
 ): Promise<PDFGenerationResult> {

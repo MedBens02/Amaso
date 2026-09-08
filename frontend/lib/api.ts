@@ -196,6 +196,7 @@ class ApiClient {
     sub_budget_id: number
     income_category_id: number
     donor_id?: number
+    widow_id?: number
     kafil_id?: number
     income_date: string
     amount: number
@@ -217,6 +218,7 @@ class ApiClient {
     sub_budget_id: number
     income_category_id: number
     donor_id?: number
+    widow_id?: number
     kafil_id?: number
     income_date: string
     amount: number
@@ -273,6 +275,7 @@ class ApiClient {
 
   async createKafalaChamilaIncome(data: {
     kafil_id: number
+    widow_id?: number
     fiscal_year_id: number
     income_date: string
     payment_method: 'Cash' | 'Cheque' | 'BankWire'
@@ -287,6 +290,14 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     })
+  }
+
+  // Reports
+  async getKafilStatement(kafilId: number, params?: { from?: string; to?: string }) {
+    const query = params && (params.from || params.to)
+      ? '?' + new URLSearchParams(params as Record<string, string>).toString()
+      : ''
+    return this.request<any>(`/reports/kafils/${kafilId}/statement${query}`)
   }
 
   // Expenses API

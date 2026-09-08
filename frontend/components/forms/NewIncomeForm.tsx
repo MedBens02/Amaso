@@ -38,6 +38,9 @@ const incomeSchema = z
     income_type: z.enum(["donation", "kafala", "kafala_chamila"], { required_error: "نوع الإيراد مطلوب" }),
     donor_id: z.string().optional(),
     kafil_id: z.string().optional(),
+    // Family this payment is designated for - intent only, the money still
+    // goes to the sub-budgets. Used by the kafil statement.
+    widow_id: z.string().optional(),
     amount: z.number().positive("المبلغ يجب أن يكون موجباً"),
     kafala_chamila_splits: z.array(z.object({ split_id: z.number(), amount: z.number() })).optional(),
     payment_method: z.enum(["Cash", "Cheque", "BankWire"], { required_error: "طريقة الدفع مطلوبة" }),
@@ -269,8 +272,12 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
         const monthlyPledge = parseFloat(kafil.monthly_pledge || 0)
         form.setValue('amount', (totalAmount || monthlyPledge).toString())
       }
+
+      // With a single sponsored family there's nothing to choose - designate it.
+      form.setValue('widow_id', kafil.sponsorships.length === 1 ? kafil.sponsorships[0].widow_id?.toString() ?? '' : '')
     } else {
       setSelectedKafilSponsorship(null)
+      form.setValue('widow_id', '')
     }
   }
 
@@ -329,6 +336,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
 
         const result = await api.createKafalaChamilaIncome({
           kafil_id: parseInt(data.kafil_id!),
+          widow_id: data.widow_id ? parseInt(data.widow_id) : undefined,
           fiscal_year_id: fiscalYearId,
           income_date: format(data.income_date, 'yyyy-MM-dd'),
           payment_method: data.payment_method,
@@ -359,6 +367,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
         income_category_id: parseInt(data.income_category_id!),
         donor_id: data.income_type === 'donation' && data.donor_id ? parseInt(data.donor_id) : undefined,
         kafil_id: data.income_type === 'kafala' && data.kafil_id ? parseInt(data.kafil_id) : undefined,
+        widow_id: data.income_type === 'kafala' && data.widow_id ? parseInt(data.widow_id) : undefined,
         income_date: format(data.income_date, 'yyyy-MM-dd'),
         amount: data.amount,
         payment_method: data.payment_method,
@@ -842,6 +851,36 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                 )}
                 {form.formState.errors.kafil_id && (
                   <p className="text-sm text-red-600">{form.formState.errors.kafil_id.message}</p>
+                )}
+
+                {/* Which sponsored family this payment is meant for. Recorded as
+                    intent for the kafil statement - the money still goes to the
+                    sub-budgets. */}
+                {selectedKafilSponsorship?.sponsorships?.length > 0 && (
+                  <div className="space-y-2 pt-2">
+                    <Label>مخصص لأسرة</Label>
+                    <Controller
+                      name="widow_id"
+                      control={form.control}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="اختر الأسرة المستفيدة (اختياري)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {selectedKafilSponsorship.sponsorships.map((sponsorship: any) => (
+                              <SelectItem key={sponsorship.widow_id} value={sponsorship.widow_id?.toString()}>
+                                {sponsorship.widow?.first_name} {sponsorship.widow?.last_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    <p className="text-xs text-gray-500">
+                      يُسجَّل كوجهة مقصودة للمساهمة ويظهر في كشف الكفيل. المبالغ نفسها توزَّع على الميزانيات الفرعية كالمعتاد.
+                    </p>
+                  </div>
                 )}
               </div>
             )}
