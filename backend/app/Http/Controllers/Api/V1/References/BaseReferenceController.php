@@ -43,6 +43,11 @@ abstract class BaseReferenceController extends Controller
     public function update(Request $request, int $id): JsonResponse
     {
         $item = $this->model::findOrFail($id);
+
+        if ($abort = $this->beforeUpdate($item)) {
+            return $abort;
+        }
+
         $item->update($this->validateData($request, $item));
 
         return response()->json([
@@ -74,6 +79,12 @@ abstract class BaseReferenceController extends Controller
 
     /** Clean up dependents, or return a response to abort the delete. */
     protected function beforeDestroy(Model $item): ?JsonResponse
+    {
+        return null;
+    }
+
+    /** Guard against renaming a locked/system row, or return a response to abort the update. */
+    protected function beforeUpdate(Model $item): ?JsonResponse
     {
         return null;
     }

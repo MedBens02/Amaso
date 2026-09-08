@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             ReferenceDataSeeder::class,
             AccountingSeeder::class,
             EducationSeeder::class,
+            KafalaChamilaSeeder::class,
         ]);
     }
 }

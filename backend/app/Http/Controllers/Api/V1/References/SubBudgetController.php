@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\References;
 
+use App\Models\KafalaChamilaSplit;
 use App\Models\SubBudget;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -31,6 +32,10 @@ class SubBudgetController extends BaseReferenceController
 
     protected function beforeDestroy(Model $item): ?JsonResponse
     {
+        if ($locked = $this->rejectIfLocked($item)) {
+            return $locked;
+        }
+
         $incomeCount = $item->incomeCategories()->count();
         $expenseCount = $item->expenseCategories()->count();
 
@@ -38,6 +43,27 @@ class SubBudgetController extends BaseReferenceController
             return response()->json([
                 'message' => "لا يمكن حذف هذه الميزانية الفرعية لأنها تحتوي على {$incomeCount} فئة إيراد و {$expenseCount} فئة مصروف",
             ], 400);
+        }
+
+        return null;
+    }
+
+    protected function beforeUpdate(Model $item): ?JsonResponse
+    {
+        return $this->rejectIfLocked($item);
+    }
+
+    /**
+     * The 7 sub-budgets a kafala chamila payment splits across are a fixed
+     * system structure - see KafalaChamilaSplit. Only their percentage is
+     * editable, and only through the dedicated admin-only endpoint.
+     */
+    private function rejectIfLocked(Model $item): ?JsonResponse
+    {
+        if (in_array($item->id, KafalaChamilaSplit::lockedSubBudgetIds(), true)) {
+            return response()->json([
+                'message' => 'لا يمكن تعديل أو حذف هذه الميزانية الفرعية لأنها جزء من نظام توزيع الكفالة الشاملة الثابت',
+            ], 403);
         }
 
         return null;
