@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\AcademicYearController;
 use App\Http\Controllers\Api\V1\EnrollmentController;
 use App\Http\Controllers\Api\V1\KafalaChamilaController;
+use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\BeneficiaryGroupController;
 use App\Http\Controllers\Api\V1\References;
 
@@ -73,6 +74,9 @@ Route::prefix('v1')->group(function () {
     Route::get('kafala-chamila/splits', [KafalaChamilaController::class, 'splits']);
     Route::put('kafala-chamila/splits', [KafalaChamilaController::class, 'updateSplits']);
     Route::post('kafala-chamila/incomes', [KafalaChamilaController::class, 'storeIncome']);
+
+    // Reports
+    Route::get('reports/kafils/{kafil}/statement', [ReportController::class, 'kafilStatement']);
 
     // Expenses CRUD + approval
     Route::apiResource('expenses', ExpenseController::class);

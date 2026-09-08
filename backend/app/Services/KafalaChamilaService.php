@@ -43,7 +43,7 @@ class KafalaChamilaService
                 ]));
             }
 
-            return $created->load(['fiscalYear', 'subBudget', 'incomeCategory', 'kafil', 'bankAccount']);
+            return $created->load(['fiscalYear', 'subBudget', 'incomeCategory', 'kafil', 'widow', 'bankAccount']);
         });
     }
 

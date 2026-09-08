@@ -17,6 +17,8 @@ class StoreKafalaChamilaIncomeRequest extends FormRequest
     {
         return [
             'kafil_id' => ['required', 'exists:kafils,id'],
+            // Family this kafala is designated for (intent only - see Income::widow).
+            'widow_id' => ['nullable', 'exists:widows,id'],
             'fiscal_year_id' => ['required', 'exists:fiscal_years,id'],
             'income_date' => ['required', 'date'],
             'payment_method' => ['required', 'in:Cash,Cheque,BankWire'],

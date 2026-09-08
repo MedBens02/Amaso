@@ -16,6 +16,7 @@ class Income extends Model
         'income_category_id',
         'donor_id',
         'kafil_id',
+        'widow_id',
         'income_date',
         'amount',
         'payment_method',
@@ -60,6 +61,15 @@ class Income extends Model
     public function kafil(): BelongsTo
     {
         return $this->belongsTo(Kafil::class);
+    }
+
+    /**
+     * The family this payment was designated for, if any. Intent only - the
+     * money itself is pooled into the sub-budgets like any other income.
+     */
+    public function widow(): BelongsTo
+    {
+        return $this->belongsTo(Widow::class);
     }
 
     public function bankAccount(): BelongsTo

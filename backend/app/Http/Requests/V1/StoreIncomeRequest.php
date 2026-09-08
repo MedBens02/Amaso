@@ -20,6 +20,8 @@ class StoreIncomeRequest extends FormRequest
             'income_category_id' => ['required', 'exists:income_categories,id'],
             'donor_id' => ['nullable', 'exists:donors,id'],
             'kafil_id' => ['nullable', 'exists:kafils,id'],
+            // Family this payment is designated for (intent only - see Income::widow).
+            'widow_id' => ['nullable', 'exists:widows,id'],
             'income_date' => ['required', 'date'],
             'amount' => ['required', 'numeric', 'min:0'],
             'payment_method' => ['required', 'in:Cash,Cheque,BankWire'],
