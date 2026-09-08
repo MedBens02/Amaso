@@ -14,19 +14,27 @@ class TransferService
      */
     public function approve(Transfer $transfer, ?string $remarks = null): Transfer
     {
-        if ($transfer->status === 'Approved') {
-            throw new BusinessRuleException('التحويل معتمد مسبقاً', 400);
-        }
-
         return DB::transaction(function () use ($transfer, $remarks) {
-            $fromAccount = BankAccount::findOrFail($transfer->from_account_id);
+            $locked = Transfer::whereKey($transfer->getKey())->lockForUpdate()->firstOrFail();
 
-            if ($fromAccount->balance < $transfer->amount) {
+            if ($locked->status === 'Approved') {
+                throw new BusinessRuleException('التحويل معتمد مسبقاً', 400);
+            }
+
+            // Lock both accounts in a stable order so two transfers moving
+            // money in opposite directions cannot deadlock each other.
+            $accountIds = [$locked->from_account_id, $locked->to_account_id];
+            sort($accountIds);
+            BankAccount::whereIn('id', $accountIds)->lockForUpdate()->get();
+
+            $fromAccount = BankAccount::findOrFail($locked->from_account_id);
+
+            if ((float) $fromAccount->balance < (float) $locked->amount) {
                 throw new BusinessRuleException('الرصيد في الحساب المصدر غير كافي لاعتماد التحويل', 422);
             }
 
-            $fromAccount->decrement('balance', $transfer->amount);
-            BankAccount::findOrFail($transfer->to_account_id)->increment('balance', $transfer->amount);
+            $fromAccount->decrement('balance', $locked->amount);
+            BankAccount::whereKey($locked->to_account_id)->increment('balance', $locked->amount);
 
             $updateData = [
                 'status' => 'Approved',
@@ -38,9 +46,9 @@ class TransferService
                 $updateData['remarks'] = $remarks;
             }
 
-            $transfer->update($updateData);
+            $locked->update($updateData);
 
-            return $transfer;
+            return $locked;
         });
     }
 }

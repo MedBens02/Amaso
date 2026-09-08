@@ -3,6 +3,7 @@
 namespace App\Http\Requests\V1;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class StoreExpenseRequest extends FormRequest
@@ -15,7 +16,10 @@ class StoreExpenseRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'fiscal_year_id' => ['required', 'exists:fiscal_years,id'],
+            // Posting into a closed year would change totals whose carryover
+            // was already copied into the following year and is never
+            // recomputed - the books would stop adding up.
+            'fiscal_year_id' => ['required', Rule::exists('fiscal_years', 'id')->where('is_active', true)],
             'sub_budget_id' => ['required', 'exists:sub_budgets,id'],
             'expense_category_id' => ['required', 'exists:expense_categories,id'],
             'partner_id' => ['nullable', 'exists:partners,id'],
@@ -45,7 +49,7 @@ class StoreExpenseRequest extends FormRequest
     {
         return [
             'fiscal_year_id.required' => 'السنة المالية مطلوبة',
-            'fiscal_year_id.exists' => 'السنة المالية غير موجودة',
+            'fiscal_year_id.exists' => 'يجب تسجيل العملية في السنة المالية النشطة. لا يمكن الترحيل إلى سنة مغلقة.',
             'sub_budget_id.required' => 'الميزانية الفرعية مطلوبة',
             'sub_budget_id.exists' => 'الميزانية الفرعية غير موجودة',
             'expense_category_id.required' => 'فئة المصروف مطلوبة',

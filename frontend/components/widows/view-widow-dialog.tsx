@@ -12,6 +12,7 @@ import {
   Star, Building2, Droplets, Zap, Sofa, ShoppingCart, TrendingUp, TrendingDown, Printer
 } from "lucide-react"
 import { PrintWidowPDF } from "./print-widow-pdf"
+import { KafalaFamilyBalance } from "./kafala-family-balance"
 
 interface Widow {
   id: number
@@ -449,6 +450,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
 
             {/* Sponsorships Tab */}
             <TabsContent value="sponsorships" className="space-y-4">
+              <KafalaFamilyBalance widowId={widow.id} />
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">

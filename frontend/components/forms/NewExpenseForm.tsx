@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo } from "react"
-import { useForm, useFieldArray, Controller } from "react-hook-form"
+import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { formatDateArabic } from "@/lib/date-utils"
+import { KafalaCoveragePanel } from "@/components/forms/KafalaCoveragePanel"
 
 // Enhanced DatePicker component
 const DatePicker = ({
@@ -299,6 +300,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
   const [partners, setPartners] = useState<Partner[]>([])
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([])
+  const [familyByBeneficiary, setFamilyByBeneficiary] = useState<Record<number, { widowId: number; widowName: string }>>({})
   const [widows, setWidows] = useState<Beneficiary[]>([])
   const [activeFiscalYear, setActiveFiscalYear] = useState<any>(null)
   
@@ -343,6 +345,10 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
   // Watch form values
   const paymentMethod = form.watch("payment_method")
   const subBudgetId = form.watch("sub_budget_id")
+  // useWatch rather than form.watch: the per-beneficiary amounts are edited
+  // through registered inputs, and only useWatch re-renders reliably on each
+  // keystroke so the coverage panel tracks what is actually typed.
+  const watchedBeneficiaries = useWatch({ control: form.control, name: "beneficiaries" })
   const unrelatedToBenef = form.watch("unrelated_to_benef")
   const totalAmount = form.watch("amount") || 0
   
@@ -587,17 +593,58 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
     return new Set(beneficiaryFields.map(field => field.beneficiary_id))
   }, [beneficiaryFields])
 
+  // How much of this expense each family is receiving, for the kafala
+  // coverage panel. Orphan rows roll up to their mother's family.
+  const familyAllocations = useMemo(() => {
+    const byFamily = new Map<number, { widowId: number; widowName: string; amount: number }>()
+
+    beneficiaryFields.forEach((field, index) => {
+      const family = familyByBeneficiary[field.beneficiary_id]
+      if (!family) return
+
+      const amount = parseFloat(String(watchedBeneficiaries?.[index]?.amount ?? field.amount ?? 0)) || 0
+      const existing = byFamily.get(family.widowId)
+
+      byFamily.set(family.widowId, {
+        widowId: family.widowId,
+        widowName: family.widowName,
+        amount: (existing?.amount ?? 0) + amount,
+      })
+    })
+
+    return Array.from(byFamily.values())
+  }, [beneficiaryFields, familyByBeneficiary, watchedBeneficiaries])
+
   // Filter categories based on selected sub-budget
   const filteredCategories = expenseCategories.filter(cat => 
     !subBudgetId || cat.sub_budget_id === subBudgetId
   )
   
+  // Which family each selected beneficiary belongs to, recorded at selection
+  // time: the search results are replaced on every new search, so the mapping
+  // would otherwise be lost for beneficiaries selected in an earlier search.
+  const rememberFamily = (beneficiaryId: number) => {
+    const beneficiary = beneficiaries.find(b => b.id === beneficiaryId)
+    if (!beneficiary) return
+
+    const widowId = beneficiary.type === 'Widow' ? beneficiary.widow?.id : beneficiary.orphan?.widow_id
+    if (!widowId) return
+
+    const widowName = beneficiary.type === 'Widow'
+      ? (beneficiary.widow?.full_name || beneficiary.full_name || `${beneficiary.first_name} ${beneficiary.last_name}`)
+      : (findMotherName(beneficiary) || 'غير محدد')
+
+    setFamilyByBeneficiary(prev => ({ ...prev, [beneficiaryId]: { widowId, widowName } }))
+  }
+
   // Handle beneficiary selection
   const handleBeneficiarySelect = (beneficiaryId: number, checked: boolean) => {
     if (checked) {
       // Check if already selected
       if (selectedBeneficiaryIds.has(beneficiaryId)) return
-      
+
+      rememberFamily(beneficiaryId)
+
       // Add to form with default amount
       addBeneficiary({
         beneficiary_id: beneficiaryId,
@@ -1105,6 +1152,9 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                           })}
                         </div>
                       )}
+
+                      {/* Kafala chamila coverage - only renders for those sub-budgets */}
+                      <KafalaCoveragePanel subBudgetId={subBudgetId} allocations={familyAllocations} />
 
                       {/* Selected Beneficiaries Summary */}
                       {beneficiaryFields.length > 0 && (

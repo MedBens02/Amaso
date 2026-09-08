@@ -248,6 +248,24 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
     }
   }, [form.watch('income_type'), subBudgets, incomeCategories, form])
 
+  // The kafala amount for a family is whatever was agreed on that family's
+  // kafil record, which is not always 800 - so once the family is chosen the
+  // agreed amount drives the split rather than the generic default.
+  useEffect(() => {
+    if (form.watch('income_type') !== 'kafala_chamila') return
+
+    const widowId = form.watch('widow_id')
+    const sponsorships = selectedKafilSponsorship?.sponsorships
+    if (!widowId || !sponsorships) return
+
+    const sponsorship = sponsorships.find((sp: any) => sp.widow_id?.toString() === widowId)
+    const agreed = parseFloat(sponsorship?.amount || 0)
+
+    if (agreed > 0) {
+      form.setValue('amount', agreed)
+    }
+  }, [form.watch('widow_id'), form.watch('income_type'), selectedKafilSponsorship])
+
   // Filter categories based on selected sub-budget
   useEffect(() => {
     const subBudgetId = form.watch('sub_budget_id')
@@ -407,6 +425,24 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
   }
 
   const onSubmit = async (data: IncomeFormData) => {
+    // A kafil who sponsors families must say which one this kafala is for,
+    // otherwise the payment lands in the pools unattributed and that
+    // family's own contribution is invisible when spending on them.
+    // Mirrors the server rule, which is the authority.
+    if (
+      data.income_type === 'kafala_chamila' &&
+      selectedKafilSponsorship?.sponsorships?.length > 0 &&
+      !data.widow_id
+    ) {
+      form.setError('widow_id', { message: 'يجب تحديد الأسرة المستفيدة من هذه الكفالة' })
+      toast({
+        title: "الأسرة مطلوبة",
+        description: "هذا الكفيل يكفل أكثر من أسرة، حدد الأسرة المستفيدة من هذه الكفالة",
+        variant: "destructive",
+      })
+      return
+    }
+
     // Check if date is outside fiscal year
     if (isDateOutsideFiscalYear(data.income_date)) {
       setPendingSubmitData(data)
@@ -862,14 +898,14 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                     sub-budgets. */}
                 {selectedKafilSponsorship?.sponsorships?.length > 0 && (
                   <div className="space-y-2 pt-2">
-                    <Label>مخصص لأسرة</Label>
+                    <Label>{incomeType === 'kafala_chamila' ? 'الأسرة المستفيدة *' : 'مخصص لأسرة'}</Label>
                     <Controller
                       name="widow_id"
                       control={form.control}
                       render={({ field }) => (
                         <Select onValueChange={field.onChange} value={field.value || ""}>
                           <SelectTrigger>
-                            <SelectValue placeholder="اختر الأسرة المستفيدة (اختياري)" />
+                            <SelectValue placeholder={incomeType === 'kafala_chamila' ? 'اختر الأسرة المستفيدة' : 'اختر الأسرة المستفيدة (اختياري)'} />
                           </SelectTrigger>
                           <SelectContent>
                             {selectedKafilSponsorship.sponsorships.map((sponsorship: any) => (
@@ -881,8 +917,13 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                         </Select>
                       )}
                     />
+                    {form.formState.errors.widow_id && (
+                      <p className="text-sm text-red-600">{form.formState.errors.widow_id.message}</p>
+                    )}
                     <p className="text-xs text-gray-500">
-                      يُسجَّل كوجهة مقصودة للمساهمة ويظهر في كشف الكفيل. المبالغ نفسها توزَّع على الميزانيات الفرعية كالمعتاد.
+                      {incomeType === 'kafala_chamila'
+                        ? 'المبلغ يُملأ تلقائياً حسب المبلغ المتفق عليه لهذه الأسرة في صفحة كفلائها، ويبقى قابلاً للتعديل. المبالغ توزَّع على الميزانيات الفرعية المشتركة، ويُحتسب ما قدّمته هذه الأسرة عند الصرف عليها.'
+                        : 'يُسجَّل كوجهة مقصودة للمساهمة ويظهر في كشف الكفيل. المبالغ نفسها توزَّع على الميزانيات الفرعية كالمعتاد.'}
                     </p>
                   </div>
                 )}

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\ExpenseCategory;
 use App\Models\IncomeCategory;
 use App\Models\KafalaChamilaSplit;
 use App\Models\SubBudget;
@@ -35,6 +36,16 @@ class KafalaChamilaSeeder extends Seeder
             $subBudget = SubBudget::firstOrCreate(['label' => "كفالة شاملة - {$part['label']}"]);
 
             $incomeCategory = IncomeCategory::firstOrCreate(
+                ['label' => "كفالة شاملة - {$part['label']}"],
+                ['sub_budget_id' => $subBudget->id]
+            );
+
+            // Without at least one expense category under the sub-budget, the
+            // pool can only take money in and never pay anything out - the
+            // expense form lists categories filtered by sub-budget. This is a
+            // sensible default, not a locked row: the association is free to
+            // add finer categories under the same sub-budget.
+            ExpenseCategory::firstOrCreate(
                 ['label' => "كفالة شاملة - {$part['label']}"],
                 ['sub_budget_id' => $subBudget->id]
             );

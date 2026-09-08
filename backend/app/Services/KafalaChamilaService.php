@@ -104,4 +104,97 @@ class KafalaChamilaService
             ];
         })->values();
     }
+
+    /**
+     * How much of the shared pools each family has brought in, and how much
+     * has already been spent on them out of those pools.
+     *
+     *   credited = approved income booked to a kafala chamila sub-budget and
+     *              designated to this family (incomes.widow_id)
+     *   spent    = approved expenses booked to the same sub-budget and
+     *              attributed to that family - the widow herself or any of
+     *              her orphans - through expense_beneficiaries
+     *
+     * This is advisory, not a wallet. The money itself stays pooled and
+     * nothing here can block a payment: it exists so a family's own kafil
+     * contributions are visible before spending pooled money on them, and so
+     * spending beyond what a family brought in is a deliberate, visible act
+     * rather than an invisible one.
+     *
+     * @param  array<int, int>  $widowIds
+     * @return array<int, array<string, mixed>>  keyed by widow id
+     */
+    public function familyBalances(array $widowIds): array
+    {
+        $widowIds = array_values(array_unique(array_map('intval', $widowIds)));
+
+        if ($widowIds === []) {
+            return [];
+        }
+
+        $splits = KafalaChamilaSplit::with('subBudget')->orderBy('sort_order')->get();
+        $subBudgetIds = $splits->pluck('sub_budget_id')->all();
+
+        $credits = Income::query()
+            ->where('status', 'Approved')
+            ->whereIn('sub_budget_id', $subBudgetIds)
+            ->whereIn('widow_id', $widowIds)
+            ->selectRaw('widow_id, sub_budget_id, SUM(amount) as total')
+            ->groupBy('widow_id', 'sub_budget_id')
+            ->get()
+            ->groupBy('widow_id');
+
+        // Soft-deleted widows/orphans are joined directly rather than through
+        // Eloquent: an expense paid to a family that has since been archived
+        // still consumed that family's share.
+        $familyExpr = 'COALESCE(b.widow_id, o.widow_id)';
+
+        $debits = DB::table('expense_beneficiaries as eb')
+            ->join('expenses as e', 'e.id', '=', 'eb.expense_id')
+            ->join('beneficiaries as b', 'b.id', '=', 'eb.beneficiary_id')
+            ->leftJoin('orphans as o', 'o.id', '=', 'b.orphan_id')
+            ->where('e.status', 'Approved')
+            ->whereIn('e.sub_budget_id', $subBudgetIds)
+            ->where(function ($query) use ($widowIds) {
+                $query->whereIn('b.widow_id', $widowIds)
+                    ->orWhereIn('o.widow_id', $widowIds);
+            })
+            ->selectRaw("{$familyExpr} as widow_id, e.sub_budget_id, SUM(eb.amount) as total")
+            ->groupBy(DB::raw($familyExpr), 'e.sub_budget_id')
+            ->get()
+            ->groupBy('widow_id');
+
+        $result = [];
+
+        foreach ($widowIds as $widowId) {
+            $creditsBySubBudget = collect($credits[$widowId] ?? [])->keyBy('sub_budget_id');
+            $debitsBySubBudget = collect($debits[$widowId] ?? [])->keyBy('sub_budget_id');
+
+            $parts = $splits->map(function (KafalaChamilaSplit $split) use ($creditsBySubBudget, $debitsBySubBudget) {
+                $credited = (float) ($creditsBySubBudget[$split->sub_budget_id]->total ?? 0);
+                $spent = (float) ($debitsBySubBudget[$split->sub_budget_id]->total ?? 0);
+
+                return [
+                    'split_id' => $split->id,
+                    'key' => $split->key,
+                    'label' => $split->label,
+                    'sub_budget_id' => $split->sub_budget_id,
+                    'sub_budget_label' => $split->subBudget?->label,
+                    'credited' => round($credited, 2),
+                    'spent' => round($spent, 2),
+                    'remaining' => round($credited - $spent, 2),
+                ];
+            })->values()->all();
+
+            $result[$widowId] = [
+                'widow_id' => $widowId,
+                'parts' => $parts,
+                'total_credited' => round(array_sum(array_column($parts, 'credited')), 2),
+                'total_spent' => round(array_sum(array_column($parts, 'spent')), 2),
+                'total_remaining' => round(array_sum(array_column($parts, 'remaining')), 2),
+            ];
+        }
+
+        return $result;
+    }
 }

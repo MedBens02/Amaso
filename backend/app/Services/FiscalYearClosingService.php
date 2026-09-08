@@ -72,6 +72,18 @@ class FiscalYearClosingService
                     );
                 }
 
+                // The carryover is SUM(bank balances), so approved cash and
+                // cheques that were never deposited are in no balance at all
+                // and would simply disappear from the books at closing.
+                $untransferredCash = $this->getUntransferredIncomes($fiscalYear)->count();
+
+                if ($untransferredCash > 0) {
+                    return $this->errorResponse(
+                        'يوجد ' . $untransferredCash . ' إيرادات نقدية/شيكات معتمدة لم يتم تحويلها إلى البنك. '
+                        . 'يجب تحويلها أولاً وإلا لن تُحتسب ضمن رصيد ترحيل السنة المالية.'
+                    );
+                }
+
                 // Step 6: Set carryover amount for current year
                 $carryoverAmount = $currentCash;
                 $lockedFiscalYear->update(['carryover_next_year' => $carryoverAmount]);
@@ -142,17 +154,22 @@ class FiscalYearClosingService
             ->where('status', '!=', 'Approved')
             ->count();
 
+        // Approved cash/cheque income still sitting outside any bank account.
+        // The carryover is SUM(bank balances), so these would vanish at closing.
+        $untransferredCash = $this->getUntransferredIncomes($fiscalYear)->count();
+
         // Current cash from service
         $currentCash = $this->cashService->getCurrentCash();
-        
+
         // Since we're using the current cash directly, it always matches
         $cashIsValid = true;
 
         // Determine if closing is allowed
-        $canClose = $unapprovedIncomes === 0 && 
-                   $unapprovedExpenses === 0 && 
-                   $unapprovedTransfers === 0 && 
-                   $cashIsValid && 
+        $canClose = $unapprovedIncomes === 0 &&
+                   $unapprovedExpenses === 0 &&
+                   $unapprovedTransfers === 0 &&
+                   $untransferredCash === 0 &&
+                   $cashIsValid &&
                    $fiscalYear->is_active;
 
         return [
@@ -165,13 +182,15 @@ class FiscalYearClosingService
             'unapprovedIncomes' => $unapprovedIncomes,
             'unapprovedExpenses' => $unapprovedExpenses,
             'unapprovedTransfers' => $unapprovedTransfers,
+            'untransferredCash' => $untransferredCash,
             'currentCash' => $currentCash,
             'cashIsValid' => $cashIsValid,
             'canClose' => $canClose,
             'validationMessages' => $this->getValidationMessages(
-                $unapprovedIncomes, 
-                $unapprovedExpenses, 
+                $unapprovedIncomes,
+                $unapprovedExpenses,
                 $unapprovedTransfers,
+                $untransferredCash,
                 $cashIsValid,
                 $fiscalYear->is_active
             )
@@ -181,7 +200,7 @@ class FiscalYearClosingService
     /**
      * Get validation messages in Arabic
      */
-    private function getValidationMessages(int $unapprovedIncomes, int $unapprovedExpenses, int $unapprovedTransfers, bool $cashIsValid, bool $isActive): array
+    private function getValidationMessages(int $unapprovedIncomes, int $unapprovedExpenses, int $unapprovedTransfers, int $untransferredCash, bool $cashIsValid, bool $isActive): array
     {
         $messages = [];
 
@@ -199,6 +218,10 @@ class FiscalYearClosingService
 
         if ($unapprovedTransfers > 0) {
             $messages[] = 'يوجد ' . $unapprovedTransfers . ' تحويلات غير معتمدة';
+        }
+
+        if ($untransferredCash > 0) {
+            $messages[] = 'يوجد ' . $untransferredCash . ' إيرادات نقدية/شيكات معتمدة لم تُحوَّل إلى البنك (لن تُحتسب في الترحيل)';
         }
 
         if (!$cashIsValid) {

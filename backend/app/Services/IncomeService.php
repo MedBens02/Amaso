@@ -13,59 +13,71 @@ class IncomeService
      * Approve a draft income. BankWire incomes are credited to their bank
      * account immediately; Cash/Cheque incomes stay in the cash box until
      * transferred with transferToBank().
+     *
+     * The status is re-read under a row lock inside the transaction: without
+     * it, two concurrent approvals (a double-click, or two tabs) both see
+     * Draft, both pass the guard, and the balance is credited twice for one
+     * income row.
      */
     public function approve(Income $income): Income
     {
-        if ($income->status === 'Approved') {
-            throw new BusinessRuleException('الإيراد معتمد مسبقاً', 400);
-        }
-
         return DB::transaction(function () use ($income) {
-            $income->update([
+            $locked = Income::whereKey($income->getKey())->lockForUpdate()->firstOrFail();
+
+            if ($locked->status === 'Approved') {
+                throw new BusinessRuleException('الإيراد معتمد مسبقاً', 400);
+            }
+
+            $locked->update([
                 'status' => 'Approved',
                 'approved_by' => auth()->id() ?? 1,
                 'approved_at' => now(),
             ]);
 
-            if ($income->payment_method === 'BankWire' && $income->bank_account_id) {
-                BankAccount::whereKey($income->bank_account_id)->increment('balance', $income->amount);
+            if ($locked->payment_method === 'BankWire' && $locked->bank_account_id) {
+                BankAccount::whereKey($locked->bank_account_id)->increment('balance', $locked->amount);
             }
 
-            return $income;
+            return $locked;
         });
     }
 
     /**
      * Deposit an approved Cash/Cheque income into a bank account.
+     *
+     * transferred_at is re-checked under the same row lock, so a double
+     * submission cannot credit the account twice for one deposit.
      */
     public function transferToBank(Income $income, int $bankAccountId, string $transferredAt, ?string $remarks): Income
     {
-        if ($income->status !== 'Approved') {
-            throw new BusinessRuleException('يمكن تحويل الإيرادات المعتمدة فقط', 403);
-        }
-
-        if (!in_array($income->payment_method, ['Cash', 'Cheque'])) {
-            throw new BusinessRuleException('يمكن تحويل الإيرادات النقدية والشيكات فقط', 403);
-        }
-
-        if ($income->transferred_at) {
-            throw new BusinessRuleException('هذا الإيراد محول مسبقاً', 403);
-        }
-
         return DB::transaction(function () use ($income, $bankAccountId, $transferredAt, $remarks) {
-            $bankAccount = BankAccount::findOrFail($bankAccountId);
+            $locked = Income::whereKey($income->getKey())->lockForUpdate()->firstOrFail();
 
-            $income->update([
+            if ($locked->status !== 'Approved') {
+                throw new BusinessRuleException('يمكن تحويل الإيرادات المعتمدة فقط', 403);
+            }
+
+            if (!in_array($locked->payment_method, ['Cash', 'Cheque'])) {
+                throw new BusinessRuleException('يمكن تحويل الإيرادات النقدية والشيكات فقط', 403);
+            }
+
+            if ($locked->transferred_at) {
+                throw new BusinessRuleException('هذا الإيراد محول مسبقاً', 403);
+            }
+
+            $bankAccount = BankAccount::whereKey($bankAccountId)->lockForUpdate()->firstOrFail();
+
+            $locked->update([
                 'bank_account_id' => $bankAccountId,
                 'transferred_at' => $transferredAt,
                 'remarks' => $remarks
-                    ? ($income->remarks ? $income->remarks . ' | ' . $remarks : $remarks)
-                    : $income->remarks,
+                    ? ($locked->remarks ? $locked->remarks . ' | ' . $remarks : $remarks)
+                    : $locked->remarks,
             ]);
 
-            $bankAccount->increment('balance', $income->amount);
+            $bankAccount->increment('balance', $locked->amount);
 
-            return $income;
+            return $locked;
         });
     }
 }

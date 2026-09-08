@@ -5,10 +5,45 @@
 transfer, expense approval, inter-account transfers, fiscal-year closing, the cash view,
 sponsorship budgets and the dashboard/report aggregations.
 
-**Status of the code today:** the controller refactor (services + form requests) deliberately
-kept all money behavior *identical* to the original code so the diff stays reviewable.
-None of the issues below have been fixed yet — this document is the proposal for how to
-fix them, in order of priority.
+**Status of the code today:** Phase A is **done** (2026-09-08), plus #5a. What changed:
+
+| # | Issue | Status |
+|---|-------|--------|
+| 1 | Concurrent approval double-spends | **Fixed** — `lockForUpdate()` + re-check inside the transaction in `IncomeService::approve`, `IncomeService::transferToBank`, `ExpenseService::approve`, `TransferService::approve`. Transfers lock both accounts in sorted id order to avoid deadlocking opposite-direction transfers. |
+| 2 | Expense approval: non-atomic write, no funds check | **Fixed** — locks the account, refuses on insufficient funds, uses `decrement()`. |
+| 3 | Posting into closed fiscal years | **Fixed** — all four financial form requests now require the fiscal year to be `is_active`. (The *date within the year* half is still open.) |
+| 4 | Group split loses cents | **Fixed** — whole-cent division with remainder distribution, so member rows sum to the group amount exactly. (The `sum(beneficiaries) == expense.amount` server rule is still open.) |
+| 5a | Closing loses un-deposited cash | **Fixed** — closing is blocked, and `canClose`/`getClosingSummary` report it, while approved Cash/Cheque income has not been transferred to a bank. |
+| 9 | Kafil payments vs. sponsorships never reconciled | **Largely addressed** — `incomes.widow_id` designates the family, and `KafalaChamilaService::familyBalances()` derives per-family credited/spent/remaining. See "Per-family kafala coverage" below. |
+
+Still open, in priority order: **#6** (no ledger — balances remain unverifiable and this is
+now the biggest structural gap), **#7** (client-side dashboard aggregates capped at 1,000
+rows), **#5b** (real cash-box account), **#8** (`donors.total_given` never written), **#10**
+(validation gaps, duplicate transfer-to-bank endpoints), and the two partial items noted above.
+
+---
+
+## Per-family kafala coverage (added 2026-09-08)
+
+The kafala chamila pools are shared across all kafils, which raised a fair objection: a kafil
+paying 1,600/month for families A and B should not silently fund family C, whose kafil has not
+paid. This is now visible without breaking the pooling model:
+
+- **Nothing is siloed.** There is no per-family wallet, no second ledger, no new table. The
+  seven sub-budgets remain the only record of the money.
+- **The balance is derived**, per family and per part: approved income designated to that
+  family (`incomes.widow_id`) minus approved expenses attributed to that family — the widow or
+  any of her orphans — out of the same sub-budget.
+- **Designation is now required** when the kafil sponsors families, and must be one of *their*
+  families, so a payment can no longer land in the pools unattributed.
+- **Spending beyond a family's share is warned about, never blocked.** The expense form shows
+  the pool balance and the family's balance side by side and, when the allocation exceeds what
+  the family brought in, says plainly that the difference comes out of the pool other kafils
+  funded. Topping a family up from the pool is a legitimate act; it just should not be an
+  invisible one.
+
+Gap found and fixed while building this: the seeder created an income category per part but no
+**expense** category, so the pools could take money in and never pay anything out.
 
 ---
 

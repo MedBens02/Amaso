@@ -272,6 +272,14 @@ class ApiClient {
     return this.request<any>('/kafala-chamila/balances')
   }
 
+  // What each family brought into the pools and what has already been spent
+  // on them out of it. Advisory - the money itself stays pooled.
+  async getKafalaChamilaFamilyBalances(widowIds: number[]) {
+    const params = new URLSearchParams()
+    widowIds.forEach((id) => params.append('widow_ids[]', String(id)))
+    return this.request<any>(`/kafala-chamila/family-balances?${params.toString()}`)
+  }
+
   async updateKafalaChamilaSplits(splits: { id: number; percentage: number }[]) {
     return this.request<any>('/kafala-chamila/splits', {
       method: 'PUT',

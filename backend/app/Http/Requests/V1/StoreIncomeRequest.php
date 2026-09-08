@@ -3,6 +3,7 @@
 namespace App\Http\Requests\V1;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class StoreIncomeRequest extends FormRequest
@@ -15,7 +16,10 @@ class StoreIncomeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'fiscal_year_id' => ['required', 'exists:fiscal_years,id'],
+            // Posting into a closed year would change totals whose carryover
+            // was already copied into the following year and is never
+            // recomputed - the books would stop adding up.
+            'fiscal_year_id' => ['required', Rule::exists('fiscal_years', 'id')->where('is_active', true)],
             'sub_budget_id' => ['required', 'exists:sub_budgets,id'],
             'income_category_id' => ['required', 'exists:income_categories,id'],
             'donor_id' => ['nullable', 'exists:donors,id'],
