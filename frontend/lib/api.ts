@@ -259,6 +259,36 @@ class ApiClient {
     })
   }
 
+  // Kafala Chamila (comprehensive sponsorship split)
+  async getKafalaChamilaSplits() {
+    return this.request<any>('/kafala-chamila/splits')
+  }
+
+  async updateKafalaChamilaSplits(splits: { id: number; percentage: number }[]) {
+    return this.request<any>('/kafala-chamila/splits', {
+      method: 'PUT',
+      body: JSON.stringify({ splits }),
+    })
+  }
+
+  async createKafalaChamilaIncome(data: {
+    kafil_id: number
+    fiscal_year_id: number
+    income_date: string
+    payment_method: 'Cash' | 'Cheque' | 'BankWire'
+    cheque_number?: string
+    receipt_number?: string
+    bank_account_id?: number
+    remarks?: string
+    transferred_at?: string
+    splits: { split_id: number; amount: number }[]
+  }) {
+    return this.request<any>('/kafala-chamila/incomes', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
   // Expenses API
   async createExpense(data: any) {
     // Transform the data for the API

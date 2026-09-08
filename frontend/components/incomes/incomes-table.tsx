@@ -104,9 +104,11 @@ interface FilterValues {
 interface IncomesTableProps {
   searchTerm: string
   filters: FilterValues
+  /** Bump this to force a refetch, e.g. after a new income is created elsewhere on the page. */
+  refreshKey?: number
 }
 
-export function IncomesTable({ searchTerm, filters }: IncomesTableProps) {
+export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTableProps) {
   const [incomesData, setIncomesData] = useState<IncomeData[]>([])
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
@@ -249,7 +251,7 @@ export function IncomesTable({ searchTerm, filters }: IncomesTableProps) {
 
   useEffect(() => {
     fetchIncomes()
-  }, [currentPage, filters])
+  }, [currentPage, filters, refreshKey])
 
   useEffect(() => {
     if (currentPage !== 1) {

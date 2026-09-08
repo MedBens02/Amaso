@@ -7,20 +7,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { 
-  Calculator, 
-  Plus, 
-  Edit2, 
-  Trash2, 
+import {
+  Calculator,
+  Plus,
+  Edit2,
+  Trash2,
   Database,
   TrendingUp,
   TrendingDown,
   Search,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Lock,
+  HandCoins,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { AccountingReferenceDialog } from "@/components/accounting/accounting-reference-dialog"
+import { isCurrentUserAdmin } from "@/lib/roles"
+import api from "@/lib/api"
 
 interface SubBudget {
   id: number
@@ -47,21 +51,48 @@ interface ExpenseCategory {
   updated_at?: string
 }
 
+interface KafalaChamilaSplit {
+  id: number
+  key: string
+  label: string
+  percentage: string | number
+  sub_budget_id: number
+  income_category_id: number
+  sub_budget?: SubBudget
+  income_category?: IncomeCategory
+}
+
 export default function AccountingReferencesPage() {
   const [subBudgets, setSubBudgets] = useState<SubBudget[]>([])
   const [incomeCategories, setIncomeCategories] = useState<IncomeCategory[]>([])
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([])
   const [loading, setLoading] = useState(true)
-  
+
+  // Kafala chamila split percentages - a fixed 7-part structure whose
+  // sub-budgets/categories are locked against edit/delete everywhere else.
+  const [kafalaChamilaSplits, setKafalaChamilaSplits] = useState<KafalaChamilaSplit[]>([])
+  const [kafalaChamilaDraft, setKafalaChamilaDraft] = useState<Record<number, string>>({})
+  const [savingSplits, setSavingSplits] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  const lockedSubBudgetIds = useMemo(
+    () => new Set(kafalaChamilaSplits.map((s) => s.sub_budget_id)),
+    [kafalaChamilaSplits],
+  )
+  const lockedIncomeCategoryIds = useMemo(
+    () => new Set(kafalaChamilaSplits.map((s) => s.income_category_id)),
+    [kafalaChamilaSplits],
+  )
+
   // Search state
   const [incomeCategorySearch, setIncomeCategorySearch] = useState("")
   const [expenseCategorySearch, setExpenseCategorySearch] = useState("")
-  
+
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogType, setDialogType] = useState<'sub-budget' | 'income-category' | 'expense-category'>('sub-budget')
   const [selectedItem, setSelectedItem] = useState<any>()
-  
+
   const { toast } = useToast()
 
   // Filtered and grouped data
@@ -112,7 +143,58 @@ export default function AccountingReferencesPage() {
   // Load reference data on mount
   useEffect(() => {
     loadReferenceData()
+    loadKafalaChamilaSplits()
+    setIsAdmin(isCurrentUserAdmin())
   }, [])
+
+  const loadKafalaChamilaSplits = async () => {
+    try {
+      const res = await api.getKafalaChamilaSplits()
+      const splits: KafalaChamilaSplit[] = res.data || []
+      setKafalaChamilaSplits(splits)
+      setKafalaChamilaDraft(Object.fromEntries(splits.map((s) => [s.id, String(s.percentage)])))
+    } catch (error) {
+      console.error('Error loading kafala chamila splits:', error)
+    }
+  }
+
+  const kafalaChamilaDraftSum = useMemo(
+    () => Object.values(kafalaChamilaDraft).reduce((sum, v) => sum + (parseFloat(v) || 0), 0),
+    [kafalaChamilaDraft],
+  )
+
+  const handleSaveKafalaChamilaSplits = async () => {
+    if (Math.abs(kafalaChamilaDraftSum - 100) > 0.01) {
+      toast({
+        title: "خطأ",
+        description: `مجموع النسب يجب أن يساوي 100%. المجموع الحالي: ${kafalaChamilaDraftSum}%`,
+        variant: "destructive",
+      })
+      return
+    }
+
+    setSavingSplits(true)
+    try {
+      const payload = kafalaChamilaSplits.map((s) => ({
+        id: s.id,
+        percentage: parseFloat(kafalaChamilaDraft[s.id]) || 0,
+      }))
+      const res = await api.updateKafalaChamilaSplits(payload)
+      toast({
+        title: "تم الحفظ بنجاح",
+        description: res.message || "تم تحديث نسب توزيع الكفالة الشاملة",
+      })
+      await loadKafalaChamilaSplits()
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء حفظ النسب",
+        variant: "destructive",
+      })
+    } finally {
+      setSavingSplits(false)
+    }
+  }
 
   const loadReferenceData = async () => {
     try {
@@ -272,7 +354,9 @@ export default function AccountingReferencesPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {subBudgets.map((subBudget) => (
+            {subBudgets.map((subBudget) => {
+              const locked = lockedSubBudgetIds.has(subBudget.id)
+              return (
               <div key={subBudget.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center gap-3">
                   <span className="font-medium">{subBudget.label}</span>
@@ -286,20 +370,30 @@ export default function AccountingReferencesPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => handleEditItem('sub-budget', subBudget)}>
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-red-600 hover:text-red-700" 
-                    onClick={() => handleDeleteItem('sub-budget', subBudget.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {locked ? (
+                    <Badge variant="outline" className="gap-1 text-amber-700 border-amber-300 bg-amber-50">
+                      <Lock className="h-3 w-3" />
+                      كفالة شاملة (ثابت)
+                    </Badge>
+                  ) : (
+                    <>
+                      <Button variant="ghost" size="sm" onClick={() => handleEditItem('sub-budget', subBudget)}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700"
+                        onClick={() => handleDeleteItem('sub-budget', subBudget.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </CardContent>
@@ -353,26 +447,38 @@ export default function AccountingReferencesPage() {
                   </div>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-2 space-y-2">
-                  {categories.map((category) => (
+                  {categories.map((category) => {
+                    const locked = lockedIncomeCategoryIds.has(category.id)
+                    return (
                     <div key={category.id} className="flex items-center justify-between p-3 border rounded-lg ml-6 bg-white">
                       <div className="flex items-center gap-3">
                         <span className="font-medium">{category.label}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleEditItem('income-category', category)}>
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-red-600 hover:text-red-700" 
-                          onClick={() => handleDeleteItem('income-category', category.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {locked ? (
+                          <Badge variant="outline" className="gap-1 text-amber-700 border-amber-300 bg-amber-50">
+                            <Lock className="h-3 w-3" />
+                            كفالة شاملة (ثابت)
+                          </Badge>
+                        ) : (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={() => handleEditItem('income-category', category)}>
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700"
+                              onClick={() => handleDeleteItem('income-category', category.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
-                  ))}
+                    )
+                  })}
                 </CollapsibleContent>
               </Collapsible>
             ))}
@@ -458,6 +564,74 @@ export default function AccountingReferencesPage() {
     </Card>
   )
 
+  const KafalaChamilaSplitsTable = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <HandCoins className="h-5 w-5 text-blue-600" />
+            توزيع الكفالة الشاملة
+          </div>
+          {isAdmin && (
+            <Button size="sm" onClick={handleSaveKafalaChamilaSplits} disabled={savingSplits}>
+              {savingSplits ? "جاري الحفظ..." : "حفظ النسب"}
+            </Button>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-gray-600 mb-4">
+          كفالة شاملة (800 د.م افتراضياً) تُقسّم دائماً على هذه البنود السبعة الثابتة، وكل بند مرتبط بميزانية فرعية وفئة إيراد مقفلتين لا يمكن حذفهما أو تعديلهما.
+          {isAdmin ? " يمكنك تعديل النسب أدناه بشرط أن يبقى مجموعها 100%." : " تعديل النسب مقتصر على المديرين."}
+        </p>
+
+        {loading ? (
+          <div className="text-center py-4">جاري التحميل...</div>
+        ) : kafalaChamilaSplits.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">تعذر تحميل بنود توزيع الكفالة الشاملة</div>
+        ) : (
+          <div className="space-y-2">
+            {kafalaChamilaSplits.map((split) => (
+              <div key={split.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div>
+                  <span className="font-medium">{split.label}</span>
+                  <span className="text-xs text-gray-500 block">
+                    {split.sub_budget?.label} ← {split.income_category?.label}
+                  </span>
+                </div>
+                {isAdmin ? (
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={kafalaChamilaDraft[split.id] ?? ""}
+                      onChange={(e) =>
+                        setKafalaChamilaDraft((prev) => ({ ...prev, [split.id]: e.target.value }))
+                      }
+                      className="w-24 text-left"
+                    />
+                    <span className="text-sm text-gray-500">%</span>
+                  </div>
+                ) : (
+                  <Badge variant="outline">{parseFloat(String(split.percentage))}%</Badge>
+                )}
+              </div>
+            ))}
+
+            <div className="flex items-center justify-between pt-3 border-t">
+              <span className="font-semibold">المجموع:</span>
+              <span className={`font-bold ${Math.abs(kafalaChamilaDraftSum - 100) > 0.01 ? "text-red-600" : "text-green-600"}`}>
+                {kafalaChamilaDraftSum.toFixed(2)}%
+              </span>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+
   return (
     <div className="space-y-6">
       <div>
@@ -469,7 +643,7 @@ export default function AccountingReferencesPage() {
       </div>
 
       <Tabs defaultValue="sub-budgets" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="sub-budgets" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
             الميزانيات الفرعية
@@ -481,6 +655,10 @@ export default function AccountingReferencesPage() {
           <TabsTrigger value="expense-categories" className="flex items-center gap-2">
             <TrendingDown className="h-4 w-4" />
             فئات المصروفات
+          </TabsTrigger>
+          <TabsTrigger value="kafala-chamila" className="flex items-center gap-2">
+            <HandCoins className="h-4 w-4" />
+            الكفالة الشاملة
           </TabsTrigger>
         </TabsList>
 
@@ -494,6 +672,10 @@ export default function AccountingReferencesPage() {
 
         <TabsContent value="expense-categories">
           <ExpenseCategoriesTable />
+        </TabsContent>
+
+        <TabsContent value="kafala-chamila">
+          <KafalaChamilaSplitsTable />
         </TabsContent>
       </Tabs>
 
