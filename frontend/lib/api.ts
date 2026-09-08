@@ -321,9 +321,11 @@ class ApiClient {
     page?: number
     sort_by?: string
     sort_order?: 'asc' | 'desc'
+    archived?: boolean
   }) {
     const searchParams = new URLSearchParams()
     if (params?.search) searchParams.set('search', params.search)
+    if (params?.archived) searchParams.set('archived', '1')
     if (params?.widow_id) searchParams.set('widow_id', params.widow_id.toString())
     if (params?.has_disability !== undefined) searchParams.set('has_disability', params.has_disability.toString())
     if (params?.education_level) searchParams.set('education_level', params.education_level)
@@ -440,10 +442,97 @@ class ApiClient {
     return this.request<any>(`/widows/${id}?include=orphans,widow_files,widow_social,skills,illnesses,aid_types,social_income,social_expenses,active_maouna,sponsorships`)
   }
 
-  async deleteWidow(id: number) {
+  /** Archive a family (soft delete) with the leaving information. */
+  async archiveWidow(id: number, leaving: {
+    leaving_date: string
+    leaving_reason: string
+    leaving_details?: string
+  }) {
     return this.request<any>(`/widows/${id}`, {
       method: 'DELETE',
+      body: JSON.stringify(leaving),
     })
+  }
+
+  async restoreWidow(id: number) {
+    return this.request<any>(`/widows/${id}/restore`, {
+      method: 'POST',
+    })
+  }
+
+  // Education API
+  async getSchools(params?: { search?: string; type?: string }) {
+    const searchParams = new URLSearchParams()
+    if (params?.search) searchParams.set('search', params.search)
+    if (params?.type) searchParams.set('type', params.type)
+    const query = searchParams.toString()
+    return this.request<any[]>(`/schools${query ? `?${query}` : ''}`)
+  }
+
+  async createSchool(data: { name: string; type: string; is_private: boolean; is_amaso_linked: boolean; notes?: string }) {
+    return this.request<any>('/schools', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async updateSchool(id: number, data: { name: string; type: string; is_private: boolean; is_amaso_linked: boolean; notes?: string }) {
+    return this.request<any>(`/schools/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  }
+
+  async deleteSchool(id: number) {
+    return this.request<any>(`/schools/${id}`, { method: 'DELETE' })
+  }
+
+  async getAcademicYears() {
+    return this.request<any[]>('/academic-years')
+  }
+
+  async createAcademicYear(startYear: number) {
+    return this.request<any>('/academic-years', { method: 'POST', body: JSON.stringify({ start_year: startYear }) })
+  }
+
+  async rolloverAcademicYear() {
+    return this.request<any>('/academic-years/rollover', { method: 'POST' })
+  }
+
+  async getEnrollments(params?: {
+    academic_year_id?: number
+    school_id?: number
+    education_level_id?: number
+    status?: string
+    search?: string
+    page?: number
+    per_page?: number
+  }) {
+    const searchParams = new URLSearchParams()
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') searchParams.set(key, String(value))
+    })
+    const query = searchParams.toString()
+    return this.request<any[]>(`/enrollments${query ? `?${query}` : ''}`)
+  }
+
+  async createEnrollment(data: {
+    orphan_id: number
+    academic_year_id: number
+    education_level_id?: number | null
+    school_id?: number | null
+    specialty?: string | null
+    notes?: string | null
+  }) {
+    return this.request<any>('/enrollments', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async updateEnrollment(id: number, data: {
+    education_level_id?: number | null
+    school_id?: number | null
+    specialty?: string | null
+    status?: string
+    notes?: string | null
+  }) {
+    return this.request<any>(`/enrollments/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  }
+
+  async deleteEnrollment(id: number) {
+    return this.request<any>(`/enrollments/${id}`, { method: 'DELETE' })
   }
 
   // Kafils API

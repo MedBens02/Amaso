@@ -23,12 +23,13 @@ class Beneficiary extends Model
 
     public function widow(): BelongsTo
     {
-        return $this->belongsTo(Widow::class);
+        // withTrashed: expense history must keep resolving archived families.
+        return $this->belongsTo(Widow::class)->withTrashed();
     }
 
     public function orphan(): BelongsTo
     {
-        return $this->belongsTo(Orphan::class);
+        return $this->belongsTo(Orphan::class)->withTrashed();
     }
 
     public function beneficiaryGroups(): BelongsToMany

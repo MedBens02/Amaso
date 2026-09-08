@@ -23,6 +23,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { MultiSelectRS } from "@/components/common/MultiSelectRS"
+import { ExtraPhonesField } from "@/components/widows/extra-phones-field"
+import { ChildExtraFields } from "@/components/widows/child-extra-fields"
 import { SingleSelectRS } from "@/components/common/SingleSelectRS"
 import { StarRating } from "@/components/common/StarRating"
 import { useToast } from "@/hooks/use-toast"
@@ -41,6 +43,8 @@ const widowSchema = z
     birthDate: z.date({ required_error: "تاريخ الميلاد مطلوب" }),
     nationalId: z.string().optional(),
     phone: z.string().min(1, "رقم الهاتف مطلوب"),
+    extraPhones: z.array(z.string()).default([]),
+    familyLiaison: z.string().optional(),
     email: z.string().email("بريد إلكتروني غير صحيح").optional().or(z.literal("")),
     neighborhood: z.string().min(1, "الحي مطلوب"),
     address: z.string().optional(),
@@ -60,6 +64,16 @@ const widowSchema = z
           birthDate: z.date({ required_error: "تاريخ الميلاد مطلوب" }),
           education_level_id: z.string().optional(), // Education level ID as string for form
           schoolName: z.string().optional(),
+          phone: z.string().optional(),
+          cin: z.string().optional(),
+          isWorking: z.boolean().default(false),
+          workType: z.string().optional(),
+          isWorkPermanent: z.boolean().default(false),
+          isMarried: z.boolean().default(false),
+          isSchooled: z.boolean().default(true),
+          masarCode: z.string().optional(),
+          isNotInterested: z.boolean().default(false),
+          isInactive: z.boolean().default(false),
         }),
       )
       .default([]),
@@ -437,6 +451,8 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
         first_name: data.firstName,
         last_name: data.lastName,
         phone: data.phone,
+        extra_phones: (data.extraPhones || []).filter((p: string) => p && p.trim() !== ""),
+        family_liaison: data.familyLiaison || "أم",
         email: data.email || "",
         address: data.address || "",
         neighborhood: data.neighborhood?.startsWith('__new_option_') 
@@ -477,7 +493,17 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
             birth_date: child.birthDate.toISOString().split('T')[0],
             gender: child.sex,
             education_level_id: educationLevelId,
-            health_status: ""
+            health_status: "",
+            phone: child.phone || null,
+            cin: child.cin || null,
+            is_working: child.isWorking || false,
+            work_type: child.workType || null,
+            is_work_permanent: child.isWorkPermanent || false,
+            is_married: child.isMarried || false,
+            is_schooled: child.isSchooled ?? true,
+            masar_code: child.masarCode || null,
+            is_not_interested: child.isNotInterested || false,
+            is_inactive: child.isInactive || false,
           };
           console.log(`ADD - Final child data for child ${childIndex}:`, childData);
           return childData;
@@ -829,6 +855,37 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                 </div>
               </div>
 
+              <Controller
+                name="extraPhones"
+                control={form.control}
+                render={({ field }) => (
+                  <ExtraPhonesField value={field.value || []} onChange={field.onChange} />
+                )}
+              />
+
+              <div className="space-y-2">
+                <Label>صلة القرابة بالأيتام (المسؤول عن الملف)</Label>
+                <Controller
+                  name="familyLiaison"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value || "أم"}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختر صلة القرابة" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="أم">أم (الأرملة نفسها)</SelectItem>
+                        <SelectItem value="خالة">خالة</SelectItem>
+                        <SelectItem value="عمة">عمة</SelectItem>
+                        <SelectItem value="جدة">جدة</SelectItem>
+                        <SelectItem value="أخت">أخت</SelectItem>
+                        <SelectItem value="وصي آخر">وصي آخر</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="neighborhood">الحي *</Label>
@@ -937,6 +994,16 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                       birthDate: new Date(),
                       education_level_id: "0",
                       schoolName: "",
+                      phone: "",
+                      cin: "",
+                      isWorking: false,
+                      workType: "",
+                      isWorkPermanent: false,
+                      isMarried: false,
+                      isSchooled: true,
+                      masarCode: "",
+                      isNotInterested: false,
+                      isInactive: false,
                     })
                   }
                 >
@@ -1059,6 +1126,8 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                       )}
                     />
                   </div>
+
+                  <ChildExtraFields form={form} index={index} />
                 </div>
               ))}
             </TabsContent>

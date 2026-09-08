@@ -4,7 +4,8 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Search, Filter } from "lucide-react"
+import { Plus, Search, Filter, Archive } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { WidowsTable } from "@/components/widows/widows-table"
 import { WidowFilters } from "@/components/widows/widow-filters"
 import { AddWidowDialog } from "@/components/widows/add-widow-dialog"
@@ -82,22 +83,48 @@ export default function WidowsPage() {
         )}
       </Card>
 
-      {/* Widows Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>قائمة الأرامل</CardTitle>
-            <ExportWidows
-              widows={allWidows}
-              filters={filters}
-              searchTerm={searchTerm}
-            />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <WidowsTable searchTerm={searchTerm} filters={filters} refreshTrigger={refreshTrigger} />
-        </CardContent>
-      </Card>
+      {/* Widows Table: active families + archive */}
+      <Tabs defaultValue="active" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="active">القائمة النشطة</TabsTrigger>
+          <TabsTrigger value="archived" className="flex items-center gap-2">
+            <Archive className="h-4 w-4" />
+            المؤرشفات
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="active">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>قائمة الأرامل</CardTitle>
+                <ExportWidows
+                  widows={allWidows}
+                  filters={filters}
+                  searchTerm={searchTerm}
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <WidowsTable searchTerm={searchTerm} filters={filters} refreshTrigger={refreshTrigger} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="archived">
+          <Card>
+            <CardHeader>
+              <CardTitle>الملفات المؤرشفة</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                عائلات غادرت الجمعية (تخرج أو إزالة). تبقى بياناتها محفوظة للتقارير ويمكن استعادتها.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <WidowsTable searchTerm={searchTerm} filters={filters} refreshTrigger={refreshTrigger} archived />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <AddWidowDialog 
         open={showAddDialog} 

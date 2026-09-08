@@ -10,6 +10,9 @@ use App\Http\Controllers\Api\V1\IncomeController;
 use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\TransferController;
 use App\Http\Controllers\Api\V1\FiscalYearController;
+use App\Http\Controllers\Api\V1\SchoolController;
+use App\Http\Controllers\Api\V1\AcademicYearController;
+use App\Http\Controllers\Api\V1\EnrollmentController;
 use App\Http\Controllers\Api\V1\BeneficiaryGroupController;
 use App\Http\Controllers\Api\V1\References;
 
@@ -32,8 +35,9 @@ Route::prefix('v1')->group(function () {
     // Donors CRUD
     Route::apiResource('donors', DonorController::class);
 
-    // Widows CRUD
-    Route::apiResource('widows', WidowController::class);
+    // Widows CRUD (families; destroy archives instead of deleting)
+    Route::apiResource('widows', WidowController::class)->withTrashed(['show']);
+    Route::post('widows/{widow}/restore', [WidowController::class, 'restore'])->withTrashed();
     Route::get('widows-reference-data', [WidowController::class, 'getReferenceData']);
 
     // Orphans CRUD (read-only, managed through widows)
@@ -68,6 +72,14 @@ Route::prefix('v1')->group(function () {
     Route::post('beneficiary-groups/{beneficiaryGroup}/members', [BeneficiaryGroupController::class, 'addMembers']);
     Route::delete('beneficiary-groups/{beneficiaryGroup}/members/{beneficiary}', [BeneficiaryGroupController::class, 'removeMember']);
     Route::get('beneficiaries', [BeneficiaryGroupController::class, 'getBeneficiaries']);
+
+    // Education tracking
+    Route::apiResource('schools', SchoolController::class)->except(['show']);
+    Route::get('academic-years', [AcademicYearController::class, 'index']);
+    Route::post('academic-years', [AcademicYearController::class, 'store']);
+    Route::post('academic-years/rollover', [AcademicYearController::class, 'rollover']);
+    Route::apiResource('enrollments', EnrollmentController::class)->except(['show'])
+        ->parameters(['enrollments' => 'enrollment']);
 
     // Lookup data endpoints
     Route::get('bank-accounts', function () {

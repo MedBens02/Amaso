@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Cairo } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/toaster"
 
 const cairo = Cairo({
   subsets: ["arabic"],
@@ -31,6 +32,8 @@ export default function RootLayout({
           storageKey="amaso-theme"
         >
           {children}
+          {/* Global toast outlet - without it every toast() in the app is invisible */}
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

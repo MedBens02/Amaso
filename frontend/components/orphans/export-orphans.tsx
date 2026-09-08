@@ -42,7 +42,7 @@ interface ExportOrphansProps {
 export function ExportOrphans({ orphanGroups, filters = {}, searchTerm }: ExportOrphansProps) {
   const { toast } = useToast()
   const [isExporting, setIsExporting] = useState(false)
-  const [exportType, setExportType] = useState<'csv' | 'print' | null>(null)
+  const [exportType, setExportType] = useState<'csv' | 'print' | 'list' | null>(null)
 
   // Flatten orphans from groups for CSV export
   const allOrphans = orphanGroups.flatMap(group =>
@@ -385,6 +385,125 @@ export function ExportOrphans({ orphanGroups, filters = {}, searchTerm }: Export
     }
   }
 
+  /**
+   * Orphans-only list for activities: grouped by gender, sorted by age,
+   * with no information about the widows/guardians.
+   */
+  const handlePrintOrphansList = () => {
+    setIsExporting(true)
+    setExportType('list')
+
+    try {
+      const males = allOrphans.filter(o => o.gender === 'male').sort((a, b) => (a.age ?? 0) - (b.age ?? 0))
+      const females = allOrphans.filter(o => o.gender === 'female').sort((a, b) => (a.age ?? 0) - (b.age ?? 0))
+
+      const renderGroup = (title: string, color: string, orphans: any[]) => `
+  <div class="family-group">
+    <div class="family-header" style="background: ${color};">${title} (${orphans.length})</div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>الاسم الكامل</th>
+          <th>العمر</th>
+          <th>تاريخ الميلاد</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${orphans.map((orphan, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${orphan.full_name}</td>
+          <td>${orphan.age != null ? Math.floor(orphan.age) + ' سنة' : '-'}</td>
+          <td>${formatDateForExport(orphan.birth_date)}</td>
+        </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>`
+
+      const htmlContent = `
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>قائمة الأيتام حسب الجنس والعمر</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; direction: rtl; padding: 20px; font-size: 12px; }
+    .header { text-align: center; border-bottom: 3px solid #333; padding-bottom: 15px; margin-bottom: 20px; }
+    .header h1 { font-size: 24px; margin-bottom: 5px; }
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 20px; }
+    .summary-card { background: #f9f9f9; border: 1px solid #ddd; padding: 15px; text-align: center; border-radius: 5px; }
+    .summary-card h3 { font-size: 11px; color: #666; margin-bottom: 5px; }
+    .summary-card p { font-size: 18px; font-weight: bold; }
+    .family-group { margin-bottom: 30px; border: 1px solid #ddd; border-radius: 5px; overflow: hidden; }
+    .family-header { color: white; padding: 10px 15px; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f5f5f5; color: #333; padding: 8px; text-align: right; font-size: 11px; border-bottom: 2px solid #ddd; }
+    td { padding: 8px; border-bottom: 1px solid #ddd; font-size: 11px; }
+    tr:nth-child(even) { background: #fafafa; }
+    .footer { display: flex; justify-content: space-between; border-top: 2px solid #333; padding-top: 10px; margin-top: 20px; font-size: 10px; color: #666; }
+    @media print { body { padding: 10px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>جمعية أماسو الخيرية</h1>
+    <h2>قائمة الأيتام حسب الجنس والعمر</h2>
+  </div>
+
+  <div class="summary">
+    <div class="summary-card"><h3>إجمالي الأيتام</h3><p>${allOrphans.length}</p></div>
+    <div class="summary-card"><h3>الذكور</h3><p>${males.length}</p></div>
+    <div class="summary-card"><h3>الإناث</h3><p>${females.length}</p></div>
+  </div>
+
+  ${renderGroup('الذكور', '#2196F3', males)}
+  ${renderGroup('الإناث', '#E91E63', females)}
+
+  <div class="footer">
+    <div>
+      <p>تاريخ الطباعة: ${formatDateForExport(new Date())}</p>
+      <p>إجمالي السجلات: ${allOrphans.length} يتيم</p>
+    </div>
+    <div style="text-align: left;">
+      <p>جمعية أماسو الخيرية</p>
+      <p>قسم الأنشطة</p>
+    </div>
+  </div>
+</body>
+</html>
+      `
+
+      const printWindow = window.open('', '_blank')
+      if (!printWindow) {
+        throw new Error('تعذر فتح نافذة الطباعة')
+      }
+
+      printWindow.document.write(htmlContent)
+      printWindow.document.close()
+      printWindow.onload = () => {
+        printWindow.print()
+      }
+
+      toast({
+        title: "تم إعداد القائمة",
+        description: "قائمة الأيتام حسب الجنس والعمر جاهزة للطباعة"
+      })
+    } catch (error) {
+      console.error('Error generating orphans list:', error)
+      toast({
+        title: "خطأ في إنشاء القائمة",
+        description: "حدث خطأ أثناء إنشاء القائمة",
+        variant: "destructive"
+      })
+    } finally {
+      setIsExporting(false)
+      setExportType(null)
+    }
+  }
+
   const isLoading = isExporting
 
   return (
@@ -415,6 +534,21 @@ export function ExportOrphans({ orphanGroups, filters = {}, searchTerm }: Export
           <Printer className="ml-2 h-4 w-4" />
         )}
         طباعة التقرير
+      </Button>
+
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handlePrintOrphansList}
+        disabled={isLoading || allOrphans.length === 0}
+        title="قائمة بأسماء وأعمار الأيتام فقط، بدون بيانات الأرامل - للأنشطة"
+      >
+        {isExporting && exportType === 'list' ? (
+          <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+        ) : (
+          <Printer className="ml-2 h-4 w-4" />
+        )}
+        قائمة حسب الجنس والعمر
       </Button>
     </div>
   )

@@ -23,11 +23,24 @@ class WidowResource extends JsonResource
             'birth_date' => $this->birth_date?->format('Y-m-d'),
             'age' => $this->birth_date ? $this->birth_date->diffInYears(now()) : null,
             'marital_status' => $this->marital_status,
+            'family_liaison' => $this->family_liaison,
             'education_level' => $this->education_level,
             'disability_flag' => $this->disability_flag,
             'disability_type' => $this->disability_type,
+            'is_archived' => $this->deleted_at !== null,
+            'leaving_date' => $this->leaving_date?->format('Y-m-d'),
+            'leaving_reason' => $this->leaving_reason,
+            'leaving_details' => $this->leaving_details,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
+
+            'extra_phones' => $this->whenLoaded('phones', function () {
+                return $this->phones->map(fn ($phone) => [
+                    'id' => $phone->id,
+                    'phone' => $phone->phone,
+                    'label' => $phone->label,
+                ]);
+            }),
             
             // Relationships
             
@@ -42,6 +55,16 @@ class WidowResource extends JsonResource
                         'gender' => $orphan->gender,
                         'education_level_id' => $orphan->education_level_id,
                         'health_status' => $orphan->health_status,
+                        'phone' => $orphan->phone,
+                        'cin' => $orphan->cin,
+                        'is_working' => $orphan->is_working,
+                        'work_type' => $orphan->work_type,
+                        'is_work_permanent' => $orphan->is_work_permanent,
+                        'is_married' => $orphan->is_married,
+                        'is_schooled' => $orphan->is_schooled,
+                        'masar_code' => $orphan->masar_code,
+                        'is_not_interested' => $orphan->is_not_interested,
+                        'is_inactive' => $orphan->is_inactive,
                     ];
                 });
             }),

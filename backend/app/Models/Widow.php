@@ -8,10 +8,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Widow extends Model
 {
     use HasFactory;
+    use SoftDeletes;
 
     protected $fillable = [
         'first_name',
@@ -24,15 +26,20 @@ class Widow extends Model
         'national_id',
         'birth_date',
         'marital_status',
+        'family_liaison',
         'education_level',
         'disability_flag',
         'disability_type',
+        'leaving_date',
+        'leaving_reason',
+        'leaving_details',
     ];
 
     protected $casts = [
         'admission_date' => 'date',
         'birth_date' => 'date',
         'disability_flag' => 'boolean',
+        'leaving_date' => 'date',
     ];
 
     protected $appends = [
@@ -43,6 +50,12 @@ class Widow extends Model
     public function orphans(): HasMany
     {
         return $this->hasMany(Orphan::class);
+    }
+
+    // Additional phone numbers (the primary one stays in widows.phone)
+    public function phones(): HasMany
+    {
+        return $this->hasMany(WidowPhone::class);
     }
 
     public function sponsorships(): HasMany
