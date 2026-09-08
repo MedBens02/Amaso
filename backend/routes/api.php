@@ -72,6 +72,7 @@ Route::prefix('v1')->group(function () {
 
     // Kafala Chamila (comprehensive sponsorship) split
     Route::get('kafala-chamila/splits', [KafalaChamilaController::class, 'splits']);
+    Route::get('kafala-chamila/balances', [KafalaChamilaController::class, 'balances']);
     Route::put('kafala-chamila/splits', [KafalaChamilaController::class, 'updateSplits']);
     Route::post('kafala-chamila/incomes', [KafalaChamilaController::class, 'storeIncome']);
 

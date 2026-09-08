@@ -266,6 +266,12 @@ class ApiClient {
     return this.request<any>('/kafala-chamila/splits')
   }
 
+  // Current balance of each part: approved income in minus approved expense
+  // out. One shared pool per part across every kafil, not per-widow.
+  async getKafalaChamilaBalances() {
+    return this.request<any>('/kafala-chamila/balances')
+  }
+
   async updateKafalaChamilaSplits(splits: { id: number; percentage: number }[]) {
     return this.request<any>('/kafala-chamila/splits', {
       method: 'PUT',
