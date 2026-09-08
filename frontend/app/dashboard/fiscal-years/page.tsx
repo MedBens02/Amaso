@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { StartNewFiscalYearDialog } from "@/components/forms/StartNewFiscalYearForm"
 import { CloseFiscalYearDialog } from "@/components/forms/CloseFiscalYearDialog"
 import { useToast } from "@/hooks/use-toast"
+import { isCurrentUserAdmin } from "@/lib/roles"
 
 interface FiscalYear {
   id: number
@@ -43,6 +44,9 @@ export default function FiscalYearsPage() {
   const [showNewDialog, setShowNewDialog] = useState(false)
   const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>([])
   const [loading, setLoading] = useState(true)
+  // Closing a fiscal year is admin-only on the backend; hide the action for
+  // everyone else instead of letting them hit a 403.
+  const [isAdmin, setIsAdmin] = useState(false)
   const [closingYear, setClosingYear] = useState<number | null>(null)
   const [closingSummaries, setClosingSummaries] = useState<{[key: number]: ClosingSummary}>({})
   const [showCloseDialog, setShowCloseDialog] = useState(false)
@@ -52,6 +56,10 @@ export default function FiscalYearsPage() {
   // Fetch fiscal years from API
   useEffect(() => {
     fetchFiscalYears()
+  }, [])
+
+  useEffect(() => {
+    setIsAdmin(isCurrentUserAdmin())
   }, [])
 
   // Helper function to safely format numbers
@@ -258,9 +266,9 @@ export default function FiscalYearsPage() {
                   <TrendingUp className="h-4 w-4 ml-1" />
                   عرض التفاصيل
                 </Button>
-                {year.status === "مفتوح" && (
-                  <Button 
-                    variant={closingSummaries[year.id]?.canClose ? "default" : "outline"} 
+                {year.status === "مفتوح" && isAdmin && (
+                  <Button
+                    variant={closingSummaries[year.id]?.canClose ? "default" : "outline"}
                     size="sm"
                     onClick={() => handleCloseFiscalYear(year)}
                     className={closingSummaries[year.id]?.canClose ? "bg-green-600 hover:bg-green-700" : ""}

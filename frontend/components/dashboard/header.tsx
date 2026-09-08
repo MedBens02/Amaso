@@ -13,6 +13,7 @@ import {
 import { Bell, Moon, Sun, User, LogOut } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
+import api from "@/lib/api"
 
 interface HeaderProps {
   user: {
@@ -106,8 +107,10 @@ export function Header({ user }: HeaderProps) {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-red-600 focus:text-red-700"
-                onClick={() => {
-                  localStorage.removeItem("user")
+                onClick={async () => {
+                  // Revoke the token server-side; clears the local session
+                  // either way (see ApiClient.logout).
+                  await api.logout().catch(() => {})
                   router.push("/login")
                 }}
               >

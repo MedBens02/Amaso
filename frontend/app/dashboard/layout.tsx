@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Header } from "@/components/dashboard/header"
 import { Sidebar } from "@/components/dashboard/sidebar"
+import api from "@/lib/api"
 
 export default function DashboardLayout({
   children,
@@ -17,22 +18,37 @@ export default function DashboardLayout({
   const router = useRouter()
 
   useEffect(() => {
-    const userData = localStorage.getItem("user")
-    if (!userData) {
+    if (!api.isAuthenticated) {
       router.push("/login")
       return
     }
 
-    try {
-      const parsedUser = JSON.parse(userData)
-      setUser(parsedUser)
-    } catch (error) {
-      console.error("Error parsing user data:", error)
-      router.push("/login")
-      return
+    // Render immediately from the cached profile so navigation feels
+    // instant, then quietly re-validate against the server in the
+    // background. A dead/expired token is caught centrally by the API
+    // client (401 -> redirect to /login) the moment getMe() runs.
+    const cached = localStorage.getItem("user")
+    if (cached) {
+      try {
+        setUser(JSON.parse(cached))
+        setLoading(false)
+      } catch {
+        localStorage.removeItem("user")
+      }
     }
 
-    setLoading(false)
+    api
+      .getMe()
+      .then((response) => {
+        setUser(response.data)
+        localStorage.setItem("user", JSON.stringify(response.data))
+        setLoading(false)
+      })
+      .catch(() => {
+        // A 401 already triggered a redirect inside the API client. Any
+        // other error (e.g. the backend being briefly unreachable) just
+        // keeps whatever we rendered from cache above.
+      })
   }, [router])
 
   if (loading) {

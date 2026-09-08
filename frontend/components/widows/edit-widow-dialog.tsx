@@ -141,11 +141,13 @@ interface Widow {
   national_id: string
   birth_date: string
   marital_status: string
+  family_liaison?: string
   education_level?: string
   disability_flag: boolean
   disability_type?: string
-  
+
   // Extended data for editing
+  extra_phones?: { id: number; phone: string; label?: string }[]
   orphans?: any[]
   widow_files?: any
   widow_social?: any

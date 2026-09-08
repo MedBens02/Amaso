@@ -115,14 +115,12 @@ class FiscalYearController extends Controller
     }
 
     /**
-     * Basic authorization check for fiscal year closing
-     * In production, replace with proper role-based authorization
+     * Closing a fiscal year moves money on the books for good - restrict it
+     * to admins.
      */
     private function canCloseFiscalYear(): bool
     {
-        // For now, allow all users - in production implement proper auth
-        // Example: return auth()->user()?->hasRole('admin') ?? false;
-        return true;
+        return auth()->user()?->isAdmin() ?? false;
     }
 
     /**

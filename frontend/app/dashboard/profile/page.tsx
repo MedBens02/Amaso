@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import { User, Mail, Phone, MapPin, Calendar, Edit, Save, X, Camera, Shield, Key } from "lucide-react"
+import { getRoleLabel } from "@/lib/roles"
 
 interface UserProfile {
   id: string
@@ -114,7 +115,7 @@ export default function ProfilePage() {
             </div>
             <CardTitle className="text-xl">{user.name}</CardTitle>
             <Badge variant="secondary" className="w-fit mx-auto">
-              {user.role}
+              {getRoleLabel(user.role)}
             </Badge>
           </CardHeader>
           <CardContent className="space-y-4">

@@ -143,10 +143,18 @@ cd frontend
 npm run dev
 ```
 
-Open **http://localhost:3000** and log in with the demo account:
+Open **http://localhost:3000** and log in with one of the seeded demo accounts
+(password `password` for all three; the login page also has one-click chips
+for these):
 
-- Email: `admin@amaso.org`
-- Password: `admin123`
+| Role | Email |
+|---|---|
+| Admin (مدير النظام) | `admin@amaso.org` |
+| Accountant (محاسب) | `accountant@amaso.org` |
+| Social worker (أخصائي اجتماعي) | `social@amaso.org` |
+
+Only the admin account can close a fiscal year — the other two will not see
+that action.
 
 To stop, press `Ctrl+C` in each terminal.
 

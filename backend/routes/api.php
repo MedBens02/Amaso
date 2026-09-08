@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DonorController;
 use App\Http\Controllers\Api\V1\WidowController;
 use App\Http\Controllers\Api\V1\KafilController;
@@ -31,6 +32,15 @@ Route::get('/health', function () {
 
 // API v1 routes
 Route::prefix('v1')->group(function () {
+
+    // Authentication (public)
+    Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+
+    Route::middleware('auth:sanctum')->group(function () {
+
+    // Authentication (requires a valid token)
+    Route::post('auth/logout', [AuthController::class, 'logout']);
+    Route::get('auth/me', [AuthController::class, 'me']);
 
     // Donors CRUD
     Route::apiResource('donors', DonorController::class);
@@ -203,5 +213,7 @@ Route::prefix('v1')->group(function () {
     Route::post('fiscal-years/{fiscalYear}/close', [FiscalYearController::class, 'closeFiscalYear']);
     Route::get('fiscal-years/{fiscalYear}/untransferred-incomes', [FiscalYearController::class, 'getUntransferredIncomes']);
     Route::post('incomes/{income}/transfer', [FiscalYearController::class, 'transferIncome']);
+
+    });
 
 });
