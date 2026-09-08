@@ -23,20 +23,46 @@ export class ApiError extends Error {
   }
 }
 
+const TOKEN_STORAGE_KEY = 'amaso_token'
+const USER_STORAGE_KEY = 'user'
+
 class ApiClient {
   private baseURL: string
   private token: string | null = null
 
   constructor() {
     this.baseURL = API_BASE_URL
+    // localStorage isn't available during SSR/module init on the server -
+    // pick the token back up once we're actually in the browser.
+    if (typeof window !== 'undefined') {
+      this.token = window.localStorage.getItem(TOKEN_STORAGE_KEY)
+    }
   }
 
   setToken(token: string) {
     this.token = token
   }
 
+  get isAuthenticated(): boolean {
+    return this.token !== null
+  }
+
+  /** For the window.fetch patch below, which authenticates raw fetch() calls too. */
+  getToken(): string | null {
+    return this.token
+  }
+
+  /** Clears the token and cached user, in memory and in storage. */
+  clearSession() {
+    this.token = null
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(TOKEN_STORAGE_KEY)
+      window.localStorage.removeItem(USER_STORAGE_KEY)
+    }
+  }
+
   async request<T>(
-    endpoint: string, 
+    endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`
@@ -56,6 +82,14 @@ class ApiClient {
       const data = await response.json()
 
       if (!response.ok) {
+        // A 401 on the login attempt itself just means wrong credentials -
+        // let the caller show that. A 401 on any other endpoint means the
+        // stored token is gone/expired: drop it and send the user back to
+        // the login page instead of leaving every page silently broken.
+        if (response.status === 401 && endpoint !== '/auth/login' && typeof window !== 'undefined') {
+          this.clearSession()
+          window.location.href = '/login'
+        }
         throw new ApiError(response, data)
       }
 
@@ -66,6 +100,37 @@ class ApiClient {
       }
       throw new Error(`Network error: ${error}`)
     }
+  }
+
+  // Authentication
+  async login(email: string, password: string) {
+    const response = await this.request<{ token: string; user: any }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    })
+
+    this.setToken(response.data.token)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(TOKEN_STORAGE_KEY, response.data.token)
+      window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(response.data.user))
+    }
+
+    return response
+  }
+
+  async logout() {
+    try {
+      await this.request('/auth/logout', { method: 'POST' })
+    } finally {
+      // Always clear locally, even if the network call failed (offline,
+      // token already expired, etc.) - the user still expects to be logged
+      // out on this device.
+      this.clearSession()
+    }
+  }
+
+  async getMe() {
+    return this.request<any>('/auth/me')
   }
 
   // Donors API
@@ -131,6 +196,7 @@ class ApiClient {
     sub_budget_id: number
     income_category_id: number
     donor_id?: number
+    widow_id?: number
     kafil_id?: number
     income_date: string
     amount: number
@@ -152,6 +218,7 @@ class ApiClient {
     sub_budget_id: number
     income_category_id: number
     donor_id?: number
+    widow_id?: number
     kafil_id?: number
     income_date: string
     amount: number
@@ -192,6 +259,45 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     })
+  }
+
+  // Kafala Chamila (comprehensive sponsorship split)
+  async getKafalaChamilaSplits() {
+    return this.request<any>('/kafala-chamila/splits')
+  }
+
+  async updateKafalaChamilaSplits(splits: { id: number; percentage: number }[]) {
+    return this.request<any>('/kafala-chamila/splits', {
+      method: 'PUT',
+      body: JSON.stringify({ splits }),
+    })
+  }
+
+  async createKafalaChamilaIncome(data: {
+    kafil_id: number
+    widow_id?: number
+    fiscal_year_id: number
+    income_date: string
+    payment_method: 'Cash' | 'Cheque' | 'BankWire'
+    cheque_number?: string
+    receipt_number?: string
+    bank_account_id?: number
+    remarks?: string
+    transferred_at?: string
+    splits: { split_id: number; amount: number }[]
+  }) {
+    return this.request<any>('/kafala-chamila/incomes', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Reports
+  async getKafilStatement(kafilId: number, params?: { from?: string; to?: string }) {
+    const query = params && (params.from || params.to)
+      ? '?' + new URLSearchParams(params as Record<string, string>).toString()
+      : ''
+    return this.request<any>(`/reports/kafils/${kafilId}/statement${query}`)
   }
 
   // Expenses API
@@ -321,9 +427,11 @@ class ApiClient {
     page?: number
     sort_by?: string
     sort_order?: 'asc' | 'desc'
+    archived?: boolean
   }) {
     const searchParams = new URLSearchParams()
     if (params?.search) searchParams.set('search', params.search)
+    if (params?.archived) searchParams.set('archived', '1')
     if (params?.widow_id) searchParams.set('widow_id', params.widow_id.toString())
     if (params?.has_disability !== undefined) searchParams.set('has_disability', params.has_disability.toString())
     if (params?.education_level) searchParams.set('education_level', params.education_level)
@@ -440,10 +548,97 @@ class ApiClient {
     return this.request<any>(`/widows/${id}?include=orphans,widow_files,widow_social,skills,illnesses,aid_types,social_income,social_expenses,active_maouna,sponsorships`)
   }
 
-  async deleteWidow(id: number) {
+  /** Archive a family (soft delete) with the leaving information. */
+  async archiveWidow(id: number, leaving: {
+    leaving_date: string
+    leaving_reason: string
+    leaving_details?: string
+  }) {
     return this.request<any>(`/widows/${id}`, {
       method: 'DELETE',
+      body: JSON.stringify(leaving),
     })
+  }
+
+  async restoreWidow(id: number) {
+    return this.request<any>(`/widows/${id}/restore`, {
+      method: 'POST',
+    })
+  }
+
+  // Education API
+  async getSchools(params?: { search?: string; type?: string }) {
+    const searchParams = new URLSearchParams()
+    if (params?.search) searchParams.set('search', params.search)
+    if (params?.type) searchParams.set('type', params.type)
+    const query = searchParams.toString()
+    return this.request<any[]>(`/schools${query ? `?${query}` : ''}`)
+  }
+
+  async createSchool(data: { name: string; type: string; is_private: boolean; is_amaso_linked: boolean; notes?: string }) {
+    return this.request<any>('/schools', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async updateSchool(id: number, data: { name: string; type: string; is_private: boolean; is_amaso_linked: boolean; notes?: string }) {
+    return this.request<any>(`/schools/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  }
+
+  async deleteSchool(id: number) {
+    return this.request<any>(`/schools/${id}`, { method: 'DELETE' })
+  }
+
+  async getAcademicYears() {
+    return this.request<any[]>('/academic-years')
+  }
+
+  async createAcademicYear(startYear: number) {
+    return this.request<any>('/academic-years', { method: 'POST', body: JSON.stringify({ start_year: startYear }) })
+  }
+
+  async rolloverAcademicYear() {
+    return this.request<any>('/academic-years/rollover', { method: 'POST' })
+  }
+
+  async getEnrollments(params?: {
+    academic_year_id?: number
+    school_id?: number
+    education_level_id?: number
+    status?: string
+    search?: string
+    page?: number
+    per_page?: number
+  }) {
+    const searchParams = new URLSearchParams()
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') searchParams.set(key, String(value))
+    })
+    const query = searchParams.toString()
+    return this.request<any[]>(`/enrollments${query ? `?${query}` : ''}`)
+  }
+
+  async createEnrollment(data: {
+    orphan_id: number
+    academic_year_id: number
+    education_level_id?: number | null
+    school_id?: number | null
+    specialty?: string | null
+    notes?: string | null
+  }) {
+    return this.request<any>('/enrollments', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async updateEnrollment(id: number, data: {
+    education_level_id?: number | null
+    school_id?: number | null
+    specialty?: string | null
+    status?: string
+    notes?: string | null
+  }) {
+    return this.request<any>(`/enrollments/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  }
+
+  async deleteEnrollment(id: number) {
+    return this.request<any>(`/enrollments/${id}`, { method: 'DELETE' })
   }
 
   // Kafils API
@@ -586,4 +781,48 @@ class ApiClient {
 }
 
 export const api = new ApiClient()
+
+/**
+ * A large part of this codebase calls `fetch()` directly against the API
+ * instead of going through ApiClient (relative `/api/v1/...` paths proxied
+ * by next.config.mjs, or absolute NEXT_PUBLIC_API_BASE_URL calls). None of
+ * those call sites can attach the bearer token themselves, and every v1
+ * route now requires one. Patching window.fetch once, here, means every
+ * such call - present and future - is authenticated and gets the same
+ * "session expired -> back to /login" handling as requests made through
+ * ApiClient, without having to hunt down and edit every call site.
+ * Scoped to same-origin/`/api/v1/` requests only; anything else passes
+ * through untouched.
+ */
+if (typeof window !== 'undefined' && !(window as any).__amasoFetchPatched) {
+  (window as any).__amasoFetchPatched = true
+  const originalFetch = window.fetch.bind(window)
+
+  window.fetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+    const isApiRequest = url.includes('/api/v1/')
+
+    if (isApiRequest) {
+      const headers = new Headers(init.headers ?? (input instanceof Request ? input.headers : undefined))
+      const token = api.getToken()
+      if (token && !headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${token}`)
+      }
+      if (!headers.has('Accept')) {
+        headers.set('Accept', 'application/json')
+      }
+      init = { ...init, headers }
+    }
+
+    const response = await originalFetch(input, init)
+
+    if (isApiRequest && response.status === 401 && !url.includes('/auth/login')) {
+      api.clearSession()
+      window.location.href = '/login'
+    }
+
+    return response
+  }
+}
+
 export default api

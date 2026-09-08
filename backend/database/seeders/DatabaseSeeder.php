@@ -12,6 +12,8 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             ReferenceDataSeeder::class,
             AccountingSeeder::class,
+            EducationSeeder::class,
+            KafalaChamilaSeeder::class,
         ]);
     }
 }

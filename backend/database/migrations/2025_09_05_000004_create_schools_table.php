@@ -1,0 +1,26 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('schools', function (Blueprint $table) {
+            $table->id();
+            $table->string('name', 150)->unique();
+            $table->string('type', 20)->default('school'); // school | university
+            $table->boolean('is_private')->default(false);
+            $table->boolean('is_amaso_linked')->default(false); // private school partnered with AMASO
+            $table->text('notes')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('schools');
+    }
+};

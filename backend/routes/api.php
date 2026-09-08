@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DonorController;
 use App\Http\Controllers\Api\V1\WidowController;
 use App\Http\Controllers\Api\V1\KafilController;
@@ -10,6 +11,11 @@ use App\Http\Controllers\Api\V1\IncomeController;
 use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\TransferController;
 use App\Http\Controllers\Api\V1\FiscalYearController;
+use App\Http\Controllers\Api\V1\SchoolController;
+use App\Http\Controllers\Api\V1\AcademicYearController;
+use App\Http\Controllers\Api\V1\EnrollmentController;
+use App\Http\Controllers\Api\V1\KafalaChamilaController;
+use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\BeneficiaryGroupController;
 use App\Http\Controllers\Api\V1\References;
 
@@ -29,11 +35,21 @@ Route::get('/health', function () {
 // API v1 routes
 Route::prefix('v1')->group(function () {
 
+    // Authentication (public)
+    Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+
+    Route::middleware('auth:sanctum')->group(function () {
+
+    // Authentication (requires a valid token)
+    Route::post('auth/logout', [AuthController::class, 'logout']);
+    Route::get('auth/me', [AuthController::class, 'me']);
+
     // Donors CRUD
     Route::apiResource('donors', DonorController::class);
 
-    // Widows CRUD
-    Route::apiResource('widows', WidowController::class);
+    // Widows CRUD (families; destroy archives instead of deleting)
+    Route::apiResource('widows', WidowController::class)->withTrashed(['show']);
+    Route::post('widows/{widow}/restore', [WidowController::class, 'restore'])->withTrashed();
     Route::get('widows-reference-data', [WidowController::class, 'getReferenceData']);
 
     // Orphans CRUD (read-only, managed through widows)
@@ -54,6 +70,14 @@ Route::prefix('v1')->group(function () {
     Route::post('incomes/{income}/approve', [IncomeController::class, 'approve']);
     Route::post('incomes/{income}/transfer-to-bank', [IncomeController::class, 'transferToBank']);
 
+    // Kafala Chamila (comprehensive sponsorship) split
+    Route::get('kafala-chamila/splits', [KafalaChamilaController::class, 'splits']);
+    Route::put('kafala-chamila/splits', [KafalaChamilaController::class, 'updateSplits']);
+    Route::post('kafala-chamila/incomes', [KafalaChamilaController::class, 'storeIncome']);
+
+    // Reports
+    Route::get('reports/kafils/{kafil}/statement', [ReportController::class, 'kafilStatement']);
+
     // Expenses CRUD + approval
     Route::apiResource('expenses', ExpenseController::class);
     Route::post('expenses/{expense}/approve', [ExpenseController::class, 'approve']);
@@ -68,6 +92,14 @@ Route::prefix('v1')->group(function () {
     Route::post('beneficiary-groups/{beneficiaryGroup}/members', [BeneficiaryGroupController::class, 'addMembers']);
     Route::delete('beneficiary-groups/{beneficiaryGroup}/members/{beneficiary}', [BeneficiaryGroupController::class, 'removeMember']);
     Route::get('beneficiaries', [BeneficiaryGroupController::class, 'getBeneficiaries']);
+
+    // Education tracking
+    Route::apiResource('schools', SchoolController::class)->except(['show']);
+    Route::get('academic-years', [AcademicYearController::class, 'index']);
+    Route::post('academic-years', [AcademicYearController::class, 'store']);
+    Route::post('academic-years/rollover', [AcademicYearController::class, 'rollover']);
+    Route::apiResource('enrollments', EnrollmentController::class)->except(['show'])
+        ->parameters(['enrollments' => 'enrollment']);
 
     // Lookup data endpoints
     Route::get('bank-accounts', function () {
@@ -191,5 +223,7 @@ Route::prefix('v1')->group(function () {
     Route::post('fiscal-years/{fiscalYear}/close', [FiscalYearController::class, 'closeFiscalYear']);
     Route::get('fiscal-years/{fiscalYear}/untransferred-incomes', [FiscalYearController::class, 'getUntransferredIncomes']);
     Route::post('incomes/{income}/transfer', [FiscalYearController::class, 'transferIncome']);
+
+    });
 
 });

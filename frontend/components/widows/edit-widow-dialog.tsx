@@ -23,6 +23,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { MultiSelectRS } from "@/components/common/MultiSelectRS"
+import { ExtraPhonesField } from "@/components/widows/extra-phones-field"
+import { ChildExtraFields } from "@/components/widows/child-extra-fields"
 import { SingleSelectRS } from "@/components/common/SingleSelectRS"
 import { StarRating } from "@/components/common/StarRating"
 import { useToast } from "@/hooks/use-toast"
@@ -41,6 +43,8 @@ const editWidowSchema = z
     birthDate: z.date({ required_error: "تاريخ الميلاد مطلوب" }),
     nationalId: z.string().optional(),
     phone: z.string().min(1, "رقم الهاتف مطلوب"),
+    extraPhones: z.array(z.string()).default([]),
+    familyLiaison: z.string().optional(),
     email: z.string().email("بريد إلكتروني غير صحيح").optional().or(z.literal("")),
     neighborhood: z.string().min(1, "الحي مطلوب"),
     address: z.string().optional(),
@@ -54,12 +58,23 @@ const editWidowSchema = z
     children: z
       .array(
         z.object({
+          id: z.number().optional(),
           firstName: z.string().min(1, "اسم الطفل مطلوب"),
           lastName: z.string().min(1, "اسم العائلة مطلوب"),
           sex: z.enum(["male", "female"], { required_error: "الجنس مطلوب" }),
           birthDate: z.date({ required_error: "تاريخ الميلاد مطلوب" }),
           education_level_id: z.string().optional(), // Education level ID as string for form
           schoolName: z.string().optional(),
+          phone: z.string().optional(),
+          cin: z.string().optional(),
+          isWorking: z.boolean().default(false),
+          workType: z.string().optional(),
+          isWorkPermanent: z.boolean().default(false),
+          isMarried: z.boolean().default(false),
+          isSchooled: z.boolean().default(true),
+          masarCode: z.string().optional(),
+          isNotInterested: z.boolean().default(false),
+          isInactive: z.boolean().default(false),
         }),
       )
       .default([]),
@@ -126,11 +141,13 @@ interface Widow {
   national_id: string
   birth_date: string
   marital_status: string
+  family_liaison?: string
   education_level?: string
   disability_flag: boolean
   disability_type?: string
-  
+
   // Extended data for editing
+  extra_phones?: { id: number; phone: string; label?: string }[]
   orphans?: any[]
   widow_files?: any
   widow_social?: any
@@ -276,6 +293,8 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
         birthDate: birthDate,
         nationalId: widow.national_id || "",
         phone: widow.phone || "",
+        extraPhones: (widow.extra_phones || []).map((p: any) => p.phone),
+        familyLiaison: widow.family_liaison || "أم",
         email: widow.email || "",
         neighborhood: widow.neighborhood || "",
         address: widow.address || "",
@@ -287,12 +306,23 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
         
         // Children/Orphans
         children: widow.orphans?.map(child => ({
+          id: child.id,
           firstName: child.first_name || "",
           lastName: child.last_name || "",
           sex: child.gender || "male",
           birthDate: child.birth_date ? new Date(child.birth_date) : new Date(),
           education_level_id: child.education_level_id ? child.education_level_id.toString() : "0",
           schoolName: "", // Not available in current data
+          phone: child.phone || "",
+          cin: child.cin || "",
+          isWorking: child.is_working || false,
+          workType: child.work_type || "",
+          isWorkPermanent: child.is_work_permanent || false,
+          isMarried: child.is_married || false,
+          isSchooled: child.is_schooled ?? true,
+          masarCode: child.masar_code || "",
+          isNotInterested: child.is_not_interested || false,
+          isInactive: child.is_inactive || false,
         })) || [],
         
         // Social data
@@ -380,6 +410,8 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
         first_name: data.firstName,
         last_name: data.lastName,
         phone: data.phone,
+        extra_phones: (data.extraPhones || []).filter((p: string) => p && p.trim() !== ""),
+        family_liaison: data.familyLiaison || "أم",
         email: data.email || undefined,
         address: data.address || undefined,
         neighborhood: data.neighborhood,
@@ -410,11 +442,22 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
           console.log(`EDIT - Processed education_level_id for child ${childIndex}:`, educationLevelId);
           
           const childData = {
+            id: child.id || undefined,
             first_name: child.firstName,
             last_name: child.lastName,
             birth_date: child.birthDate.toISOString().split('T')[0],
             gender: child.sex,
             education_level_id: educationLevelId,
+            phone: child.phone || null,
+            cin: child.cin || null,
+            is_working: child.isWorking || false,
+            work_type: child.workType || null,
+            is_work_permanent: child.isWorkPermanent || false,
+            is_married: child.isMarried || false,
+            is_schooled: child.isSchooled ?? true,
+            masar_code: child.masarCode || null,
+            is_not_interested: child.isNotInterested || false,
+            is_inactive: child.isInactive || false,
           };
           console.log(`EDIT - Final child data for child ${childIndex}:`, childData);
           return childData;
@@ -670,6 +713,35 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                     {form.formState.errors.email && (
                       <p className="text-sm text-red-500">{form.formState.errors.email.message}</p>
                     )}
+                    <Controller
+                      name="extraPhones"
+                      control={form.control}
+                      render={({ field }) => (
+                        <ExtraPhonesField value={field.value || []} onChange={field.onChange} />
+                      )}
+                    />
+                    <div className="space-y-2">
+                      <Label>صلة القرابة بالأيتام (المسؤول عن الملف)</Label>
+                      <Controller
+                        name="familyLiaison"
+                        control={form.control}
+                        render={({ field }) => (
+                          <Select onValueChange={field.onChange} value={field.value || "أم"}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="اختر صلة القرابة" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="أم">أم (الأرملة نفسها)</SelectItem>
+                              <SelectItem value="خالة">خالة</SelectItem>
+                              <SelectItem value="عمة">عمة</SelectItem>
+                              <SelectItem value="جدة">جدة</SelectItem>
+                              <SelectItem value="أخت">أخت</SelectItem>
+                              <SelectItem value="وصي آخر">وصي آخر</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -928,6 +1000,8 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                         <p className="text-sm text-red-500">{form.formState.errors.children[index]?.birthDate?.message}</p>
                       )}
                     </div>
+
+                    <ChildExtraFields form={form} index={index} />
                   </div>
                 ))}
               </TabsContent>

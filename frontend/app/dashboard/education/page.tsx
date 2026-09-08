@@ -1,56 +1,52 @@
 "use client"
+
+import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { School, Users, BookOpen, Bus } from "lucide-react"
-import { InstitutionsTab } from "@/components/education/institutions-tab"
-import { StudentsTab } from "@/components/education/students-tab"
-import { ResultsTab } from "@/components/education/results-tab"
-import { TransportTab } from "@/components/education/transport-tab"
-import { WorkInProgressBanner } from "@/components/common/work-in-progress-banner"
+import { School, CalendarDays, GraduationCap } from "lucide-react"
+import { SchoolsTab } from "@/components/education/schools-tab"
+import { AcademicYearsTab } from "@/components/education/academic-years-tab"
+import { EnrollmentsTab } from "@/components/education/enrollments-tab"
 
 export default function EducationPage() {
+  // Bumped when academic years change (creation/rollover) so the
+  // enrollments tab reloads its year list and data.
+  const [refreshKey, setRefreshKey] = useState(0)
+
   return (
     <div className="space-y-6">
-      <WorkInProgressBanner />
-
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">النظام التعليمي</h1>
-        <p className="text-gray-600 mt-2">إدارة المؤسسات التعليمية والطلاب والنتائج</p>
+        <h1 className="text-3xl font-bold text-gray-900">التتبع الدراسي</h1>
+        <p className="text-gray-600 mt-2">
+          تتبع مسار الأيتام الدراسي سنة بسنة، من التمدرس الأول إلى التخرج من الجامعة
+        </p>
       </div>
 
-      <Tabs defaultValue="institutions" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="institutions" className="flex items-center gap-2">
+      <Tabs defaultValue="enrollments" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="enrollments" className="flex items-center gap-2">
+            <GraduationCap className="h-4 w-4" />
+            التسجيلات
+          </TabsTrigger>
+          <TabsTrigger value="schools" className="flex items-center gap-2">
             <School className="h-4 w-4" />
             المؤسسات
           </TabsTrigger>
-          <TabsTrigger value="students" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            الطلاب
-          </TabsTrigger>
-          <TabsTrigger value="results" className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
-            النتائج
-          </TabsTrigger>
-          <TabsTrigger value="transport" className="flex items-center gap-2">
-            <Bus className="h-4 w-4" />
-            النقل المدرسي
+          <TabsTrigger value="years" className="flex items-center gap-2">
+            <CalendarDays className="h-4 w-4" />
+            السنوات الدراسية
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="institutions">
-          <InstitutionsTab />
+        <TabsContent value="enrollments">
+          <EnrollmentsTab refreshKey={refreshKey} />
         </TabsContent>
 
-        <TabsContent value="students">
-          <StudentsTab />
+        <TabsContent value="schools">
+          <SchoolsTab />
         </TabsContent>
 
-        <TabsContent value="results">
-          <ResultsTab />
-        </TabsContent>
-
-        <TabsContent value="transport">
-          <TransportTab />
+        <TabsContent value="years">
+          <AcademicYearsTab onChanged={() => setRefreshKey((k) => k + 1)} />
         </TabsContent>
       </Tabs>
     </div>

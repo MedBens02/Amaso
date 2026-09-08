@@ -27,17 +27,22 @@ import { ar } from "date-fns/locale"
 import { formatDateArabic } from "@/lib/date-utils"
 import { cn } from "@/lib/utils"
 import { AddDonorSheet } from "@/components/donors/add-donor-sheet"
+import { KafalaChamilaSplitEditor } from "@/components/forms/KafalaChamilaSplitEditor"
 import api from "@/lib/api"
 
 const incomeSchema = z
   .object({
     income_date: z.date({ required_error: "التاريخ مطلوب" }),
-    sub_budget_id: z.string().min(1, "الميزانية الفرعية مطلوبة"),
-    income_category_id: z.string().min(1, "الفئة مطلوبة"),
-    income_type: z.enum(["donation", "kafala"], { required_error: "نوع الإيراد مطلوب" }),
+    sub_budget_id: z.string().optional(),
+    income_category_id: z.string().optional(),
+    income_type: z.enum(["donation", "kafala", "kafala_chamila"], { required_error: "نوع الإيراد مطلوب" }),
     donor_id: z.string().optional(),
     kafil_id: z.string().optional(),
+    // Family this payment is designated for - intent only, the money still
+    // goes to the sub-budgets. Used by the kafil statement.
+    widow_id: z.string().optional(),
     amount: z.number().positive("المبلغ يجب أن يكون موجباً"),
+    kafala_chamila_splits: z.array(z.object({ split_id: z.number(), amount: z.number() })).optional(),
     payment_method: z.enum(["Cash", "Cheque", "BankWire"], { required_error: "طريقة الدفع مطلوبة" }),
     cheque_number: z.string().optional(),
     receipt_number: z.string().optional(),
@@ -84,7 +89,7 @@ const incomeSchema = z
     (data) => {
       if (data.income_type === "donation") {
         return data.donor_id && data.donor_id.length > 0
-      } else if (data.income_type === "kafala") {
+      } else if (data.income_type === "kafala" || data.income_type === "kafala_chamila") {
         return data.kafil_id && data.kafil_id.length > 0
       }
       return true
@@ -92,6 +97,28 @@ const incomeSchema = z
     {
       message: "يجب اختيار المتبرع أو الكفيل",
       path: ["donor_id"],
+    },
+  )
+  .refine((data) => data.income_type === "kafala_chamila" || (data.sub_budget_id && data.sub_budget_id.length > 0), {
+    message: "الميزانية الفرعية مطلوبة",
+    path: ["sub_budget_id"],
+  })
+  .refine(
+    (data) => data.income_type === "kafala_chamila" || (data.income_category_id && data.income_category_id.length > 0),
+    {
+      message: "الفئة مطلوبة",
+      path: ["income_category_id"],
+    },
+  )
+  .refine(
+    (data) => {
+      if (data.income_type !== "kafala_chamila") return true
+      const splits = data.kafala_chamila_splits || []
+      return splits.length > 0 && splits.some((s) => s.amount > 0)
+    },
+    {
+      message: "يجب إدخال مبلغ واحد على الأقل في بنود توزيع الكفالة الشاملة",
+      path: ["kafala_chamila_splits"],
     },
   )
 
@@ -145,6 +172,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
     defaultValues: {
       income_type: "donation",
       payment_method: "Cash",
+      kafala_chamila_splits: [],
       ...initialData,
     },
   })
@@ -157,6 +185,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
         form.reset({
           income_type: "donation",
           payment_method: "Cash",
+          kafala_chamila_splits: [],
           ...initialData,
         })
       }
@@ -201,12 +230,20 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
       // Find kafala sub-budget and income category
       const kafalaSubBudget = subBudgets.find(sb => sb.label === 'كفالة شاملة')
       const kafalaCategory = incomeCategories.find(cat => cat.label === 'كفالة شاملة')
-      
+
       if (kafalaSubBudget) {
         form.setValue('sub_budget_id', kafalaSubBudget.id.toString())
       }
       if (kafalaCategory) {
         form.setValue('income_category_id', kafalaCategory.id.toString())
+      }
+    } else if (incomeType === 'kafala_chamila') {
+      // Each split part carries its own sub-budget/category server-side -
+      // there's no single one to select here.
+      form.setValue('sub_budget_id', '')
+      form.setValue('income_category_id', '')
+      if (!form.getValues('amount')) {
+        form.setValue('amount', 800)
       }
     }
   }, [form.watch('income_type'), subBudgets, incomeCategories, form])
@@ -227,12 +264,20 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
     if (kafil && kafil.sponsorships && kafil.sponsorships.length > 0) {
       // Set all sponsorships for display
       setSelectedKafilSponsorship(kafil)
-      // Auto-fill with total amount of all sponsorships or monthly pledge
-      const totalAmount = kafil.sponsorships.reduce((sum: number, sp: any) => sum + parseFloat(sp.amount || 0), 0)
-      const monthlyPledge = parseFloat(kafil.monthly_pledge || 0)
-      form.setValue('amount', (totalAmount || monthlyPledge).toString())
+      // Auto-fill with total amount of all sponsorships or monthly pledge -
+      // kafala chamila is a flat package price (800 by default), not tied
+      // to this kafil's per-widow sponsorship total, so it's left alone.
+      if (form.getValues('income_type') !== 'kafala_chamila') {
+        const totalAmount = kafil.sponsorships.reduce((sum: number, sp: any) => sum + parseFloat(sp.amount || 0), 0)
+        const monthlyPledge = parseFloat(kafil.monthly_pledge || 0)
+        form.setValue('amount', (totalAmount || monthlyPledge).toString())
+      }
+
+      // With a single sponsored family there's nothing to choose - designate it.
+      form.setValue('widow_id', kafil.sponsorships.length === 1 ? kafil.sponsorships[0].widow_id?.toString() ?? '' : '')
     } else {
       setSelectedKafilSponsorship(null)
+      form.setValue('widow_id', '')
     }
   }
 
@@ -278,29 +323,63 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
     try {
       // Determine transferred_at for BankWire payments
       const transferredAt = data.payment_method === 'BankWire' ? format(data.income_date, 'yyyy-MM-dd') : undefined
-      
+
       // Always use active fiscal year ID
       const fiscalYearId = activeFiscalYear?.id || 1
-      
+
+      // A kafala chamila payment is recorded as one income per split part,
+      // via its own dedicated endpoint - not the regular single-category form below.
+      if (data.income_type === 'kafala_chamila') {
+        const splits = (data.kafala_chamila_splits || [])
+          .filter((s) => s.amount > 0)
+          .map((s) => ({ split_id: s.split_id, amount: s.amount }))
+
+        const result = await api.createKafalaChamilaIncome({
+          kafil_id: parseInt(data.kafil_id!),
+          widow_id: data.widow_id ? parseInt(data.widow_id) : undefined,
+          fiscal_year_id: fiscalYearId,
+          income_date: format(data.income_date, 'yyyy-MM-dd'),
+          payment_method: data.payment_method,
+          cheque_number: data.payment_method === 'Cheque' ? (data.cheque_number || undefined) : undefined,
+          receipt_number: data.payment_method === 'Cash' ? (data.receipt_number || undefined) : undefined,
+          bank_account_id: data.payment_method === 'BankWire' && data.bank_account_id ?
+            parseInt(data.bank_account_id) : undefined,
+          remarks: data.remarks || undefined,
+          transferred_at: transferredAt,
+          splits,
+        })
+
+        toast({
+          title: "تم الحفظ بنجاح",
+          description: result?.message || "تم إنشاء إيرادات الكفالة الشاملة وهي في انتظار الموافقة",
+        })
+
+        form.reset()
+        handleClose()
+        onSuccess?.()
+        return
+      }
+
       // Prepare data with only relevant fields based on payment method
       const incomeData = {
         fiscal_year_id: fiscalYearId,
-        sub_budget_id: parseInt(data.sub_budget_id),
-        income_category_id: parseInt(data.income_category_id),
+        sub_budget_id: parseInt(data.sub_budget_id!),
+        income_category_id: parseInt(data.income_category_id!),
         donor_id: data.income_type === 'donation' && data.donor_id ? parseInt(data.donor_id) : undefined,
         kafil_id: data.income_type === 'kafala' && data.kafil_id ? parseInt(data.kafil_id) : undefined,
+        widow_id: data.income_type === 'kafala' && data.widow_id ? parseInt(data.widow_id) : undefined,
         income_date: format(data.income_date, 'yyyy-MM-dd'),
         amount: data.amount,
         payment_method: data.payment_method,
         // Only include relevant fields based on payment method
         cheque_number: data.payment_method === 'Cheque' ? (data.cheque_number || undefined) : undefined,
         receipt_number: data.payment_method === 'Cash' ? (data.receipt_number || undefined) : undefined,
-        bank_account_id: data.payment_method === 'BankWire' && data.bank_account_id ? 
+        bank_account_id: data.payment_method === 'BankWire' && data.bank_account_id ?
           parseInt(data.bank_account_id) : undefined,
         remarks: data.remarks || undefined,
         transferred_at: transferredAt,
       }
-      
+
       // Create or update income via API
       if (initialData?.id) {
         await api.updateIncome(initialData.id, incomeData)
@@ -535,6 +614,10 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                     <SelectContent>
                       <SelectItem value="donation">تبرع عادي</SelectItem>
                       <SelectItem value="kafala">كفالة</SelectItem>
+                      {/* A kafala chamila batch creates several new income rows at once - not meaningful when editing one existing row. */}
+                      {!initialData?.id && (
+                        <SelectItem value="kafala_chamila">كفالة شاملة</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 )}
@@ -546,6 +629,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
           </div>
 
           {/* Sub Budget and Category */}
+          {incomeType !== 'kafala_chamila' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>الميزانية الفرعية *</Label>
@@ -611,6 +695,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
               )}
             </div>
           </div>
+          )}
 
           {/* Donor/Kafil Selection */}
           <div className="space-y-4">
@@ -757,13 +842,45 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                       </div>
                     )}
                     
-                    <div className="mt-3 text-xs text-blue-600 bg-blue-100 p-2 rounded">
-                      💡 تم تعيين المبلغ تلقائياً حسب إجمالي الكفالات. يمكن تعديل المبلغ حسب الحاجة.
-                    </div>
+                    {incomeType === 'kafala' && (
+                      <div className="mt-3 text-xs text-blue-600 bg-blue-100 p-2 rounded">
+                        💡 تم تعيين المبلغ تلقائياً حسب إجمالي الكفالات. يمكن تعديل المبلغ حسب الحاجة.
+                      </div>
+                    )}
                   </div>
                 )}
                 {form.formState.errors.kafil_id && (
                   <p className="text-sm text-red-600">{form.formState.errors.kafil_id.message}</p>
+                )}
+
+                {/* Which sponsored family this payment is meant for. Recorded as
+                    intent for the kafil statement - the money still goes to the
+                    sub-budgets. */}
+                {selectedKafilSponsorship?.sponsorships?.length > 0 && (
+                  <div className="space-y-2 pt-2">
+                    <Label>مخصص لأسرة</Label>
+                    <Controller
+                      name="widow_id"
+                      control={form.control}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="اختر الأسرة المستفيدة (اختياري)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {selectedKafilSponsorship.sponsorships.map((sponsorship: any) => (
+                              <SelectItem key={sponsorship.widow_id} value={sponsorship.widow_id?.toString()}>
+                                {sponsorship.widow?.first_name} {sponsorship.widow?.last_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    <p className="text-xs text-gray-500">
+                      يُسجَّل كوجهة مقصودة للمساهمة ويظهر في كشف الكفيل. المبالغ نفسها توزَّع على الميزانيات الفرعية كالمعتاد.
+                    </p>
+                  </div>
                 )}
               </div>
             )}
@@ -772,14 +889,17 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
           {/* Amount and Payment Method */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>المبلغ (د.م) *</Label>
-              <Input 
-                type="number" 
-                {...form.register("amount", { valueAsNumber: true })} 
-                placeholder="أدخل المبلغ" 
+              <Label>{incomeType === 'kafala_chamila' ? 'المبلغ الإجمالي المستهدف (د.م) *' : 'المبلغ (د.م) *'}</Label>
+              <Input
+                type="number"
+                {...form.register("amount", { valueAsNumber: true })}
+                placeholder="أدخل المبلغ"
                 step="0.01"
                 min="0"
               />
+              {incomeType === 'kafala_chamila' && (
+                <p className="text-xs text-gray-500">يُستخدم لتوليد التوزيع أدناه، ويبقى قابلاً للتعديل يدوياً لكل بند</p>
+              )}
               {form.formState.errors.amount && (
                 <p className="text-sm text-red-600">{form.formState.errors.amount.message}</p>
               )}
@@ -808,6 +928,26 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
               )}
             </div>
           </div>
+
+          {/* Kafala Chamila Split */}
+          {incomeType === 'kafala_chamila' && (
+            <div className="space-y-2">
+              <Controller
+                name="kafala_chamila_splits"
+                control={form.control}
+                render={({ field }) => (
+                  <KafalaChamilaSplitEditor
+                    totalAmount={form.watch('amount') || 0}
+                    value={field.value || []}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              {form.formState.errors.kafala_chamila_splits && (
+                <p className="text-sm text-red-600">{form.formState.errors.kafala_chamila_splits.message}</p>
+              )}
+            </div>
+          )}
 
           {/* Payment Method Specific Fields */}
           {paymentMethod === "Cheque" && (

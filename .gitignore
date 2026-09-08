@@ -197,10 +197,6 @@ sandbox/
 test-results/
 coverage/
 
-# Docker
-Dockerfile.dev
-docker-compose.override.yml
-
 # Progress tracking (development files)
 progress.md
 ARCHITECTURE_DECISIONS.md

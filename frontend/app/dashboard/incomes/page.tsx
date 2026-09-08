@@ -17,6 +17,7 @@ export default function IncomesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [showFilters, setShowFilters] = useState(false)
   const [showNewDialog, setShowNewDialog] = useState(false)
+  const [incomesRefreshKey, setIncomesRefreshKey] = useState(0)
   const [filters, setFilters] = useState<FilterValues>({})
   const [appliedFilters, setAppliedFilters] = useState<FilterValues>({})
   const [isExporting, setIsExporting] = useState(false)
@@ -701,11 +702,15 @@ export default function IncomesPage() {
           <CardTitle>قائمة الإيرادات</CardTitle>
         </CardHeader>
         <CardContent>
-          <IncomesTable searchTerm={searchTerm} filters={appliedFilters} />
+          <IncomesTable searchTerm={searchTerm} filters={appliedFilters} refreshKey={incomesRefreshKey} />
         </CardContent>
       </Card>
 
-      <NewIncomeDialog open={showNewDialog} onOpenChange={setShowNewDialog} />
+      <NewIncomeDialog
+        open={showNewDialog}
+        onOpenChange={setShowNewDialog}
+        onSuccess={() => setIncomesRefreshKey((k) => k + 1)}
+      />
     </div>
   )
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\References;
 
 use App\Http\Controllers\Controller;
 use App\Models\IncomeCategory;
+use App\Models\KafalaChamilaSplit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +34,10 @@ class AccountingIncomeCategoryController extends Controller
 
     public function update(Request $request, IncomeCategory $category): JsonResponse
     {
+        if ($locked = $this->rejectIfLocked($category)) {
+            return $locked;
+        }
+
         $category->update($this->validateCategory($request));
         $category->load('subBudget');
 
@@ -44,6 +49,10 @@ class AccountingIncomeCategoryController extends Controller
 
     public function destroy(IncomeCategory $category): JsonResponse
     {
+        if ($locked = $this->rejectIfLocked($category)) {
+            return $locked;
+        }
+
         return DB::transaction(function () use ($category) {
             $label = $category->label;
             $incomeCount = $category->incomes()->count();
@@ -76,5 +85,22 @@ class AccountingIncomeCategoryController extends Controller
             'label' => ['required', 'string', 'max:255'],
             'sub_budget_id' => ['required', 'integer', 'exists:sub_budgets,id'],
         ]);
+    }
+
+    /**
+     * The 7 income categories a kafala chamila payment splits across are a
+     * fixed system structure - see KafalaChamilaSplit. Only their
+     * percentage is editable, and only through the dedicated admin-only
+     * endpoint.
+     */
+    private function rejectIfLocked(IncomeCategory $category): ?JsonResponse
+    {
+        if (in_array($category->id, KafalaChamilaSplit::lockedIncomeCategoryIds(), true)) {
+            return response()->json([
+                'message' => 'لا يمكن تعديل أو حذف فئة الإيراد هذه لأنها جزء من نظام توزيع الكفالة الشاملة الثابت',
+            ], 403);
+        }
+
+        return null;
     }
 }

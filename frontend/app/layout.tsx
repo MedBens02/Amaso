@@ -3,6 +3,10 @@ import type { Metadata } from "next"
 import { Cairo } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/toaster"
+// Side-effect only: installs the fetch() auth patch (see lib/api.ts) before
+// any page's components can make an unauthenticated raw fetch() call.
+import "@/lib/api"
 
 const cairo = Cairo({
   subsets: ["arabic"],
@@ -31,6 +35,8 @@ export default function RootLayout({
           storageKey="amaso-theme"
         >
           {children}
+          {/* Global toast outlet - without it every toast() in the app is invisible */}
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

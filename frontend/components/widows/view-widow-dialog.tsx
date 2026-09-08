@@ -217,6 +217,10 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                       <Badge variant="outline">{widow.marital_status}</Badge>
                     </div>
                     <div>
+                      <Label className="text-sm font-medium text-muted-foreground">صلة القرابة بالأيتام</Label>
+                      <Badge variant="outline">{(widow as any).family_liaison || "أم"}</Badge>
+                    </div>
+                    <div>
                       <Label className="text-sm font-medium text-muted-foreground">المستوى التعليمي</Label>
                       {widow.education_level ? (
                         <Badge variant="secondary">{widow.education_level}</Badge>
@@ -233,6 +237,12 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                         <Phone className="h-4 w-4 text-muted-foreground" />
                         {widow.phone || "غير محدد"}
                       </p>
+                      {((widow as any).extra_phones || []).map((extra: any) => (
+                        <p key={extra.id} className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                          <Phone className="h-3.5 w-3.5" />
+                          {extra.phone}
+                        </p>
+                      ))}
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-muted-foreground">البريد الإلكتروني</Label>

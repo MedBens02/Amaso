@@ -7,6 +7,11 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Printer, Users, Home, Activity } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog"
 
 interface Widow {
   id: number
@@ -139,18 +144,71 @@ interface Widow {
   total_sponsorship_amount?: number
 }
 
+export interface WidowCardSections {
+  personal: boolean
+  housing: boolean
+  orphans: boolean
+  additional: boolean
+}
+
+const DEFAULT_SECTIONS: WidowCardSections = {
+  personal: true,
+  housing: true,
+  orphans: true,
+  additional: true,
+}
+
+const SECTION_OPTIONS: Array<{ key: keyof WidowCardSections; label: string }> = [
+  { key: 'personal', label: 'المعلومات الشخصية' },
+  { key: 'housing', label: 'معلومات السكن' },
+  { key: 'orphans', label: 'الأيتام' },
+  { key: 'additional', label: 'المهارات والأمراض والمساعدات' },
+]
+
 interface PrintWidowPDFProps {
   widow: Widow
   variant?: 'default' | 'icon'
 }
 
+/** Button that opens the widow-card print dialog (pick sections, then PDF). */
 export function PrintWidowPDF({ widow, variant = 'default' }: PrintWidowPDFProps) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <>
+      {variant === 'icon' ? (
+        <Button variant="outline" size="icon" onClick={() => setOpen(true)} title="طباعة بطاقة الأرملة">
+          <Printer className="h-4 w-4" />
+        </Button>
+      ) : (
+        <Button onClick={() => setOpen(true)}>
+          <Printer className="ml-2 h-4 w-4" />
+          طباعة بطاقة الأرملة
+        </Button>
+      )}
+      <WidowCardPrintDialog widow={widow} open={open} onOpenChange={setOpen} />
+    </>
+  )
+}
+
+interface WidowCardPrintDialogProps {
+  widow: Widow | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+/**
+ * Section-selection dialog + hidden printable card. The chosen sections
+ * control what ends up in the generated PDF.
+ */
+export function WidowCardPrintDialog({ widow, open, onOpenChange }: WidowCardPrintDialogProps) {
   const printRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
   const [isGenerating, setIsGenerating] = useState(false)
+  const [sections, setSections] = useState<WidowCardSections>(DEFAULT_SECTIONS)
 
   const generatePDF = async () => {
-    if (!printRef.current || isGenerating) return
+    if (!printRef.current || isGenerating || !widow) return
 
     setIsGenerating(true)
     
@@ -230,6 +288,8 @@ export function PrintWidowPDF({ widow, variant = 'default' }: PrintWidowPDFProps
         description: `تم حفظ بطاقة ${widow.full_name} كملف PDF`
       })
 
+      onOpenChange(false)
+
     } catch (error) {
       console.error('Error generating PDF:', error)
       toast({
@@ -252,26 +312,39 @@ export function PrintWidowPDF({ widow, variant = 'default' }: PrintWidowPDFProps
   }
 
 
-  if (variant === 'icon') {
-    return (
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={generatePDF}
-        disabled={isGenerating}
-        title="طباعة بطاقة الأرملة"
-      >
-        <Printer className="h-4 w-4" />
-      </Button>
-    )
+  if (!widow) {
+    return null
   }
 
   return (
     <div>
-      <Button onClick={generatePDF} disabled={isGenerating} className="mb-4">
-        <Printer className="ml-2 h-4 w-4" />
-        {isGenerating ? "جاري إنشاء الـ PDF..." : "طباعة بطاقة الأرملة"}
-      </Button>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>طباعة بطاقة "{widow.full_name}"</DialogTitle>
+            <DialogDescription>اختر الأقسام التي تريد إظهارها في البطاقة</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {SECTION_OPTIONS.map(({ key, label }) => (
+              <div key={key} className="flex items-center gap-2">
+                <Checkbox
+                  id={`card-section-${key}`}
+                  checked={sections[key]}
+                  onCheckedChange={(checked) => setSections((prev) => ({ ...prev, [key]: checked === true }))}
+                />
+                <Label htmlFor={`card-section-${key}`}>{label}</Label>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
+            <Button type="button" onClick={generatePDF} disabled={isGenerating}>
+              <Printer className="ml-2 h-4 w-4" />
+              {isGenerating ? "جاري الإنشاء..." : "إنشاء PDF"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Hidden printable content */}
       <div 
@@ -305,6 +378,7 @@ export function PrintWidowPDF({ widow, variant = 'default' }: PrintWidowPDFProps
         </div>
 
         {/* Personal Information */}
+        {sections.personal && (
         <div className="mb-5">
           <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center">
             <Users className="ml-2 h-4 w-4" />
@@ -349,9 +423,10 @@ export function PrintWidowPDF({ widow, variant = 'default' }: PrintWidowPDFProps
             </div>
           </div>
         </div>
+        )}
 
         {/* Housing Information */}
-        {widow.widow_social && (
+        {sections.housing && widow.widow_social && (
           <div className="mb-5">
             <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center">
               <Home className="ml-2 h-4 w-4" />
@@ -391,7 +466,7 @@ export function PrintWidowPDF({ widow, variant = 'default' }: PrintWidowPDFProps
         )}
 
         {/* Children Information */}
-        {widow.orphans && widow.orphans.length > 0 && (
+        {sections.orphans && widow.orphans && widow.orphans.length > 0 && (
           <div className="mb-5">
             <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center">
               <Users className="ml-2 h-4 w-4" />
@@ -433,6 +508,7 @@ export function PrintWidowPDF({ widow, variant = 'default' }: PrintWidowPDFProps
 
 
         {/* Additional Information */}
+        {sections.additional && (
         <div className="mb-5">
           <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center">
             <Activity className="ml-2 h-4 w-4" />
@@ -487,6 +563,8 @@ export function PrintWidowPDF({ widow, variant = 'default' }: PrintWidowPDFProps
             </div>
           </div>
         </div>
+
+        )}
 
         {/* Footer */}
         <div className="border-t-2 border-gray-300 pt-3 mt-6">

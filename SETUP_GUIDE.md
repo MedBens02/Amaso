@@ -1,408 +1,189 @@
-# 🚀 Amaso Application Setup Guide
+# Amaso — Setup Guide (Windows, from scratch)
 
-## Complete Steps to Run Amaso on a New PC
+Goal: run the app on a fresh Windows PC that only has Windows + VS Code.
+Takes about 30 minutes, mostly downloads.
 
-This guide will help you deploy the Amaso application (Next.js + Laravel + MySQL) on any new PC using Docker containers.
-
-## 📋 Prerequisites
-
-### 1. Install Docker Desktop
-- **Download**: https://www.docker.com/products/docker-desktop/
-- **Install** Docker Desktop for your operating system
-- **Start** Docker Desktop and ensure it's running
-- **Verify**: Check Docker is running (look for Docker icon in system tray/menu bar)
-
-### 2. Basic Requirements
-- **Git** (usually pre-installed on Mac/Linux, download for Windows)
-- **Terminal/Command Prompt** access
-- **Internet connection** for downloading dependencies
-
-## 🎯 Deployment Options
-
-### Option 1: Automated Deployment (⭐ Recommended)
-
-#### Steps:
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/MedBens02/Amaso.git
-   cd Amaso/local
-   ```
-
-2. **Run the automated deployment script:**
-   ```bash
-   # On Windows (Git Bash or WSL)
-   ./deploy.sh
-   
-   # On Mac/Linux
-   ./deploy.sh
-   ```
-
-3. **Follow the interactive prompts:**
-   - Choose deployment mode:
-     - `1` = Production (stable, optimized)
-     - `2` = Development (with hot reload, debug mode)
-   - Choose whether to clean up previous deployment
-   - Wait for automatic setup (5-10 minutes)
-
-### Option 2: Manual Deployment
-
-#### Steps:
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/MedBens02/Amaso.git
-   cd Amaso/local
-   ```
-
-2. **Configure environment (optional):**
-   ```bash
-   # Copy environment template (has good defaults)
-   cp .env .env.local
-   
-   # Or for development
-   cp .env.dev .env.local
-   ```
-
-3. **Start the application:**
-   ```bash
-   # Production deployment
-   docker-compose up -d --build
-   
-   # Development deployment (with hot reload)
-   docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-   ```
-
-## 🔄 What Happens During Deployment
-
-The Docker setup automatically handles:
-
-1. **📥 Code Retrieval**
-   - Clones latest code from GitHub: `https://github.com/MedBens02/Amaso.git`
-   - Uses the `main` branch
-
-2. **🗄️ Database Setup**
-   - Creates MySQL 8.0 container
-   - Automatically imports `amaso.sql` with all data
-   - Sets up database: `amaso` with user credentials
-
-3. **🏗️ Backend Setup (Laravel)**
-   - Installs PHP 8.2 and extensions
-   - Runs `composer install` for PHP dependencies
-   - Runs `npm install` for Node.js dependencies
-   - Generates application key
-   - Builds assets with Vite
-   - Starts Laravel server on port 8000
-
-4. **🎨 Frontend Setup (Next.js)**
-   - Installs Node.js 20 and dependencies
-   - Runs `npm install`
-   - Builds Next.js application (production) or starts dev server
-   - Starts frontend on port 3000
-
-5. **🔗 Service Orchestration**
-   - Sets up networking between containers
-   - Configures health checks
-   - Ensures proper startup order
-
-## 🌐 Accessing Your Application
-
-Once deployment completes (usually 5-10 minutes):
-
-### Application URLs:
-- **🖥️ Main Application (Frontend)**: http://localhost:3000
-- **🔌 API Backend**: http://localhost:8000
-- **🗄️ Database**: localhost:3306
-
-### Test the Application:
-1. Open http://localhost:3000 in your browser
-2. You should see the Amaso login page
-3. Try logging in and navigating the application
-4. Test creating/viewing widow records
-5. Access the references management section
-
-## ✅ Verification Steps
-
-### 1. Check Container Status
-```bash
-docker-compose ps
-```
-**Expected Output:** All services should show "Up" or "running" status:
-- `amaso_frontend` - Up
-- `amaso_backend` - Up  
-- `amaso_db` - Up (healthy)
-
-### 2. View Service Logs
-```bash
-# View all service logs
-docker-compose logs -f
-
-# View specific service logs
-docker-compose logs -f frontend
-docker-compose logs -f backend
-docker-compose logs -f db
-```
-
-### 3. Test Database Connection
-```bash
-# Connect to database
-docker exec -it amaso_db mysql -u amaso_user -pamaso_password amaso
-
-# Inside MySQL, run:
-SHOW TABLES;
-SELECT COUNT(*) FROM widows;
-exit
-```
-
-## 🗄️ Database Information
-
-The MySQL database is automatically configured with:
-
-### Connection Details:
-- **Host**: localhost (or `db` from within containers)
-- **Port**: 3306
-- **Database Name**: `amaso`
-- **Username**: `amaso_user`
-- **Password**: `amaso_password` (production) / `password` (development)
-- **Root Password**: `root_password` (production) / `root` (development)
-
-### Included Data:
-- ✅ All application tables created
-- ✅ Sample widow records
-- ✅ Reference data (skills, illnesses, partners, etc.)
-- ✅ User accounts and permissions
-- ✅ Configuration settings
-
-### Migrations vs. amaso.sql
-
-The full schema now lives in Laravel migrations (`backend/database/migrations/`), so
-`amaso.sql` is no longer required to set up a database:
-
-```bash
-# Fresh install (empty database)
-cd backend
-php artisan migrate --seed     # creates all 45 tables + the v_current_cash view,
-                               # then seeds users, reference data, accounting
-                               # categories (incl. the required fallback category
-                               # id 999) and the current fiscal year
-```
-
-```bash
-# Existing database that was imported from amaso.sql
-cd backend
-php artisan migrate            # safe: each migration skips tables that already
-                               # exist, and only records itself as run
-php artisan db:seed            # optional; seeders are idempotent (updateOrInsert)
-```
-
-Keep `amaso.sql` only as a sample-data snapshot — new environments should prefer
-`migrate --seed`.
-
-## 🔄 Managing the Application
-
-### Starting/Stopping Services
-```bash
-# Start all services
-docker-compose up -d
-
-# Stop all services
-docker-compose down
-
-# Restart services
-docker-compose restart
-
-# View running containers
-docker-compose ps
-```
-
-### Updating the Application
-When new code is pushed to GitHub:
-
-```bash
-# Navigate to deployment directory
-cd Amaso/local
-
-# Stop current deployment
-docker-compose down
-
-# Pull latest changes and rebuild
-docker-compose up -d --build
-```
-
-### Database Backup
-```bash
-# Create backup
-docker exec amaso_db mysqldump -u root -proot_password amaso > backup_$(date +%Y%m%d).sql
-
-# Restore from backup
-docker exec -i amaso_db mysql -u root -proot_password amaso < backup_file.sql
-```
-
-## 🛠️ Troubleshooting
-
-### Common Issues & Solutions
-
-#### 1. Port Conflicts
-**Problem**: "Port already in use" errors
-**Solution**:
-```bash
-# Check what's using the ports
-netstat -an | findstr :3000
-netstat -an | findstr :8000
-netstat -an | findstr :3306
-
-# Stop conflicting services or modify ports in docker-compose.yml
-```
-
-#### 2. Docker Not Running
-**Problem**: "Cannot connect to Docker daemon"
-**Solution**:
-- Start Docker Desktop application
-- Wait for Docker to fully initialize
-- Check Docker icon in system tray
-
-#### 3. Permission Issues (Linux/Mac)
-**Problem**: Permission denied errors
-**Solution**:
-```bash
-sudo docker-compose up -d --build
-# Or fix Docker permissions:
-sudo usermod -aG docker $USER
-```
-
-#### 4. Memory/Space Issues
-**Problem**: Out of disk space or memory
-**Solution**:
-```bash
-# Clean up Docker
-docker system prune -f
-docker volume prune -f
-
-# Or complete reset
-docker-compose down -v
-docker system prune -a -f
-```
-
-#### 5. Git Clone Issues
-**Problem**: Cannot clone repository
-**Solutions**:
-- Check internet connection
-- Verify repository URL: https://github.com/MedBens02/Amaso.git
-- Use HTTPS instead of SSH if behind firewall
-
-#### 6. Services Not Starting
-**Problem**: Containers exit or restart
-**Solution**:
-```bash
-# Check logs for specific errors
-docker-compose logs backend
-docker-compose logs frontend
-docker-compose logs db
-
-# Rebuild from scratch
-docker-compose down -v
-docker-compose up --build
-```
-
-### Reset Everything
-If nothing works, complete reset:
-```bash
-cd Amaso/local
-docker-compose down -v
-docker system prune -f
-docker volume prune -f
-docker-compose up -d --build
-```
-
-## 📁 File Structure After Setup
-
-After cloning, your directory structure will be:
-
-```
-Amaso/
-├── 📁 local/                    # ← Docker deployment files
-│   ├── 🐳 docker-compose.yml   # Production configuration
-│   ├── 🐳 docker-compose.dev.yml # Development overrides
-│   ├── 🚀 deploy.sh            # Automated deployment script
-│   ├── ⚙️ .env                # Production environment
-│   ├── ⚙️ .env.dev            # Development environment
-│   ├── 🐳 Dockerfile.*        # Container definitions
-│   ├── 📝 README.md           # Detailed documentation
-│   └── 📋 DEPLOYMENT.md       # Quick reference
-├── 🎨 frontend/                 # Next.js application
-│   ├── 📱 components/
-│   ├── 🎯 app/
-│   ├── 📦 package.json
-│   └── ⚙️ next.config.mjs
-├── 🔧 backend/                  # Laravel application  
-│   ├── 📱 app/
-│   ├── 🗃️ database/
-│   ├── 📦 composer.json
-│   └── ⚙️ artisan
-├── 🗄️ amaso.sql               # Database dump
-└── 📋 README.md               # Project documentation
-```
-
-## 🚀 Quick Start Summary
-
-**For someone completely new to the project:**
-
-1. **Install Docker Desktop** and ensure it's running
-2. **Open terminal** and run these commands:
-   ```bash
-   git clone https://github.com/MedBens02/Amaso.git
-   cd Amaso/local
-   ./deploy.sh
-   ```
-3. **Choose option 1** (Production) when prompted
-4. **Wait 5-10 minutes** for automatic setup
-5. **Open http://localhost:3000** in your browser
-6. **Start using the application!** 🎉
-
-## 🆘 Getting Help
-
-### Check Application Status
-```bash
-# Quick health check
-curl http://localhost:3000  # Should return HTML
-curl http://localhost:8000  # Should return Laravel response
-```
-
-### View Real-time Logs
-```bash
-# Watch all logs
-docker-compose logs -f --tail=100
-
-# Watch specific service
-docker-compose logs -f frontend --tail=50
-```
-
-### Access Container Shell
-```bash
-# Backend container
-docker exec -it amaso_backend bash
-
-# Database container  
-docker exec -it amaso_db mysql -u root -proot_password
-```
+The stack: **Next.js** (frontend, port 3000) + **Laravel** (API, port 8000) + **MySQL**.
 
 ---
 
-## ✨ Features of This Setup
+## 1. Install the tools (one time)
 
-✅ **Zero Manual Configuration** - Everything automated  
-✅ **Cross-Platform** - Works on Windows, Mac, Linux  
-✅ **Always Up-to-Date** - Pulls latest code from Git  
-✅ **Isolated Environment** - No conflicts with other software  
-✅ **Complete Stack** - Frontend, Backend, Database included  
-✅ **Production Ready** - Optimized builds and configurations  
-✅ **Easy Updates** - Just push to Git and redeploy  
-✅ **Database Included** - All data pre-loaded  
-✅ **Development Mode** - Hot reload for development  
-✅ **Health Checks** - Monitors service status  
+Install in this order, accepting the default options unless noted.
+
+### 1.1 Git
+Download and install: https://git-scm.com/download/win
+
+### 1.2 XAMPP (gives you PHP 8.2+ and MySQL)
+Download and install: https://www.apachefriends.org (pick the PHP 8.2 version, install to `C:\xampp`)
+
+### 1.3 Put PHP on your PATH
+1. Press `Win`, type **"environment variables"**, open *Edit the system environment variables* → **Environment Variables**
+2. Under *User variables*, select **Path** → **Edit** → **New** → enter `C:\xampp\php` → OK everywhere
+
+### 1.4 Enable the PHP extensions Laravel needs
+Open `C:\xampp\php\php.ini` in VS Code, find these lines and remove the leading `;` if present, then save:
+
+```ini
+extension=curl
+extension=fileinfo
+extension=mbstring
+extension=pdo_mysql
+extension=zip
+```
+
+### 1.5 Composer (PHP package manager)
+Download and run **Composer-Setup.exe**: https://getcomposer.org/download/
+(it should auto-detect `C:\xampp\php\php.exe`)
+
+### 1.6 Node.js (includes npm)
+Download and install the **LTS** version: https://nodejs.org
+
+### 1.7 Verify everything
+Close and reopen any terminal, then run:
+
+```powershell
+git --version
+php -v          # should say 8.2 or newer
+composer -V
+node -v
+npm -v
+```
+
+All five must print a version. If `php` is not recognized, redo step 1.3 and reopen the terminal.
 
 ---
 
-**🎯 Final Result**: A fully functional Amaso application running in Docker containers, accessible at http://localhost:3000, with all features working exactly as intended!
+## 2. Get the code
 
-**⏱️ Total Time**: 5-10 minutes from start to finish
+```powershell
+cd C:\
+git clone https://github.com/MedBens02/Amaso.git
+```
 
-**🔧 Maintenance**: Minimal - just update via Git pushes
+Open the `C:\Amaso` folder in VS Code. Use its integrated terminal (`` Ctrl+` ``) for all commands below.
+
+---
+
+## 3. Create the database
+
+1. Open the **XAMPP Control Panel** (Start menu) and click **Start** next to **MySQL** (and **Apache** if you want phpMyAdmin)
+2. Create the database — either in phpMyAdmin (http://localhost/phpmyadmin → *New* → name `amaso`, collation `utf8mb4_unicode_ci` → *Create*), or from the terminal:
+
+```powershell
+C:\xampp\mysql\bin\mysql -u root -e "CREATE DATABASE amaso CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+```
+
+> MySQL must be running (green in XAMPP) every time you use the app.
+
+---
+
+## 4. Set up the backend (Laravel)
+
+```powershell
+cd backend
+composer install
+copy .env.example .env
+php artisan key:generate
+```
+
+Open `backend/.env` in VS Code and change the database block to:
+
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=amaso
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+(`root` with an empty password is the XAMPP default.)
+
+Then build the schema and seed the base data:
+
+```powershell
+php artisan migrate --seed
+```
+
+This creates all 44 tables + the `v_current_cash` view, and seeds the admin user,
+reference data, accounting categories (including the required fallback category
+id 999) and the current fiscal year.
+
+> Have an existing database exported from `amaso.sql` instead? Import it first,
+> then run `php artisan migrate` — the migrations detect existing tables and skip them.
+
+---
+
+## 5. Set up the frontend (Next.js)
+
+```powershell
+cd ..\frontend
+npm install
+copy ..\setup\.env.local.example .env.local
+```
+
+The copied `.env.local` already points at the API (`http://localhost:8000/api/v1`) — no edits needed.
+
+---
+
+## 6. Run the app
+
+Two terminals in VS Code (`+` button in the terminal panel to open a second one):
+
+```powershell
+# Terminal 1 — API
+cd backend
+php artisan serve
+```
+
+```powershell
+# Terminal 2 — frontend
+cd frontend
+npm run dev
+```
+
+Open **http://localhost:3000** and log in with one of the seeded demo accounts
+(password `password` for all three; the login page also has one-click chips
+for these):
+
+| Role | Email |
+|---|---|
+| Admin (مدير النظام) | `admin@amaso.org` |
+| Accountant (محاسب) | `accountant@amaso.org` |
+| Social worker (أخصائي اجتماعي) | `social@amaso.org` |
+
+Only the admin account can close a fiscal year — the other two will not see
+that action.
+
+To stop, press `Ctrl+C` in each terminal.
+
+> Alternative: the `setup/` folder has Windows launchers (`start-app.bat`,
+> `stop-app.bat`, `app-launcher.bat`) that start/stop both servers for you —
+> XAMPP MySQL must be running first. See `setup/README-SETUP.md`.
+
+---
+
+## Daily routine (after the first setup)
+
+1. XAMPP → Start **MySQL**
+2. Terminal 1: `cd backend` → `php artisan serve`
+3. Terminal 2: `cd frontend` → `npm run dev`
+4. http://localhost:3000
+
+After pulling new code: `composer install` (backend), `npm install` (frontend),
+`php artisan migrate` — then start as usual.
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `php` / `composer` / `node` not recognized | The tool isn't installed or not on PATH (step 1.3). Reopen the terminal after fixing. |
+| `could not find driver` during migrate | `extension=pdo_mysql` still commented in `C:\xampp\php\php.ini` (step 1.4). |
+| `SQLSTATE[HY000] [2002]` connection refused | MySQL isn't running — start it in the XAMPP Control Panel. |
+| `Access denied for user 'root'` | Your MySQL root has a password — put it in `DB_PASSWORD` in `backend/.env`. |
+| Port 3000 or 8000 already in use | `php artisan serve --port=8001` / `npm run dev -- -p 3001`, and update `NEXT_PUBLIC_API_BASE_URL` in `frontend/.env.local` to the new API port. |
+| Frontend shows network errors | Backend not running, or you changed `.env.local` without restarting `npm run dev` (Next.js reads env files only at startup). |
+| Backup / restore | `C:\xampp\mysql\bin\mysqldump -u root amaso > backup.sql` / `C:\xampp\mysql\bin\mysql -u root amaso < backup.sql` |

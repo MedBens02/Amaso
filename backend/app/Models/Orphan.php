@@ -5,10 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Orphan extends Model
 {
     use HasFactory;
+    use SoftDeletes;
 
     protected $fillable = [
         'widow_id',
@@ -18,15 +21,38 @@ class Orphan extends Model
         'birth_date',
         'education_level_id',
         'health_status',
+        'phone',
+        'cin',
+        'is_working',
+        'work_type',
+        'is_work_permanent',
+        'is_married',
+        'is_schooled',
+        'masar_code',
+        'is_not_interested',
+        'is_inactive',
     ];
 
     protected $casts = [
         'birth_date' => 'date',
+        'is_working' => 'boolean',
+        'is_work_permanent' => 'boolean',
+        'is_married' => 'boolean',
+        'is_schooled' => 'boolean',
+        'is_not_interested' => 'boolean',
+        'is_inactive' => 'boolean',
     ];
 
     public function widow(): BelongsTo
     {
-        return $this->belongsTo(Widow::class);
+        // withTrashed: orphans of an archived family must still resolve
+        // their guardian in historical views.
+        return $this->belongsTo(Widow::class)->withTrashed();
+    }
+
+    public function enrollments(): HasMany
+    {
+        return $this->hasMany(OrphanEnrollment::class);
     }
 
     public function educationLevel(): BelongsTo

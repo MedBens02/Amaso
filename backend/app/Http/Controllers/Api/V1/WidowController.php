@@ -16,6 +16,7 @@ class WidowController extends Controller
 {
     private const DETAIL_RELATIONS = [
         'orphans',
+        'phones',
         'widowFiles',
         'widowSocial.housingType',
         'socialIncome.category',
@@ -88,6 +89,11 @@ class WidowController extends Controller
             });
         }
 
+        // Archived families (soft-deleted) are hidden unless explicitly requested.
+        if ($request->boolean('archived')) {
+            $query->onlyTrashed();
+        }
+
         $sortBy = $request->get('sort_by', 'created_at');
         $sortOrder = $request->get('sort_order', 'desc');
         $allowedSortColumns = [
@@ -144,12 +150,43 @@ class WidowController extends Controller
         ]);
     }
 
-    public function destroy(Widow $widow): JsonResponse
+    /**
+     * Archive a family (soft delete). The caller must say when and why the
+     * family left; nothing is ever hard-deleted.
+     */
+    public function destroy(Request $request, Widow $widow): JsonResponse
     {
-        $fullName = $this->widows->delete($widow);
+        $leaving = $request->validate([
+            'leaving_date' => ['required', 'date'],
+            'leaving_reason' => ['required', 'in:graduated,removed'],
+            'leaving_details' => ['nullable', 'string', 'max:500'],
+        ], [
+            'leaving_date.required' => 'تاريخ المغادرة مطلوب',
+            'leaving_reason.required' => 'سبب المغادرة مطلوب',
+            'leaving_reason.in' => 'سبب المغادرة يجب أن يكون: تخرج أو إزالة',
+        ]);
+
+        $fullName = $this->widows->archive($widow, $leaving);
 
         return response()->json([
-            'message' => "تم حذف الأرملة \"{$fullName}\" بنجاح مع جميع البيانات المرتبطة",
+            'message' => "تمت أرشفة ملف \"{$fullName}\" بنجاح. يمكن الاطلاع عليه من قائمة المؤرشفات.",
+        ]);
+    }
+
+    /**
+     * Restore an archived family.
+     */
+    public function restore(Widow $widow): JsonResponse
+    {
+        if (!$widow->trashed()) {
+            return response()->json(['message' => 'هذا الملف غير مؤرشف'], 400);
+        }
+
+        $widow = $this->widows->restore($widow);
+
+        return response()->json([
+            'message' => "تمت استعادة ملف \"{$widow->full_name}\" بنجاح",
+            'data' => new WidowResource($widow),
         ]);
     }
 

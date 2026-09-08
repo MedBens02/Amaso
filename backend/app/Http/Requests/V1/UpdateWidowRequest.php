@@ -31,9 +31,14 @@ class UpdateWidowRequest extends FormRequest
             ],
             'birth_date' => ['sometimes', 'date', 'before:today'],
             'marital_status' => ['sometimes', 'string', 'in:Widowed,Divorced,Single'],
+            'family_liaison' => ['nullable', 'string', 'max:100'],
             'education_level' => ['nullable', 'string', 'max:100'],
             'disability_flag' => ['boolean'],
             'disability_type' => ['nullable', 'string', 'max:200', 'required_if:disability_flag,true'],
+
+            // Additional phone numbers (primary stays in `phone`)
+            'extra_phones' => ['sometimes', 'array'],
+            'extra_phones.*' => ['string', 'max:30'],
 
             // Widow Files (social situation)
             'social_situation' => ['sometimes', 'string', 'in:single,widow,divorced,remarried'],
@@ -47,14 +52,25 @@ class UpdateWidowRequest extends FormRequest
             'has_electricity' => ['boolean'],
             'has_furniture' => ['integer', 'min:0', 'max:5'],
 
-            // Children/Orphans (can be updated completely)
+            // Children/Orphans (synced by id: existing rows update, missing rows archive)
             'children' => ['sometimes', 'array'],
+            'children.*.id' => ['nullable', 'integer'],
             'children.*.first_name' => ['required', 'string', 'max:100'],
             'children.*.last_name' => ['required', 'string', 'max:100'],
             'children.*.birth_date' => ['required', 'date', 'before:today'],
             'children.*.gender' => ['required', 'string', 'in:male,female'],
-            'children.*.education_level' => ['nullable', 'string', 'max:100'],
+            'children.*.education_level_id' => ['nullable', 'integer', 'exists:orphans_education_level,id'],
             'children.*.health_status' => ['nullable', 'string', 'max:200'],
+            'children.*.phone' => ['nullable', 'string', 'max:30'],
+            'children.*.cin' => ['nullable', 'string', 'max:30'],
+            'children.*.is_working' => ['boolean'],
+            'children.*.work_type' => ['nullable', 'string', 'max:120'],
+            'children.*.is_work_permanent' => ['boolean'],
+            'children.*.is_married' => ['boolean'],
+            'children.*.is_schooled' => ['boolean'],
+            'children.*.masar_code' => ['nullable', 'string', 'max:30'],
+            'children.*.is_not_interested' => ['boolean'],
+            'children.*.is_inactive' => ['boolean'],
 
             // Income and Expenses (can be updated completely)
             'income' => ['sometimes', 'array'],

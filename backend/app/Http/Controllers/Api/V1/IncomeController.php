@@ -24,6 +24,7 @@ class IncomeController extends Controller
             'incomeCategory',
             'donor',
             'kafil',
+            'widow',
             'bankAccount',
         ])
             ->when($request->fiscal_year_id, fn ($query, $fiscalYearId) => $query->where('fiscal_year_id', $fiscalYearId))
@@ -69,6 +70,7 @@ class IncomeController extends Controller
             'incomeCategory',
             'donor',
             'kafil',
+            'widow',
             'bankAccount',
             'createdBy',
             'approvedBy',

@@ -9,8 +9,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Enable standalone output for Docker production builds
-  output: process.env.NODE_ENV === 'production' ? 'standalone' : undefined,
   async rewrites() {
     return [
       {

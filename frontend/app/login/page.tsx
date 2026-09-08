@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Eye, EyeOff } from "lucide-react"
+import api from "@/lib/api"
+import { DEMO_ACCOUNTS } from "@/lib/roles"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -25,22 +27,20 @@ export default function LoginPage() {
     setError("")
     setLoading(true)
 
-    // Simulate API call
-    setTimeout(() => {
-      if (email === "admin@amaso.org" && password === "admin123") {
-        const userData = {
-          id: "1",
-          name: "بنصديق محمد",
-          email: email,
-          role: "مدير النظام",
-        }
-        localStorage.setItem("user", JSON.stringify(userData))
-        router.push("/dashboard")
-      } else {
-        setError("بيانات الدخول غير صحيحة")
-      }
+    try {
+      await api.login(email, password)
+      router.push("/dashboard")
+    } catch (err: any) {
+      setError(err.message || "بيانات الدخول غير صحيحة")
+    } finally {
       setLoading(false)
-    }, 1000)
+    }
+  }
+
+  const fillDemoAccount = (demoEmail: string, demoPassword: string) => {
+    setEmail(demoEmail)
+    setPassword(demoPassword)
+    setError("")
   }
 
   return (
@@ -81,7 +81,7 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="admin123"
+                  placeholder="••••••••"
                   required
                   className="bg-background border-border text-foreground placeholder:text-muted-foreground pr-10"
                 />
@@ -112,14 +112,22 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-6 p-4 bg-muted rounded-lg">
-            <p className="text-sm text-muted-foreground text-center mb-2">بيانات تجريبية:</p>
-            <p className="text-sm text-foreground">
-              <strong>البريد:</strong> admin@amaso.org
-            </p>
-            <p className="text-sm text-foreground">
-              <strong>كلمة المرور:</strong> admin123
-            </p>
+          <div className="mt-6 p-4 bg-muted rounded-lg space-y-3">
+            <p className="text-sm text-muted-foreground text-center">حسابات تجريبية (اضغط لتعبئتها):</p>
+            <div className="grid gap-2">
+              {DEMO_ACCOUNTS.map((account) => (
+                <button
+                  key={account.email}
+                  type="button"
+                  onClick={() => fillDemoAccount(account.email, account.password)}
+                  className="flex items-center justify-between text-sm rounded-md border border-border bg-background px-3 py-2 text-right hover:bg-accent transition-colors"
+                >
+                  <span className="text-muted-foreground">{account.email}</span>
+                  <span className="font-medium text-foreground">{account.label}</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground text-center">كلمة المرور لجميع الحسابات التجريبية: password</p>
           </div>
         </CardContent>
       </Card>

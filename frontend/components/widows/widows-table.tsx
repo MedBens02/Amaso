@@ -4,12 +4,13 @@ import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Edit, Trash2, Phone, Mail, Loader2, Users, ChevronUp, ChevronDown, ChevronsUpDown, Printer } from "lucide-react"
+import { Eye, Edit, Trash2, Phone, Mail, Loader2, Users, ChevronUp, ChevronDown, ChevronsUpDown, Printer, Archive, ArchiveRestore } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
 import { ViewWidowDialog } from "./view-widow-dialog"
 import { EditWidowDialog } from "./edit-widow-dialog"
-import { PrintWidowPDF } from "./print-widow-pdf"
+import { WidowCardPrintDialog } from "./print-widow-pdf"
+import { ArchiveWidowDialog } from "./archive-widow-dialog"
 
 interface Widow {
   id: number
@@ -62,13 +63,15 @@ interface WidowsTableProps {
   searchTerm: string
   filters?: any
   refreshTrigger?: number
+  archived?: boolean
 }
 
 
 export function WidowsTable({ 
   searchTerm, 
   filters = {}, 
-  refreshTrigger 
+  refreshTrigger,
+  archived = false,
 }: WidowsTableProps) {
   const [widows, setWidows] = useState<Widow[]>([])
   const [loading, setLoading] = useState(true)
@@ -78,6 +81,8 @@ export function WidowsTable({
   const [selectedWidow, setSelectedWidow] = useState<Widow | null>(null)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [archiveTarget, setArchiveTarget] = useState<{ id: number; name: string } | null>(null)
+  const [printWidow, setPrintWidow] = useState<any | null>(null)
   const [sortBy, setSortBy] = useState<string>('created_at')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const itemsPerPage = 10
@@ -93,6 +98,7 @@ export function WidowsTable({
         page: currentPage,
         sort_by: sortBy,
         sort_order: sortOrder,
+        archived: archived || undefined,
         // Add all filter parameters, converting boolean strings to actual booleans
         ...(filters.has_disability && filters.has_disability !== "all" && { has_disability: filters.has_disability === "true" }),
         ...(filters.education_level && filters.education_level !== "all" && { education_level: filters.education_level }),
@@ -125,7 +131,7 @@ export function WidowsTable({
 
   useEffect(() => {
     fetchWidows()
-  }, [currentPage, searchTerm, filters, refreshTrigger, sortBy, sortOrder])
+  }, [currentPage, searchTerm, filters, refreshTrigger, sortBy, sortOrder, archived])
 
   useEffect(() => {
     if (currentPage !== 1) {
@@ -165,49 +171,10 @@ export function WidowsTable({
 
   const handlePrint = async (widow: Widow) => {
     try {
-      // Fetch detailed widow data with all relationships for printing
+      // Fetch detailed widow data, then open the print dialog where the
+      // user picks which sections to include in the card.
       const response = await api.getWidow(widow.id)
-      const detailedWidow = response.data
-      
-      // Use the PrintWidowPDF component by creating a temporary instance
-      const React = (await import('react')).default
-      const { createRoot } = await import('react-dom/client')
-      const { PrintWidowPDF } = await import('./print-widow-pdf')
-      
-      // Create temporary container
-      const tempContainer = document.createElement('div')
-      tempContainer.style.position = 'fixed'
-      tempContainer.style.left = '-9999px'
-      tempContainer.style.top = '0'
-      document.body.appendChild(tempContainer)
-      
-      const root = createRoot(tempContainer)
-      
-      // Render PrintWidowPDF component and trigger PDF generation
-      const PrintComponent = () => {
-        React.useEffect(() => {
-          // Auto-click the button after a short delay
-          setTimeout(() => {
-            const button = tempContainer.querySelector('button')
-            if (button) {
-              button.click()
-            }
-            // Clean up after PDF generation
-            setTimeout(() => {
-              root.unmount()
-              document.body.removeChild(tempContainer)
-            }, 2000)
-          }, 500)
-        }, [])
-        
-        return React.createElement(PrintWidowPDF, {
-          widow: detailedWidow,
-          variant: 'default'
-        })
-      }
-      
-      root.render(React.createElement(PrintComponent))
-      
+      setPrintWidow(response.data)
     } catch (error: any) {
       toast({
         title: "خطأ في الطباعة",
@@ -217,22 +184,22 @@ export function WidowsTable({
     }
   }
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`هل أنت متأكد من حذف الأرملة "${name}"؟`)) {
+  const handleRestore = async (id: number, name: string) => {
+    if (!confirm(`استعادة ملف "${name}" إلى القائمة النشطة؟`)) {
       return
     }
 
     try {
-      await api.deleteWidow(id)
+      const response = await api.restoreWidow(id)
       toast({
-        title: "تم الحذف بنجاح",
-        description: `تم حذف الأرملة "${name}" بنجاح`,
+        title: "تمت الاستعادة",
+        description: response.message || `تمت استعادة ملف "${name}" بنجاح`,
       })
       fetchWidows()
     } catch (error: any) {
       toast({
-        title: "خطأ في الحذف",
-        description: error.message || "فشل في حذف الأرملة",
+        title: "خطأ في الاستعادة",
+        description: error.message || "فشل في استعادة الملف",
         variant: "destructive",
       })
     }
@@ -403,15 +370,17 @@ export function WidowsTable({
                       >
                         <Eye className="h-3.5 w-3.5" />
                       </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="h-7 w-7 p-0 flex-shrink-0" 
-                        onClick={() => handleEdit(widow)}
-                        title="تحرير البيانات"
-                      >
-                        <Edit className="h-3.5 w-3.5" />
-                      </Button>
+                      {!archived && (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-7 w-7 p-0 flex-shrink-0" 
+                          onClick={() => handleEdit(widow)}
+                          title="تحرير البيانات"
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       <Button 
                         size="sm" 
                         variant="outline" 
@@ -421,15 +390,27 @@ export function WidowsTable({
                       >
                         <Printer className="h-3.5 w-3.5" />
                       </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="h-7 w-7 p-0 flex-shrink-0 hover:bg-destructive hover:text-destructive-foreground"
-                        onClick={() => handleDelete(widow.id, widow.full_name)}
-                        title="حذف الأرملة"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      {archived ? (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-7 w-7 p-0 flex-shrink-0 hover:bg-green-50 hover:text-green-600"
+                          onClick={() => handleRestore(widow.id, widow.full_name)}
+                          title="استعادة الملف"
+                        >
+                          <ArchiveRestore className="h-3.5 w-3.5" />
+                        </Button>
+                      ) : (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-7 w-7 p-0 flex-shrink-0 hover:bg-destructive hover:text-destructive-foreground"
+                          onClick={() => setArchiveTarget({ id: widow.id, name: widow.full_name })}
+                          title="أرشفة الملف (بدل الحذف)"
+                        >
+                          <Archive className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -487,6 +468,20 @@ export function WidowsTable({
       />
 
       {/* Edit Dialog */}
+      <WidowCardPrintDialog
+        widow={printWidow}
+        open={printWidow !== null}
+        onOpenChange={(open) => !open && setPrintWidow(null)}
+      />
+
+      <ArchiveWidowDialog
+        open={archiveTarget !== null}
+        onOpenChange={(open) => !open && setArchiveTarget(null)}
+        widowId={archiveTarget?.id ?? null}
+        widowName={archiveTarget?.name ?? ""}
+        onArchived={fetchWidows}
+      />
+
       <EditWidowDialog
         widow={selectedWidow}
         open={isEditDialogOpen}
