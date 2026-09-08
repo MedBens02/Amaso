@@ -613,7 +613,11 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="donation">تبرع عادي</SelectItem>
-                      <SelectItem value="kafala">كفالة</SelectItem>
+                      {/* Retired in favor of kafala chamila - kept selectable only while
+                          viewing/editing/duplicating a pre-existing income of this type. */}
+                      {initialData?.income_type === 'kafala' && (
+                        <SelectItem value="kafala">كفالة (قديم)</SelectItem>
+                      )}
                       {/* A kafala chamila batch creates several new income rows at once - not meaningful when editing one existing row. */}
                       {!initialData?.id && (
                         <SelectItem value="kafala_chamila">كفالة شاملة</SelectItem>
