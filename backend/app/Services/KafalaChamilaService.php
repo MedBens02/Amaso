@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\Expense;
 use App\Models\Income;
 use App\Models\KafalaChamilaSplit;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection as BaseCollection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -59,5 +61,47 @@ class KafalaChamilaService
 
             return KafalaChamilaSplit::with(['subBudget', 'incomeCategory'])->orderBy('sort_order')->get();
         });
+    }
+
+    /**
+     * The current balance of each of the 7 parts: approved money in, minus
+     * approved money out. This is one shared pool per part across every
+     * kafil - not a per-widow or per-kafil wallet. Only Approved rows count;
+     * drafts are not money yet.
+     */
+    public function balances(): BaseCollection
+    {
+        $splits = KafalaChamilaSplit::with(['subBudget', 'incomeCategory'])->orderBy('sort_order')->get();
+
+        $subBudgetIds = $splits->pluck('sub_budget_id')->all();
+
+        $incomeBySubBudget = Income::whereIn('sub_budget_id', $subBudgetIds)
+            ->where('status', 'Approved')
+            ->selectRaw('sub_budget_id, SUM(amount) as total')
+            ->groupBy('sub_budget_id')
+            ->pluck('total', 'sub_budget_id');
+
+        $expenseBySubBudget = Expense::whereIn('sub_budget_id', $subBudgetIds)
+            ->where('status', 'Approved')
+            ->selectRaw('sub_budget_id, SUM(amount) as total')
+            ->groupBy('sub_budget_id')
+            ->pluck('total', 'sub_budget_id');
+
+        return $splits->map(function (KafalaChamilaSplit $split) use ($incomeBySubBudget, $expenseBySubBudget) {
+            $totalIncome = (float) ($incomeBySubBudget[$split->sub_budget_id] ?? 0);
+            $totalExpense = (float) ($expenseBySubBudget[$split->sub_budget_id] ?? 0);
+
+            return [
+                'id' => $split->id,
+                'key' => $split->key,
+                'label' => $split->label,
+                'percentage' => $split->percentage,
+                'sub_budget' => $split->subBudget,
+                'income_category' => $split->incomeCategory,
+                'total_income' => round($totalIncome, 2),
+                'total_expense' => round($totalExpense, 2),
+                'remaining' => round($totalIncome - $totalExpense, 2),
+            ];
+        })->values();
     }
 }

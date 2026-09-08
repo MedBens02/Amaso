@@ -62,6 +62,18 @@ interface KafalaChamilaSplit {
   income_category?: IncomeCategory
 }
 
+interface KafalaChamilaBalance {
+  id: number
+  key: string
+  label: string
+  percentage: string | number
+  sub_budget?: SubBudget
+  income_category?: IncomeCategory
+  total_income: number
+  total_expense: number
+  remaining: number
+}
+
 export default function AccountingReferencesPage() {
   const [subBudgets, setSubBudgets] = useState<SubBudget[]>([])
   const [incomeCategories, setIncomeCategories] = useState<IncomeCategory[]>([])
@@ -74,6 +86,8 @@ export default function AccountingReferencesPage() {
   const [kafalaChamilaDraft, setKafalaChamilaDraft] = useState<Record<number, string>>({})
   const [savingSplits, setSavingSplits] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [kafalaChamilaBalances, setKafalaChamilaBalances] = useState<KafalaChamilaBalance[]>([])
+  const [loadingBalances, setLoadingBalances] = useState(true)
 
   const lockedSubBudgetIds = useMemo(
     () => new Set(kafalaChamilaSplits.map((s) => s.sub_budget_id)),
@@ -144,6 +158,7 @@ export default function AccountingReferencesPage() {
   useEffect(() => {
     loadReferenceData()
     loadKafalaChamilaSplits()
+    loadKafalaChamilaBalances()
     setIsAdmin(isCurrentUserAdmin())
   }, [])
 
@@ -155,6 +170,18 @@ export default function AccountingReferencesPage() {
       setKafalaChamilaDraft(Object.fromEntries(splits.map((s) => [s.id, String(s.percentage)])))
     } catch (error) {
       console.error('Error loading kafala chamila splits:', error)
+    }
+  }
+
+  const loadKafalaChamilaBalances = async () => {
+    setLoadingBalances(true)
+    try {
+      const res = await api.getKafalaChamilaBalances()
+      setKafalaChamilaBalances(res.data || [])
+    } catch (error) {
+      console.error('Error loading kafala chamila balances:', error)
+    } finally {
+      setLoadingBalances(false)
     }
   }
 
@@ -564,6 +591,91 @@ export default function AccountingReferencesPage() {
     </Card>
   )
 
+  const money = (value: number) =>
+    `${Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} د.م`
+
+  const kafalaChamilaTotals = useMemo(
+    () => ({
+      income: kafalaChamilaBalances.reduce((sum, b) => sum + b.total_income, 0),
+      expense: kafalaChamilaBalances.reduce((sum, b) => sum + b.total_expense, 0),
+      remaining: kafalaChamilaBalances.reduce((sum, b) => sum + b.remaining, 0),
+    }),
+    [kafalaChamilaBalances],
+  )
+
+  const KafalaChamilaBalancesCard = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <HandCoins className="h-5 w-5 text-teal-600" />
+            الأرصدة الحالية لبنود الكفالة الشاملة
+          </div>
+          <Button size="sm" variant="outline" onClick={loadKafalaChamilaBalances} disabled={loadingBalances}>
+            {loadingBalances ? "جاري التحديث..." : "تحديث"}
+          </Button>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-gray-600 mb-4">
+          كل بند رصيد واحد مشترك بين جميع الكفلاء (ليس رصيداً خاصاً بكفيل أو بأسرة معينة): مجموع الإيرادات المعتمدة
+          الموجهة إلى ميزانيته الفرعية ناقص مجموع المصروفات المعتمدة منها. عند تسجيل كفالة شاملة، المبلغ يُوزَّع على
+          هذه الميزانيات المشتركة نفسها بغض النظر عن الأسرة أو الكفيل.
+        </p>
+
+        {loadingBalances ? (
+          <div className="text-center py-4">جاري التحميل...</div>
+        ) : kafalaChamilaBalances.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">تعذر تحميل أرصدة الكفالة الشاملة</div>
+        ) : (
+          <div className="space-y-2">
+            {kafalaChamilaBalances.map((balance) => (
+              <div key={balance.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div>
+                  <span className="font-medium">{balance.label}</span>
+                  <span className="text-xs text-gray-500 block">
+                    {balance.sub_budget?.label} ← {balance.income_category?.label}
+                  </span>
+                </div>
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="text-left">
+                    <p className="text-xs text-gray-500">إيرادات</p>
+                    <p className="font-semibold text-green-600">{money(balance.total_income)}</p>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs text-gray-500">مصروفات</p>
+                    <p className="font-semibold text-red-600">{money(balance.total_expense)}</p>
+                  </div>
+                  <div className="text-left min-w-[110px]">
+                    <p className="text-xs text-gray-500">الرصيد المتبقي</p>
+                    <p className={`font-bold ${balance.remaining < 0 ? "text-red-600" : "text-blue-600"}`}>
+                      {money(balance.remaining)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <div className="flex items-center justify-end gap-4 pt-3 border-t text-sm">
+              <div className="text-left">
+                <p className="text-xs text-gray-500">إجمالي الإيرادات</p>
+                <p className="font-semibold text-green-600">{money(kafalaChamilaTotals.income)}</p>
+              </div>
+              <div className="text-left">
+                <p className="text-xs text-gray-500">إجمالي المصروفات</p>
+                <p className="font-semibold text-red-600">{money(kafalaChamilaTotals.expense)}</p>
+              </div>
+              <div className="text-left min-w-[110px]">
+                <p className="text-xs text-gray-500">إجمالي الرصيد</p>
+                <p className="font-bold text-blue-600">{money(kafalaChamilaTotals.remaining)}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+
   const KafalaChamilaSplitsTable = () => (
     <Card>
       <CardHeader>
@@ -674,7 +786,8 @@ export default function AccountingReferencesPage() {
           <ExpenseCategoriesTable />
         </TabsContent>
 
-        <TabsContent value="kafala-chamila">
+        <TabsContent value="kafala-chamila" className="space-y-6">
+          <KafalaChamilaBalancesCard />
           <KafalaChamilaSplitsTable />
         </TabsContent>
       </Tabs>

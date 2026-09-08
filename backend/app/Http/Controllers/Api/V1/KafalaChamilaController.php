@@ -30,6 +30,16 @@ class KafalaChamilaController extends Controller
     }
 
     /**
+     * The current balance of each part: approved money in minus approved
+     * money out, one shared pool per part across every kafil - not a
+     * per-widow or per-kafil wallet. Any authenticated user may read it.
+     */
+    public function balances(): JsonResponse
+    {
+        return response()->json(['data' => $this->kafalaChamila->balances()]);
+    }
+
+    /**
      * Change the percentage each part gets. Admin-only: this reallocates
      * where every future kafala chamila payment's money is booked.
      */
