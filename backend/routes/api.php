@@ -79,6 +79,7 @@ Route::prefix('v1')->group(function () {
 
     // Reports
     Route::get('reports/kafils/{kafil}/statement', [ReportController::class, 'kafilStatement']);
+    Route::get('reports/school-performance', [ReportController::class, 'schoolPerformance']);
 
     // Expenses CRUD + approval
     Route::apiResource('expenses', ExpenseController::class);
@@ -100,6 +101,7 @@ Route::prefix('v1')->group(function () {
     Route::get('academic-years', [AcademicYearController::class, 'index']);
     Route::post('academic-years', [AcademicYearController::class, 'store']);
     Route::post('academic-years/rollover', [AcademicYearController::class, 'rollover']);
+    Route::post('enrollments/grades', [EnrollmentController::class, 'storeGrades']);
     Route::apiResource('enrollments', EnrollmentController::class)->except(['show'])
         ->parameters(['enrollments' => 'enrollment']);
 

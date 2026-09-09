@@ -52,7 +52,10 @@ Amaso is a complete management system designed specifically for charitable organ
 
 ### 🏫 **Educational Services**
 - **Education Level Tracking**: Comprehensive academic progress monitoring
-- **School Information**: Educational institution tracking and records
+- **School Information**: Institutions carry their stage (school vs. university) and sector (public/private, AMASO-partnered)
+- **Enrollments**: One record per student per academic year — level, institution, specialty, result — opened from the family form and promoted by the year-end rollover
+- **Semester Grades**: Both semesters recorded per enrollment on a per-enrollment scale (out of 20 by default), with the year's average derived from them
+- **School Performance Report**: Students ranked by percentage, filterable by gender, academic year, level, institution, public/private, higher education and top N — for excellence awards
 - **Academic Support**: Educational assistance and scholarship management
 
 ### 👨‍👩‍👧‍👦 **Beneficiary Groups**
@@ -120,7 +123,10 @@ Core Tables (45 total):
 ├── Groups & Education
 │   ├── beneficiary_groups (مجموعات المستفيدين)
 │   ├── beneficiary_group_members (أعضاء المجموعات)
-│   └── orphans_education_levels (مستويات التعليم)
+│   ├── orphans_education_levels (مستويات التعليم)
+│   ├── schools (المؤسسات التعليمية)
+│   ├── academic_years (السنوات الدراسية)
+│   └── orphan_enrollments (التسجيلات — بنقط الأسدسين)
 └── Reference Data
     ├── skills (المهارات)
     ├── illnesses (الأمراض) 
@@ -302,6 +308,9 @@ GET    /api/v1/references/skills           # Skills reference
 GET    /api/v1/references/illnesses        # Illnesses reference
 GET    /api/v1/references/aid-types        # Aid types reference
 GET    /api/v1/references/education-levels # Education levels
+GET    /api/v1/enrollments                 # Enrollments for an academic year
+POST   /api/v1/enrollments/grades          # Bulk semester-grade entry
+GET    /api/v1/reports/school-performance  # Ranked school performance
 GET    /api/v1/references/partners         # Partner organizations
 ```
 

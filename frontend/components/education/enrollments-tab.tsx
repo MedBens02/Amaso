@@ -12,7 +12,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
-import { GraduationCap, Plus, Loader2, Search, Check, X, DoorOpen, Trash2 } from "lucide-react"
+import { GraduationCap, Plus, Loader2, Search, Check, X, DoorOpen, Trash2, Save } from "lucide-react"
 import api from "@/lib/api"
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
@@ -35,6 +35,12 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
   const [addOpen, setAddOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
+
+  // Grades are entered a class at a time from a report-card list, so the
+  // marks are edited inline and saved in one request rather than one dialog
+  // per student.
+  const [gradeDrafts, setGradeDrafts] = useState<Record<number, { s1: string; s2: string }>>({})
+  const [savingGrades, setSavingGrades] = useState(false)
 
   // add-enrollment form state
   const [orphanId, setOrphanId] = useState<string>("")
@@ -81,7 +87,19 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
         search: search || undefined,
         per_page: 50,
       })
-      setEnrollments(response.data || [])
+      const rows = response.data || []
+      setEnrollments(rows)
+      setGradeDrafts(
+        Object.fromEntries(
+          rows.map((row: any) => [
+            row.id,
+            {
+              s1: row.first_semester_grade == null ? "" : String(Number(row.first_semester_grade)),
+              s2: row.second_semester_grade == null ? "" : String(Number(row.second_semester_grade)),
+            },
+          ]),
+        ),
+      )
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message || "فشل في تحميل التسجيلات", variant: "destructive" })
     } finally {
@@ -113,6 +131,72 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
       fetchEnrollments()
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message || "فشل في حذف التسجيل", variant: "destructive" })
+    }
+  }
+
+  const editGrade = (enrollmentId: number, semester: "s1" | "s2", value: string) => {
+    setGradeDrafts((drafts) => ({
+      ...drafts,
+      [enrollmentId]: { ...(drafts[enrollmentId] || { s1: "", s2: "" }), [semester]: value },
+    }))
+  }
+
+  const draftAverage = (enrollment: any) => {
+    const draft = gradeDrafts[enrollment.id]
+    if (!draft) return null
+    const marks = [draft.s1, draft.s2]
+      .filter((value) => value !== "")
+      .map(Number)
+      .filter((value) => !Number.isNaN(value))
+
+    return marks.length === 0 ? null : marks.reduce((sum, value) => sum + value, 0) / marks.length
+  }
+
+  // Only the rows the user actually touched are sent, so saving a class of 40
+  // after correcting two marks does not rewrite 38 untouched records.
+  const changedGrades = () =>
+    enrollments
+      .filter((enrollment) => {
+        const draft = gradeDrafts[enrollment.id]
+        if (!draft) return false
+        const original = {
+          s1: enrollment.first_semester_grade == null ? "" : String(Number(enrollment.first_semester_grade)),
+          s2: enrollment.second_semester_grade == null ? "" : String(Number(enrollment.second_semester_grade)),
+        }
+        return draft.s1 !== original.s1 || draft.s2 !== original.s2
+      })
+      .map((enrollment) => ({
+        enrollment_id: enrollment.id,
+        first_semester_grade: gradeDrafts[enrollment.id].s1 === "" ? null : Number(gradeDrafts[enrollment.id].s1),
+        second_semester_grade: gradeDrafts[enrollment.id].s2 === "" ? null : Number(gradeDrafts[enrollment.id].s2),
+      }))
+
+  const handleSaveGrades = async () => {
+    const grades = changedGrades()
+    if (grades.length === 0) {
+      toast({ title: "لا جديد", description: "لم يتم تعديل أي نقطة" })
+      return
+    }
+
+    setSavingGrades(true)
+    try {
+      const response = await api.saveEnrollmentGrades(grades)
+      toast({ title: "تم الحفظ", description: response.message })
+      fetchEnrollments()
+    } catch (error: any) {
+      // A partial save still commits the good rows, and the payload names the
+      // ones it refused - worth showing rather than a bare failure.
+      const rejected = error?.data?.rejected
+      toast({
+        title: "تعذر حفظ بعض النقط",
+        description: rejected?.length
+          ? `${error.message} — رفض: ${rejected.map((r: any) => r.message).join("، ")}`
+          : error.message || "فشل في حفظ النقط",
+        variant: "destructive",
+      })
+      fetchEnrollments()
+    } finally {
+      setSavingGrades(false)
     }
   }
 
@@ -153,10 +237,16 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
             <GraduationCap className="h-5 w-5" />
             تسجيلات التلاميذ
           </CardTitle>
-          <Button size="sm" onClick={() => setAddOpen(true)}>
-            <Plus className="h-4 w-4 ml-2" />
-            تسجيل تلميذ
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={handleSaveGrades} disabled={savingGrades}>
+              {savingGrades ? <Loader2 className="h-4 w-4 ml-2 animate-spin" /> : <Save className="h-4 w-4 ml-2" />}
+              حفظ النقط
+            </Button>
+            <Button size="sm" onClick={() => setAddOpen(true)}>
+              <Plus className="h-4 w-4 ml-2" />
+              تسجيل تلميذ
+            </Button>
+          </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 mt-2">
           <div className="relative flex-1">
@@ -204,6 +294,9 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
                 <TableHead className="text-right">المستوى</TableHead>
                 <TableHead className="text-right">المؤسسة</TableHead>
                 <TableHead className="text-right">التخصص</TableHead>
+                <TableHead className="text-center w-[90px]">الأسدس 1</TableHead>
+                <TableHead className="text-center w-[90px]">الأسدس 2</TableHead>
+                <TableHead className="text-center w-[80px]">المعدل</TableHead>
                 <TableHead className="text-right">النتيجة</TableHead>
                 <TableHead className="text-center">الإجراءات</TableHead>
               </TableRow>
@@ -211,13 +304,16 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
             <TableBody>
               {enrollments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                  <TableCell colSpan={10} className="text-center text-gray-500 py-8">
                     لا توجد تسجيلات لهذه السنة الدراسية.
                   </TableCell>
                 </TableRow>
               ) : (
                 enrollments.map((enrollment) => {
                   const status = STATUS_LABELS[enrollment.status] || STATUS_LABELS.enrolled
+                  const draft = gradeDrafts[enrollment.id]
+                  const average = draftAverage(enrollment)
+                  const scale = Number(enrollment.grade_scale) || 20
                   return (
                     <TableRow key={enrollment.id}>
                       <TableCell className="font-medium">
@@ -234,6 +330,40 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
                         </div>
                       </TableCell>
                       <TableCell>{enrollment.specialty || "—"}</TableCell>
+                      <TableCell className="text-center">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max={scale}
+                          value={draft?.s1 ?? ""}
+                          onChange={(e) => editGrade(enrollment.id, "s1", e.target.value)}
+                          className="h-8 text-center px-1"
+                          placeholder="—"
+                        />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max={scale}
+                          value={draft?.s2 ?? ""}
+                          onChange={(e) => editGrade(enrollment.id, "s2", e.target.value)}
+                          className="h-8 text-center px-1"
+                          placeholder="—"
+                        />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {average === null ? (
+                          <span className="text-gray-400">—</span>
+                        ) : (
+                          <span className={`font-semibold ${average >= scale / 2 ? "text-green-700" : "text-red-600"}`}>
+                            {average.toFixed(2)}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-gray-400 block">/{scale}</span>
+                      </TableCell>
                       <TableCell>
                         <Badge className={status.className + " hover:" + status.className}>{status.label}</Badge>
                       </TableCell>

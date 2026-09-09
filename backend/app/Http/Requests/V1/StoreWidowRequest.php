@@ -54,6 +54,9 @@ class StoreWidowRequest extends FormRequest
             'children.*.birth_date' => ['required', 'date', 'before:today'],
             'children.*.gender' => ['required', 'string', 'in:male,female'],
             'children.*.education_level_id' => ['nullable', 'integer', 'exists:orphans_education_level,id'],
+            // Feeds the current year's enrollment, not the orphan row itself.
+            'children.*.school_id' => ['nullable', 'integer', 'exists:schools,id'],
+            'children.*.specialty' => ['nullable', 'string', 'max:150'],
             'children.*.health_status' => ['nullable', 'string', 'max:200'],
             'children.*.phone' => ['nullable', 'string', 'max:30'],
             'children.*.cin' => ['nullable', 'string', 'max:30'],

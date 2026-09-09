@@ -131,6 +131,7 @@ class WidowController extends Controller
         $widow->load([
             ...self::DETAIL_RELATIONS,
             'orphans.educationLevel',
+            'orphans.currentEnrollment.school',
             'sponsorships.kafil.donor',
         ]);
 

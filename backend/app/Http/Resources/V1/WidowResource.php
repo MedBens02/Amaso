@@ -65,6 +65,20 @@ class WidowResource extends JsonResource
                         'masar_code' => $orphan->masar_code,
                         'is_not_interested' => $orphan->is_not_interested,
                         'is_inactive' => $orphan->is_inactive,
+                        // The current year's enrollment, so the family form
+                        // edits the education system rather than shadowing it.
+                        'school_id' => $orphan->currentEnrollment?->school_id,
+                        'specialty' => $orphan->currentEnrollment?->specialty,
+                        'current_enrollment' => $orphan->relationLoaded('currentEnrollment') && $orphan->currentEnrollment ? [
+                            'id' => $orphan->currentEnrollment->id,
+                            'school_id' => $orphan->currentEnrollment->school_id,
+                            'school' => $orphan->currentEnrollment->school?->name,
+                            'specialty' => $orphan->currentEnrollment->specialty,
+                            'status' => $orphan->currentEnrollment->status,
+                            'first_semester_grade' => $orphan->currentEnrollment->first_semester_grade,
+                            'second_semester_grade' => $orphan->currentEnrollment->second_semester_grade,
+                            'average_grade' => $orphan->currentEnrollment->average_grade,
+                        ] : null,
                     ];
                 });
             }),

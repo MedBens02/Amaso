@@ -15,11 +15,14 @@ interface ApiResponse<T> {
 export class ApiError extends Error {
   status: number
   errors?: Record<string, string[]>
+  /** The failed response's `data` payload, for endpoints that report partial success. */
+  data?: any
 
   constructor(response: Response, data?: any) {
     super(data?.message || `HTTP ${response.status}`)
     this.status = response.status
     this.errors = data?.errors
+    this.data = data?.data
   }
 }
 
@@ -647,12 +650,46 @@ class ApiClient {
     specialty?: string | null
     status?: string
     notes?: string | null
+    first_semester_grade?: number | null
+    second_semester_grade?: number | null
+    grade_scale?: number | null
   }) {
     return this.request<any>(`/enrollments/${id}`, { method: 'PUT', body: JSON.stringify(data) })
   }
 
   async deleteEnrollment(id: number) {
     return this.request<any>(`/enrollments/${id}`, { method: 'DELETE' })
+  }
+
+  /** Marks a whole class in one request; rows over their own scale come back rejected. */
+  async saveEnrollmentGrades(grades: Array<{
+    enrollment_id: number
+    first_semester_grade?: number | null
+    second_semester_grade?: number | null
+    grade_scale?: number | null
+  }>) {
+    return this.request<any>('/enrollments/grades', { method: 'POST', body: JSON.stringify({ grades }) })
+  }
+
+  async getSchoolPerformance(params?: {
+    academic_year_id?: number
+    gender?: string
+    education_level_id?: number
+    school_id?: number
+    school_type?: string
+    is_private?: boolean
+    is_amaso_linked?: boolean
+    semester?: string
+    top_n?: number
+  }) {
+    const searchParams = new URLSearchParams()
+    for (const [key, value] of Object.entries(params || {})) {
+      if (value !== undefined && value !== null && value !== '') {
+        searchParams.set(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value))
+      }
+    }
+    const query = searchParams.toString()
+    return this.request<any>(`/reports/school-performance${query ? `?${query}` : ''}`)
   }
 
   // Kafils API

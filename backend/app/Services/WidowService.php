@@ -3,9 +3,11 @@
 namespace App\Services;
 
 use App\Exceptions\BusinessRuleException;
+use App\Models\AcademicYear;
 use App\Models\Beneficiary;
 use App\Models\Illness;
 use App\Models\Orphan;
+use App\Models\OrphanEnrollment;
 use App\Models\Skill;
 use App\Models\Widow;
 use App\Models\WidowExpenseCategory;
@@ -252,6 +254,7 @@ class WidowService
                 $orphan = $widow->orphans()->whereKey($child['id'])->first();
                 if ($orphan) {
                     $orphan->update($attributes);
+                    $this->syncCurrentEnrollment($orphan, $child);
                     $keptIds[] = $orphan->id;
                     continue;
                 }
@@ -259,6 +262,7 @@ class WidowService
 
             $orphan = Orphan::create(['widow_id' => $widow->id, ...$attributes]);
             Beneficiary::firstOrCreate(['type' => 'Orphan', 'orphan_id' => $orphan->id]);
+            $this->syncCurrentEnrollment($orphan, $child);
             $keptIds[] = $orphan->id;
         }
 
@@ -267,6 +271,62 @@ class WidowService
             $this->removeOrphanFromGroups($orphan);
             $orphan->delete();
         }
+    }
+
+    /**
+     * The family form is where a child's school and level are actually keyed
+     * in, so what it captures has to land in the education system rather than
+     * only on the orphan row - otherwise the enrollment list, the promotion
+     * rollover and the performance reports never see the student.
+     *
+     * Only the current academic year is touched: past years are history, and
+     * editing a family should never rewrite them.
+     */
+    private function syncCurrentEnrollment(Orphan $orphan, array $child): void
+    {
+        $year = AcademicYear::where('is_current', true)->first();
+
+        if (!$year) {
+            return;
+        }
+
+        $enrollment = OrphanEnrollment::where('orphan_id', $orphan->id)
+            ->where('academic_year_id', $year->id)
+            ->first();
+
+        // A child marked as out of school has no business holding an enrollment
+        // for the current year - but only an untouched one is withdrawn, so a
+        // registrar's grades and result are never silently discarded.
+        if (!($child['is_schooled'] ?? true)) {
+            if ($enrollment && $enrollment->status === OrphanEnrollment::STATUS_ENROLLED
+                && $enrollment->first_semester_grade === null
+                && $enrollment->second_semester_grade === null) {
+                $enrollment->delete();
+            }
+
+            return;
+        }
+
+        $attributes = [
+            'education_level_id' => $child['education_level_id'] ?? null,
+            'school_id' => $child['school_id'] ?? null,
+            'specialty' => $child['specialty'] ?? null,
+        ];
+
+        if ($enrollment) {
+            // Don't blank a school or level the education page already set
+            // just because the family form left the field empty.
+            $enrollment->update(array_filter($attributes, fn ($value) => $value !== null));
+
+            return;
+        }
+
+        OrphanEnrollment::create([
+            'orphan_id' => $orphan->id,
+            'academic_year_id' => $year->id,
+            'status' => OrphanEnrollment::STATUS_ENROLLED,
+            ...$attributes,
+        ]);
     }
 
     private function orphanAttributes(array $child): array

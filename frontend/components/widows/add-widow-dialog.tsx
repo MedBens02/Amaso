@@ -63,7 +63,8 @@ const widowSchema = z
           sex: z.enum(["male", "female"], { required_error: "الجنس مطلوب" }),
           birthDate: z.date({ required_error: "تاريخ الميلاد مطلوب" }),
           education_level_id: z.string().optional(), // Education level ID as string for form
-          schoolName: z.string().optional(),
+          school_id: z.string().optional(),
+          specialty: z.string().optional(),
           phone: z.string().optional(),
           cin: z.string().optional(),
           isWorking: z.boolean().default(false),
@@ -222,6 +223,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
   const [activeTab, setActiveTab] = useState("personal")
   const [lookupData, setLookupData] = useState<LookupData | null>(null)
   const [educationLevels, setEducationLevels] = useState<any[]>([])
+  const [schools, setSchools] = useState<any[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   
   // Partner filtering state
@@ -368,6 +370,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
 
         setLookupData(apiData)
         setEducationLevels(educationLevelsData?.data || [])
+        api.getSchools().then((res) => setSchools(res.data || [])).catch(() => setSchools([]))
       } catch (error) {
         console.error("Error loading lookup data:", error)
         // Fallback to empty data
@@ -504,6 +507,9 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
             masar_code: child.masarCode || null,
             is_not_interested: child.isNotInterested || false,
             is_inactive: child.isInactive || false,
+            // Opens/updates this child's enrollment for the current academic year.
+            school_id: child.school_id ? parseInt(child.school_id) : null,
+            specialty: child.specialty || null,
           };
           console.log(`ADD - Final child data for child ${childIndex}:`, childData);
           return childData;
@@ -993,7 +999,8 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                       sex: "male",
                       birthDate: new Date(),
                       education_level_id: "0",
-                      schoolName: "",
+                      school_id: "",
+                      specialty: "",
                       phone: "",
                       cin: "",
                       isWorking: false,
@@ -1108,10 +1115,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                         }}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>اسم المؤسسة </Label>
-                      <Input {...form.register(`children.${index}.schoolName`)} placeholder="اسم المؤسسة " />
-                    </div>
+
                   </div>
 
                   <div className="space-y-2">
@@ -1127,7 +1131,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                     />
                   </div>
 
-                  <ChildExtraFields form={form} index={index} />
+                  <ChildExtraFields form={form} index={index} schools={schools} />
                 </div>
               ))}
             </TabsContent>
