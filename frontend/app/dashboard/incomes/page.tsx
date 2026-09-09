@@ -4,11 +4,12 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Search, Filter, Download, HandCoins } from "lucide-react"
+import { Plus, Search, Filter, Download, HandCoins, FileDown } from "lucide-react"
 import { IncomesTable } from "@/components/incomes/incomes-table"
 import { NewIncomeDialog } from "@/components/forms/NewIncomeForm"
 import { IncomeFilters, FilterValues } from "@/components/incomes/income-filters"
 import { useToast } from "@/hooks/use-toast"
+import api from "@/lib/api"
 import { format } from "date-fns"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ChevronDown, FileText } from "lucide-react"
@@ -290,6 +291,21 @@ export default function IncomesPage() {
     ]
     
     return csvContent.join('\n')
+  }
+
+  // The ledger as a real-text PDF, rendered server-side from the same filters
+  // the table is showing.
+  const handleDownloadPdf = async () => {
+    try {
+      await api.downloadPdf('/reports/incomes.pdf', appliedFilters)
+      toast({ title: "تم تحميل سجل الإيرادات" })
+    } catch (error: any) {
+      toast({
+        title: "خطأ في إنشاء الـ PDF",
+        description: error?.message || "حدث خطأ أثناء إنشاء الملف",
+        variant: "destructive",
+      })
+    }
   }
 
   const handlePrintReport = async () => {
@@ -647,6 +663,10 @@ export default function IncomesPage() {
               }}>
                 <Download className="h-4 w-4 ml-2" />
                 تصدير CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadPdf}>
+                <FileDown className="h-4 w-4 ml-2" />
+                تصدير PDF
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => {
                 console.log('Print clicked - Applied filters:', appliedFilters)
