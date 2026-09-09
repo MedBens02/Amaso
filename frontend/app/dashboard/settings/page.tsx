@@ -31,7 +31,7 @@ export default function SettingsPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="org-name">اسم الجمعية</Label>
-              <Input id="org-name" defaultValue="جمعية أماسو الخيرية" />
+              <Input id="org-name" defaultValue="جمعية المنصور لكفالة اليتيم" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="org-address">العنوان</Label>

@@ -328,7 +328,7 @@ export const maritalStatusArabic: Record<string, string> = {
 
 
 /** The association's identity, as it appears on every printed page. */
-export const ORGANIZATION_NAME = 'جمعية أماسو الخيرية'
+export const ORGANIZATION_NAME = 'جمعية المنصور لكفالة اليتيم'
 
 /**
  * Header markup for the browser-print views.

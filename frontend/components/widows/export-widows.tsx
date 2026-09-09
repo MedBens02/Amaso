@@ -401,7 +401,7 @@ export function ExportWidows({ widows, filters = {}, searchTerm }: ExportWidowsP
       <p>إجمالي السجلات: ${totalWidows} أرملة</p>
     </div>
     <div style="text-align: left;">
-      <p>جمعية أماسو الخيرية</p>
+      <p>جمعية المنصور لكفالة اليتيم</p>
       <p>قسم الأرامل</p>
     </div>
   </div>

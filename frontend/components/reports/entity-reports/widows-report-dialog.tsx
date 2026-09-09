@@ -451,7 +451,7 @@ export function WidowsReportDialog({ open, onOpenChange }: WidowsReportDialogPro
       <p>الوقت: ${new Date().toLocaleTimeString('ar-MA')}</p>
     </div>
     <div style="text-align: left;">
-      <p>جمعية أماسو الخيرية</p>
+      <p>جمعية المنصور لكفالة اليتيم</p>
       <p>قسم الأرامل والأيتام</p>
     </div>
   </div>

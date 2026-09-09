@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/landing/logo"
+import { Illustration } from "@/components/landing/illustration"
 import { Reveal } from "@/components/landing/reveal"
 import { CountUp } from "@/components/landing/count-up"
 import { KafalaSplit } from "@/components/landing/kafala-split"
@@ -34,8 +35,8 @@ import { KafalaSplit } from "@/components/landing/kafala-split"
  * they are replaced with the real ones. Image slots are marked and fall back to
  * a drawn placeholder, so the page never looks broken while photos are pending.
  */
-const ORG_NAME = "جمعية أماسو الخيرية"
-const ORG_TAGLINE = "لكفالة اليتيم"
+const ORG_NAME = "جمعية المنصور لكفالة اليتيم"
+const ORG_TAGLINE = "AMASO"
 
 const NAV = [
   { href: "#about", label: "من نحن" },
@@ -143,7 +144,9 @@ export default function HomePage() {
             <Logo className="h-11 w-11" size={88} priority plate={false} />
             <span className="leading-tight">
               <span className="block text-base font-bold text-slate-900 dark:text-white">{ORG_NAME}</span>
-              <span className="block text-xs text-teal-700 dark:text-teal-400">{ORG_TAGLINE}</span>
+              <span className="block text-xs font-semibold tracking-[0.2em] text-teal-700 dark:text-teal-400" dir="ltr">
+                {ORG_TAGLINE}
+              </span>
             </span>
           </Link>
 
@@ -245,7 +248,7 @@ export default function HomePage() {
 
             <Reveal delay={160}>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-600 dark:text-slate-300">
-                نرافق الأرامل وأبناءهنّ في {ORG_TAGLINE.replace("لكفالة", "كفالة")}: معونة شهرية، ومقعد في المدرسة،
+                نرافق الأرامل وأبناءهنّ في كفالة اليتيم: معونة شهرية، ومقعد في المدرسة،
                 وعلاج عند الحاجة، ومشروع يجعل الأسرة تستغني يوماً ما. كل درهم مُسجَّل، وكل كفيل يعرف أين ذهب.
               </p>
             </Reveal>
@@ -283,13 +286,13 @@ export default function HomePage() {
             </Reveal>
           </div>
 
-          {/* hero visual — swap the inner block for a photograph when one exists */}
+          {/* IMAGE SLOT — replace <Illustration /> with an <Image /> of the same
+              aspect ratio when a photograph of the association's work exists */}
           <Reveal delay={200}>
-            <div className="relative mx-auto aspect-square w-full max-w-lg">
+            <div className="relative mx-auto aspect-[4/3] w-full max-w-lg">
               <div className="absolute inset-0 rotate-3 rounded-[2.5rem] bg-gradient-to-br from-teal-500/15 to-amber-500/15" />
-              <div className="absolute inset-0 -rotate-2 rounded-[2.5rem] border border-teal-200/60 bg-white/60 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/60" />
-              <div className="relative flex h-full items-center justify-center p-12">
-                <Logo className="w-full max-w-[15rem] drop-shadow-2xl" size={512} animate priority />
+              <div className="relative h-full overflow-hidden rounded-[2.5rem] border border-teal-200/60 shadow-xl shadow-teal-900/5 dark:border-slate-700">
+                <Illustration variant="family" className="h-full w-full" />
               </div>
 
               <div className="absolute -bottom-4 right-4 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-xl dark:border-slate-700 dark:bg-slate-900">
@@ -310,24 +313,16 @@ export default function HomePage() {
       <section id="about" className="border-y border-slate-200/70 bg-white py-24 dark:border-slate-800 dark:bg-slate-900">
         <div className="mx-auto grid max-w-7xl items-center gap-14 px-5 lg:grid-cols-2">
           <Reveal>
-            {/* IMAGE SLOT — replace with a photograph of the association's work */}
-            <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-gradient-to-br from-teal-600 to-cyan-800">
-              <div aria-hidden className="absolute inset-0 opacity-20">
-                <svg viewBox="0 0 400 300" className="h-full w-full">
-                  <defs>
-                    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
-                      <circle cx="3" cy="3" r="2" fill="white" />
-                    </pattern>
-                  </defs>
-                  <rect width="400" height="300" fill="url(#dots)" />
-                </svg>
-              </div>
-              <div className="relative flex h-full flex-col items-center justify-center gap-4 p-10 text-center text-white">
-                <Quote className="h-9 w-9 text-amber-300" />
-                <p className="max-w-sm text-xl font-medium leading-relaxed">
+            {/* IMAGE SLOT — replace <Illustration /> with an <Image /> when a
+                photograph exists; the quote below it stays either way */}
+            <div className="overflow-hidden rounded-3xl border border-slate-200 shadow-lg shadow-slate-900/5 dark:border-slate-700">
+              <Illustration variant="learning" className="aspect-[4/3] w-full" />
+              <div className="flex items-center gap-4 bg-gradient-to-l from-teal-700 to-cyan-800 p-6 text-white">
+                <Quote className="h-8 w-8 shrink-0 text-amber-300" />
+                <p className="text-lg font-medium leading-relaxed">
                   «أنا وكافل اليتيم في الجنة هكذا»
+                  <span className="mt-1 block text-sm font-normal text-teal-100">حديث شريف</span>
                 </p>
-                <span className="text-sm text-teal-100">حديث شريف</span>
               </div>
             </div>
           </Reveal>
@@ -546,7 +541,7 @@ export default function HomePage() {
             <Logo className="h-10 w-10" size={80} />
             <span className="leading-tight">
               <span className="block font-bold text-white">{ORG_NAME}</span>
-              <span className="block text-xs">{ORG_TAGLINE}</span>
+              <span className="block text-xs tracking-[0.2em]" dir="ltr">{ORG_TAGLINE}</span>
             </span>
           </div>
 

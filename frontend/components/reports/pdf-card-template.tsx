@@ -203,7 +203,7 @@ export function PDFCardTemplate({ header, sections, footer, className }: PDFCard
           <div className="text-left">
             {footer?.rightContent || (
               <>
-                <p>جمعية أماسو الخيرية</p>
+                <p>جمعية المنصور لكفالة اليتيم</p>
                 <p>نظام إدارة الجمعية</p>
               </>
             )}
