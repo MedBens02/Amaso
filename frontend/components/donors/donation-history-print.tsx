@@ -412,7 +412,7 @@ export function DonationHistoryPrint({
       <p>الوقت: ${new Date().toLocaleTimeString('ar-MA')}</p>
     </div>
     <div style="text-align: left;">
-      <p>جمعية أماسو الخيرية</p>
+      <p>جمعية المنصور لكفالة اليتيم</p>
       <p>قسم المالية والمحاسبة</p>
     </div>
   </div>

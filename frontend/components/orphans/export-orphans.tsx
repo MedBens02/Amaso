@@ -342,7 +342,7 @@ export function ExportOrphans({ orphanGroups, filters = {}, searchTerm }: Export
       <p>إجمالي السجلات: ${totalOrphans} يتيم في ${totalFamilies} أسرة</p>
     </div>
     <div style="text-align: left;">
-      <p>جمعية أماسو الخيرية</p>
+      <p>جمعية المنصور لكفالة اليتيم</p>
       <p>قسم الأيتام</p>
     </div>
   </div>
@@ -459,7 +459,7 @@ export function ExportOrphans({ orphanGroups, filters = {}, searchTerm }: Export
       <p>إجمالي السجلات: ${allOrphans.length} يتيم</p>
     </div>
     <div style="text-align: left;">
-      <p>جمعية أماسو الخيرية</p>
+      <p>جمعية المنصور لكفالة اليتيم</p>
       <p>قسم الأنشطة</p>
     </div>
   </div>

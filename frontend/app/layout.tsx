@@ -14,7 +14,7 @@ const cairo = Cairo({
 })
 
 export const metadata: Metadata = {
-  title: "نظام إدارة جمعية أماسو الخيرية",
+  title: "جمعية المنصور لكفالة اليتيم — AMASO",
   description: "نظام شامل لإدارة الأرامل والأيتام والخدمات التعليمية",
     generator: 'v0.dev'
 }

@@ -51,7 +51,8 @@ class PdfService
         return $data + [
             'organization' => config('organization.name'),
             'logo' => is_readable($logoPath)
-                ? 'data:image/jpeg;base64,' . base64_encode(file_get_contents($logoPath))
+                ? 'data:' . (mime_content_type($logoPath) ?: 'image/png') . ';base64,'
+                    . base64_encode(file_get_contents($logoPath))
                 : null,
         ];
     }

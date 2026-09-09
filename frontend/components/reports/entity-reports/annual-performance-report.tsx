@@ -480,7 +480,7 @@ export function AnnualPerformanceReport({ open, onOpenChange }: AnnualPerformanc
       <p><strong>الوقت:</strong> ${new Date().toLocaleTimeString('ar-MA')}</p>
     </div>
     <div style="text-align: left;">
-      <p>جمعية أماسو الخيرية</p>
+      <p>جمعية المنصور لكفالة اليتيم</p>
       <p>تقرير الأداء السنوي</p>
     </div>
   </div>

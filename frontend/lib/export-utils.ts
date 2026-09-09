@@ -328,7 +328,7 @@ export const maritalStatusArabic: Record<string, string> = {
 
 
 /** The association's identity, as it appears on every printed page. */
-export const ORGANIZATION_NAME = 'جمعية أماسو الخيرية'
+export const ORGANIZATION_NAME = 'جمعية المنصور لكفالة اليتيم'
 
 /**
  * Header markup for the browser-print views.
@@ -341,7 +341,7 @@ export function printHeader(title: string, subtitle?: string): string {
 
   return `
   <div class="header brand-header">
-    <img class="brand-logo" src="${origin}/amaso-logo.jpg" alt="">
+    <img class="brand-logo" src="${origin}/amaso-logo.png" alt="">
     <div class="brand-text">
       <h1>${ORGANIZATION_NAME}</h1>
       <h2>${title}</h2>
