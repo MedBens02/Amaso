@@ -4,12 +4,7 @@ import React, { useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { FileText, Printer, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import {
-  exportDataToCSV,
-  formatDateForExport,
-  formatCurrency,
-  maritalStatusArabic
-} from "@/lib/export-utils"
+import { exportDataToCSV, formatDateForExport, formatCurrency, maritalStatusArabic, printHeader, PRINT_HEADER_STYLES } from "@/lib/export-utils"
 
 interface Widow {
   id: number
@@ -77,7 +72,7 @@ export function ExportWidows({ widows, filters = {}, searchTerm }: ExportWidowsP
         id: widow.id,
         full_name: widow.full_name,
         national_id: widow.national_id || '',
-        age: widow.age,
+        age: Math.floor(widow.age),
         birth_date: formatDateForExport(widow.birth_date),
         phone: widow.phone || '',
         email: widow.email || '',
@@ -283,13 +278,11 @@ export function ExportWidows({ widows, filters = {}, searchTerm }: ExportWidowsP
     @media print {
       body { padding: 0; }
     }
+    ${PRINT_HEADER_STYLES}
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>جمعية أماسو الخيرية</h1>
-    <h2>تقرير الأرامل</h2>
-  </div>
+  ${printHeader(`تقرير الأرامل`)}
 
   ${searchTerm || Object.keys(filters).length > 0 ? `
   <div class="filters">
@@ -384,7 +377,7 @@ export function ExportWidows({ widows, filters = {}, searchTerm }: ExportWidowsP
       <tr>
         <td>#${widow.id}</td>
         <td><strong>${widow.full_name}</strong></td>
-        <td>${widow.age} سنة</td>
+        <td>${Math.floor(widow.age)} سنة</td>
         <td>${widow.phone || '-'}</td>
         <td>${widow.neighborhood || '-'}</td>
         <td>${widow.orphans_count || 0}</td>

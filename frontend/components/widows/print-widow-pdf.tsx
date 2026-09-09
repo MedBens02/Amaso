@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Printer, Users, Home, Activity } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import api from "@/lib/api"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import {
@@ -202,100 +203,25 @@ interface WidowCardPrintDialogProps {
  * control what ends up in the generated PDF.
  */
 export function WidowCardPrintDialog({ widow, open, onOpenChange }: WidowCardPrintDialogProps) {
-  const printRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
   const [isGenerating, setIsGenerating] = useState(false)
   const [sections, setSections] = useState<WidowCardSections>(DEFAULT_SECTIONS)
 
   const generatePDF = async () => {
-    if (!printRef.current || isGenerating || !widow) return
+    if (isGenerating || !widow) return
 
     setIsGenerating(true)
-    
     try {
-      toast({
-        title: "جاري إنشاء الـ PDF...",
-        description: "يرجى الانتظار بينما يتم إعداد بطاقة الأرملة"
-      })
-
-      // Dynamically import PDF libraries only on client side
-      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
-        import('jspdf'),
-        import('html2canvas')
-      ])
-
-      // Configure html2canvas for better Arabic text support
-      const canvas = await html2canvas(printRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        letterRendering: true,
-        allowTaint: true
-      })
-
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF('p', 'mm', 'a4')
-      
-      const pageWidth = pdf.internal.pageSize.getWidth()
-      const pageHeight = pdf.internal.pageSize.getHeight()
-      const imgWidth = pageWidth - 20 // 10mm margins on each side
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
-      
-      let yPosition = 10
-
-      // If content is taller than one page, split it
-      if (imgHeight > pageHeight - 20) {
-        let remainingHeight = imgHeight
-        let yOffset = 0
-        
-        while (remainingHeight > 0) {
-          const sliceHeight = Math.min(pageHeight - 20, remainingHeight)
-          const sliceCanvas = document.createElement('canvas')
-          const sliceContext = sliceCanvas.getContext('2d')
-          
-          sliceCanvas.width = canvas.width
-          sliceCanvas.height = (sliceHeight * canvas.width) / imgWidth
-          
-          sliceContext?.drawImage(
-            canvas,
-            0, yOffset * canvas.width / imgWidth,
-            canvas.width, sliceCanvas.height,
-            0, 0,
-            canvas.width, sliceCanvas.height
-          )
-          
-          const sliceImgData = sliceCanvas.toDataURL('image/png')
-          pdf.addImage(sliceImgData, 'PNG', 10, yPosition, imgWidth, sliceHeight)
-          
-          remainingHeight -= sliceHeight
-          yOffset += sliceHeight
-          
-          if (remainingHeight > 0) {
-            pdf.addPage()
-            yPosition = 10
-          }
-        }
-      } else {
-        pdf.addImage(imgData, 'PNG', 10, yPosition, imgWidth, imgHeight)
-      }
-
-      // Save the PDF
-      const fileName = `widow_card_${widow.full_name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`
-      pdf.save(fileName)
-
-      toast({
-        title: "تم إنشاء الـ PDF بنجاح",
-        description: `تم حفظ بطاقة ${widow.full_name} كملف PDF`
-      })
-
+      // Rendered server-side as real text so the card can be searched and
+      // corrected; the chosen sections travel as query flags.
+      await api.downloadPdf(`/cards/widows/${widow.id}.pdf`, sections)
+      toast({ title: "تم تحميل البطاقة" })
       onOpenChange(false)
-
-    } catch (error) {
-      console.error('Error generating PDF:', error)
+    } catch (error: any) {
       toast({
         title: "خطأ في إنشاء الـ PDF",
-        description: "حدث خطأ أثناء إنشاء ملف الـ PDF. يرجى المحاولة مرة أخرى",
-        variant: "destructive"
+        description: error?.message || "حدث خطأ أثناء إنشاء الملف",
+        variant: "destructive",
       })
     } finally {
       setIsGenerating(false)
@@ -346,240 +272,6 @@ export function WidowCardPrintDialog({ widow, open, onOpenChange }: WidowCardPri
         </DialogContent>
       </Dialog>
 
-      {/* Hidden printable content */}
-      <div 
-        ref={printRef} 
-        className="fixed -left-[9999px] top-0 bg-white w-[750px]"
-        style={{ 
-          fontFamily: 'Arial, sans-serif', 
-          direction: 'rtl',
-          padding: '16px',
-          margin: '0',
-          boxSizing: 'border-box',
-          overflow: 'hidden'
-        }}
-      >
-        {/* Header */}
-        <div className="text-center mb-6 border-b-2 border-gray-300 pb-4">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">
-            جمعية أماسو الخيرية
-          </h1>
-          <h2 className="text-lg text-gray-600 mb-3">
-            بطاقة معلومات الأرملة
-          </h2>
-          <div className="bg-blue-50 p-3 rounded-lg">
-            <p className="text-lg font-semibold text-blue-800">
-              {widow.full_name}
-            </p>
-            <p className="text-sm text-gray-600">
-              رقم البطاقة الوطنية: {widow.national_id}
-            </p>
-          </div>
-        </div>
-
-        {/* Personal Information */}
-        {sections.personal && (
-        <div className="mb-5">
-          <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center">
-            <Users className="ml-2 h-4 w-4" />
-            المعلومات الشخصية
-          </h3>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="font-medium text-gray-600">الاسم الكامل:</span>
-                <span>{widow.full_name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium text-gray-600">العمر:</span>
-                <span>{Math.floor(widow.age)} سنة</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium text-gray-600">الحالة الاجتماعية:</span>
-                <span>{widow.marital_status}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium text-gray-600">المستوى التعليمي:</span>
-                <span>{widow.education_level || 'غير محدد'}</span>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="font-medium text-gray-600">رقم الهاتف:</span>
-                <span>{widow.phone || 'غير محدد'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium text-gray-600">العنوان:</span>
-                <span>{widow.address || 'غير محدد'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium text-gray-600">الحي:</span>
-                <span>{widow.neighborhood || 'غير محدد'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium text-gray-600">الإعاقة:</span>
-                <span>{widow.disability_flag ? (widow.disability_type || 'يوجد') : 'لا توجد'}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        )}
-
-        {/* Housing Information */}
-        {sections.housing && widow.widow_social && (
-          <div className="mb-5">
-            <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center">
-              <Home className="ml-2 h-4 w-4" />
-              معلومات السكن
-            </h3>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="font-medium text-gray-600">نوع السكن:</span>
-                  <span>{widow.widow_social.housing_type?.label || 'غير محدد'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium text-gray-600">حالة السكن:</span>
-                  <span>
-                    {widow.widow_social.housing_status === 'owned' ? 'ملك' : 
-                     widow.widow_social.housing_status === 'rented' ? 'إيجار' : 
-                     widow.widow_social.housing_status === 'free' ? 'مجاني' : 'غير محدد'}
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="font-medium text-gray-600">المياه:</span>
-                  <span>{widow.widow_social.has_water ? 'متوفر' : 'غير متوفر'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium text-gray-600">الكهرباء:</span>
-                  <span>{widow.widow_social.has_electricity ? 'متوفر' : 'غير متوفر'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium text-gray-600">مستوى الأثاث:</span>
-                  <span>{widow.widow_social.has_furniture || 0}/5</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Children Information */}
-        {sections.orphans && widow.orphans && widow.orphans.length > 0 && (
-          <div className="mb-5">
-            <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center">
-              <Users className="ml-2 h-4 w-4" />
-              الأيتام ({widow.orphans.length})
-            </h3>
-            <div className="space-y-3">
-              {widow.orphans.map((orphan, index) => (
-                <div key={orphan.id} className="bg-blue-50 p-2 rounded border-r-4 border-blue-400">
-                  <div className="grid grid-cols-4 gap-3 text-sm">
-                    <div>
-                      <span className="font-medium text-gray-600">الاسم:</span>
-                      <p>{orphan.first_name} {orphan.last_name}</p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-600">العمر:</span>
-                      <p>{Math.floor(orphan.age)} سنة</p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-600">الجنس:</span>
-                      <p>{orphan.gender === 'male' ? 'ذكر' : 'أنثى'}</p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-600">التعليم:</span>
-                      <p>{orphan.education_level || 'غير محدد'}</p>
-                    </div>
-                  </div>
-                  {orphan.health_status && (
-                    <div className="mt-2 text-sm">
-                      <span className="font-medium text-gray-600">الحالة الصحية:</span>
-                      <p>{orphan.health_status}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-
-
-        {/* Additional Information */}
-        {sections.additional && (
-        <div className="mb-5">
-          <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center">
-            <Activity className="ml-2 h-4 w-4" />
-            معلومات إضافية
-          </h3>
-          <div className="grid grid-cols-3 gap-3 text-sm">
-            <div>
-              <p className="font-medium text-gray-600 mb-2">المهارات:</p>
-              <div className="space-y-1">
-                {widow.skills && widow.skills.length > 0 ? (
-                  widow.skills.map((skill) => (
-                    <span key={skill.id} className="inline-block bg-blue-100 px-2 py-1 rounded text-xs ml-1 mb-1">
-                      {skill.label}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-gray-400">لا توجد</span>
-                )}
-              </div>
-            </div>
-            <div>
-              <p className="font-medium text-gray-600 mb-2">الأمراض:</p>
-              <div className="space-y-1">
-                {widow.illnesses && widow.illnesses.length > 0 ? (
-                  widow.illnesses.map((illness) => (
-                    <div key={illness.id} className="text-xs">
-                      <span className={`inline-block px-2 py-1 rounded ml-1 mb-1 ${
-                        illness.is_chronic ? 'bg-red-100 text-red-700' : 'bg-gray-100'
-                      }`}>
-                        {illness.label} {illness.is_chronic && '(مزمن)'}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <span className="text-gray-400">لا توجد</span>
-                )}
-              </div>
-            </div>
-            <div>
-              <p className="font-medium text-gray-600 mb-2">أنواع المساعدات:</p>
-              <div className="space-y-1">
-                {widow.aid_types && widow.aid_types.length > 0 ? (
-                  widow.aid_types.map((aid) => (
-                    <span key={aid.id} className="inline-block bg-green-100 px-2 py-1 rounded text-xs ml-1 mb-1">
-                      {aid.label}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-gray-400">لا توجد</span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        )}
-
-        {/* Footer */}
-        <div className="border-t-2 border-gray-300 pt-3 mt-6">
-          <div className="flex justify-between text-xs text-gray-500">
-            <div>
-              <p>تاريخ الانتساب: {formatDate(widow.admission_date)}</p>
-              <p>تاريخ الطباعة: {formatDate(new Date().toISOString())}</p>
-            </div>
-            <div className="text-right">
-              <p>جمعية أماسو الخيرية</p>
-              <p>نظام إدارة المستفيدين</p>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

@@ -318,8 +318,52 @@ export const genderArabic: Record<string, string> = {
  * Arabic marital status translations
  */
 export const maritalStatusArabic: Record<string, string> = {
-  'Widow': 'أرملة',
+  'Widowed': 'أرملة',
   'Divorced': 'مطلقة',
-  'Married': 'متزوجة',
-  'Single': 'عازبة'
+  'Single': 'عازبة',
+  // Legacy rows imported before the values were normalised.
+  'Widow': 'أرملة',
+  'Married': 'متزوجة'
 }
+
+
+/** The association's identity, as it appears on every printed page. */
+export const ORGANIZATION_NAME = 'جمعية أماسو الخيرية'
+
+/**
+ * Header markup for the browser-print views.
+ *
+ * The print window is opened with document.write, so a relative image path
+ * would not resolve against the app's origin - the logo URL is absolute.
+ */
+export function printHeader(title: string, subtitle?: string): string {
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+
+  return `
+  <div class="header brand-header">
+    <img class="brand-logo" src="${origin}/amaso-logo.jpg" alt="">
+    <div class="brand-text">
+      <h1>${ORGANIZATION_NAME}</h1>
+      <h2>${title}</h2>
+      ${subtitle ? `<p class="brand-subtitle">${subtitle}</p>` : ''}
+    </div>
+  </div>`
+}
+
+/** Styles the printHeader markup depends on; concatenated into each print stylesheet. */
+export const PRINT_HEADER_STYLES = `
+    .brand-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      text-align: center;
+    }
+    .brand-logo { width: 64px; height: 64px; object-fit: contain; }
+    .brand-text h1 { margin: 0; }
+    .brand-text h2 { margin: 4px 0 0; }
+    .brand-subtitle { margin: 2px 0 0; font-size: 12px; color: #666; }
+    @media print {
+      .brand-logo { width: 52px; height: 52px; }
+    }
+`

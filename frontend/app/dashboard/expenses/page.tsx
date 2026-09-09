@@ -4,12 +4,13 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Search, Filter, Download, Wallet, ChevronDown, FileText } from "lucide-react"
+import { Plus, Search, Filter, Download, Wallet, ChevronDown, FileText, FileDown } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ExpensesTable } from "@/components/expenses/expenses-table"
 import { NewExpenseDialog } from "@/components/forms/NewExpenseForm"
 import { ExpenseFilters, FilterValues } from "@/components/expenses/expense-filters"
 import { useToast } from "@/hooks/use-toast"
+import api from "@/lib/api"
 import { format } from "date-fns"
 
 export default function ExpensesPage() {
@@ -292,6 +293,21 @@ export default function ExpensesPage() {
     })
     
     return [metadataRows, headerRow, ...dataRows].join('\n')
+  }
+
+  // The ledger as a real-text PDF, rendered server-side from the same filters
+  // the table is showing.
+  const handleDownloadPdf = async () => {
+    try {
+      await api.downloadPdf('/reports/expenses.pdf', appliedFilters)
+      toast({ title: "تم تحميل سجل المصروفات" })
+    } catch (error: any) {
+      toast({
+        title: "خطأ في إنشاء الـ PDF",
+        description: error?.message || "حدث خطأ أثناء إنشاء الملف",
+        variant: "destructive",
+      })
+    }
   }
 
   const handlePrintReport = async () => {
@@ -662,6 +678,10 @@ export default function ExpensesPage() {
               <DropdownMenuItem onClick={handleExportCSV} disabled={isExporting}>
                 <Download className="h-4 w-4 ml-2" />
                 تصدير CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadPdf}>
+                <FileDown className="h-4 w-4 ml-2" />
+                تصدير PDF
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handlePrintReport} disabled={isExporting}>
                 <FileText className="h-4 w-4 ml-2" />

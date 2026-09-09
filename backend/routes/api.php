@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\AcademicYearController;
 use App\Http\Controllers\Api\V1\EnrollmentController;
 use App\Http\Controllers\Api\V1\KafalaChamilaController;
+use App\Http\Controllers\Api\V1\CardController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\BeneficiaryGroupController;
 use App\Http\Controllers\Api\V1\References;
@@ -77,9 +78,35 @@ Route::prefix('v1')->group(function () {
     Route::put('kafala-chamila/splits', [KafalaChamilaController::class, 'updateSplits']);
     Route::post('kafala-chamila/incomes', [KafalaChamilaController::class, 'storeIncome']);
 
+    // Per-entity information cards (PDF)
+    Route::get('cards/widows/{widow}.pdf', [CardController::class, 'widow']);
+    Route::get('cards/orphans/{orphan}.pdf', [CardController::class, 'orphan']);
+    Route::get('cards/donors/{donor}.pdf', [CardController::class, 'donor']);
+    Route::get('cards/kafils/{kafil}.pdf', [CardController::class, 'kafil']);
+
     // Reports
     Route::get('reports/kafils/{kafil}/statement', [ReportController::class, 'kafilStatement']);
+    Route::get('reports/incomes.pdf', [ReportController::class, 'incomeListPdf']);
+    Route::get('reports/expenses.pdf', [ReportController::class, 'expenseListPdf']);
+    Route::get('reports/families/{widow}/financial', [ReportController::class, 'familyFinancial']);
+    Route::get('reports/families/{widow}/financial.pdf', [ReportController::class, 'familyFinancialPdf']);
+    Route::get('reports/sponsorship-gaps', [ReportController::class, 'sponsorshipGaps']);
+    Route::get('reports/sponsorship-gaps.pdf', [ReportController::class, 'sponsorshipGapsPdf']);
+    Route::get('reports/kafil-follow-up', [ReportController::class, 'kafilFollowUp']);
+    Route::get('reports/kafil-follow-up.pdf', [ReportController::class, 'kafilFollowUpPdf']);
+    Route::get('reports/budget-utilization', [ReportController::class, 'budgetUtilization']);
+    Route::get('reports/budget-utilization.pdf', [ReportController::class, 'budgetUtilizationPdf']);
+    Route::get('reports/widows', [ReportController::class, 'widows']);
+    Route::get('reports/widows.pdf', [ReportController::class, 'widowsPdf']);
+    Route::get('reports/financial', [ReportController::class, 'financial']);
+    Route::get('reports/financial.pdf', [ReportController::class, 'financialPdf']);
+    Route::get('reports/donors', [ReportController::class, 'donors']);
+    Route::get('reports/donors.pdf', [ReportController::class, 'donorsPdf']);
+    Route::get('reports/annual', [ReportController::class, 'annual']);
+    Route::get('reports/annual.pdf', [ReportController::class, 'annualPdf']);
     Route::get('reports/school-performance', [ReportController::class, 'schoolPerformance']);
+    Route::get('reports/school-performance.pdf', [ReportController::class, 'schoolPerformancePdf']);
+    Route::get('reports/kafils/{kafil}/statement.pdf', [ReportController::class, 'kafilStatementPdf']);
 
     // Expenses CRUD + approval
     Route::apiResource('expenses', ExpenseController::class);

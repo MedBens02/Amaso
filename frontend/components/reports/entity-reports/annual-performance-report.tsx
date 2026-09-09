@@ -5,11 +5,7 @@ import { ReportDialog, ExportFormat, StatisticItem } from "../report-dialog"
 import { ReportFilters, FilterOption, useReportFilters } from "../report-filters"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
-import {
-  exportDataToCSV,
-  formatDateForExport,
-  formatCurrency
-} from "@/lib/export-utils"
+import { exportDataToCSV, formatDateForExport, formatCurrency, printHeader, PRINT_HEADER_STYLES } from "@/lib/export-utils"
 
 interface AnnualPerformanceReportProps {
   open: boolean
@@ -233,10 +229,18 @@ export function AnnualPerformanceReport({ open, onOpenChange }: AnnualPerformanc
   }
 
   const exportToPDF = async () => {
-    toast({
-      title: "قريباً",
-      description: "تصدير PDF سيكون متاحاً قريباً"
-    })
+    // Rendered server-side as real text, so the PDF can be selected, searched
+    // and edited - and the numbers come from the same aggregate the dialog shows.
+    try {
+      await api.downloadPdf('/reports/annual.pdf', filters)
+      toast({ title: "تم تحميل التقرير" })
+    } catch (error: any) {
+      toast({
+        title: "خطأ في إنشاء الـ PDF",
+        description: error?.message || "حدث خطأ أثناء إنشاء الملف",
+        variant: "destructive",
+      })
+    }
   }
 
   const printReport = async () => {
@@ -356,13 +360,11 @@ export function AnnualPerformanceReport({ open, onOpenChange }: AnnualPerformanc
       body { padding: 0; }
       .section { page-break-inside: avoid; }
     }
+    ${PRINT_HEADER_STYLES}
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>جمعية أماسو الخيرية</h1>
-    <h2>تقرير الأداء السنوي - ${filters.fiscal_year || new Date().getFullYear()}</h2>
-  </div>
+  ${printHeader(`تقرير الأداء السنوي - ${filters.fiscal_year || new Date().getFullYear()}`)}
 
   <div class="executive-summary">
     <h3>الملخص التنفيذي</h3>

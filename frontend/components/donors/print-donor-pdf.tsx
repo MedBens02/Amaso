@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Printer, FileDown, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import api from "@/lib/api"
 import {
   PDFCardTemplate,
   HiddenPDFWrapper,
@@ -18,7 +19,6 @@ import {
   type PDFCardSection,
   type InfoItem
 } from "@/components/reports"
-import { generatePDFFromHTML, generatePDFFilename } from "@/lib/pdf-generator"
 import { formatCurrency, formatDateForExport, formatDateTimeForExport } from "@/lib/export-utils"
 
 interface Donor {
@@ -70,49 +70,28 @@ interface PrintDonorPDFProps {
 }
 
 export function PrintDonorPDF({ donor, variant = 'default', showDonationHistory = true }: PrintDonorPDFProps) {
-  const printRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
   const [isGenerating, setIsGenerating] = useState(false)
 
   const fullName = donor.full_name || `${donor.first_name} ${donor.last_name}`
 
   const generatePDF = async () => {
-    if (!printRef.current || isGenerating) return
+    if (isGenerating || !donor) return
 
     setIsGenerating(true)
-
     try {
-      toast({
-        title: "جاري إنشاء الـ PDF...",
-        description: "يرجى الانتظار بينما يتم إعداد بطاقة المتبرع"
-      })
-
-      const filename = generatePDFFilename('donor', fullName)
-      const result = await generatePDFFromHTML(printRef, filename, {
-        scale: 2,
-        multiPage: true
-      })
-
-      if (result.success) {
-        toast({
-          title: "تم إنشاء الـ PDF بنجاح",
-          description: `تم حفظ بطاقة ${fullName} كملف PDF`
-        })
-      } else {
-        throw new Error(result.error)
-      }
-    } catch (error) {
-      console.error('Error generating PDF:', error)
+      await api.downloadPdf(`/cards/donors/${donor.id}.pdf`)
+      toast({ title: "تم تحميل البطاقة" })
+    } catch (error: any) {
       toast({
         title: "خطأ في إنشاء الـ PDF",
-        description: "حدث خطأ أثناء إنشاء ملف الـ PDF. يرجى المحاولة مرة أخرى",
-        variant: "destructive"
+        description: error?.message || "حدث خطأ أثناء إنشاء الملف",
+        variant: "destructive",
       })
     } finally {
       setIsGenerating(false)
     }
   }
-
   // Build sections
   const sections: PDFCardSection[] = []
 
@@ -259,35 +238,6 @@ export function PrintDonorPDF({ donor, variant = 'default', showDonationHistory 
         {ButtonContent}
       </Button>
 
-      <HiddenPDFWrapper>
-        <div ref={printRef}>
-          <PDFCardTemplate
-            header={{
-              organizationName: "جمعية أماسو الخيرية",
-              title: "بطاقة معلومات المتبرع",
-              subtitle: donor.is_kafil ? "متبرع وكافل" : undefined,
-              entityName: fullName,
-              entityId: `#${donor.id}`,
-              badge: donor.is_kafil ? { text: "كافل", color: "blue" } : undefined
-            }}
-            sections={sections}
-            footer={{
-              leftContent: (
-                <>
-                  <p>تاريخ الطباعة: {formatDateForExport(new Date())}</p>
-                  <p>الوقت: {new Date().toLocaleTimeString('ar-MA')}</p>
-                </>
-              ),
-              rightContent: (
-                <>
-                  <p>جمعية أماسو الخيرية</p>
-                  <p>نظام إدارة الجمعية</p>
-                </>
-              )
-            }}
-          />
-        </div>
-      </HiddenPDFWrapper>
     </>
   )
 }

@@ -5,12 +5,7 @@ import { ReportDialog, ExportFormat, StatisticItem, useReportDialog } from "../r
 import { ReportFilters, FilterOption, useReportFilters } from "../report-filters"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
-import {
-  exportDataToCSV,
-  formatDateForExport,
-  formatCurrency,
-  maritalStatusArabic
-} from "@/lib/export-utils"
+import { exportDataToCSV, formatDateForExport, formatCurrency, maritalStatusArabic, printHeader, PRINT_HEADER_STYLES } from "@/lib/export-utils"
 
 interface Widow {
   id: number
@@ -284,10 +279,18 @@ export function WidowsReportDialog({ open, onOpenChange }: WidowsReportDialogPro
   }
 
   const exportToPDF = async () => {
-    toast({
-      title: "قريباً",
-      description: "تصدير PDF سيكون متاحاً قريباً"
-    })
+    // Rendered server-side as real text, so the PDF can be selected, searched
+    // and edited - and the numbers come from the same aggregate the dialog shows.
+    try {
+      await api.downloadPdf('/reports/widows.pdf', appliedFilters)
+      toast({ title: "تم تحميل التقرير" })
+    } catch (error: any) {
+      toast({
+        title: "خطأ في إنشاء الـ PDF",
+        description: error?.message || "حدث خطأ أثناء إنشاء الملف",
+        variant: "destructive",
+      })
+    }
   }
 
   const printReport = async () => {
@@ -365,13 +368,11 @@ export function WidowsReportDialog({ open, onOpenChange }: WidowsReportDialogPro
       color: #333;
     }
     @media print { body { padding: 0; } }
+    ${PRINT_HEADER_STYLES}
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>جمعية أماسو الخيرية</h1>
-    <h2>تقرير الأرامل والأيتام</h2>
-  </div>
+  ${printHeader(`تقرير الأرامل والأيتام`)}
 
   <div class="summary">
     <div class="summary-card">

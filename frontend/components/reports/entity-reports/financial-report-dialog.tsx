@@ -5,13 +5,7 @@ import { ReportDialog, ExportFormat, StatisticItem } from "../report-dialog"
 import { ReportFilters, FilterOption, useReportFilters } from "../report-filters"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
-import {
-  exportDataToCSV,
-  formatDateForExport,
-  formatCurrency,
-  paymentMethodArabic,
-  statusArabic
-} from "@/lib/export-utils"
+import { exportDataToCSV, formatDateForExport, formatCurrency, paymentMethodArabic, statusArabic, printHeader, PRINT_HEADER_STYLES } from "@/lib/export-utils"
 
 interface Income {
   id: number
@@ -283,10 +277,18 @@ export function FinancialReportDialog({ open, onOpenChange }: FinancialReportDia
   }
 
   const exportToPDF = async () => {
-    toast({
-      title: "قريباً",
-      description: "تصدير PDF سيكون متاحاً قريباً"
-    })
+    // Rendered server-side as real text, so the PDF can be selected, searched
+    // and edited - and the numbers come from the same aggregate the dialog shows.
+    try {
+      await api.downloadPdf('/reports/financial.pdf', appliedFilters)
+      toast({ title: "تم تحميل التقرير" })
+    } catch (error: any) {
+      toast({
+        title: "خطأ في إنشاء الـ PDF",
+        description: error?.message || "حدث خطأ أثناء إنشاء الملف",
+        variant: "destructive",
+      })
+    }
   }
 
   const printReport = async () => {
@@ -380,13 +382,11 @@ export function FinancialReportDialog({ open, onOpenChange }: FinancialReportDia
       color: #666;
     }
     @media print { body { padding: 0; } }
+    ${PRINT_HEADER_STYLES}
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>جمعية أماسو الخيرية</h1>
-    <h2>التقرير المالي الشامل</h2>
-  </div>
+  ${printHeader(`التقرير المالي الشامل`)}
 
   <div class="summary">
     <div class="summary-card income">

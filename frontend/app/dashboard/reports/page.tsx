@@ -2,13 +2,19 @@
 
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FileText, BarChart3, PieChart, TrendingUp, Users, HandCoins, GraduationCap } from "lucide-react"
+import { FileText, BarChart3, PieChart, TrendingUp, Users, HandCoins, GraduationCap, HeartHandshake, CalendarClock, Wallet } from "lucide-react"
 import { WidowsReportDialog } from "@/components/reports/entity-reports/widows-report-dialog"
 import { FinancialReportDialog } from "@/components/reports/entity-reports/financial-report-dialog"
 import { DonorsReportDialog } from "@/components/reports/entity-reports/donors-report-dialog"
 import { AnnualPerformanceReport } from "@/components/reports/entity-reports/annual-performance-report"
 import { KafilStatementDialog } from "@/components/reports/entity-reports/kafil-statement-dialog"
 import { SchoolPerformanceDialog } from "@/components/reports/entity-reports/school-performance-dialog"
+import { OperationalReportDialog } from "@/components/reports/entity-reports/operational-report-dialog"
+import {
+  SPONSORSHIP_GAPS,
+  KAFIL_FOLLOW_UP,
+  BUDGET_UTILIZATION,
+} from "@/components/reports/entity-reports/operational-report-specs"
 
 export default function ReportsPage() {
   const [openDialog, setOpenDialog] = useState<string | null>(null)
@@ -48,6 +54,27 @@ export default function ReportsPage() {
       description: "مساهمات الكفيل وتوزيعها، وما تلقّته الأسر المكفولة من الجمعية",
       icon: HandCoins,
       color: "bg-teal-500",
+    },
+    {
+      id: "sponsorship-gaps",
+      title: "تقرير نقص الكفالة",
+      description: "الأسر غير المكفولة والأسر ذات التغطية الناقصة — من يحتاج كفيلاً وبكم",
+      icon: HeartHandshake,
+      color: "bg-rose-500",
+    },
+    {
+      id: "kafil-follow-up",
+      title: "متابعة التزامات الكفلاء",
+      description: "المتوقّع مقابل المحصّل خلال الفترة، ومن تأخر عن التزامه",
+      icon: CalendarClock,
+      color: "bg-amber-500",
+    },
+    {
+      id: "budget-utilization",
+      title: "استعمال الميزانيات",
+      description: "الوارد والمصروف والمتبقي في كل ميزانية، مع تنبيه الميزانيات المتجاوزة",
+      icon: Wallet,
+      color: "bg-cyan-600",
     },
     {
       id: "school-performance",
@@ -118,6 +145,21 @@ export default function ReportsPage() {
       <SchoolPerformanceDialog
         open={openDialog === "school-performance"}
         onOpenChange={(open) => setOpenDialog(open ? "school-performance" : null)}
+      />
+      <OperationalReportDialog
+        open={openDialog === "sponsorship-gaps"}
+        onOpenChange={(open) => setOpenDialog(open ? "sponsorship-gaps" : null)}
+        spec={SPONSORSHIP_GAPS}
+      />
+      <OperationalReportDialog
+        open={openDialog === "kafil-follow-up"}
+        onOpenChange={(open) => setOpenDialog(open ? "kafil-follow-up" : null)}
+        spec={KAFIL_FOLLOW_UP}
+      />
+      <OperationalReportDialog
+        open={openDialog === "budget-utilization"}
+        onOpenChange={(open) => setOpenDialog(open ? "budget-utilization" : null)}
+        spec={BUDGET_UTILIZATION}
       />
     </div>
   )
