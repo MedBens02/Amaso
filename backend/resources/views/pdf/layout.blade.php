@@ -147,6 +147,21 @@
             margin-top: 4mm;
         }
         .empty { color: #9ca3af; text-align: center; padding: 4mm; font-size: 8.5pt; }
+
+        /* ---------- entity cards ---------- */
+        table.info td { padding: 0.5mm 1mm; font-size: 8.5pt; vertical-align: top; }
+        table.info .k { color: #6b7280; }
+        table.info .v { font-weight: bold; color: #1f2937; }
+        .identity {
+            background: #f0fdfa;
+            border: 0.2mm solid #99f6e4;
+            border-radius: 2mm;
+            padding: 3mm 4mm;
+            margin-bottom: 4mm;
+            text-align: center;
+        }
+        .identity .name { font-size: 13pt; font-weight: bold; color: #134e4a; }
+        .identity .sub { font-size: 8.5pt; color: #4b5563; }
     </style>
 </head>
 <body>

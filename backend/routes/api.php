@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\AcademicYearController;
 use App\Http\Controllers\Api\V1\EnrollmentController;
 use App\Http\Controllers\Api\V1\KafalaChamilaController;
+use App\Http\Controllers\Api\V1\CardController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\BeneficiaryGroupController;
 use App\Http\Controllers\Api\V1\References;
@@ -76,6 +77,12 @@ Route::prefix('v1')->group(function () {
     Route::get('kafala-chamila/family-balances', [KafalaChamilaController::class, 'familyBalances']);
     Route::put('kafala-chamila/splits', [KafalaChamilaController::class, 'updateSplits']);
     Route::post('kafala-chamila/incomes', [KafalaChamilaController::class, 'storeIncome']);
+
+    // Per-entity information cards (PDF)
+    Route::get('cards/widows/{widow}.pdf', [CardController::class, 'widow']);
+    Route::get('cards/orphans/{orphan}.pdf', [CardController::class, 'orphan']);
+    Route::get('cards/donors/{donor}.pdf', [CardController::class, 'donor']);
+    Route::get('cards/kafils/{kafil}.pdf', [CardController::class, 'kafil']);
 
     // Reports
     Route::get('reports/kafils/{kafil}/statement', [ReportController::class, 'kafilStatement']);

@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Printer, FileDown, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import api from "@/lib/api"
 import {
   PDFCardTemplate,
   HiddenPDFWrapper,
@@ -19,7 +20,6 @@ import {
   type PDFCardSection,
   type InfoItem
 } from "@/components/reports"
-import { generatePDFFromHTML, generatePDFFilename } from "@/lib/pdf-generator"
 import { formatCurrency, formatDateForExport } from "@/lib/export-utils"
 
 interface Widow {
@@ -88,49 +88,28 @@ interface PrintKafilPDFProps {
 }
 
 export function PrintKafilPDF({ kafil, variant = 'default', showDetailedWidows = true }: PrintKafilPDFProps) {
-  const printRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
   const [isGenerating, setIsGenerating] = useState(false)
 
   const fullName = kafil.full_name || `${kafil.first_name} ${kafil.last_name}`
 
   const generatePDF = async () => {
-    if (!printRef.current || isGenerating) return
+    if (isGenerating || !kafil) return
 
     setIsGenerating(true)
-
     try {
-      toast({
-        title: "جاري إنشاء الـ PDF...",
-        description: "يرجى الانتظار بينما يتم إعداد بطاقة الكفيل"
-      })
-
-      const filename = generatePDFFilename('kafil', fullName)
-      const result = await generatePDFFromHTML(printRef, filename, {
-        scale: 2,
-        multiPage: true
-      })
-
-      if (result.success) {
-        toast({
-          title: "تم إنشاء الـ PDF بنجاح",
-          description: `تم حفظ بطاقة ${fullName} كملف PDF`
-        })
-      } else {
-        throw new Error(result.error)
-      }
-    } catch (error) {
-      console.error('Error generating PDF:', error)
+      await api.downloadPdf(`/cards/kafils/${kafil.id}.pdf`)
+      toast({ title: "تم تحميل البطاقة" })
+    } catch (error: any) {
       toast({
         title: "خطأ في إنشاء الـ PDF",
-        description: "حدث خطأ أثناء إنشاء ملف الـ PDF. يرجى المحاولة مرة أخرى",
-        variant: "destructive"
+        description: error?.message || "حدث خطأ أثناء إنشاء الملف",
+        variant: "destructive",
       })
     } finally {
       setIsGenerating(false)
     }
   }
-
   // Build sections
   const sections: PDFCardSection[] = []
 
@@ -355,38 +334,6 @@ export function PrintKafilPDF({ kafil, variant = 'default', showDetailedWidows =
         {ButtonContent}
       </Button>
 
-      <HiddenPDFWrapper>
-        <div ref={printRef}>
-          <PDFCardTemplate
-            header={{
-              organizationName: "جمعية أماسو الخيرية",
-              title: "بطاقة معلومات الكفيل",
-              subtitle: "كفالة الأرامل والأيتام",
-              entityName: fullName,
-              entityId: `#${kafil.id}`,
-              badge: {
-                text: `${kafil.sponsorships?.length || 0} أرملة مكفولة`,
-                color: "blue"
-              }
-            }}
-            sections={sections}
-            footer={{
-              leftContent: (
-                <>
-                  <p>تاريخ الطباعة: {formatDateForExport(new Date())}</p>
-                  <p>الوقت: {new Date().toLocaleTimeString('ar-MA')}</p>
-                </>
-              ),
-              rightContent: (
-                <>
-                  <p>جمعية أماسو الخيرية</p>
-                  <p>نظام إدارة الجمعية - قسم الكفالات</p>
-                </>
-              )
-            }}
-          />
-        </div>
-      </HiddenPDFWrapper>
     </>
   )
 }

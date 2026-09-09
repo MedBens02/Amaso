@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { FileDown, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import api from "@/lib/api"
 import { PDFCardTemplate, PDFCardSection, InfoGrid, InfoItem, Users, GraduationCap, Heart, Phone, MapPin } from "@/components/reports"
 import { formatDateArabic } from "@/lib/date-utils"
 
@@ -34,71 +35,26 @@ interface PrintOrphanPDFProps {
 }
 
 export function PrintOrphanPDF({ orphan, variant = 'default' }: PrintOrphanPDFProps) {
-  const printRef = useRef<HTMLDivElement>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const { toast } = useToast()
 
   const generatePDF = async () => {
-    if (!printRef.current) return
+    if (isGenerating || !orphan) return
 
     setIsGenerating(true)
     try {
-      // Dynamic imports for PDF generation
-      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
-        import('jspdf'),
-        import('html2canvas')
-      ])
-
-      // Generate canvas from HTML
-      const canvas = await html2canvas(printRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        letterRendering: true
-      })
-
-      // Calculate dimensions
-      const imgWidth = 210 // A4 width in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
-      const pageHeight = 297 // A4 height in mm
-
-      // Create PDF
-      const pdf = new jsPDF('p', 'mm', 'a4')
-      let heightLeft = imgHeight
-      let position = 0
-
-      // Add first page
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight)
-      heightLeft -= pageHeight
-
-      // Add additional pages if needed
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight
-        pdf.addPage()
-        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight)
-        heightLeft -= pageHeight
-      }
-
-      // Save PDF
-      const fileName = `orphan_card_${orphan.id}_${orphan.full_name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`
-      pdf.save(fileName)
-
-      toast({
-        title: "تم إنشاء البطاقة",
-        description: `تم تحميل بطاقة اليتيم ${orphan.full_name} بنجاح`
-      })
-    } catch (error) {
-      console.error('Error generating PDF:', error)
+      await api.downloadPdf(`/cards/orphans/${orphan.id}.pdf`)
+      toast({ title: "تم تحميل البطاقة" })
+    } catch (error: any) {
       toast({
         title: "خطأ في إنشاء البطاقة",
-        description: "حدث خطأ أثناء إنشاء بطاقة PDF",
-        variant: "destructive"
+        description: error?.message || "حدث خطأ أثناء إنشاء الملف",
+        variant: "destructive",
       })
     } finally {
       setIsGenerating(false)
     }
   }
-
   // Prepare sections for PDF card
   const sections: PDFCardSection[] = []
 
@@ -200,38 +156,6 @@ export function PrintOrphanPDF({ orphan, variant = 'default' }: PrintOrphanPDFPr
       </Button>
 
       {/* Hidden PDF content */}
-      <div ref={printRef} className="fixed -left-[9999px] top-0">
-        <PDFCardTemplate
-          header={{
-            organizationName: "جمعية أماسو الخيرية",
-            title: "بطاقة يتيم",
-            subtitle: "معلومات اليتيم الشاملة",
-            entityName: orphan.full_name,
-            entityId: `#${orphan.id}`,
-            badge: {
-              text: orphan.gender === 'male' ? 'ذكر' : 'أنثى',
-              color: orphan.gender === 'male' ? 'blue' : 'red'
-            }
-          }}
-          sections={sections}
-          footer={{
-            leftContent: (
-              <>
-                <p>تاريخ الطباعة: {formatDateArabic(new Date(), "PPP")}</p>
-                <p>الوقت: {formatDateArabic(new Date(), "HH:mm")}</p>
-                <p>تاريخ التسجيل: {formatDateArabic(new Date(orphan.created_at), "PPP")}</p>
-              </>
-            ),
-            rightContent: (
-              <>
-                <p>جمعية أماسو الخيرية</p>
-                <p>قسم الأيتام</p>
-                <p>نظام إدارة الجمعية</p>
-              </>
-            )
-          }}
-        />
-      </div>
     </>
   )
 }
