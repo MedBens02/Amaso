@@ -43,6 +43,12 @@ Amaso is a complete management system designed specifically for charitable organ
 - **Fiscal Year Management**: Annual financial periods with closing procedures
 - **Financial Reporting**: Comprehensive financial reports and analytics
 
+### 🖨️ **Reports & PDFs**
+- **Real-text PDFs**: rendered server-side with mPDF from Blade templates — selectable, searchable and editable, not a screenshot. A four-page ranking is ~60 KB
+- **Arabic typesetting**: Noto Naskh Arabic is bundled, with DejaVu as the fallback for Latin and symbols; contextual shaping and RTL are handled natively
+- **Branding**: the association's logo and name head every report, print view and card, from `config/organization.php`
+- **Server-side aggregates**: report totals are SQL aggregates over every row, not a client-side sum of the first 1,000
+
 ### 📊 **Accounting & Budgeting**
 - **Budgets**: Named funds money is booked into and spent out of, one of them the default; the seven kafala chamila budgets are fixed and cannot be edited or deleted
 - **Chart of Accounts**: Income/expense categories that classify a transaction, nestable one level deep and independent of the budget it hits
@@ -311,6 +317,9 @@ GET    /api/v1/references/education-levels # Education levels
 GET    /api/v1/enrollments                 # Enrollments for an academic year
 POST   /api/v1/enrollments/grades          # Bulk semester-grade entry
 GET    /api/v1/reports/school-performance  # Ranked school performance
+GET    /api/v1/reports/{report}            # widows | financial | donors | annual
+GET    /api/v1/reports/{report}.pdf        # the same report as a real-text PDF
+GET    /api/v1/cards/{entity}/{id}.pdf     # per-entity information card
 GET    /api/v1/references/partners         # Partner organizations
 ```
 
