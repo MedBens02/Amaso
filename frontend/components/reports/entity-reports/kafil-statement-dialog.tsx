@@ -117,7 +117,7 @@ export function KafilStatementDialog({ open, onOpenChange }: KafilStatementDialo
             <PDFTable
               headers={["البند", "المبلغ"]}
               rows={[
-                ...statement.contributions.by_sub_budget.map((row: any) => [row.label, money(row.amount)]),
+                ...statement.contributions.by_budget.map((row: any) => [row.label, money(row.amount)]),
                 ["المجموع", money(statement.contributions.total)],
               ]}
             />
@@ -232,15 +232,15 @@ export function KafilStatementDialog({ open, onOpenChange }: KafilStatementDialo
               </div>
 
               <div>
-                <h3 className="font-semibold mb-2">توزيع المساهمات على الميزانيات الفرعية</h3>
+                <h3 className="font-semibold mb-2">توزيع المساهمات على الميزانيات</h3>
                 <div className="space-y-1">
-                  {statement.contributions.by_sub_budget.map((row: any) => (
-                    <div key={row.sub_budget_id} className="flex justify-between p-2 border rounded text-sm">
+                  {statement.contributions.by_budget.map((row: any) => (
+                    <div key={row.budget_id} className="flex justify-between p-2 border rounded text-sm">
                       <span>{row.label}</span>
                       <span className="font-semibold">{money(row.amount)}</span>
                     </div>
                   ))}
-                  {statement.contributions.by_sub_budget.length === 0 && (
+                  {statement.contributions.by_budget.length === 0 && (
                     <p className="text-sm text-gray-500 p-2">لا توجد مساهمات معتمدة في هذه الفترة</p>
                   )}
                 </div>

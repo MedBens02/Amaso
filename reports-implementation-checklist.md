@@ -175,14 +175,14 @@ Last Updated: 2026-02-04
 **Financial Reports (2/2 ✅):**
 - ✅ Created export-expenses.tsx - CSV export and print toolbar
   - CSV export with all expense details and beneficiary count
-  - Includes sub-budget, category, partner, bank account information
+  - Includes budget, category, partner, bank account information
   - HTML print report with summary statistics
   - Statistics: total expenses, total amount, approved amount, draft count, beneficiaries
   - Breakdown by category with count and total amounts
   - Status-based color coding (approved/draft/rejected)
 - ✅ Created export-incomes.tsx - CSV export and print toolbar
   - CSV export with comprehensive income data
-  - Includes fiscal year, sub-budget, category, donor/kafil information
+  - Includes fiscal year, budget, category, donor/kafil information
   - HTML print report with rich statistics
   - Statistics: total incomes, total amount, approved amount, donor/kafil split
   - Breakdown by category and payment method

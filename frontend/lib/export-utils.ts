@@ -144,7 +144,7 @@ function getFilterLabel(key: string): string {
   const labelMap: Record<string, string> = {
     'fromDate': 'من تاريخ',
     'toDate': 'إلى تاريخ',
-    'subBudgetId': 'الميزانية الفرعية',
+    'budgetId': 'الميزانية',
     'expenseCategoryId': 'فئة المصروف',
     'incomeCategoryId': 'فئة الإيراد',
     'partnerId': 'الشريك',

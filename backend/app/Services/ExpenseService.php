@@ -115,7 +115,7 @@ class ExpenseService
     {
         return [
             'fiscal_year_id' => $data['fiscal_year_id'],
-            'sub_budget_id' => $data['sub_budget_id'],
+            'budget_id' => $data['budget_id'],
             'expense_category_id' => $data['expense_category_id'],
             'partner_id' => $data['partner_id'] ?? null,
             'expense_date' => $data['expense_date'],

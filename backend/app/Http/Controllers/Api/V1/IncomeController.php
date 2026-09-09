@@ -20,7 +20,7 @@ class IncomeController extends Controller
     {
         $incomes = Income::with([
             'fiscalYear',
-            'subBudget',
+            'budget',
             'incomeCategory',
             'donor',
             'kafil',
@@ -32,7 +32,7 @@ class IncomeController extends Controller
             ->when($request->from_date, fn ($query, $fromDate) => $query->whereDate('income_date', '>=', $fromDate))
             ->when($request->to_date, fn ($query, $toDate) => $query->whereDate('income_date', '<=', $toDate))
             ->when($request->payment_method, fn ($query, $paymentMethod) => $query->where('payment_method', $paymentMethod))
-            ->when($request->sub_budget_id, fn ($query, $subBudgetId) => $query->where('sub_budget_id', $subBudgetId))
+            ->when($request->budget_id, fn ($query, $budgetId) => $query->where('budget_id', $budgetId))
             ->when($request->min_amount, fn ($query, $minAmount) => $query->where('amount', '>=', $minAmount))
             ->when($request->max_amount, fn ($query, $maxAmount) => $query->where('amount', '<=', $maxAmount))
             ->orderBy('income_date', 'desc')
@@ -66,7 +66,7 @@ class IncomeController extends Controller
     {
         $income->load([
             'fiscalYear',
-            'subBudget',
+            'budget',
             'incomeCategory',
             'donor',
             'kafil',

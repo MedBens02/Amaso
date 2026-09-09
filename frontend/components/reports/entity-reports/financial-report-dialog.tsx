@@ -20,7 +20,7 @@ interface Income {
   payment_method: string
   status: string
   fiscal_year: { year: string }
-  sub_budget: { label: string }
+  budget: { label: string }
   income_category: { label: string }
   donor?: { first_name: string; last_name: string }
   kafil?: { first_name: string; last_name: string }
@@ -32,7 +32,7 @@ interface Expense {
   amount: number
   payment_method: string
   status: string
-  sub_budget: { label: string }
+  budget: { label: string }
   expense_category: { label: string }
   partner?: { name: string }
   beneficiaries?: any[]
@@ -197,7 +197,7 @@ export function FinancialReportDialog({ open, onOpenChange }: FinancialReportDia
       'payment_method': 'طريقة الدفع',
       'status': 'الحالة',
       'fiscal_year': 'السنة المالية',
-      'sub_budget': 'الميزانية الفرعية',
+      'budget': 'الميزانية',
       'income_category': 'فئة الإيراد',
       'source': 'المصدر'
     }
@@ -209,7 +209,7 @@ export function FinancialReportDialog({ open, onOpenChange }: FinancialReportDia
       payment_method: paymentMethodArabic[income.payment_method] || income.payment_method,
       status: statusArabic[income.status] || income.status,
       fiscal_year: income.fiscal_year.year,
-      sub_budget: income.sub_budget.label,
+      budget: income.budget.label,
       income_category: income.income_category.label,
       source: income.donor
         ? `متبرع: ${income.donor.first_name} ${income.donor.last_name}`
@@ -231,7 +231,7 @@ export function FinancialReportDialog({ open, onOpenChange }: FinancialReportDia
       'amount': 'المبلغ (د.م)',
       'payment_method': 'طريقة الدفع',
       'status': 'الحالة',
-      'sub_budget': 'الميزانية الفرعية',
+      'budget': 'الميزانية',
       'expense_category': 'فئة المصروف',
       'partner': 'الشريك',
       'beneficiaries': 'عدد المستفيدين'
@@ -243,7 +243,7 @@ export function FinancialReportDialog({ open, onOpenChange }: FinancialReportDia
       amount: expense.amount.toFixed(2),
       payment_method: paymentMethodArabic[expense.payment_method] || expense.payment_method,
       status: statusArabic[expense.status] || expense.status,
-      sub_budget: expense.sub_budget.label,
+      budget: expense.budget.label,
       expense_category: expense.expense_category.label,
       partner: expense.partner?.name || '',
       beneficiaries: expense.beneficiaries?.length || 0

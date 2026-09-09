@@ -39,10 +39,10 @@ paying 1,600/month for families A and B should not silently fund family C, whose
 paid. This is now visible without breaking the pooling model:
 
 - **Nothing is siloed.** There is no per-family wallet, no second ledger, no new table. The
-  seven sub-budgets remain the only record of the money.
+  seven kafala chamila budgets remain the only record of the money.
 - **The balance is derived**, per family and per part: approved income designated to that
   family (`incomes.widow_id`) minus approved expenses attributed to that family — the widow or
-  any of her orphans — out of the same sub-budget.
+  any of her orphans — out of the same budget.
 - **Designation is now required** when the kafil sponsors families, and must be one of *their*
   families, so a payment can no longer land in the pools unattributed.
 - **Spending beyond a family's share is warned about, never blocked.** The expense form shows
@@ -53,6 +53,38 @@ paid. This is now visible without breaking the pooling model:
 
 Gap found and fixed while building this: the seeder created an income category per part but no
 **expense** category, so the pools could take money in and never pay anything out.
+
+---
+
+## Budgets separated from categories (added 2026-09-09)
+
+`sub_budgets` was doing two unrelated jobs: it was the fund a transaction's money belonged to,
+*and* the bucket every income/expense category was filed under. Because categories were owned by
+a sub-budget, the transaction forms could only offer categories belonging to the chosen fund —
+so a perfectly ordinary pairing (spend from the health fund, classify it as school fees) was
+structurally impossible, and the kafala chamila pools were unspendable until a matching set of
+categories was created under each of them.
+
+The two notions are now separate, which is the standard fund-accounting split:
+
+- **Budget** (`budgets`, renamed from `sub_budgets`) — *where the money is*. Every income and
+  expense names exactly one. `budgets.is_default` marks the one the forms preselect
+  (`الميزانية العامة`); users can add their own. A kafala chamila budget can never be made the
+  default, since those are fed by the split rules alone.
+- **Category** (`income_categories` / `expense_categories`) — *what the money was for*. No budget
+  link at all; a `parent_id` lets categories nest one level for grouping. Any category can be
+  paired with any budget.
+
+What this deliberately does **not** change:
+
+- The per-family kafala balance keys entirely on `budget_id`, never on categories, so the
+  derived balances and the overspend warning are unaffected.
+- The kafil statement still reports contributions by budget and *received* by category — both
+  survive because both concepts still exist, just separately.
+- The seven kafala chamila budgets stay locked against edit and delete.
+
+The migration renames the table and the `sub_budget_id` columns in place and drops the
+category→budget foreign key, so existing rows keep their fund assignment exactly as booked.
 
 ---
 

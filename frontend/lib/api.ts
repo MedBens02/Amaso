@@ -193,7 +193,7 @@ class ApiClient {
   // Incomes API
   async createIncome(data: {
     fiscal_year_id: number
-    sub_budget_id: number
+    budget_id: number
     income_category_id: number
     donor_id?: number
     widow_id?: number
@@ -215,7 +215,7 @@ class ApiClient {
 
   async updateIncome(id: number, data: {
     fiscal_year_id: number
-    sub_budget_id: number
+    budget_id: number
     income_category_id: number
     donor_id?: number
     widow_id?: number
@@ -407,8 +407,8 @@ class ApiClient {
     return this.request<any[]>('/kafils')
   }
 
-  async getSubBudgets() {
-    return this.request<any[]>('/sub-budgets')
+  async getBudgets() {
+    return this.request<any[]>('/budgets')
   }
 
   async getIncomeCategories() {

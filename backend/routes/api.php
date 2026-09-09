@@ -110,15 +110,15 @@ Route::prefix('v1')->group(function () {
         ]);
     });
 
-    Route::get('sub-budgets', function () {
+    Route::get('budgets', function () {
         return response()->json([
-            'data' => \App\Models\SubBudget::orderBy('label')->get(),
+            'data' => \App\Models\Budget::orderByDesc('is_default')->orderBy('label')->get(),
         ]);
     });
 
     Route::get('income-categories', function () {
         return response()->json([
-            'data' => \App\Models\IncomeCategory::with('subBudget')
+            'data' => \App\Models\IncomeCategory::with('parent')
                 ->where('id', '!=', \App\Models\IncomeCategory::DELETED_CATEGORY_ID)
                 ->orderBy('label')
                 ->get(),
@@ -127,7 +127,7 @@ Route::prefix('v1')->group(function () {
 
     Route::get('expense-categories', function () {
         return response()->json([
-            'data' => \App\Models\ExpenseCategory::with('subBudget')
+            'data' => \App\Models\ExpenseCategory::with('parent')
                 ->where('id', '!=', \App\Models\ExpenseCategory::DELETED_CATEGORY_ID)
                 ->orderBy('label')
                 ->get(),
@@ -200,10 +200,11 @@ Route::prefix('v1')->group(function () {
         Route::post('education-levels/reorder', [References\EducationLevelController::class, 'reorder']);
 
         // Sub-Budgets
-        Route::get('sub-budgets', [References\SubBudgetController::class, 'index']);
-        Route::post('sub-budgets', [References\SubBudgetController::class, 'store']);
-        Route::put('sub-budgets/{subBudget}', [References\SubBudgetController::class, 'update']);
-        Route::delete('sub-budgets/{subBudget}', [References\SubBudgetController::class, 'destroy']);
+        Route::get('budgets', [References\BudgetController::class, 'index']);
+        Route::post('budgets', [References\BudgetController::class, 'store']);
+        Route::put('budgets/{budget}', [References\BudgetController::class, 'update']);
+        Route::delete('budgets/{budget}', [References\BudgetController::class, 'destroy']);
+        Route::post('budgets/{budget}/default', [References\BudgetController::class, 'setDefault']);
 
         // Widow Income Categories
         Route::get('widow-income-categories', [References\WidowIncomeCategoryController::class, 'index']);

@@ -12,7 +12,7 @@ class Income extends Model
 
     protected $fillable = [
         'fiscal_year_id',
-        'sub_budget_id',
+        'budget_id',
         'income_category_id',
         'donor_id',
         'kafil_id',
@@ -43,9 +43,9 @@ class Income extends Model
         return $this->belongsTo(FiscalYear::class);
     }
 
-    public function subBudget(): BelongsTo
+    public function budget(): BelongsTo
     {
-        return $this->belongsTo(SubBudget::class);
+        return $this->belongsTo(Budget::class);
     }
 
     public function incomeCategory(): BelongsTo

@@ -23,7 +23,7 @@ interface Expense {
   cheque_number?: string
   receipt_number?: string
   unrelated_to_benef: boolean
-  sub_budget: {
+  budget: {
     id: number
     label: string
   }
@@ -73,7 +73,7 @@ export function ExportExpenses({ expenses, filters = {}, searchTerm }: ExportExp
         'amount': 'المبلغ (د.م)',
         'payment_method': 'طريقة الدفع',
         'status': 'الحالة',
-        'sub_budget': 'الميزانية الفرعية',
+        'budget': 'الميزانية',
         'expense_category': 'فئة المصروف',
         'partner': 'الشريك',
         'bank_account': 'الحساب البنكي',
@@ -91,7 +91,7 @@ export function ExportExpenses({ expenses, filters = {}, searchTerm }: ExportExp
         amount: expense.amount.toFixed(2),
         payment_method: paymentMethodArabic[expense.payment_method] || expense.payment_method,
         status: statusArabic[expense.status] || expense.status,
-        sub_budget: expense.sub_budget.label,
+        budget: expense.budget.label,
         expense_category: expense.expense_category.label,
         partner: expense.partner?.name || '',
         bank_account: expense.bank_account ? `${expense.bank_account.name} - ${expense.bank_account.bank_name}` : '',

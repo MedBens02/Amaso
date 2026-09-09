@@ -16,7 +16,7 @@ import api from "@/lib/api"
 export interface FilterValues {
   fromDate?: Date
   toDate?: Date
-  subBudgetId?: string
+  budgetId?: string
   paymentMethod?: string
   status?: string
   minAmount?: string
@@ -32,7 +32,7 @@ interface IncomeFiltersProps {
 }
 
 export function IncomeFilters({ filters, onFiltersChange, onApply, onClear }: IncomeFiltersProps) {
-  const [subBudgets, setSubBudgets] = useState<any[]>([])
+  const [budgets, setBudgets] = useState<any[]>([])
   const [fiscalYears, setFiscalYears] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -43,11 +43,11 @@ export function IncomeFilters({ filters, onFiltersChange, onApply, onClear }: In
   const loadFilterData = async () => {
     setLoading(true)
     try {
-      const [subBudgetsRes, fiscalYearsRes] = await Promise.all([
-        api.getSubBudgets(),
+      const [budgetsRes, fiscalYearsRes] = await Promise.all([
+        api.getBudgets(),
         api.getFiscalYears()
       ])
-      setSubBudgets(subBudgetsRes.data || [])
+      setBudgets(budgetsRes.data || [])
       setFiscalYears(fiscalYearsRes.data || [])
     } catch (error) {
       console.error('Error loading filter data:', error)
@@ -144,17 +144,17 @@ export function IncomeFilters({ filters, onFiltersChange, onApply, onClear }: In
         </div>
 
         <div className="space-y-2">
-          <Label>الميزانية الفرعية</Label>
+          <Label>الميزانية</Label>
           <Select 
-            value={filters.subBudgetId || "all"} 
-            onValueChange={(value) => updateFilter('subBudgetId', value === "all" ? undefined : value)}
+            value={filters.budgetId || "all"} 
+            onValueChange={(value) => updateFilter('budgetId', value === "all" ? undefined : value)}
           >
             <SelectTrigger>
               <SelectValue placeholder="اختر الميزانية" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">جميع الميزانيات</SelectItem>
-              {subBudgets.map((budget) => (
+              {budgets.map((budget) => (
                 <SelectItem key={budget.id} value={budget.id.toString()}>
                   {budget.label}
                 </SelectItem>

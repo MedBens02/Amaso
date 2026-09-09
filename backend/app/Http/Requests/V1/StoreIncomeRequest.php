@@ -20,7 +20,7 @@ class StoreIncomeRequest extends FormRequest
             // was already copied into the following year and is never
             // recomputed - the books would stop adding up.
             'fiscal_year_id' => ['required', Rule::exists('fiscal_years', 'id')->where('is_active', true)],
-            'sub_budget_id' => ['required', 'exists:sub_budgets,id'],
+            'budget_id' => ['required', 'exists:budgets,id'],
             'income_category_id' => ['required', 'exists:income_categories,id'],
             'donor_id' => ['nullable', 'exists:donors,id'],
             'kafil_id' => ['nullable', 'exists:kafils,id'],

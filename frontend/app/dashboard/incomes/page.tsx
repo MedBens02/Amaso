@@ -22,18 +22,18 @@ export default function IncomesPage() {
   const [appliedFilters, setAppliedFilters] = useState<FilterValues>({})
   const [isExporting, setIsExporting] = useState(false)
   const { toast } = useToast()
-  const [subBudgets, setSubBudgets] = useState<any[]>([])
+  const [budgets, setBudgets] = useState<any[]>([])
   const [fiscalYears, setFiscalYears] = useState<any[]>([])
 
   // Load reference data for filter labels
   useEffect(() => {
     const loadReferenceData = async () => {
       try {
-        const [subBudgetsRes, fiscalYearsRes] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'}/sub-budgets`).then(r => r.json()),
+        const [budgetsRes, fiscalYearsRes] = await Promise.all([
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'}/budgets`).then(r => r.json()),
           fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'}/fiscal-years`).then(r => r.json())
         ])
-        setSubBudgets(subBudgetsRes.data || [])
+        setBudgets(budgetsRes.data || [])
         setFiscalYears(fiscalYearsRes.data || [])
       } catch (error) {
         console.error('Error loading reference data:', error)
@@ -45,9 +45,9 @@ export default function IncomesPage() {
   // Helper to get readable filter labels
   const getFilterLabel = (type: string, value: string) => {
     switch (type) {
-      case 'subBudget':
-        const subBudget = subBudgets.find(sb => sb.id.toString() === value)
-        return subBudget ? subBudget.label : value
+      case 'budget':
+        const budget = budgets.find(sb => sb.id.toString() === value)
+        return budget ? budget.label : value
       case 'fiscalYear':
         const fiscalYear = fiscalYears.find(fy => fy.id.toString() === value)
         return fiscalYear ? fiscalYear.year : value
@@ -72,8 +72,8 @@ export default function IncomesPage() {
       if (appliedFilters.toDate) {
         params.append('to_date', appliedFilters.toDate.toISOString().split('T')[0])
       }
-      if (appliedFilters.subBudgetId) {
-        params.append('sub_budget_id', appliedFilters.subBudgetId)
+      if (appliedFilters.budgetId) {
+        params.append('budget_id', appliedFilters.budgetId)
       }
       if (appliedFilters.paymentMethod) {
         params.append('payment_method', appliedFilters.paymentMethod)
@@ -105,7 +105,7 @@ export default function IncomesPage() {
       if (searchTerm.trim()) {
         const searchLower = searchTerm.toLowerCase()
         allIncomes = allIncomes.filter((income: any) => (
-          income.sub_budget.label.toLowerCase().includes(searchLower) ||
+          income.budget.label.toLowerCase().includes(searchLower) ||
           income.income_category.label.toLowerCase().includes(searchLower) ||
           (income.donor && `${income.donor.first_name} ${income.donor.last_name}`.toLowerCase().includes(searchLower)) ||
           (income.kafil && `${income.kafil.first_name} ${income.kafil.last_name}`.toLowerCase().includes(searchLower)) ||
@@ -149,7 +149,7 @@ export default function IncomesPage() {
     // Debug logging
     console.log('CSV Export - Applied filters:', filters)
     console.log('CSV Export - Search term:', search)
-    console.log('CSV Export - Sub budgets:', subBudgets)
+    console.log('CSV Export - Sub budgets:', budgets)
     console.log('CSV Export - Fiscal years:', fiscalYears)
     
     // Utility function to properly escape CSV fields
@@ -168,7 +168,7 @@ export default function IncomesPage() {
       'رقم الإيراد',
       'التاريخ',
       'السنة المالية', 
-      'الميزانية الفرعية',
+      'الميزانية',
       'الفئة',
       'المتبرع/الكفيل',
       'النوع',
@@ -213,7 +213,7 @@ export default function IncomesPage() {
         income.id,
         format(new Date(income.income_date), 'yyyy-MM-dd'),
         income.fiscal_year?.year || '',
-        income.sub_budget?.label || '',
+        income.budget?.label || '',
         income.income_category?.label || '',
         donorKafil,
         income.donor ? 'تبرع' : income.kafil ? 'كفالة' : '',
@@ -246,8 +246,8 @@ export default function IncomesPage() {
     if (filters.fiscalYearId) {
       filterLines.push(escapeCSVField(`السنة المالية: ${getLabel('fiscalYear', filters.fiscalYearId)}`))
     }
-    if (filters.subBudgetId) {
-      filterLines.push(escapeCSVField(`الميزانية الفرعية: ${getLabel('subBudget', filters.subBudgetId)}`))
+    if (filters.budgetId) {
+      filterLines.push(escapeCSVField(`الميزانية: ${getLabel('budget', filters.budgetId)}`))
     }
     if (filters.status) {
       const statusArabic = filters.status === 'Approved' ? 'معتمد' : filters.status === 'Draft' ? 'مسودة' : filters.status === 'Rejected' ? 'مرفوض' : filters.status
@@ -308,8 +308,8 @@ export default function IncomesPage() {
       if (appliedFilters.toDate) {
         params.append('to_date', appliedFilters.toDate.toISOString().split('T')[0])
       }
-      if (appliedFilters.subBudgetId) {
-        params.append('sub_budget_id', appliedFilters.subBudgetId)
+      if (appliedFilters.budgetId) {
+        params.append('budget_id', appliedFilters.budgetId)
       }
       if (appliedFilters.paymentMethod) {
         params.append('payment_method', appliedFilters.paymentMethod)
@@ -341,7 +341,7 @@ export default function IncomesPage() {
       if (searchTerm.trim()) {
         const searchLower = searchTerm.toLowerCase()
         allIncomes = allIncomes.filter((income: any) => (
-          income.sub_budget.label.toLowerCase().includes(searchLower) ||
+          income.budget.label.toLowerCase().includes(searchLower) ||
           income.income_category.label.toLowerCase().includes(searchLower) ||
           (income.donor && `${income.donor.first_name} ${income.donor.last_name}`.toLowerCase().includes(searchLower)) ||
           (income.kafil && `${income.kafil.first_name} ${income.kafil.last_name}`.toLowerCase().includes(searchLower)) ||
@@ -382,8 +382,8 @@ export default function IncomesPage() {
     if (filters.fiscalYearId) {
       filterElements.push(`<div>السنة المالية: ${getLabel('fiscalYear', filters.fiscalYearId)}</div>`)
     }
-    if (filters.subBudgetId) {
-      filterElements.push(`<div>الميزانية الفرعية: ${getLabel('subBudget', filters.subBudgetId)}</div>`)
+    if (filters.budgetId) {
+      filterElements.push(`<div>الميزانية: ${getLabel('budget', filters.budgetId)}</div>`)
     }
     if (filters.status) {
       const statusArabic = filters.status === 'Approved' ? 'معتمد' : filters.status === 'Draft' ? 'مسودة' : filters.status === 'Rejected' ? 'مرفوض' : filters.status

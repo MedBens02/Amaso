@@ -29,7 +29,7 @@ class ReportService
     {
         $kafil->loadMissing('donor');
 
-        $incomes = Income::with('subBudget')
+        $incomes = Income::with('budget')
             ->where('kafil_id', $kafil->id)
             ->where('status', 'Approved')
             ->whereBetween('income_date', [$from, $to])
@@ -78,10 +78,10 @@ class ReportService
             'contributions' => [
                 'total' => round($this->sum($incomes), 2),
                 'payments_count' => $incomes->count(),
-                'by_sub_budget' => $incomes->groupBy('sub_budget_id')
+                'by_budget' => $incomes->groupBy('budget_id')
                     ->map(fn ($rows) => [
-                        'sub_budget_id' => $rows->first()->sub_budget_id,
-                        'label' => $rows->first()->subBudget?->label ?? 'غير محدد',
+                        'budget_id' => $rows->first()->budget_id,
+                        'label' => $rows->first()->budget?->label ?? 'غير محدد',
                         'amount' => round($this->sum($rows), 2),
                     ])
                     ->sortByDesc('amount')

@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils"
 interface IncomeData {
   id: number
   fiscal_year_id: number
-  sub_budget_id: number
+  budget_id: number
   income_category_id: number
   donor_id?: number
   kafil_id?: number
@@ -51,7 +51,7 @@ interface IncomeData {
     year: string
     is_active: boolean
   }
-  sub_budget: {
+  budget: {
     id: number
     label: string
   }
@@ -93,7 +93,7 @@ interface ApiResponse {
 interface FilterValues {
   fromDate?: Date
   toDate?: Date
-  subBudgetId?: string
+  budgetId?: string
   paymentMethod?: string
   status?: string
   minAmount?: string
@@ -202,8 +202,8 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
       if (filters.toDate) {
         params.append('to_date', filters.toDate.toISOString().split('T')[0])
       }
-      if (filters.subBudgetId) {
-        params.append('sub_budget_id', filters.subBudgetId)
+      if (filters.budgetId) {
+        params.append('budget_id', filters.budgetId)
       }
       if (filters.paymentMethod) {
         params.append('payment_method', filters.paymentMethod)
@@ -276,7 +276,7 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
     
     const searchLower = searchTerm.toLowerCase()
     return (
-      income.sub_budget.label.toLowerCase().includes(searchLower) ||
+      income.budget.label.toLowerCase().includes(searchLower) ||
       income.income_category.label.toLowerCase().includes(searchLower) ||
       (income.donor && `${income.donor.first_name} ${income.donor.last_name}`.toLowerCase().includes(searchLower)) ||
       (income.kafil && `${income.kafil.first_name} ${income.kafil.last_name}`.toLowerCase().includes(searchLower)) ||
@@ -426,7 +426,7 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
   const handleDuplicateIncome = (income: IncomeData) => {
     const duplicatedIncome = {
       income_date: new Date(),
-      sub_budget_id: income.sub_budget_id.toString(),
+      budget_id: income.budget_id.toString(),
       income_category_id: income.income_category_id.toString(),
       income_type: income.donor_id ? "donation" : "kafala" as "donation" | "kafala",
       donor_id: income.donor_id?.toString() || "",
@@ -445,7 +445,7 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
     const editIncomeData = {
       id: income.id,
       income_date: new Date(income.income_date),
-      sub_budget_id: income.sub_budget_id.toString(),
+      budget_id: income.budget_id.toString(),
       income_category_id: income.income_category_id.toString(),
       income_type: income.donor_id ? "donation" : "kafala" as "donation" | "kafala",
       donor_id: income.donor_id?.toString() || "",
@@ -646,7 +646,7 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
                 />
               </TableHead>
               <TableHead className="text-right">التاريخ</TableHead>
-              <TableHead className="text-right">الميزانية الفرعية</TableHead>
+              <TableHead className="text-right">الميزانية</TableHead>
               <TableHead className="text-right">الفئة</TableHead>
               <TableHead className="text-right">المتبرع/الكفيل</TableHead>
               <TableHead className="text-right">المبلغ</TableHead>
@@ -682,7 +682,7 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
                   <TableCell className="text-right">
                     {formatDateArabic(new Date(income.income_date), "dd/MM/yyyy")}
                   </TableCell>
-                  <TableCell className="text-right font-medium">{income.sub_budget.label}</TableCell>
+                  <TableCell className="text-right font-medium">{income.budget.label}</TableCell>
                   <TableCell className="text-right">{income.income_category.label}</TableCell>
                   <TableCell className="text-right">
                     {income.donor && (
@@ -840,7 +840,7 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
           initialData={{
             id: editingIncome.id,
             income_date: new Date(editingIncome.income_date),
-            sub_budget_id: editingIncome.sub_budget_id.toString(),
+            budget_id: editingIncome.budget_id.toString(),
             income_category_id: editingIncome.income_category_id.toString(),
             income_type: editingIncome.donor_id ? "donation" : "kafala" as "donation" | "kafala",
             donor_id: editingIncome.donor_id?.toString() || "",

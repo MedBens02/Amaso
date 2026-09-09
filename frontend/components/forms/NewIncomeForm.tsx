@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -28,18 +28,19 @@ import { formatDateArabic } from "@/lib/date-utils"
 import { cn } from "@/lib/utils"
 import { AddDonorSheet } from "@/components/donors/add-donor-sheet"
 import { KafalaChamilaSplitEditor } from "@/components/forms/KafalaChamilaSplitEditor"
+import { buildCategoryOptions } from "@/lib/categories"
 import api from "@/lib/api"
 
 const incomeSchema = z
   .object({
     income_date: z.date({ required_error: "التاريخ مطلوب" }),
-    sub_budget_id: z.string().optional(),
+    budget_id: z.string().optional(),
     income_category_id: z.string().optional(),
     income_type: z.enum(["donation", "kafala", "kafala_chamila"], { required_error: "نوع الإيراد مطلوب" }),
     donor_id: z.string().optional(),
     kafil_id: z.string().optional(),
     // Family this payment is designated for - intent only, the money still
-    // goes to the sub-budgets. Used by the kafil statement.
+    // goes to the budgets. Used by the kafil statement.
     widow_id: z.string().optional(),
     amount: z.number().positive("المبلغ يجب أن يكون موجباً"),
     kafala_chamila_splits: z.array(z.object({ split_id: z.number(), amount: z.number() })).optional(),
@@ -99,9 +100,9 @@ const incomeSchema = z
       path: ["donor_id"],
     },
   )
-  .refine((data) => data.income_type === "kafala_chamila" || (data.sub_budget_id && data.sub_budget_id.length > 0), {
-    message: "الميزانية الفرعية مطلوبة",
-    path: ["sub_budget_id"],
+  .refine((data) => data.income_type === "kafala_chamila" || (data.budget_id && data.budget_id.length > 0), {
+    message: "الميزانية مطلوبة",
+    path: ["budget_id"],
   })
   .refine(
     (data) => data.income_type === "kafala_chamila" || (data.income_category_id && data.income_category_id.length > 0),
@@ -137,9 +138,8 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
   const [showAddDonorSheet, setShowAddDonorSheet] = useState(false)
   
   // Form data states
-  const [subBudgets, setSubBudgets] = useState<any[]>([])
+  const [budgets, setBudgets] = useState<any[]>([])
   const [incomeCategories, setIncomeCategories] = useState<any[]>([])
-  const [filteredCategories, setFilteredCategories] = useState<any[]>([])
   const [donors, setDonors] = useState<any[]>([])
   const [kafils, setKafils] = useState<any[]>([])
   const [bankAccounts, setBankAccounts] = useState<any[]>([])
@@ -196,8 +196,8 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
   const loadFormData = async () => {
     setLoading(true)
     try {
-      const [subBudgetsRes, categoriesRes, donorsRes, kafilsRes, bankAccountsRes, fiscalYearRes] = await Promise.all([
-        api.getSubBudgets(),
+      const [budgetsRes, categoriesRes, donorsRes, kafilsRes, bankAccountsRes, fiscalYearRes] = await Promise.all([
+        api.getBudgets(),
         api.getIncomeCategories(),
         api.getDonors(),
         api.getKafilsForSponsorship(),
@@ -205,8 +205,18 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
         api.getActiveFiscalYear()
       ])
       
-      setSubBudgets(subBudgetsRes.data || [])
+      const loadedBudgets = budgetsRes.data || []
+      setBudgets(loadedBudgets)
       setIncomeCategories(categoriesRes.data || [])
+
+      // Every income lands in some budget; the general one is the sane default
+      // so the common case is one less decision.
+      if (!form.getValues('budget_id')) {
+        const fallback = loadedBudgets.find((budget: any) => budget.is_default)
+        if (fallback) {
+          form.setValue('budget_id', fallback.id.toString())
+        }
+      }
       setDonors(donorsRes.data || [])
       setKafils(kafilsRes.data || [])
       setBankAccounts(bankAccountsRes.data || [])
@@ -223,30 +233,36 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
     }
   }
   
-  // Auto-set sub-budget and category when kafala income type is selected
+  // Auto-set budget and category when a kafala income type is selected
   useEffect(() => {
     const incomeType = form.watch('income_type')
     if (incomeType === 'kafala') {
-      // Find kafala sub-budget and income category
-      const kafalaSubBudget = subBudgets.find(sb => sb.label === 'كفالة شاملة')
+      // Find kafala budget and income category
+      const kafalaBudget = budgets.find(sb => sb.label === 'كفالة شاملة')
       const kafalaCategory = incomeCategories.find(cat => cat.label === 'كفالة شاملة')
 
-      if (kafalaSubBudget) {
-        form.setValue('sub_budget_id', kafalaSubBudget.id.toString())
+      if (kafalaBudget) {
+        form.setValue('budget_id', kafalaBudget.id.toString())
       }
       if (kafalaCategory) {
         form.setValue('income_category_id', kafalaCategory.id.toString())
       }
     } else if (incomeType === 'kafala_chamila') {
-      // Each split part carries its own sub-budget/category server-side -
+      // Each split part carries its own budget/category server-side -
       // there's no single one to select here.
-      form.setValue('sub_budget_id', '')
+      form.setValue('budget_id', '')
       form.setValue('income_category_id', '')
       if (!form.getValues('amount')) {
         form.setValue('amount', 800)
       }
+    } else if (!form.getValues('budget_id')) {
+      // Coming back from a type that cleared the budget - restore the default.
+      const fallback = budgets.find((budget: any) => budget.is_default)
+      if (fallback) {
+        form.setValue('budget_id', fallback.id.toString())
+      }
     }
-  }, [form.watch('income_type'), subBudgets, incomeCategories, form])
+  }, [form.watch('income_type'), budgets, incomeCategories, form])
 
   // The kafala amount for a family is whatever was agreed on that family's
   // kafil record, which is not always 800 - so once the family is chosen the
@@ -266,17 +282,10 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
     }
   }, [form.watch('widow_id'), form.watch('income_type'), selectedKafilSponsorship])
 
-  // Filter categories based on selected sub-budget
-  useEffect(() => {
-    const subBudgetId = form.watch('sub_budget_id')
-    if (subBudgetId) {
-      const filtered = incomeCategories.filter(cat => cat.sub_budget_id === parseInt(subBudgetId))
-      setFilteredCategories(filtered)
-    } else {
-      setFilteredCategories([])
-    }
-  }, [form.watch('sub_budget_id'), incomeCategories])
-  
+  // Categories are independent of budgets - the full tree is always offered,
+  // parents first with their children indented underneath.
+  const categoryOptions = useMemo(() => buildCategoryOptions(incomeCategories), [incomeCategories])
+
   // Handle kafil selection and auto-fill amount
   const handleKafilChange = (kafil: any) => {
     if (kafil && kafil.sponsorships && kafil.sponsorships.length > 0) {
@@ -301,7 +310,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
 
   const paymentMethod = form.watch("payment_method")
   const incomeType = form.watch("income_type")
-  const selectedSubBudget = form.watch("sub_budget_id")
+  const selectedBudget = form.watch("budget_id")
   
   // Clear irrelevant fields when payment method changes
   useEffect(() => {
@@ -381,7 +390,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
       // Prepare data with only relevant fields based on payment method
       const incomeData = {
         fiscal_year_id: fiscalYearId,
-        sub_budget_id: parseInt(data.sub_budget_id!),
+        budget_id: parseInt(data.budget_id!),
         income_category_id: parseInt(data.income_category_id!),
         donor_id: data.income_type === 'donation' && data.donor_id ? parseInt(data.donor_id) : undefined,
         kafil_id: data.income_type === 'kafala' && data.kafil_id ? parseInt(data.kafil_id) : undefined,
@@ -668,30 +677,26 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
             </div>
           </div>
 
-          {/* Sub Budget and Category */}
+          {/* Budget and Category */}
           {incomeType !== 'kafala_chamila' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>الميزانية الفرعية *</Label>
+              <Label>الميزانية *</Label>
               <Controller
-                name="sub_budget_id"
+                name="budget_id"
                 control={form.control}
                 render={({ field }) => (
                   <ReactSelect
                     {...field}
-                    options={subBudgets.map(budget => ({
+                    options={budgets.map(budget => ({
                       value: budget.id.toString(),
                       label: budget.label
                     }))}
-                    value={subBudgets.find(budget => budget.id.toString() === field.value) ? 
-                      { value: field.value, label: subBudgets.find(budget => budget.id.toString() === field.value)?.label } : 
+                    value={budgets.find(budget => budget.id.toString() === field.value) ? 
+                      { value: field.value, label: budgets.find(budget => budget.id.toString() === field.value)?.label } : 
                       null}
-                    onChange={(option: any) => {
-                      field.onChange(option?.value || "")
-                      // Reset category when sub-budget changes
-                      form.setValue('income_category_id', "")
-                    }}
-                    placeholder={incomeType === 'kafala' ? "كفالة شاملة (محدد تلقائياً)" : "اختر الميزانية الفرعية..."}
+                    onChange={(option: any) => field.onChange(option?.value || "")}
+                    placeholder={incomeType === 'kafala' ? "كفالة شاملة (محدد تلقائياً)" : "اختر الميزانية..."}
                     styles={selectStyles}
                     isClearable={incomeType !== 'kafala'}
                     isSearchable={incomeType !== 'kafala'}
@@ -700,8 +705,8 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                   />
                 )}
               />
-              {form.formState.errors.sub_budget_id && (
-                <p className="text-sm text-red-600">{form.formState.errors.sub_budget_id.message}</p>
+              {form.formState.errors.budget_id && (
+                <p className="text-sm text-red-600">{form.formState.errors.budget_id.message}</p>
               )}
             </div>
 
@@ -713,20 +718,15 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                 render={({ field }) => (
                   <ReactSelect
                     {...field}
-                    options={filteredCategories.map(category => ({
-                      value: category.id.toString(),
-                      label: category.label
-                    }))}
-                    value={filteredCategories.find(category => category.id.toString() === field.value) ? 
-                      { value: field.value, label: filteredCategories.find(category => category.id.toString() === field.value)?.label } : 
-                      null}
+                    options={categoryOptions}
+                    value={categoryOptions.find(option => option.value === field.value) || null}
                     onChange={(option: any) => field.onChange(option?.value || "")}
-                    placeholder={incomeType === 'kafala' ? "كفالة شاملة (محدد تلقائياً)" : (selectedSubBudget ? "اختر فئة الإيراد..." : "اختر الميزانية الفرعية أولاً")}
+                    placeholder={incomeType === 'kafala' ? "كفالة شاملة (محدد تلقائياً)" : "اختر فئة الإيراد..."}
                     styles={selectStyles}
                     isClearable={incomeType !== 'kafala'}
                     isSearchable={incomeType !== 'kafala'}
                     isRtl
-                    isDisabled={incomeType === 'kafala' || !selectedSubBudget}
+                    isDisabled={incomeType === 'kafala'}
                   />
                 )}
               />
@@ -895,7 +895,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
 
                 {/* Which sponsored family this payment is meant for. Recorded as
                     intent for the kafil statement - the money still goes to the
-                    sub-budgets. */}
+                    budgets. */}
                 {selectedKafilSponsorship?.sponsorships?.length > 0 && (
                   <div className="space-y-2 pt-2">
                     <Label>{incomeType === 'kafala_chamila' ? 'الأسرة المستفيدة *' : 'مخصص لأسرة'}</Label>
@@ -922,8 +922,8 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                     )}
                     <p className="text-xs text-gray-500">
                       {incomeType === 'kafala_chamila'
-                        ? 'المبلغ يُملأ تلقائياً حسب المبلغ المتفق عليه لهذه الأسرة في صفحة كفلائها، ويبقى قابلاً للتعديل. المبالغ توزَّع على الميزانيات الفرعية المشتركة، ويُحتسب ما قدّمته هذه الأسرة عند الصرف عليها.'
-                        : 'يُسجَّل كوجهة مقصودة للمساهمة ويظهر في كشف الكفيل. المبالغ نفسها توزَّع على الميزانيات الفرعية كالمعتاد.'}
+                        ? 'المبلغ يُملأ تلقائياً حسب المبلغ المتفق عليه لهذه الأسرة في صفحة كفلائها، ويبقى قابلاً للتعديل. المبالغ توزَّع على الميزانيات المشتركة، ويُحتسب ما قدّمته هذه الأسرة عند الصرف عليها.'
+                        : 'يُسجَّل كوجهة مقصودة للمساهمة ويظهر في كشف الكفيل. المبالغ نفسها توزَّع على الميزانيات كالمعتاد.'}
                     </p>
                   </div>
                 )}

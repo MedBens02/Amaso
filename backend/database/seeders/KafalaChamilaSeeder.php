@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use App\Models\ExpenseCategory;
 use App\Models\IncomeCategory;
 use App\Models\KafalaChamilaSplit;
-use App\Models\SubBudget;
+use App\Models\Budget;
 use Illuminate\Database\Seeder;
 
 /**
@@ -57,22 +57,19 @@ class KafalaChamilaSeeder extends Seeder
             ],
         ];
 
+        // One category for every part: a kafala payment is the same kind of
+        // income whichever fund it lands in, and categories are no longer
+        // tied to a budget so there is nothing to duplicate.
+        $incomeCategory = IncomeCategory::firstOrCreate(['label' => 'كفالة شاملة']);
+
         foreach ($parts as $part) {
-            $subBudget = SubBudget::firstOrCreate(['label' => "كفالة شاملة - {$part['label']}"]);
+            $budget = Budget::firstOrCreate(['label' => "كفالة شاملة - {$part['label']}"]);
 
-            $incomeCategory = IncomeCategory::firstOrCreate(
-                ['label' => "كفالة شاملة - {$part['label']}"],
-                ['sub_budget_id' => $subBudget->id]
-            );
-
-            // Without expense categories under the sub-budget the pool can
-            // only take money in and never pay anything out: the expense form
-            // lists categories filtered by sub-budget.
+            // Spending categories are shared across the whole system now, so
+            // these are simply added to the common list rather than being
+            // owned by this fund.
             foreach ($part['expenses'] as $expenseLabel) {
-                ExpenseCategory::firstOrCreate(
-                    ['label' => "{$part['label']} - {$expenseLabel}"],
-                    ['sub_budget_id' => $subBudget->id]
-                );
+                ExpenseCategory::firstOrCreate(['label' => $expenseLabel]);
             }
 
             KafalaChamilaSplit::firstOrCreate(
@@ -80,7 +77,7 @@ class KafalaChamilaSeeder extends Seeder
                 [
                     'label' => $part['label'],
                     'percentage' => $part['percentage'],
-                    'sub_budget_id' => $subBudget->id,
+                    'budget_id' => $budget->id,
                     'income_category_id' => $incomeCategory->id,
                     'sort_order' => $part['sort_order'],
                 ]

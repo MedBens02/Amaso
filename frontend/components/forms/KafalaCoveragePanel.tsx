@@ -12,7 +12,7 @@ export interface FamilyAllocation {
 
 interface KafalaCoveragePanelProps {
   /** The sub-budget the expense is booked to. */
-  subBudgetId?: number
+  budgetId?: number
   /** How much of this expense is going to each family. */
   allocations: FamilyAllocation[]
 }
@@ -22,18 +22,18 @@ const money = (value: number) =>
 
 /**
  * Shown only when the expense is booked to one of the kafala chamila
- * sub-budgets. Puts the shared pool and each family's own contribution side
+ * budgets. Puts the shared pool and each family's own contribution side
  * by side, and warns - without blocking - when an expense would take more
  * for a family than that family brought in, because the difference comes out
  * of the pool other kafils funded.
  */
-export function KafalaCoveragePanel({ subBudgetId, allocations }: KafalaCoveragePanelProps) {
+export function KafalaCoveragePanel({ budgetId, allocations }: KafalaCoveragePanelProps) {
   const [pool, setPool] = useState<any | null>(null)
   const [families, setFamilies] = useState<Record<number, any>>({})
   const [checked, setChecked] = useState(false)
 
   useEffect(() => {
-    if (!subBudgetId) {
+    if (!budgetId) {
       setPool(null)
       setChecked(true)
       return
@@ -42,12 +42,12 @@ export function KafalaCoveragePanel({ subBudgetId, allocations }: KafalaCoverage
     api
       .getKafalaChamilaBalances()
       .then((res) => {
-        const match = (res.data || []).find((b: any) => b.sub_budget?.id === subBudgetId)
+        const match = (res.data || []).find((b: any) => b.budget?.id === budgetId)
         setPool(match || null)
       })
       .catch(() => setPool(null))
       .finally(() => setChecked(true))
-  }, [subBudgetId])
+  }, [budgetId])
 
   const widowIds = allocations.map((a) => a.widowId)
   const widowKey = widowIds.slice().sort((a, b) => a - b).join(",")
@@ -80,7 +80,7 @@ export function KafalaCoveragePanel({ subBudgetId, allocations }: KafalaCoverage
   const remainingForFamily = (widowId: number): number | null => {
     const family = families[widowId]
     if (!family) return null
-    const part = family.parts.find((p: any) => p.sub_budget_id === subBudgetId)
+    const part = family.parts.find((p: any) => p.budget_id === budgetId)
     return part ? part.remaining : 0
   }
 

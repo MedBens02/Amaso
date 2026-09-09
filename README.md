@@ -44,8 +44,8 @@ Amaso is a complete management system designed specifically for charitable organ
 - **Financial Reporting**: Comprehensive financial reports and analytics
 
 ### 📊 **Accounting & Budgeting**
-- **Sub-Budget System**: Hierarchical budget categories and tracking
-- **Chart of Accounts**: Complete accounting structure with income/expense categories
+- **Budgets**: Named funds money is booked into and spent out of, one of them the default; the seven kafala chamila budgets are fixed and cannot be edited or deleted
+- **Chart of Accounts**: Income/expense categories that classify a transaction, nestable one level deep and independent of the budget it hits
 - **Approval Workflows**: Multi-level approval system for financial transactions
 - **Budget Monitoring**: Real-time budget utilization tracking
 - **Financial Controls**: Validation rules and spending limits
@@ -113,7 +113,7 @@ Core Tables (45 total):
 │   ├── bank_accounts (الحسابات البنكية)
 │   └── fiscal_years (السنوات المالية)
 ├── Accounting Structure
-│   ├── sub_budgets (الميزانيات الفرعية)
+│   ├── budgets (الميزانيات)
 │   ├── income_categories (فئات الإيرادات)
 │   ├── expense_categories (فئات المصروفات)
 │   └── expense_beneficiaries (مستفيدي المصروفات)
@@ -308,7 +308,7 @@ GET    /api/v1/references/partners         # Partner organizations
 #### Accounting & Configuration  
 ```http
 GET    /api/v1/fiscal-years          # Fiscal year periods
-GET    /api/v1/sub-budgets           # Budget categories
+GET    /api/v1/budgets               # Budgets (funds)
 GET    /api/v1/income-categories     # Income classifications
 GET    /api/v1/expense-categories    # Expense classifications
 GET    /api/v1/bank-accounts         # Bank account list

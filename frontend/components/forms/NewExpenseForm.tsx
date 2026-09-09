@@ -24,6 +24,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { formatDateArabic } from "@/lib/date-utils"
 import { KafalaCoveragePanel } from "@/components/forms/KafalaCoveragePanel"
+import { buildCategoryOptions } from "@/lib/categories"
 
 // Enhanced DatePicker component
 const DatePicker = ({
@@ -165,7 +166,7 @@ const DatePicker = ({
 // Form validation schema
 const expenseSchema = z.object({
   fiscal_year_id: z.number().min(1, "السنة المالية مطلوبة"),
-  sub_budget_id: z.number().min(1, "الميزانية الفرعية مطلوبة"),
+  budget_id: z.number().min(1, "الميزانية مطلوبة"),
   expense_category_id: z.number().min(1, "فئة المصروف مطلوبة"),
   partner_id: z.number().optional(),
   expense_date: z.date({ required_error: "تاريخ المصروف مطلوب" }),
@@ -218,15 +219,17 @@ const expenseSchema = z.object({
 type ExpenseFormData = z.infer<typeof expenseSchema>
 
 // Types
-interface SubBudget {
+interface Budget {
   id: number
   label: string
+  is_default?: boolean
 }
 
 interface ExpenseCategory {
   id: number
   label: string
-  sub_budget_id: number
+  parent_id?: number | null
+  parent?: { id: number; label: string } | null
 }
 
 interface Partner {
@@ -306,7 +309,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
   const [activeTab, setActiveTab] = useState("basic")
   
   // Reference data
-  const [subBudgets, setSubBudgets] = useState<SubBudget[]>([])
+  const [budgets, setBudgets] = useState<Budget[]>([])
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
@@ -355,7 +358,10 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
   
   // Watch form values
   const paymentMethod = form.watch("payment_method")
-  const subBudgetId = form.watch("sub_budget_id")
+  // useWatch, not form.watch: these are set by reset() once the reference data
+  // lands, and only useWatch re-renders the selects reliably when it does.
+  const budgetId = useWatch({ control: form.control, name: "budget_id" })
+  const expenseCategoryId = useWatch({ control: form.control, name: "expense_category_id" })
   // useWatch rather than form.watch: the per-beneficiary amounts are edited
   // through registered inputs, and only useWatch re-renders reliably on each
   // keystroke so the coverage panel tracks what is actually typed.
@@ -388,21 +394,36 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
     }
   }, [open, loading, initialData])
   
+  /**
+   * Radix can emit an empty value while its option list has not mounted yet,
+   * and parseInt("") is NaN - which would silently wipe a preselected id.
+   */
+  const setNumericField = (field: "budget_id" | "expense_category_id" | "partner_id" | "bank_account_id", value: string) => {
+    const parsed = parseInt(value)
+    if (!Number.isNaN(parsed)) {
+      form.setValue(field, parsed)
+    }
+  }
+
   // Reset form
   const resetForm = () => {
-    const defaultValues = {
+    const defaultValues: any = {
       payment_method: "Cash" as const,
       unrelated_to_benef: false,
       amount: 0,
       beneficiaries: [],
       expense_date: new Date(),
+      // This runs again once the reference data has loaded, so the defaults
+      // that come from it have to be seeded here or they get reset away.
+      fiscal_year_id: activeFiscalYear?.id,
+      budget_id: budgets.find(budget => budget.is_default)?.id,
       ...initialData
     }
 
     // Convert string IDs to numbers if they exist in initialData
     if (initialData) {
-      if (initialData.sub_budget_id && typeof initialData.sub_budget_id === 'string') {
-        defaultValues.sub_budget_id = Number(initialData.sub_budget_id)
+      if (initialData.budget_id && typeof initialData.budget_id === 'string') {
+        defaultValues.budget_id = Number(initialData.budget_id)
       }
       if (initialData.expense_category_id && typeof initialData.expense_category_id === 'string') {
         defaultValues.expense_category_id = Number(initialData.expense_category_id)
@@ -432,8 +453,8 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
     setLoading(true)
     try {
       // Try to load real data from API
-      const [subBudgetsRes, categoriesRes, partnersRes, bankAccountsRes, fiscalYearRes] = await Promise.all([
-        api.getSubBudgets(),
+      const [budgetsRes, categoriesRes, partnersRes, bankAccountsRes, fiscalYearRes] = await Promise.all([
+        api.getBudgets(),
         api.getExpenseCategories(),
         api.getPartners(),
         api.getBankAccounts(),
@@ -441,8 +462,9 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       ])
       
       // Use real data from API
-      setSubBudgets(subBudgetsRes.data || [])
+      setBudgets(budgetsRes.data || [])
       setExpenseCategories(categoriesRes.data || [])
+
       setPartners(partnersRes.data || [])
       setBankAccounts(bankAccountsRes.data || [])
       setBeneficiaries([]) // Start with empty - user must search
@@ -468,17 +490,17 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       
       // Fallback data only if API fails
       const fallbackData = {
-        subBudgets: [
+        budgets: [
           { id: 1, label: "المساعدات الشهرية" },
           { id: 2, label: "التعليم" },
           { id: 3, label: "الطوارئ" },
           { id: 4, label: "الصحة" }
         ],
         expenseCategories: [
-          { id: 1, label: "مساعدات نقدية", sub_budget_id: 1 },
-          { id: 2, label: "رسوم دراسية", sub_budget_id: 2 },
-          { id: 3, label: "مساعدات طبية", sub_budget_id: 3 },
-          { id: 4, label: "أدوية", sub_budget_id: 4 }
+          { id: 1, label: "مساعدات نقدية" },
+          { id: 2, label: "رسوم دراسية" },
+          { id: 3, label: "مساعدات طبية" },
+          { id: 4, label: "أدوية" }
         ],
         partners: [
           { id: 1, name: "شريك المؤونة الأول" },
@@ -499,7 +521,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       }
       
       console.log('Using fallback data due to API error')
-      setSubBudgets(fallbackData.subBudgets)
+      setBudgets(fallbackData.budgets)
       setExpenseCategories(fallbackData.expenseCategories)
       setPartners(fallbackData.partners)
       setBankAccounts(fallbackData.bankAccounts)
@@ -626,10 +648,9 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
     return Array.from(byFamily.values())
   }, [beneficiaryFields, familyByBeneficiary, watchedBeneficiaries])
 
-  // Filter categories based on selected sub-budget
-  const filteredCategories = expenseCategories.filter(cat => 
-    !subBudgetId || cat.sub_budget_id === subBudgetId
-  )
+  // Categories are independent of budgets - the full tree is always offered,
+  // parents first with their children indented underneath.
+  const categoryOptions = useMemo(() => buildCategoryOptions(expenseCategories), [expenseCategories])
   
   // Which family each selected beneficiary belongs to, recorded at selection
   // time: the search results are replaced on every new search, so the mapping
@@ -681,7 +702,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       const apiData = {
         ...data,
         fiscal_year_id: activeFiscalYear?.id || 1,
-        sub_budget_id: Number(data.sub_budget_id),
+        budget_id: Number(data.budget_id),
         expense_category_id: Number(data.expense_category_id),
         partner_id: data.partner_id && data.partner_id > 0 ? Number(data.partner_id) : undefined,
         bank_account_id: data.bank_account_id && data.bank_account_id > 0 ? Number(data.bank_account_id) : undefined,
@@ -789,28 +810,24 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                     
                     {/* Sub Budget */}
                     <div className="space-y-2">
-                      <Label>الميزانية الفرعية *</Label>
+                      <Label>الميزانية *</Label>
                       <Select 
-                        value={form.watch("sub_budget_id")?.toString() || ""} 
-                        onValueChange={(value) => {
-                          form.setValue("sub_budget_id", parseInt(value))
-                          // Clear expense category when sub budget changes
-                          form.setValue("expense_category_id", undefined)
-                        }}
+                        value={budgetId?.toString() || ""} 
+                        onValueChange={(value) => setNumericField("budget_id", value)}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="اختر الميزانية الفرعية" />
+                          <SelectValue placeholder="اختر الميزانية" />
                         </SelectTrigger>
                         <SelectContent>
-                          {subBudgets.map(budget => (
+                          {budgets.map(budget => (
                             <SelectItem key={budget.id} value={budget.id.toString()}>
                               {budget.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      {form.formState.errors.sub_budget_id && (
-                        <p className="text-sm text-red-600">{form.formState.errors.sub_budget_id.message}</p>
+                      {form.formState.errors.budget_id && (
+                        <p className="text-sm text-red-600">{form.formState.errors.budget_id.message}</p>
                       )}
                     </div>
                     
@@ -818,16 +835,16 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                     <div className="space-y-2">
                       <Label>فئة المصروف *</Label>
                       <Select 
-                        value={form.watch("expense_category_id")?.toString() || ""} 
-                        onValueChange={(value) => form.setValue("expense_category_id", parseInt(value))}
+                        value={expenseCategoryId?.toString() || ""} 
+                        onValueChange={(value) => setNumericField("expense_category_id", value)}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="اختر فئة المصروف" />
                         </SelectTrigger>
                         <SelectContent>
-                          {filteredCategories.map(category => (
-                            <SelectItem key={category.id} value={category.id.toString()}>
-                              {category.label}
+                          {categoryOptions.map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -842,7 +859,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                       <Label>الشريك</Label>
                       <Select 
                         value={form.watch("partner_id")?.toString() || "0"} 
-                        onValueChange={(value) => form.setValue("partner_id", parseInt(value))}
+                        onValueChange={(value) => setNumericField("partner_id", value)}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="اختر الشريك (اختياري)" />
@@ -949,7 +966,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                         <Label>الحساب البنكي *</Label>
                         <Select 
                           value={form.watch("bank_account_id")?.toString() || ""} 
-                          onValueChange={(value) => form.setValue("bank_account_id", parseInt(value))}
+                          onValueChange={(value) => setNumericField("bank_account_id", value)}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="اختر الحساب البنكي" />
@@ -1164,8 +1181,8 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                         </div>
                       )}
 
-                      {/* Kafala chamila coverage - only renders for those sub-budgets */}
-                      <KafalaCoveragePanel subBudgetId={subBudgetId} allocations={familyAllocations} />
+                      {/* Kafala chamila coverage - only renders for those budgets */}
+                      <KafalaCoveragePanel budgetId={budgetId} allocations={familyAllocations} />
 
                       {/* Selected Beneficiaries Summary */}
                       {beneficiaryFields.length > 0 && (

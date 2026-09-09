@@ -23,7 +23,7 @@ class KafalaChamilaController extends Controller
      */
     public function splits(): JsonResponse
     {
-        $splits = KafalaChamilaSplit::with(['subBudget', 'incomeCategory'])
+        $splits = KafalaChamilaSplit::with(['budget', 'incomeCategory'])
             ->orderBy('sort_order')
             ->get();
 

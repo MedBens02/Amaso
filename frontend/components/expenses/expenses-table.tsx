@@ -32,7 +32,7 @@ interface Expense {
   cheque_number?: string
   receipt_number?: string
   unrelated_to_benef: boolean
-  sub_budget: {
+  budget: {
     id: number
     label: string
   }
@@ -65,7 +65,7 @@ interface Expense {
 interface FilterValues {
   fromDate?: Date
   toDate?: Date
-  subBudgetId?: string
+  budgetId?: string
   expenseCategoryId?: string
   partnerId?: string
   paymentMethod?: string
@@ -127,8 +127,8 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
         if (appliedFilters.toDate) {
           params.append('to_date', appliedFilters.toDate.toISOString().split('T')[0])
         }
-        if (appliedFilters.subBudgetId) {
-          params.append('sub_budget_id', appliedFilters.subBudgetId)
+        if (appliedFilters.budgetId) {
+          params.append('budget_id', appliedFilters.budgetId)
         }
         if (appliedFilters.expenseCategoryId) {
           params.append('expense_category_id', appliedFilters.expenseCategoryId)
@@ -386,7 +386,7 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
         // Update with all required fields plus the new bank account
         const updateData = {
           fiscal_year_id: expense.fiscal_year_id,
-          sub_budget_id: expense.sub_budget_id,
+          budget_id: expense.budget_id,
           expense_category_id: expense.expense_category_id,
           partner_id: expense.partner_id,
           details: expense.details,
@@ -478,7 +478,7 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
                 />
               </TableHead>
               <TableHead className="text-right">التاريخ</TableHead>
-              <TableHead className="text-right">الميزانية الفرعية</TableHead>
+              <TableHead className="text-right">الميزانية</TableHead>
               <TableHead className="text-right">الفئة</TableHead>
               <TableHead className="text-right">الشريك</TableHead>
               <TableHead className="text-right">المشروع الممول</TableHead>
@@ -515,7 +515,7 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
                     />
                   </TableCell>
                   <TableCell className="text-right">{formatDateArabic(new Date(expense.expense_date), "dd/MM/yyyy")}</TableCell>
-                  <TableCell className="text-right font-medium">{expense.sub_budget?.label || 'غير محدد'}</TableCell>
+                  <TableCell className="text-right font-medium">{expense.budget?.label || 'غير محدد'}</TableCell>
                   <TableCell className="text-right">{expense.expense_category?.label || 'غير محدد'}</TableCell>
                   <TableCell className="text-right">{expense.partner?.name || 'غير محدد'}</TableCell>
                   <TableCell className="text-right">

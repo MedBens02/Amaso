@@ -20,7 +20,7 @@ class StoreExpenseRequest extends FormRequest
             // was already copied into the following year and is never
             // recomputed - the books would stop adding up.
             'fiscal_year_id' => ['required', Rule::exists('fiscal_years', 'id')->where('is_active', true)],
-            'sub_budget_id' => ['required', 'exists:sub_budgets,id'],
+            'budget_id' => ['required', 'exists:budgets,id'],
             'expense_category_id' => ['required', 'exists:expense_categories,id'],
             'partner_id' => ['nullable', 'exists:partners,id'],
             'expense_date' => ['required', 'date'],
@@ -50,8 +50,8 @@ class StoreExpenseRequest extends FormRequest
         return [
             'fiscal_year_id.required' => 'السنة المالية مطلوبة',
             'fiscal_year_id.exists' => 'يجب تسجيل العملية في السنة المالية النشطة. لا يمكن الترحيل إلى سنة مغلقة.',
-            'sub_budget_id.required' => 'الميزانية الفرعية مطلوبة',
-            'sub_budget_id.exists' => 'الميزانية الفرعية غير موجودة',
+            'budget_id.required' => 'الميزانية الفرعية مطلوبة',
+            'budget_id.exists' => 'الميزانية الفرعية غير موجودة',
             'expense_category_id.required' => 'فئة المصروف مطلوبة',
             'expense_category_id.exists' => 'فئة المصروف غير موجودة',
             'partner_id.exists' => 'الشريك غير موجود',
