@@ -283,10 +283,18 @@ export function FinancialReportDialog({ open, onOpenChange }: FinancialReportDia
   }
 
   const exportToPDF = async () => {
-    toast({
-      title: "قريباً",
-      description: "تصدير PDF سيكون متاحاً قريباً"
-    })
+    // Rendered server-side as real text, so the PDF can be selected, searched
+    // and edited - and the numbers come from the same aggregate the dialog shows.
+    try {
+      await api.downloadPdf('/reports/financial.pdf', appliedFilters)
+      toast({ title: "تم تحميل التقرير" })
+    } catch (error: any) {
+      toast({
+        title: "خطأ في إنشاء الـ PDF",
+        description: error?.message || "حدث خطأ أثناء إنشاء الملف",
+        variant: "destructive",
+      })
+    }
   }
 
   const printReport = async () => {

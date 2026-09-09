@@ -1,7 +1,9 @@
 @extends('pdf.layout')
 
 @php
-    $money = fn ($v) => number_format((float) $v, 2) . ' د.م';
+    use App\Support\PdfFormat;
+
+    $money = fn ($v) => PdfFormat::money($v);
 @endphp
 
 @section('content')

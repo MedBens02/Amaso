@@ -79,6 +79,14 @@ Route::prefix('v1')->group(function () {
 
     // Reports
     Route::get('reports/kafils/{kafil}/statement', [ReportController::class, 'kafilStatement']);
+    Route::get('reports/widows', [ReportController::class, 'widows']);
+    Route::get('reports/widows.pdf', [ReportController::class, 'widowsPdf']);
+    Route::get('reports/financial', [ReportController::class, 'financial']);
+    Route::get('reports/financial.pdf', [ReportController::class, 'financialPdf']);
+    Route::get('reports/donors', [ReportController::class, 'donors']);
+    Route::get('reports/donors.pdf', [ReportController::class, 'donorsPdf']);
+    Route::get('reports/annual', [ReportController::class, 'annual']);
+    Route::get('reports/annual.pdf', [ReportController::class, 'annualPdf']);
     Route::get('reports/school-performance', [ReportController::class, 'schoolPerformance']);
     Route::get('reports/school-performance.pdf', [ReportController::class, 'schoolPerformancePdf']);
     Route::get('reports/kafils/{kafil}/statement.pdf', [ReportController::class, 'kafilStatementPdf']);

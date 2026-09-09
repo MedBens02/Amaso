@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\FiscalYear;
 use App\Models\Kafil;
 use App\Services\PdfService;
+use App\Services\ReportAggregateService;
 use App\Services\ReportService;
 use App\Services\SchoolPerformanceService;
 use Illuminate\Http\JsonResponse;
@@ -17,6 +18,7 @@ class ReportController extends Controller
         private readonly ReportService $reports,
         private readonly SchoolPerformanceService $schoolPerformance,
         private readonly PdfService $pdf,
+        private readonly ReportAggregateService $aggregates,
     ) {
     }
 
@@ -140,6 +142,104 @@ class ReportController extends Controller
         return $parts === [] ? 'بدون تصفية' : implode(' — ', $parts);
     }
 
+    /**
+     * The association-wide reports. Each has a JSON form for the dialog to
+     * preview and a .pdf form that renders the same aggregate - both read the
+     * one service, so the screen and the printout can never disagree.
+     */
+    public function widows(Request $request): JsonResponse
+    {
+        return response()->json(['data' => $this->aggregates->widows($this->reportFilters($request))]);
+    }
+
+    public function widowsPdf(Request $request)
+    {
+        $report = $this->aggregates->widows($this->reportFilters($request));
+
+        return $this->download(
+            $this->pdf->render('pdf.widows', [
+                'title' => 'تقرير الأرامل والأيتام',
+                'subtitle' => 'إحصائيات الأسر والأطفال المسجلين',
+                'report' => $report,
+            ]),
+            $this->filename('widows-report', null),
+        );
+    }
+
+    public function financial(Request $request): JsonResponse
+    {
+        return response()->json(['data' => $this->aggregates->financial($this->reportFilters($request))]);
+    }
+
+    public function financialPdf(Request $request)
+    {
+        $filters = $this->reportFilters($request);
+        $report = $this->aggregates->financial($filters);
+
+        return $this->download(
+            $this->pdf->render('pdf.financial', [
+                'title' => 'التقرير المالي الشامل',
+                'subtitle' => 'الإيرادات والمصروفات المعتمدة',
+                'entity' => "{$report['period']['from']} — {$report['period']['to']}",
+                'report' => $report,
+            ]),
+            $this->filename('financial-report', $report['period']['from']),
+        );
+    }
+
+    public function donors(Request $request): JsonResponse
+    {
+        return response()->json(['data' => $this->aggregates->donors($this->reportFilters($request))]);
+    }
+
+    public function donorsPdf(Request $request)
+    {
+        $report = $this->aggregates->donors($this->reportFilters($request));
+
+        return $this->download(
+            $this->pdf->render('pdf.donors', [
+                'title' => 'تقرير الكفلاء والمتبرعين',
+                'subtitle' => 'المساهمات المسجلة خلال الفترة',
+                'entity' => "{$report['period']['from']} — {$report['period']['to']}",
+                'report' => $report,
+            ]),
+            $this->filename('donors-report', $report['period']['from']),
+        );
+    }
+
+    public function annual(Request $request): JsonResponse
+    {
+        return response()->json(['data' => $this->aggregates->annual($this->reportFilters($request))]);
+    }
+
+    public function annualPdf(Request $request)
+    {
+        $report = $this->aggregates->annual($this->reportFilters($request));
+
+        return $this->download(
+            $this->pdf->render('pdf.annual', [
+                'title' => 'تقرير الأداء السنوي',
+                'subtitle' => 'الأداء المالي والاجتماعي',
+                'entity' => "{$report['period']['from']} — {$report['period']['to']}",
+                'report' => $report,
+            ]),
+            $this->filename('annual-report', $report['period']['from']),
+        );
+    }
+
+    private function reportFilters(Request $request): array
+    {
+        return $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'fiscal_year_id' => ['nullable', 'integer', 'exists:fiscal_years,id'],
+            'neighborhood' => ['nullable', 'string', 'max:120'],
+            'disability_flag' => ['nullable', 'boolean'],
+        ], [
+            'to.after_or_equal' => 'تاريخ النهاية يجب أن يكون بعد تاريخ البداية',
+        ]);
+    }
+
     private function download(string $pdf, string $filename)
     {
         return response($pdf, 200, [
@@ -153,7 +253,7 @@ class ReportController extends Controller
 
     private function filename(string $prefix, ?string $suffix): string
     {
-        $slug = preg_replace('/[^A-Za-z0-9]+/', '-', trim((string) $suffix)) ?: 'report';
+        $slug = trim(preg_replace('/[^A-Za-z0-9]+/', '-', (string) $suffix), '-');
 
         return trim("{$prefix}-{$slug}", '-') . '-' . now()->format('Y-m-d') . '.pdf';
     }

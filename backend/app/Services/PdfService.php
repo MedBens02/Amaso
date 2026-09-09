@@ -82,6 +82,9 @@ class PdfService
             'margin_header' => 8,
             'margin_footer' => 8,
             'tempDir' => storage_path('app/mpdf'),
+            // Noto Naskh covers Arabic only - Latin letters, the minus sign and
+            // assorted symbols would otherwise come out as tofu boxes.
+            'backupSubsFont' => ['dejavusanscondensed'],
             'fontDir' => array_merge($defaultConfig['fontDir'], [resource_path('fonts')]),
             'fontdata' => $defaultFontConfig['fontdata'] + [
                 self::FONT_FAMILY => [

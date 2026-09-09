@@ -678,10 +678,22 @@ class ApiClient {
    */
   async downloadPdf(endpoint: string, params?: Record<string, any>, fallbackName = 'report.pdf') {
     const searchParams = new URLSearchParams()
+    const put = (key: string, value: any) => {
+      if (value === undefined || value === null || value === '') return
+      searchParams.set(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value))
+    }
+
     for (const [key, value] of Object.entries(params || {})) {
-      if (value !== undefined && value !== null && value !== '') {
-        searchParams.set(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value))
+      // The report filter panel models a range as {from, to}. A date range is
+      // the report's period and flattens to from/to; any other range keeps its
+      // field name so two ranges in one report cannot collide.
+      if (value && typeof value === 'object' && ('from' in value || 'to' in value)) {
+        const prefix = key === 'date_range' || key === 'dateRange' || key === 'period' ? '' : `${key}_`
+        put(`${prefix}from`, (value as any).from)
+        put(`${prefix}to`, (value as any).to)
+        continue
       }
+      put(key, value)
     }
     const query = searchParams.toString()
 

@@ -1,8 +1,10 @@
 @extends('pdf.layout')
 
 @php
-    $pct = fn ($v) => $v === null ? '—' : number_format($v, 1) . '%';
-    $num = fn ($v, $decimals = 2) => $v === null ? '—' : number_format((float) $v, $decimals);
+    use App\Support\PdfFormat;
+
+    $pct = fn ($v) => PdfFormat::percent($v);
+    $num = fn ($v, $decimals = 2) => PdfFormat::number($v, $decimals);
     $genderLabel = fn ($g) => match ($g) { 'male' => 'ذكور', 'female' => 'إناث', default => $g };
     $semesterLabel = match ($report['semester']) {
         'first' => 'الأسدس الأول',
