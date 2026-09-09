@@ -21,7 +21,7 @@ import {
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { BrandMark } from "@/components/landing/brand-mark"
+import { Logo } from "@/components/landing/logo"
 import { Reveal } from "@/components/landing/reveal"
 import { CountUp } from "@/components/landing/count-up"
 import { KafalaSplit } from "@/components/landing/kafala-split"
@@ -140,7 +140,7 @@ export default function HomePage() {
       >
         <nav className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-5 py-3.5">
           <Link href="#top" className="flex items-center gap-3">
-            <BrandMark className="h-11 w-11" animate />
+            <Logo className="h-11 w-11" size={88} priority plate={false} />
             <span className="leading-tight">
               <span className="block text-base font-bold text-slate-900 dark:text-white">{ORG_NAME}</span>
               <span className="block text-xs text-teal-700 dark:text-teal-400">{ORG_TAGLINE}</span>
@@ -289,7 +289,7 @@ export default function HomePage() {
               <div className="absolute inset-0 rotate-3 rounded-[2.5rem] bg-gradient-to-br from-teal-500/15 to-amber-500/15" />
               <div className="absolute inset-0 -rotate-2 rounded-[2.5rem] border border-teal-200/60 bg-white/60 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/60" />
               <div className="relative flex h-full items-center justify-center p-12">
-                <BrandMark className="h-full w-full max-w-xs drop-shadow-xl" animate />
+                <Logo className="w-full max-w-[15rem] drop-shadow-2xl" size={512} animate priority />
               </div>
 
               <div className="absolute -bottom-4 right-4 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-xl dark:border-slate-700 dark:bg-slate-900">
@@ -543,7 +543,7 @@ export default function HomePage() {
       <footer className="bg-slate-900 py-12 text-slate-400">
         <div className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-5 text-center sm:flex-row sm:justify-between sm:text-right">
           <div className="flex items-center gap-3">
-            <BrandMark className="h-10 w-10" />
+            <Logo className="h-10 w-10" size={80} />
             <span className="leading-tight">
               <span className="block font-bold text-white">{ORG_NAME}</span>
               <span className="block text-xs">{ORG_TAGLINE}</span>

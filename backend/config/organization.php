@@ -8,5 +8,6 @@ return [
     */
     'name' => env('ORG_NAME', 'جمعية أماسو الخيرية'),
 
-    'logo_path' => resource_path('images/amaso-logo.jpg'),
+    // PNG so a transparent version drops straight in.
+    'logo_path' => resource_path('images/amaso-logo.png'),
 ];
