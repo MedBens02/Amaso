@@ -51,6 +51,24 @@ export default function DashboardLayout({
       })
   }, [router])
 
+  // The profile page writes the updated user to storage and fires this, so
+  // the header's greeting follows a rename without a reload.
+  useEffect(() => {
+    const refresh = () => {
+      const cached = localStorage.getItem("user")
+      if (cached) {
+        try {
+          setUser(JSON.parse(cached))
+        } catch {
+          /* leave the current user in place */
+        }
+      }
+    }
+
+    window.addEventListener("amaso:user-updated", refresh)
+    return () => window.removeEventListener("amaso:user-updated", refresh)
+  }, [])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">

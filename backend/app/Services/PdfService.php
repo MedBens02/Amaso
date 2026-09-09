@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\OrganizationSettings;
 use Illuminate\Support\Facades\View;
 use Mpdf\Config\ConfigVariables;
 use Mpdf\Config\FontVariables;
@@ -49,7 +50,7 @@ class PdfService
         $logoPath = config('organization.logo_path');
 
         return $data + [
-            'organization' => config('organization.name'),
+            'organization' => OrganizationSettings::name(),
             'logo' => is_readable($logoPath)
                 ? 'data:' . (mime_content_type($logoPath) ?: 'image/png') . ';base64,'
                     . base64_encode(file_get_contents($logoPath))

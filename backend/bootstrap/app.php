@@ -22,6 +22,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // unauthenticated request that doesn't send an Accept: application/
         // json header, surfacing as a 500 instead of a 401.
         $middleware->redirectGuestsTo(fn () => null);
+
+        $middleware->alias([
+            'role' => \App\Http\Middleware\EnsureUserHasRole::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (\App\Exceptions\BusinessRuleException $e) {

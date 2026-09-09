@@ -34,6 +34,9 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'phone',
+        'address',
+        'is_active',
     ];
 
     /**
@@ -55,12 +58,34 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'last_login_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
     }
 
     public function isAdmin(): bool
     {
         return $this->role === self::ROLE_ADMIN;
+    }
+
+    /**
+     * The shape every endpoint returns a user in. Kept in one place so the
+     * login response, /auth/me and the admin account list cannot drift apart
+     * (the frontend caches whichever one it saw last under the same key).
+     */
+    public function toProfileArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'email' => $this->email,
+            'role' => $this->role,
+            'phone' => $this->phone,
+            'address' => $this->address,
+            'is_active' => (bool) $this->is_active,
+            'last_login_at' => $this->last_login_at?->toIso8601String(),
+            'created_at' => $this->created_at?->toIso8601String(),
+        ];
     }
 }

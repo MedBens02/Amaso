@@ -30,6 +30,10 @@ class UserSeeder extends Seeder
                     'role' => $account['role'],
                     'password' => Hash::make(self::DEMO_PASSWORD),
                     'email_verified_at' => now(),
+                    // Re-seeding is how a demo gets back to a known-good
+                    // state, so an account suspended during the demo is
+                    // deliberately reactivated here.
+                    'is_active' => true,
                 ]
             );
         }
