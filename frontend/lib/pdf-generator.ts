@@ -18,6 +18,14 @@ export interface PDFGenerationOptions {
   }
   multiPage?: boolean
   showProgress?: boolean
+  /**
+   * These PDFs are a rasterised screenshot of the page, so PNG's losslessness
+   * buys nothing on text and tables while multiplying the file size - a long
+   * ranking came out at 21 MB. JPEG at a high quality is visually identical
+   * here and roughly two orders of magnitude smaller.
+   */
+  imageFormat?: 'JPEG' | 'PNG'
+  imageQuality?: number
   watermark?: {
     text: string
     opacity?: number
@@ -46,7 +54,9 @@ const defaultOptions: PDFGenerationOptions = {
     left: 10
   },
   multiPage: true,
-  showProgress: false
+  showProgress: false,
+  imageFormat: 'JPEG',
+  imageQuality: 0.92
 }
 
 /**
@@ -101,12 +111,15 @@ export async function generatePDFFromHTML(
     const imgHeight = (canvas.height * imgWidth) / canvas.width
 
     // Handle multi-page documents
+    const format = opts.imageFormat!
+    const mimeType = format === 'PNG' ? 'image/png' : 'image/jpeg'
+
     if (opts.multiPage && imgHeight > pageHeight - margins.top - margins.bottom) {
-      await addMultiPageContent(pdf, canvas, imgWidth, pageHeight, margins)
+      await addMultiPageContent(pdf, canvas, imgWidth, pageHeight, margins, format, opts.imageQuality!)
     } else {
       // Single page
-      const imgData = canvas.toDataURL('image/png')
-      pdf.addImage(imgData, 'PNG', margins.left, margins.top, imgWidth, imgHeight)
+      const imgData = canvas.toDataURL(mimeType, opts.imageQuality)
+      pdf.addImage(imgData, format, margins.left, margins.top, imgWidth, imgHeight)
     }
 
     // Add watermark if specified
@@ -142,7 +155,9 @@ async function addMultiPageContent(
   canvas: HTMLCanvasElement,
   imgWidth: number,
   pageHeight: number,
-  margins: { top: number; right: number; bottom: number; left: number }
+  margins: { top: number; right: number; bottom: number; left: number },
+  format: 'JPEG' | 'PNG' = 'JPEG',
+  quality = 0.92
 ): Promise<void> {
   const availableHeight = pageHeight - margins.top - margins.bottom
   const imgHeight = (canvas.height * imgWidth) / canvas.width
@@ -163,6 +178,10 @@ async function addMultiPageContent(
     sliceCanvas.width = canvas.width
     sliceCanvas.height = (sliceHeight * canvas.width) / imgWidth
 
+    // JPEG has no alpha channel, so an unpainted slice would come out black.
+    sliceContext.fillStyle = '#ffffff'
+    sliceContext.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height)
+
     // Draw the slice from the main canvas
     sliceContext.drawImage(
       canvas,
@@ -172,8 +191,8 @@ async function addMultiPageContent(
       canvas.width, sliceCanvas.height
     )
 
-    const sliceImgData = sliceCanvas.toDataURL('image/png')
-    pdf.addImage(sliceImgData, 'PNG', margins.left, yPosition, imgWidth, sliceHeight)
+    const sliceImgData = sliceCanvas.toDataURL(format === 'PNG' ? 'image/png' : 'image/jpeg', quality)
+    pdf.addImage(sliceImgData, format, margins.left, yPosition, imgWidth, sliceHeight)
 
     remainingHeight -= sliceHeight
     yOffset += sliceHeight
