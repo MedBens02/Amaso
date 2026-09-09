@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\V1\ChangePasswordRequest;
+use App\Http\Requests\V1\UpdateProfileRequest;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -34,13 +36,24 @@ class AuthController extends Controller
             ], 401);
         }
 
+        // A deactivated account keeps its history but must not get in. This
+        // is said plainly rather than as "wrong credentials", so the person
+        // knows to ask an admin instead of resetting a password that works.
+        if (!$user->is_active) {
+            return response()->json([
+                'message' => 'هذا الحساب موقوف. يرجى الاتصال بمدير النظام',
+            ], 403);
+        }
+
         $token = $user->createToken($request->userAgent() ?? 'amaso-frontend');
+
+        $user->forceFill(['last_login_at' => now()])->save();
 
         return response()->json([
             'message' => 'تم تسجيل الدخول بنجاح',
             'data' => [
                 'token' => $token->plainTextToken,
-                'user' => $this->userPayload($user),
+                'user' => $user->toProfileArray(),
             ],
         ]);
     }
@@ -61,17 +74,56 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         return response()->json([
-            'data' => $this->userPayload($request->user()),
+            'data' => $request->user()->toProfileArray(),
         ]);
     }
 
-    private function userPayload(User $user): array
+    /**
+     * Update the signed-in user's own details. Role and active status are
+     * deliberately not editable here - those belong to an admin, on the
+     * account management screen.
+     */
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
-        return [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'role' => $user->role,
-        ];
+        $user = $request->user();
+        $user->fill($request->validated())->save();
+
+        return response()->json([
+            'message' => 'تم حفظ التغييرات بنجاح',
+            'data' => $user->fresh()->toProfileArray(),
+        ]);
+    }
+
+    /**
+     * Change the signed-in user's own password.
+     *
+     * Every other token is revoked and a fresh one issued: if the password
+     * was changed because it may have leaked, a session already open
+     * somewhere else must not survive the change. The new token is returned
+     * so the caller's own session continues uninterrupted.
+     */
+    public function changePassword(ChangePasswordRequest $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!Hash::check($request->validated()['current_password'], $user->password)) {
+            return response()->json([
+                'message' => 'كلمة المرور الحالية غير صحيحة',
+                'errors' => ['current_password' => ['كلمة المرور الحالية غير صحيحة']],
+            ], 422);
+        }
+
+        $user->forceFill(['password' => $request->validated()['password']])->save();
+
+        $user->tokens()->delete();
+        $token = $user->createToken($request->userAgent() ?? 'amaso-frontend');
+
+        return response()->json([
+            'message' => 'تم تغيير كلمة المرور بنجاح',
+            'data' => [
+                'token' => $token->plainTextToken,
+                'user' => $user->fresh()->toProfileArray(),
+            ],
+        ]);
     }
 }

@@ -1,75 +1,176 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { toast } from "sonner"
-import { User, Mail, Phone, MapPin, Calendar, Edit, Save, X, Camera, Shield, Key } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { User, Mail, Phone, MapPin, Calendar, Edit, Save, X, Key, Loader2, Clock } from "lucide-react"
 import { getRoleLabel } from "@/lib/roles"
+import { ChangePasswordDialog } from "@/components/account/change-password-dialog"
+import api, { ApiError } from "@/lib/api"
 
 interface UserProfile {
-  id: string
+  id: number
   name: string
   email: string
   role: string
-  phone?: string
-  address?: string
-  bio?: string
-  joinDate: string
-  avatar?: string
+  phone?: string | null
+  address?: string | null
+  is_active: boolean
+  last_login_at?: string | null
+  created_at?: string | null
+}
+
+type EditableFields = Pick<UserProfile, "name" | "email" | "phone" | "address">
+
+/** dd/mm/yyyy in Latin digits, matching the rest of the app. */
+function formatDate(value?: string | null): string {
+  if (!value) return "غير محدد"
+  const date = new Date(value)
+  return Number.isNaN(date.getTime())
+    ? "غير محدد"
+    : date.toLocaleDateString("ar-MA", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        numberingSystem: "latn",
+      })
 }
 
 export default function ProfilePage() {
+  const { toast } = useToast()
   const [user, setUser] = useState<UserProfile | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
-  const [formData, setFormData] = useState<UserProfile | null>(null)
+  const [passwordOpen, setPasswordOpen] = useState(false)
+  const [form, setForm] = useState<EditableFields>({ name: "", email: "", phone: "", address: "" })
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
 
+  // Render from the cached profile first so the page never flashes empty,
+  // then take the server's copy as the truth.
   useEffect(() => {
-    // Load user data from localStorage
-    const userData = localStorage.getItem("user")
-    if (userData) {
-      const parsedUser = JSON.parse(userData)
-      const fullUser: UserProfile = {
-        ...parsedUser,
-        phone: parsedUser.phone || "",
-        address: parsedUser.address || "",
-        bio: parsedUser.bio || "",
-        joinDate: parsedUser.joinDate || "2024-01-01",
-        avatar: parsedUser.avatar || "",
+    const cached = localStorage.getItem("user")
+    if (cached) {
+      try {
+        applyUser(JSON.parse(cached))
+      } catch {
+        /* a corrupt cache just means we wait for the request below */
       }
-      setUser(fullUser)
-      setFormData(fullUser)
     }
+
+    api
+      .getMe()
+      .then((response) => applyUser(response.data))
+      .catch(() => {
+        toast({
+          title: "تعذر تحميل الملف الشخصي",
+          description: "تحقق من الاتصال بالخادم",
+          variant: "destructive",
+        })
+      })
+      .finally(() => setLoading(false))
   }, [])
 
-  const handleSave = () => {
-    if (formData) {
-      setUser(formData)
-      localStorage.setItem("user", JSON.stringify(formData))
+  const applyUser = (data: UserProfile) => {
+    setUser(data)
+    setForm({
+      name: data.name ?? "",
+      email: data.email ?? "",
+      phone: data.phone ?? "",
+      address: data.address ?? "",
+    })
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    setFieldErrors({})
+    try {
+      const response = await api.updateProfile({
+        name: form.name,
+        email: form.email,
+        phone: form.phone || null,
+        address: form.address || null,
+      })
+      applyUser(response.data)
       setIsEditing(false)
-      toast.success("تم حفظ التغييرات بنجاح")
+      toast({ title: "تم حفظ التغييرات بنجاح" })
+      // The header renders the cached name; make it repaint immediately.
+      window.dispatchEvent(new Event("amaso:user-updated"))
+    } catch (error) {
+      if (error instanceof ApiError && error.errors) {
+        setFieldErrors(error.errors)
+      }
+      toast({
+        title: "تعذر حفظ التغييرات",
+        description: error instanceof Error ? error.message : undefined,
+        variant: "destructive",
+      })
+    } finally {
+      setSaving(false)
     }
   }
 
   const handleCancel = () => {
-    setFormData(user)
+    if (user) applyUser(user)
+    setFieldErrors({})
     setIsEditing(false)
-    toast.info("تم إلغاء التغييرات")
+  }
+
+  if (loading && !user) {
+    return (
+      <div className="flex items-center justify-center py-16 text-muted-foreground">
+        <Loader2 className="ml-2 h-5 w-5 animate-spin" />
+        جاري التحميل...
+      </div>
+    )
   }
 
   if (!user) {
-    return <div>جاري التحميل...</div>
+    return <p className="py-16 text-center text-muted-foreground">تعذر تحميل الملف الشخصي</p>
   }
 
+  const readOnlyRow = (icon: React.ReactNode, value?: string | null) => (
+    <div className="flex items-center gap-2 rounded-md bg-muted p-2">
+      {icon}
+      <span>{value || "غير محدد"}</span>
+    </div>
+  )
+
+  const editableField = (
+    key: keyof EditableFields,
+    label: string,
+    icon: React.ReactNode,
+    options: { type?: string; placeholder?: string } = {}
+  ) => (
+    <div className="space-y-2">
+      <Label htmlFor={key}>{label}</Label>
+      {isEditing ? (
+        <>
+          <Input
+            id={key}
+            type={options.type ?? "text"}
+            value={form[key] ?? ""}
+            placeholder={options.placeholder}
+            onChange={(e) => setForm((prev) => ({ ...prev, [key]: e.target.value }))}
+            aria-invalid={Boolean(fieldErrors[key])}
+          />
+          {fieldErrors[key] && <p className="text-sm text-destructive">{fieldErrors[key][0]}</p>}
+        </>
+      ) : (
+        readOnlyRow(icon, form[key])
+      )}
+    </div>
+  )
+
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <div className="flex items-center justify-between mb-6">
+    <div className="container mx-auto max-w-4xl p-6">
+      <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">الملف الشخصي</h1>
           <p className="text-muted-foreground">إدارة معلوماتك الشخصية وإعدادات الحساب</p>
@@ -81,11 +182,11 @@ export default function ProfilePage() {
           </Button>
         ) : (
           <div className="flex gap-2">
-            <Button onClick={handleSave} className="gap-2">
-              <Save className="h-4 w-4" />
+            <Button onClick={handleSave} disabled={saving} className="gap-2">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               حفظ
             </Button>
-            <Button variant="outline" onClick={handleCancel} className="gap-2 bg-transparent">
+            <Button variant="outline" onClick={handleCancel} disabled={saving} className="gap-2">
               <X className="h-4 w-4" />
               إلغاء
             </Button>
@@ -94,145 +195,84 @@ export default function ProfilePage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Profile Overview */}
         <Card className="md:col-span-1">
           <CardHeader className="text-center">
-            <div className="relative mx-auto">
-              <Avatar className="h-24 w-24 mx-auto">
-                <AvatarImage src={user.avatar || "/placeholder-user.jpg"} alt={user.name} />
-                <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                  {user.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
-                </AvatarFallback>
-              </Avatar>
-              {isEditing && (
-                <Button size="sm" variant="secondary" className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0">
-                  <Camera className="h-4 w-4" />
-                </Button>
-              )}
+            {/* The association's mark stands in for a photo - there are no
+                per-user avatars, and a broken image placeholder looked worse
+                than a deliberate one. */}
+            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border bg-white p-3">
+              <Image
+                src="/amaso-logo.png"
+                alt=""
+                width={72}
+                height={72}
+                className="h-full w-full object-contain"
+              />
             </div>
             <CardTitle className="text-xl">{user.name}</CardTitle>
-            <Badge variant="secondary" className="w-fit mx-auto">
-              {getRoleLabel(user.role)}
-            </Badge>
+            <div className="mx-auto flex w-fit flex-wrap justify-center gap-2">
+              <Badge variant="secondary">{getRoleLabel(user.role)}</Badge>
+              {!user.is_active && <Badge variant="destructive">موقوف</Badge>}
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-3 text-sm">
               <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span>انضم في {new Date(user.joinDate).toLocaleDateString("ar-SA", { numberingSystem: "latn" })}</span>
+              <span>انضم في {formatDate(user.created_at)}</span>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <span>آخر دخول: {formatDate(user.last_login_at)}</span>
             </div>
             <Separator />
             <div className="space-y-2">
-              <h4 className="font-medium">إعدادات الأمان</h4>
-              <Button variant="outline" size="sm" className="w-full justify-start gap-2 bg-transparent">
+              <h4 className="font-medium">الأمان</h4>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start gap-2"
+                onClick={() => setPasswordOpen(true)}
+              >
                 <Key className="h-4 w-4" />
                 تغيير كلمة المرور
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start gap-2 bg-transparent">
-                <Shield className="h-4 w-4" />
-                المصادقة الثنائية
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Profile Details */}
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle>المعلومات الشخصية</CardTitle>
-            <CardDescription>قم بتحديث معلوماتك الشخصية وتفاصيل الاتصال</CardDescription>
+            <CardDescription>
+              البريد الإلكتروني هو ما تسجّل به الدخول. تغيير الصلاحية يتم من طرف مدير النظام.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="name">الاسم الكامل</Label>
-                {isEditing ? (
-                  <Input
-                    id="name"
-                    value={formData?.name || ""}
-                    onChange={(e) => setFormData((prev) => (prev ? { ...prev, name: e.target.value } : null))}
-                  />
-                ) : (
-                  <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span>{user.name}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">البريد الإلكتروني</Label>
-                {isEditing ? (
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData?.email || ""}
-                    onChange={(e) => setFormData((prev) => (prev ? { ...prev, email: e.target.value } : null))}
-                  />
-                ) : (
-                  <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span>{user.email}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone">رقم الهاتف</Label>
-                {isEditing ? (
-                  <Input
-                    id="phone"
-                    value={formData?.phone || ""}
-                    onChange={(e) => setFormData((prev) => (prev ? { ...prev, phone: e.target.value } : null))}
-                    placeholder="أدخل رقم الهاتف"
-                  />
-                ) : (
-                  <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span>{user.phone || "غير محدد"}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="address">العنوان</Label>
-                {isEditing ? (
-                  <Input
-                    id="address"
-                    value={formData?.address || ""}
-                    onChange={(e) => setFormData((prev) => (prev ? { ...prev, address: e.target.value } : null))}
-                    placeholder="أدخل العنوان"
-                  />
-                ) : (
-                  <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span>{user.address || "غير محدد"}</span>
-                  </div>
-                )}
-              </div>
+              {editableField("name", "الاسم الكامل", <User className="h-4 w-4 text-muted-foreground" />)}
+              {editableField("email", "البريد الإلكتروني", <Mail className="h-4 w-4 text-muted-foreground" />, {
+                type: "email",
+              })}
+              {editableField("phone", "رقم الهاتف", <Phone className="h-4 w-4 text-muted-foreground" />, {
+                placeholder: "أدخل رقم الهاتف",
+              })}
+              {editableField("address", "العنوان", <MapPin className="h-4 w-4 text-muted-foreground" />, {
+                placeholder: "أدخل العنوان",
+              })}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bio">نبذة شخصية</Label>
-              {isEditing ? (
-                <Textarea
-                  id="bio"
-                  value={formData?.bio || ""}
-                  onChange={(e) => setFormData((prev) => (prev ? { ...prev, bio: e.target.value } : null))}
-                  placeholder="اكتب نبذة مختصرة عنك..."
-                  rows={4}
-                />
-              ) : (
-                <div className="p-3 bg-muted rounded-md min-h-[100px]">
-                  <p className="text-sm">{user.bio || "لم يتم إضافة نبذة شخصية بعد"}</p>
-                </div>
-              )}
+              <Label>الصلاحية</Label>
+              <div className="flex items-center gap-2 rounded-md bg-muted p-2 text-muted-foreground">
+                <User className="h-4 w-4" />
+                <span>{getRoleLabel(user.role)}</span>
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
     </div>
   )
 }

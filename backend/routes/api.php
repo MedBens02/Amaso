@@ -18,6 +18,8 @@ use App\Http\Controllers\Api\V1\KafalaChamilaController;
 use App\Http\Controllers\Api\V1\CardController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\BeneficiaryGroupController;
+use App\Http\Controllers\Api\V1\SettingsController;
+use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\References;
 
 Route::get('/user', function (Request $request) {
@@ -44,6 +46,23 @@ Route::prefix('v1')->group(function () {
     // Authentication (requires a valid token)
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::get('auth/me', [AuthController::class, 'me']);
+
+    // Your own account
+    Route::patch('auth/profile', [AuthController::class, 'updateProfile']);
+    Route::post('auth/password', [AuthController::class, 'changePassword'])
+        ->middleware('throttle:10,1');
+
+    // The association's identity - everyone reads it, admins edit it
+    Route::get('settings/organization', [SettingsController::class, 'organization']);
+    Route::put('settings/organization', [SettingsController::class, 'updateOrganization'])
+        ->middleware('role:admin');
+
+    // Account management, admin only
+    Route::middleware('role:admin')->group(function () {
+        Route::apiResource('users', UserController::class);
+        Route::patch('users/{user}/active', [UserController::class, 'setActive']);
+        Route::post('users/{user}/password', [UserController::class, 'resetPassword']);
+    });
 
     // Donors CRUD
     Route::apiResource('donors', DonorController::class);

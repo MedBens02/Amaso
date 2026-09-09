@@ -78,7 +78,9 @@ export function Header({ user }: HeaderProps) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="/placeholder-user.jpg" alt={user.name} />
+                  {/* There are no per-user photos; the association's mark
+                      stands in, and initials show if it fails to load. */}
+                  <AvatarImage src="/amaso-logo.png" alt="" className="bg-white object-contain p-1" />
                   <AvatarFallback className="bg-primary text-primary-foreground">
                     {user.name
                       .split(" ")

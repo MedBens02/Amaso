@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -25,7 +25,10 @@ import {
   LogOut,
   Database,
   Calculator,
+  UserCog,
 } from "lucide-react"
+import { isCurrentUserAdmin } from "@/lib/roles"
+import api from "@/lib/api"
 
 const navigation = [
   {
@@ -102,6 +105,14 @@ const systemNavigation = [
     href: "/dashboard/settings",
     icon: Settings,
   },
+  // Account management is admin-only. The API enforces that too (role:admin);
+  // hiding the entry just keeps a door the user cannot open out of the menu.
+  {
+    name: "إدارة الحسابات",
+    href: "/dashboard/users",
+    icon: UserCog,
+    adminOnly: true,
+  },
 ]
 
 const referencesNavigation = [
@@ -121,11 +132,35 @@ export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
+  // Read after mount: localStorage is not available during SSR, and
+  // rendering the admin entry on the server would flash it for everyone.
+  const [isAdmin, setIsAdmin] = useState(false)
+  // Whatever the admin saved on the settings screen, so the sidebar carries
+  // the association's own name rather than a generic label.
+  const [orgName, setOrgName] = useState("")
+
+  useEffect(() => {
+    setIsAdmin(isCurrentUserAdmin())
+
+    api
+      .getOrganizationSettings()
+      .then((response) => setOrgName(response.data.name ?? ""))
+      .catch(() => {
+        /* the fallback heading below covers this */
+      })
+  }, [])
 
   return (
     <div className={cn("flex flex-col border-r bg-background", collapsed ? "w-16" : "w-64")}>
       <div className="flex h-16 items-center justify-between px-4 border-b">
-        {!collapsed && <h2 className="text-lg font-semibold">نظام الجمعية الخيرية</h2>}
+        {!collapsed && (
+          <h2
+            className="line-clamp-2 text-sm font-semibold leading-tight"
+            title={orgName || undefined}
+          >
+            {orgName || "نظام الجمعية"}
+          </h2>
+        )}
         <Button variant="ghost" size="sm" onClick={() => setCollapsed(!collapsed)} className="h-8 w-8 p-0">
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
@@ -189,7 +224,9 @@ export function Sidebar() {
               <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">النظام</h3>
             )}
             <nav className="space-y-1">
-              {systemNavigation.map((item) => {
+              {systemNavigation
+                .filter((item) => !item.adminOnly || isAdmin)
+                .map((item) => {
                 const isActive = pathname === item.href
                 return (
                   <Link key={item.name} href={item.href}>

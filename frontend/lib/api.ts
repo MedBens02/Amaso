@@ -136,6 +136,124 @@ class ApiClient {
     return this.request<any>('/auth/me')
   }
 
+  /** Update your own name/email/phone/address. Role is not editable here. */
+  async updateProfile(data: {
+    name: string
+    email: string
+    phone?: string | null
+    address?: string | null
+  }) {
+    const response = await this.request<any>('/auth/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+
+    // The dashboard layout and every role check read this cached copy, so it
+    // has to follow the server or the header keeps showing the old name.
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(response.data))
+    }
+
+    return response
+  }
+
+  /**
+   * Change your own password. The backend revokes every token and issues a
+   * fresh one, so we swap it in here - otherwise the user is silently
+   * logged out the moment they succeed.
+   */
+  async changePassword(data: {
+    current_password: string
+    password: string
+    password_confirmation: string
+  }) {
+    const response = await this.request<{ token: string; user: any }>('/auth/password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+
+    this.setToken(response.data.token)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(TOKEN_STORAGE_KEY, response.data.token)
+      window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(response.data.user))
+    }
+
+    return response
+  }
+
+  // Organization settings - readable by anyone signed in, writable by admins
+  async getOrganizationSettings() {
+    return this.request<{
+      name: string
+      address: string | null
+      phone: string | null
+      email: string | null
+    }>('/settings/organization')
+  }
+
+  async updateOrganizationSettings(data: {
+    name: string
+    address?: string | null
+    phone?: string | null
+    email?: string | null
+  }) {
+    return this.request<any>('/settings/organization', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Account management (admin only - the API returns 403 for anyone else)
+  async getUsers(params?: { search?: string; role?: string; is_active?: boolean }) {
+    const searchParams = new URLSearchParams()
+    if (params?.search) searchParams.set('search', params.search)
+    if (params?.role) searchParams.set('role', params.role)
+    if (params?.is_active !== undefined) searchParams.set('is_active', params.is_active ? '1' : '0')
+
+    const query = searchParams.toString()
+    return this.request<any[]>(`/users${query ? `?${query}` : ''}`)
+  }
+
+  async createUser(data: {
+    name: string
+    email: string
+    password: string
+    password_confirmation: string
+    role: string
+    phone?: string | null
+    address?: string | null
+  }) {
+    return this.request<any>('/users', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async updateUser(id: number, data: {
+    name: string
+    email: string
+    role: string
+    phone?: string | null
+    address?: string | null
+  }) {
+    return this.request<any>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  }
+
+  async setUserActive(id: number, isActive: boolean) {
+    return this.request<any>(`/users/${id}/active`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_active: isActive }),
+    })
+  }
+
+  async resetUserPassword(id: number, password: string) {
+    return this.request<any>(`/users/${id}/password`, {
+      method: 'POST',
+      body: JSON.stringify({ password, password_confirmation: password }),
+    })
+  }
+
+  async deleteUser(id: number) {
+    return this.request<any>(`/users/${id}`, { method: 'DELETE' })
+  }
+
   // Donors API
   async getDonors(params?: {
     search?: string
