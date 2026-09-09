@@ -80,6 +80,8 @@ Route::prefix('v1')->group(function () {
     // Reports
     Route::get('reports/kafils/{kafil}/statement', [ReportController::class, 'kafilStatement']);
     Route::get('reports/school-performance', [ReportController::class, 'schoolPerformance']);
+    Route::get('reports/school-performance.pdf', [ReportController::class, 'schoolPerformancePdf']);
+    Route::get('reports/kafils/{kafil}/statement.pdf', [ReportController::class, 'kafilStatementPdf']);
 
     // Expenses CRUD + approval
     Route::apiResource('expenses', ExpenseController::class);

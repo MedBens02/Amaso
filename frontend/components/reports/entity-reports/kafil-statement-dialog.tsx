@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import ReactSelect from "react-select"
 import {
   Dialog,
@@ -16,13 +16,6 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { FileDown, HandCoins, Loader2, Users } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import {
-  PDFCardTemplate,
-  HiddenPDFWrapper,
-  PDFTable,
-  type PDFCardSection,
-} from "@/components/reports"
-import { generatePDFFromHTML, generatePDFFilename } from "@/lib/pdf-generator"
 import api from "@/lib/api"
 
 /**
@@ -42,7 +35,6 @@ const money = (value: number) => `${Number(value || 0).toLocaleString("en-US", {
 
 export function KafilStatementDialog({ open, onOpenChange }: KafilStatementDialogProps) {
   const { toast } = useToast()
-  const printRef = useRef<HTMLDivElement>(null)
 
   const [kafils, setKafils] = useState<any[]>([])
   const [kafilId, setKafilId] = useState<string>("")
@@ -85,22 +77,19 @@ export function KafilStatementDialog({ open, onOpenChange }: KafilStatementDialo
   }
 
   const generatePDF = async () => {
-    if (!printRef.current || isGenerating || !statement) return
+    if (isGenerating || !statement) return
 
     setIsGenerating(true)
     try {
-      toast({ title: "جاري إنشاء الـ PDF...", description: "يرجى الانتظار بينما يتم إعداد الكشف" })
-      const result = await generatePDFFromHTML(
-        printRef,
-        generatePDFFilename("kafil-statement", statement.kafil.full_name),
-        { scale: 2, multiPage: true },
-      )
-      if (!result.success) throw new Error(result.error)
-      toast({ title: "تم إنشاء الـ PDF بنجاح" })
-    } catch (error) {
+      await api.downloadPdf(`/reports/kafils/${kafilId}/statement.pdf`, {
+        ...(from ? { from } : {}),
+        ...(to ? { to } : {}),
+      })
+      toast({ title: "تم تحميل الكشف" })
+    } catch (error: any) {
       toast({
         title: "خطأ في إنشاء الـ PDF",
-        description: "حدث خطأ أثناء إنشاء الملف. يرجى المحاولة مرة أخرى",
+        description: error?.message || "حدث خطأ أثناء إنشاء الملف. يرجى المحاولة مرة أخرى",
         variant: "destructive",
       })
     } finally {
@@ -108,51 +97,8 @@ export function KafilStatementDialog({ open, onOpenChange }: KafilStatementDialo
     }
   }
 
-  const pdfSections: PDFCardSection[] = statement
-    ? [
-        {
-          title: "المساهمات المقدمة",
-          icon: HandCoins,
-          content: (
-            <PDFTable
-              headers={["البند", "المبلغ"]}
-              rows={[
-                ...statement.contributions.by_budget.map((row: any) => [row.label, money(row.amount)]),
-                ["المجموع", money(statement.contributions.total)],
-              ]}
-            />
-          ),
-        },
-        ...statement.families.map((family: any) => ({
-          title: `الأسرة المكفولة: ${family.full_name}`,
-          icon: Users,
-          content: (
-            <div className="space-y-2">
-              <PDFTable
-                headers={["نوع المساعدة", "المبلغ"]}
-                rows={[
-                  ...(family.received.by_category.length > 0
-                    ? family.received.by_category.map((row: any) => [row.label, money(row.amount)])
-                    : [["لا توجد مساعدات مسجلة في هذه الفترة", "—"]]),
-                  ["مجموع ما تلقته الأسرة", money(family.received.total)],
-                ]}
-              />
-              <p className="text-xs text-gray-600">
-                عدد الأيتام: {family.orphans_count} — مبلغ الكفالة المتفق عليه: {money(family.sponsorship_amount)}
-              </p>
-            </div>
-          ),
-        })),
-        {
-          title: "ملاحظة",
-          content: <p className="text-xs leading-relaxed text-gray-700">{DISCLOSURE}</p>,
-        },
-      ]
-    : []
-
   return (
-    <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -300,28 +246,7 @@ export function KafilStatementDialog({ open, onOpenChange }: KafilStatementDialo
               تحميل PDF
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {statement && (
-        <HiddenPDFWrapper>
-          <div ref={printRef}>
-            <PDFCardTemplate
-              header={{
-                title: "كشف الكفيل",
-                subtitle: `الفترة: ${statement.period.from} إلى ${statement.period.to}`,
-                entityName: statement.kafil.full_name,
-                entityId: `#${statement.kafil.id}`,
-              }}
-              sections={pdfSections}
-              footer={{
-                leftContent: `إجمالي المساهمات: ${money(statement.totals.contributed)}`,
-                rightContent: `ما تلقّته الأسر: ${money(statement.totals.received_by_families)}`,
-              }}
-            />
-          </div>
-        </HiddenPDFWrapper>
-      )}
-    </>
+      </DialogContent>
+    </Dialog>
   )
 }

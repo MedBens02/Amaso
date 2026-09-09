@@ -671,6 +671,52 @@ class ApiClient {
     return this.request<any>('/enrollments/grades', { method: 'POST', body: JSON.stringify({ grades }) })
   }
 
+  /**
+   * Reports are rendered as real PDFs server-side (selectable, searchable text
+   * rather than a screenshot), so downloading one is an authenticated fetch
+   * whose blob is handed to the browser. The server names the file.
+   */
+  async downloadPdf(endpoint: string, params?: Record<string, any>, fallbackName = 'report.pdf') {
+    const searchParams = new URLSearchParams()
+    for (const [key, value] of Object.entries(params || {})) {
+      if (value !== undefined && value !== null && value !== '') {
+        searchParams.set(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value))
+      }
+    }
+    const query = searchParams.toString()
+
+    const response = await fetch(`${this.baseURL}${endpoint}${query ? `?${query}` : ''}`, {
+      headers: {
+        Accept: 'application/pdf',
+        ...(this.token && { Authorization: `Bearer ${this.token}` }),
+      },
+    })
+
+    if (!response.ok) {
+      // An error comes back as JSON even though we asked for a PDF.
+      let data: any = {}
+      try { data = await response.json() } catch { /* non-JSON error body */ }
+      throw new ApiError(response, data)
+    }
+
+    const disposition = response.headers.get('Content-Disposition') || ''
+    const match = disposition.match(/filename="?([^"';]+)"?/)
+    const filename = match ? match[1] : fallbackName
+
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    // Revoking immediately can cancel the download in some browsers.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+
+    return filename
+  }
+
   async getSchoolPerformance(params?: {
     academic_year_id?: number
     gender?: string
