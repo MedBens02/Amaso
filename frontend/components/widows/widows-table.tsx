@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Edit, Trash2, Phone, Mail, Loader2, Users, ChevronUp, ChevronDown, ChevronsUpDown, Printer, Archive, ArchiveRestore } from "lucide-react"
+import { Eye, Edit, Trash2, Phone, Mail, Loader2, Users, ChevronUp, ChevronDown, ChevronsUpDown, Printer, Archive, ArchiveRestore, FileText } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
 import { ViewWidowDialog } from "./view-widow-dialog"
@@ -149,6 +149,20 @@ export function WidowsTable({
       toast({
         title: "خطأ في تحميل البيانات",
         description: error.message || "فشل في تحميل تفاصيل الأرملة",
+        variant: "destructive",
+      })
+    }
+  }
+
+  /** Everything the association has done for this family, over the current year. */
+  const handleFamilyReport = async (widow: Widow) => {
+    try {
+      await api.downloadPdf(`/reports/families/${widow.id}/financial.pdf`)
+      toast({ title: "تم تحميل التقرير المالي للأسرة" })
+    } catch (error: any) {
+      toast({
+        title: "خطأ في إنشاء التقرير",
+        description: error?.message || "حدث خطأ أثناء إنشاء الملف",
         variant: "destructive",
       })
     }
@@ -389,6 +403,15 @@ export function WidowsTable({
                         title="طباعة بطاقة الأرملة"
                       >
                         <Printer className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 w-7 p-0 flex-shrink-0 hover:bg-teal-50 hover:text-teal-700"
+                        onClick={() => handleFamilyReport(widow)}
+                        title="التقرير المالي للأسرة"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
                       </Button>
                       {archived ? (
                         <Button 

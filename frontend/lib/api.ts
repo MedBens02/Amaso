@@ -738,6 +738,7 @@ class ApiClient {
     is_private?: boolean
     is_amaso_linked?: boolean
     semester?: string
+    group_by?: string
     top_n?: number
   }) {
     const searchParams = new URLSearchParams()

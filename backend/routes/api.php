@@ -86,6 +86,16 @@ Route::prefix('v1')->group(function () {
 
     // Reports
     Route::get('reports/kafils/{kafil}/statement', [ReportController::class, 'kafilStatement']);
+    Route::get('reports/incomes.pdf', [ReportController::class, 'incomeListPdf']);
+    Route::get('reports/expenses.pdf', [ReportController::class, 'expenseListPdf']);
+    Route::get('reports/families/{widow}/financial', [ReportController::class, 'familyFinancial']);
+    Route::get('reports/families/{widow}/financial.pdf', [ReportController::class, 'familyFinancialPdf']);
+    Route::get('reports/sponsorship-gaps', [ReportController::class, 'sponsorshipGaps']);
+    Route::get('reports/sponsorship-gaps.pdf', [ReportController::class, 'sponsorshipGapsPdf']);
+    Route::get('reports/kafil-follow-up', [ReportController::class, 'kafilFollowUp']);
+    Route::get('reports/kafil-follow-up.pdf', [ReportController::class, 'kafilFollowUpPdf']);
+    Route::get('reports/budget-utilization', [ReportController::class, 'budgetUtilization']);
+    Route::get('reports/budget-utilization.pdf', [ReportController::class, 'budgetUtilizationPdf']);
     Route::get('reports/widows', [ReportController::class, 'widows']);
     Route::get('reports/widows.pdf', [ReportController::class, 'widowsPdf']);
     Route::get('reports/financial', [ReportController::class, 'financial']);

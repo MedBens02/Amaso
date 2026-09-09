@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\FiscalYear;
 use App\Models\Kafil;
+use App\Models\Widow;
+use App\Services\FamilyReportService;
 use App\Services\PdfService;
 use App\Services\ReportAggregateService;
 use App\Services\ReportService;
@@ -19,6 +21,7 @@ class ReportController extends Controller
         private readonly SchoolPerformanceService $schoolPerformance,
         private readonly PdfService $pdf,
         private readonly ReportAggregateService $aggregates,
+        private readonly FamilyReportService $familyReports,
     ) {
     }
 
@@ -89,11 +92,13 @@ class ReportController extends Controller
             'is_private' => ['nullable', 'boolean'],
             'is_amaso_linked' => ['nullable', 'boolean'],
             'semester' => ['nullable', 'in:first,second,average'],
+            'group_by' => ['nullable', 'in:none,level,school,gender'],
             'top_n' => ['nullable', 'integer', 'min:1', 'max:500'],
         ], [
             'gender.in' => 'الجنس غير صحيح',
             'school_type.in' => 'نوع المؤسسة غير صحيح',
             'semester.in' => 'الأسدس غير صحيح',
+            'group_by.in' => 'التجميع غير صحيح',
             'top_n.max' => 'أقصى عدد في الترتيب هو 500',
         ]);
     }
@@ -227,6 +232,122 @@ class ReportController extends Controller
         );
     }
 
+    public function sponsorshipGaps(Request $request): JsonResponse
+    {
+        return response()->json(['data' => $this->aggregates->sponsorshipGaps($this->reportFilters($request))]);
+    }
+
+    public function sponsorshipGapsPdf(Request $request)
+    {
+        $report = $this->aggregates->sponsorshipGaps($this->reportFilters($request));
+
+        return $this->download(
+            $this->pdf->render('pdf.sponsorship-gaps', [
+                'title' => 'تقرير نقص الكفالة',
+                'subtitle' => 'الأسر غير المكفولة والأسر ذات التغطية الناقصة',
+                'report' => $report,
+            ], ['landscape' => true]),
+            $this->filename('sponsorship-gaps', null),
+        );
+    }
+
+    public function kafilFollowUp(Request $request): JsonResponse
+    {
+        return response()->json(['data' => $this->aggregates->kafilFollowUp($this->reportFilters($request))]);
+    }
+
+    public function kafilFollowUpPdf(Request $request)
+    {
+        $report = $this->aggregates->kafilFollowUp($this->reportFilters($request));
+
+        return $this->download(
+            $this->pdf->render('pdf.kafil-follow-up', [
+                'title' => 'متابعة التزامات الكفلاء',
+                'subtitle' => 'المتوقّع مقابل المحصّل خلال الفترة',
+                'entity' => "{$report['period']['from']} — {$report['period']['to']}",
+                'report' => $report,
+            ], ['landscape' => true]),
+            $this->filename('kafil-follow-up', $report['period']['from']),
+        );
+    }
+
+    public function budgetUtilization(Request $request): JsonResponse
+    {
+        return response()->json(['data' => $this->aggregates->budgetUtilization($this->reportFilters($request))]);
+    }
+
+    public function budgetUtilizationPdf(Request $request)
+    {
+        $report = $this->aggregates->budgetUtilization($this->reportFilters($request));
+
+        return $this->download(
+            $this->pdf->render('pdf.budget-utilization', [
+                'title' => 'تقرير استعمال الميزانيات',
+                'subtitle' => 'الوارد والمصروف والمتبقي في كل ميزانية',
+                'entity' => "{$report['period']['from']} — {$report['period']['to']}",
+                'report' => $report,
+            ]),
+            $this->filename('budget-utilization', $report['period']['from']),
+        );
+    }
+
+    /** The income ledger as a PDF - the pages could only produce CSV before. */
+    public function incomeListPdf(Request $request)
+    {
+        $report = $this->aggregates->incomeList($this->reportFilters($request));
+
+        return $this->download(
+            $this->pdf->render('pdf.transactions', [
+                'title' => 'سجل الإيرادات',
+                'subtitle' => 'العمليات المسجلة خلال الفترة',
+                'entity' => "{$report['period']['from']} — {$report['period']['to']}",
+                'kind' => 'income',
+                'report' => $report,
+            ], ['landscape' => true]),
+            $this->filename('incomes', $report['period']['from']),
+        );
+    }
+
+    public function expenseListPdf(Request $request)
+    {
+        $report = $this->aggregates->expenseList($this->reportFilters($request));
+
+        return $this->download(
+            $this->pdf->render('pdf.transactions', [
+                'title' => 'سجل المصروفات',
+                'subtitle' => 'العمليات المسجلة خلال الفترة',
+                'entity' => "{$report['period']['from']} — {$report['period']['to']}",
+                'kind' => 'expense',
+                'report' => $report,
+            ], ['landscape' => true]),
+            $this->filename('expenses', $report['period']['from']),
+        );
+    }
+
+    /** Everything the association has done for one family, in one document. */
+    public function familyFinancial(Request $request, Widow $widow): JsonResponse
+    {
+        [$from, $to] = $this->resolvePeriod($this->reportFilters($request));
+
+        return response()->json(['data' => $this->familyReports->financial($widow, $from, $to)]);
+    }
+
+    public function familyFinancialPdf(Request $request, Widow $widow)
+    {
+        [$from, $to] = $this->resolvePeriod($this->reportFilters($request));
+        $report = $this->familyReports->financial($widow, $from, $to);
+
+        return $this->download(
+            $this->pdf->render('pdf.family-financial', [
+                'title' => 'التقرير المالي للأسرة',
+                'subtitle' => "الفترة: {$from} إلى {$to}",
+                'entity' => $widow->full_name,
+                'report' => $report,
+            ]),
+            $this->filename('family-financial', $widow->id),
+        );
+    }
+
     private function reportFilters(Request $request): array
     {
         return $request->validate([
@@ -235,6 +356,9 @@ class ReportController extends Controller
             'fiscal_year_id' => ['nullable', 'integer', 'exists:fiscal_years,id'],
             'neighborhood' => ['nullable', 'string', 'max:120'],
             'disability_flag' => ['nullable', 'boolean'],
+            'target' => ['nullable', 'numeric', 'min:0'],
+            'status' => ['nullable', 'in:Draft,Approved,Rejected'],
+            'budget_id' => ['nullable', 'integer', 'exists:budgets,id'],
         ], [
             'to.after_or_equal' => 'تاريخ النهاية يجب أن يكون بعد تاريخ البداية',
         ]);

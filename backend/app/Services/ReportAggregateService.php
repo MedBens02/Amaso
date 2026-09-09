@@ -2,11 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\Budget;
 use App\Models\Donor;
 use App\Models\Expense;
 use App\Models\Income;
+use App\Models\Kafil;
 use App\Models\Orphan;
 use App\Models\Widow;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -187,6 +190,228 @@ class ReportAggregateService
                 'income' => round((float) ($monthly[$m]->total ?? 0), 2),
                 'expense' => round((float) ($monthlyExpense[$m]->total ?? 0), 2),
                 'balance' => round((float) ($monthly[$m]->total ?? 0) - (float) ($monthlyExpense[$m]->total ?? 0), 2),
+            ])->all(),
+        ];
+    }
+
+    /**
+     * Which families are uncovered, and by how much.
+     *
+     * The association's fundraising question is not "how many families do we
+     * have" but "which ones is nobody paying for" - so this lists every family
+     * whose sponsorships fall short of the standard package, worst first,
+     * with the fully unsponsored at the top.
+     */
+    public function sponsorshipGaps(array $filters = []): array
+    {
+        $target = (float) ($filters['target'] ?? 800);
+
+        $sponsorships = DB::table('kafil_sponsorship')
+            ->selectRaw('widow_id, SUM(amount) as total, COUNT(*) as kafils')
+            ->groupBy('widow_id')->get()->keyBy('widow_id');
+
+        $rows = Widow::query()
+            ->when(!empty($filters['neighborhood']), fn ($q) => $q->where('neighborhood', $filters['neighborhood']))
+            ->withCount('orphans')
+            ->orderBy('first_name')
+            ->get()
+            ->map(function (Widow $widow) use ($sponsorships, $target) {
+                $covered = (float) ($sponsorships[$widow->id]->total ?? 0);
+
+                return [
+                    'widow_id' => $widow->id,
+                    'full_name' => $widow->full_name,
+                    'phone' => $widow->phone,
+                    'neighborhood' => $widow->neighborhood,
+                    'orphans_count' => $widow->orphans_count,
+                    'kafils_count' => (int) ($sponsorships[$widow->id]->kafils ?? 0),
+                    'covered' => round($covered, 2),
+                    'shortfall' => round(max($target - $covered, 0), 2),
+                ];
+            })
+            // Fully covered families are not what this report is for.
+            ->filter(fn ($row) => $row['shortfall'] > 0)
+            ->sortByDesc('shortfall')
+            ->values();
+
+        return [
+            'target' => $target,
+            'totals' => [
+                'families_with_gap' => $rows->count(),
+                'unsponsored' => $rows->where('kafils_count', 0)->count(),
+                'orphans_affected' => $rows->sum('orphans_count'),
+                'total_shortfall' => round($rows->sum('shortfall'), 2),
+            ],
+            'families' => $rows->all(),
+        ];
+    }
+
+    /**
+     * Pledged versus actually paid, per kafil, over a period.
+     *
+     * A sponsorship is a standing commitment, but nothing linked those
+     * commitments to the payments that arrived, so a kafil could stop paying
+     * without anything surfacing it. Expected is the monthly commitment times
+     * the whole months in the period; anyone materially short is listed first.
+     */
+    public function kafilFollowUp(array $filters = []): array
+    {
+        [$from, $to] = $this->period($filters);
+        $start = Carbon::parse($from);
+        $end = Carbon::parse($to);
+        $months = max(1, ($end->year - $start->year) * 12 + ($end->month - $start->month) + 1);
+
+        $paid = Income::where('status', 'Approved')
+            ->whereBetween('income_date', [$from, $to])
+            ->whereNotNull('kafil_id')
+            ->selectRaw('kafil_id, SUM(amount) as total, COUNT(*) as payments, MAX(income_date) as last_payment')
+            ->groupBy('kafil_id')->get()->keyBy('kafil_id');
+
+        $rows = Kafil::with('sponsorships')->get()->map(function (Kafil $kafil) use ($paid, $months) {
+            // The agreed sponsorships are the real commitment; monthly_pledge is
+            // a headline figure that is not always kept in step with them.
+            $commitment = (float) ($kafil->sponsorships->sum('amount') ?: $kafil->monthly_pledge);
+            $expected = $commitment * $months;
+            $actual = (float) ($paid[$kafil->id]->total ?? 0);
+
+            return [
+                'kafil_id' => $kafil->id,
+                'full_name' => $kafil->full_name,
+                'phone' => $kafil->phone,
+                'families' => $kafil->sponsorships->count(),
+                'monthly_commitment' => round($commitment, 2),
+                'expected' => round($expected, 2),
+                'paid' => round($actual, 2),
+                'balance' => round($actual - $expected, 2),
+                'payments' => (int) ($paid[$kafil->id]->payments ?? 0),
+                'last_payment' => $paid[$kafil->id]->last_payment ?? null,
+                'coverage' => $expected > 0 ? round($actual / $expected * 100, 1) : null,
+            ];
+        })->sortBy('balance')->values();
+
+        return [
+            'period' => ['from' => $from, 'to' => $to],
+            'months' => $months,
+            'totals' => [
+                'kafils' => $rows->count(),
+                'expected' => round($rows->sum('expected'), 2),
+                'paid' => round($rows->sum('paid'), 2),
+                'behind' => $rows->filter(fn ($r) => $r['balance'] < -0.01)->count(),
+                'never_paid' => $rows->where('payments', 0)->count(),
+            ],
+            'kafils' => $rows->all(),
+        ];
+    }
+
+    /** What went into each fund, what came out, and what is left. */
+    public function budgetUtilization(array $filters = []): array
+    {
+        [$from, $to] = $this->period($filters);
+
+        $income = Income::where('status', 'Approved')->whereBetween('income_date', [$from, $to])
+            ->selectRaw('budget_id, SUM(amount) as total')->groupBy('budget_id')->get()->keyBy('budget_id');
+        $expense = Expense::where('status', 'Approved')->whereBetween('expense_date', [$from, $to])
+            ->selectRaw('budget_id, SUM(amount) as total')->groupBy('budget_id')->get()->keyBy('budget_id');
+
+        $rows = Budget::orderByDesc('is_default')->orderBy('label')->get()
+            ->map(function (Budget $budget) use ($income, $expense) {
+                $in = (float) ($income[$budget->id]->total ?? 0);
+                $out = (float) ($expense[$budget->id]->total ?? 0);
+
+                return [
+                    'label' => $budget->label,
+                    'is_default' => (bool) $budget->is_default,
+                    'income' => round($in, 2),
+                    'expense' => round($out, 2),
+                    'remaining' => round($in - $out, 2),
+                    // Spending past what a fund took in is the thing to notice.
+                    'utilization' => $in > 0 ? round($out / $in * 100, 1) : null,
+                ];
+            });
+
+        return [
+            'period' => ['from' => $from, 'to' => $to],
+            'totals' => [
+                'income' => round($rows->sum('income'), 2),
+                'expense' => round($rows->sum('expense'), 2),
+                'remaining' => round($rows->sum('remaining'), 2),
+                'overspent' => $rows->filter(fn ($r) => $r['remaining'] < -0.01)->count(),
+            ],
+            'budgets' => $rows->all(),
+        ];
+    }
+
+    /**
+     * The transaction listings behind the incomes and expenses pages.
+     *
+     * These pages could only ever produce a CSV or a browser print-out; the
+     * ledger a treasurer hands to an auditor is the list itself, so it gets
+     * the same real-text PDF treatment as everything else.
+     */
+    public function incomeList(array $filters = []): array
+    {
+        [$from, $to] = $this->period($filters);
+
+        $rows = Income::with(['budget', 'incomeCategory', 'donor', 'kafil'])
+            ->whereBetween('income_date', [$from, $to])
+            ->when(!empty($filters['status']), fn ($q) => $q->where('status', $filters['status']))
+            ->when(!empty($filters['budget_id']), fn ($q) => $q->where('budget_id', $filters['budget_id']))
+            ->when(!empty($filters['fiscal_year_id']), fn ($q) => $q->where('fiscal_year_id', $filters['fiscal_year_id']))
+            ->orderBy('income_date')
+            ->get();
+
+        return [
+            'period' => ['from' => $from, 'to' => $to],
+            'totals' => [
+                'count' => $rows->count(),
+                'total' => round((float) $rows->sum('amount'), 2),
+                'approved' => round((float) $rows->where('status', 'Approved')->sum('amount'), 2),
+                'draft' => round((float) $rows->where('status', 'Draft')->sum('amount'), 2),
+            ],
+            'rows' => $rows->map(fn (Income $income) => [
+                'date' => $income->income_date?->format('Y-m-d'),
+                'source' => $income->donor
+                    ? trim("{$income->donor->first_name} {$income->donor->last_name}")
+                    : ($income->kafil?->full_name ?? '—'),
+                'budget' => $income->budget?->label,
+                'category' => $income->incomeCategory?->label,
+                'payment_method' => $income->payment_method,
+                'status' => $income->status,
+                'amount' => round((float) $income->amount, 2),
+            ])->all(),
+        ];
+    }
+
+    public function expenseList(array $filters = []): array
+    {
+        [$from, $to] = $this->period($filters);
+
+        $rows = Expense::with(['budget', 'expenseCategory', 'partner'])
+            ->whereBetween('expense_date', [$from, $to])
+            ->when(!empty($filters['status']), fn ($q) => $q->where('status', $filters['status']))
+            ->when(!empty($filters['budget_id']), fn ($q) => $q->where('budget_id', $filters['budget_id']))
+            ->when(!empty($filters['fiscal_year_id']), fn ($q) => $q->where('fiscal_year_id', $filters['fiscal_year_id']))
+            ->withCount('beneficiaries')
+            ->orderBy('expense_date')
+            ->get();
+
+        return [
+            'period' => ['from' => $from, 'to' => $to],
+            'totals' => [
+                'count' => $rows->count(),
+                'total' => round((float) $rows->sum('amount'), 2),
+                'approved' => round((float) $rows->where('status', 'Approved')->sum('amount'), 2),
+                'draft' => round((float) $rows->where('status', 'Draft')->sum('amount'), 2),
+            ],
+            'rows' => $rows->map(fn (Expense $expense) => [
+                'date' => $expense->expense_date?->format('Y-m-d'),
+                'budget' => $expense->budget?->label,
+                'category' => $expense->expenseCategory?->label,
+                'partner' => $expense->partner?->name,
+                'beneficiaries' => $expense->beneficiaries_count,
+                'payment_method' => $expense->payment_method,
+                'status' => $expense->status,
+                'amount' => round((float) $expense->amount, 2),
             ])->all(),
         ];
     }

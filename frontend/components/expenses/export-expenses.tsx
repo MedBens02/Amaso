@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react'
 import { Button } from "@/components/ui/button"
-import { FileText, Printer, Loader2 } from "lucide-react"
+import { FileText, Printer, Loader2, FileDown } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import api from "@/lib/api"
 import { exportDataToCSV, formatDateForExport, formatCurrency, paymentMethodArabic, statusArabic, printHeader, PRINT_HEADER_STYLES } from "@/lib/export-utils"
 
 interface Expense {
@@ -53,6 +54,7 @@ interface ExportExpensesProps {
 export function ExportExpenses({ expenses, filters = {}, searchTerm }: ExportExpensesProps) {
   const { toast } = useToast()
   const [isExporting, setIsExporting] = useState(false)
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
   const [exportType, setExportType] = useState<'csv' | 'print' | null>(null)
 
   const handleExportCSV = async () => {
@@ -122,6 +124,24 @@ export function ExportExpenses({ expenses, filters = {}, searchTerm }: ExportExp
     } finally {
       setIsExporting(false)
       setExportType(null)
+    }
+  }
+
+  // Server-rendered so the ledger is real, selectable text rather than a
+  // browser print-out; the same date range the page is filtered by is passed on.
+  const handleDownloadPdf = async () => {
+    setIsDownloadingPdf(true)
+    try {
+      await api.downloadPdf('/reports/expenses.pdf', filters)
+      toast({ title: "تم تحميل سجل المصروفات" })
+    } catch (error: any) {
+      toast({
+        title: "خطأ في إنشاء الـ PDF",
+        description: error?.message || "حدث خطأ أثناء إنشاء الملف",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDownloadingPdf(false)
     }
   }
 
@@ -350,6 +370,20 @@ export function ExportExpenses({ expenses, filters = {}, searchTerm }: ExportExp
           <FileText className="ml-2 h-4 w-4" />
         )}
         تصدير CSV
+      </Button>
+
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleDownloadPdf}
+        disabled={isDownloadingPdf}
+      >
+        {isDownloadingPdf ? (
+          <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+        ) : (
+          <FileDown className="ml-2 h-4 w-4" />
+        )}
+        تصدير PDF
       </Button>
 
       <Button

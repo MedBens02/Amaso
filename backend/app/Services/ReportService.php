@@ -59,7 +59,7 @@ class ReportService
                 'orphans' => $widow->orphans->map(fn ($orphan) => [
                     'id' => $orphan->id,
                     'full_name' => trim("{$orphan->first_name} {$orphan->last_name}"),
-                    'birth_date' => $orphan->birth_date,
+                    'birth_date' => $orphan->birth_date?->format('Y-m-d'),
                     'is_schooled' => (bool) ($orphan->is_schooled ?? false),
                 ])->values(),
                 'received' => $receivedByFamily[$widow->id] ?? ['total' => 0.0, 'by_category' => []],

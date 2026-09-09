@@ -25,6 +25,12 @@ class SchoolPerformanceService
     public const SEMESTER_SECOND = 'second';
     public const SEMESTER_AVERAGE = 'average';
 
+    /** How a ranking is cut up before top_n is applied. */
+    public const GROUP_NONE = 'none';
+    public const GROUP_LEVEL = 'level';
+    public const GROUP_SCHOOL = 'school';
+    public const GROUP_GENDER = 'gender';
+
     /**
      * @param array{
      *   academic_year_id?: int|null,
@@ -35,6 +41,7 @@ class SchoolPerformanceService
      *   is_private?: bool|null,
      *   is_amaso_linked?: bool|null,
      *   semester?: string|null,
+     *   group_by?: string|null,
      *   top_n?: int|null,
      *   min_grade?: float|null,
      * } $filters
@@ -55,13 +62,24 @@ class SchoolPerformanceService
             ->values();
 
         $topN = $filters['top_n'] ?? null;
-        $leaderboard = ($topN ? $ranked->take($topN) : $ranked)
+        $groupBy = $filters['group_by'] ?? self::GROUP_NONE;
+
+        // Grouped, top_n is per group: "the top 3 of every class" is a different
+        // question from "the top 3 overall", and it is the one an association
+        // handing out prizes per class actually asks.
+        $groups = $groupBy === self::GROUP_NONE
+            ? []
+            : $this->rankWithinGroups($ranked, $groupBy, $semester, $topN);
+
+        $leaderboard = ($topN && $groupBy === self::GROUP_NONE ? $ranked->take($topN) : $ranked)
             ->values()
             ->map(fn (OrphanEnrollment $row, int $index) => $this->studentRow($row, $index + 1, $semester));
 
         return [
             'academic_year' => $year ? ['id' => $year->id, 'label' => $year->label] : null,
             'semester' => $semester,
+            'group_by' => $groupBy,
+            'groups' => $groups,
             'filters' => $this->describeFilters($filters),
             'totals' => [
                 'students' => $enrollments->count(),
@@ -84,6 +102,45 @@ class SchoolPerformanceService
                 ->values()
                 ->all(),
         ];
+    }
+
+    /**
+     * Splits the ranking and re-ranks inside each part, so every group's first
+     * place is a first place. Groups are ordered by their own average, and the
+     * ones with nobody graded are dropped rather than printed empty.
+     *
+     * @param  Collection<int, OrphanEnrollment>  $ranked
+     */
+    private function rankWithinGroups(Collection $ranked, string $groupBy, string $semester, ?int $topN): array
+    {
+        $key = match ($groupBy) {
+            self::GROUP_SCHOOL => fn (OrphanEnrollment $row) => $row->school?->name ?? 'غير محدد',
+            self::GROUP_GENDER => fn (OrphanEnrollment $row) => match ($row->orphan?->gender) {
+                'male' => 'ذكور', 'female' => 'إناث', default => 'غير محدد',
+            },
+            default => fn (OrphanEnrollment $row) => $row->educationLevel?->name_ar ?? 'غير محدد',
+        };
+
+        return $ranked
+            ->groupBy($key)
+            ->map(function (Collection $group, $label) use ($semester, $topN) {
+                // The parent collection is already sorted, so group order holds.
+                $members = ($topN ? $group->take($topN) : $group)->values();
+
+                return [
+                    'label' => (string) $label,
+                    'students_total' => $group->count(),
+                    'students_listed' => $members->count(),
+                    'average_percentage' => $this->averagePercentage($group, $semester),
+                    'pass_rate' => $this->passRate($group, $semester),
+                    'students' => $members
+                        ->map(fn (OrphanEnrollment $row, int $i) => $this->studentRow($row, $i + 1, $semester))
+                        ->all(),
+                ];
+            })
+            ->sortByDesc('average_percentage')
+            ->values()
+            ->all();
     }
 
     private function query(array $filters, ?int $yearId)
@@ -231,6 +288,7 @@ class SchoolPerformanceService
             'is_private' => $filters['is_private'] ?? null,
             'is_amaso_linked' => $filters['is_amaso_linked'] ?? null,
             'top_n' => $filters['top_n'] ?? null,
+            'group_by' => $filters['group_by'] ?? self::GROUP_NONE,
         ];
     }
 }

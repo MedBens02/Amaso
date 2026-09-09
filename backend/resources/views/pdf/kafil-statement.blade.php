@@ -25,9 +25,9 @@
 
     <table class="stats" width="100%">
         <tr>
-            <td width="33%"><span class="label">إجمالي المساهمات</span><span class="value">{{ $money($statement['totals']['contributed']) }}</span></td>
-            <td width="33%"><span class="label">عدد الدفعات</span><span class="value">{{ $statement['contributions']['payments_count'] }}</span></td>
-            <td width="34%"><span class="label">ما تلقّته الأسر</span><span class="value">{{ $money($statement['totals']['received_by_families']) }}</span></td>
+            <td width="33%"><div class="label">إجمالي المساهمات</div><div class="value">{{ $money($statement['totals']['contributed']) }}</div></td>
+            <td width="33%"><div class="label">عدد الدفعات</div><div class="value">{{ $statement['contributions']['payments_count'] }}</div></td>
+            <td width="34%"><div class="label">ما تلقّته الأسر</div><div class="value">{{ $money($statement['totals']['received_by_families']) }}</div></td>
         </tr>
     </table>
 

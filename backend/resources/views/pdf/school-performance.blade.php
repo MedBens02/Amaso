@@ -46,7 +46,62 @@
         </div>
     @endif
 
-    <h2 class="section">{{ $report['filters']['top_n'] ? 'الأوائل (' . $report['filters']['top_n'] . ')' : 'ترتيب التلاميذ' }}</h2>
+    @if ($report['group_by'] !== 'none' && count($report['groups']) > 0)
+        @php
+            $groupHeading = match ($report['group_by']) {
+                'school' => 'حسب المؤسسة',
+                'gender' => 'حسب الجنس',
+                default => 'حسب المستوى الدراسي',
+            };
+        @endphp
+
+        <h2 class="section">
+            {{ $report['filters']['top_n'] ? 'الأوائل (' . $report['filters']['top_n'] . ') في كل فئة' : 'الترتيب' }}
+            — {{ $groupHeading }}
+        </h2>
+
+        @foreach ($report['groups'] as $group)
+            <div class="section-block">
+                <table class="data">
+                    <thead>
+                        <tr>
+                            <th colspan="7" style="background: #134e4a;">
+                                {{ $group['label'] }}
+                                — {{ $group['students_listed'] }} من {{ $group['students_total'] }}
+                                — المعدل {{ $pct($group['average_percentage']) }}
+                            </th>
+                        </tr>
+                        <tr>
+                            <th width="9%" class="center">الترتيب</th>
+                            <th width="23%">التلميذ</th>
+                            <th width="19%">الأسرة</th>
+                            <th width="24%">المؤسسة</th>
+                            <th width="8%" class="center">أ.1</th>
+                            <th width="8%" class="center">أ.2</th>
+                            <th width="9%" class="center">النسبة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($group['students'] as $i => $student)
+                            <tr class="{{ $i % 2 ? 'alt' : '' }}">
+                                <td class="center {{ $student['rank'] <= 3 ? 'rank-medal' : '' }}">{{ $student['rank'] }}</td>
+                                <td>{{ $student['full_name'] }}</td>
+                                <td class="muted">{{ $student['family'] ?? '—' }}</td>
+                                <td>{{ $student['school'] ?? '—' }}</td>
+                                <td class="center">{{ $num($student['first_semester_grade']) }}</td>
+                                <td class="center">{{ $num($student['second_semester_grade']) }}</td>
+                                <td class="center" style="font-weight: bold;">{{ $pct($student['percentage']) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endforeach
+
+        <h2 class="section">الترتيب العام</h2>
+    @else
+        <h2 class="section">{{ $report['filters']['top_n'] ? 'الأوائل (' . $report['filters']['top_n'] . ')' : 'ترتيب التلاميذ' }}</h2>
+    @endif
 
     <table class="data">
         <thead>

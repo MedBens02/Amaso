@@ -59,6 +59,7 @@ export function SchoolPerformanceDialog({ open, onOpenChange }: SchoolPerformanc
   const [sector, setSector] = useState<string>(ANY)
   const [amasoLinked, setAmasoLinked] = useState<string>(ANY)
   const [topN, setTopN] = useState<string>("10")
+  const [groupBy, setGroupBy] = useState<string>("none")
 
   const [report, setReport] = useState<any | null>(null)
   const [loading, setLoading] = useState(false)
@@ -90,6 +91,7 @@ export function SchoolPerformanceDialog({ open, onOpenChange }: SchoolPerformanc
         school_type: schoolType !== ANY ? schoolType : undefined,
         is_private: sector === ANY ? undefined : sector === "private",
         is_amaso_linked: amasoLinked === ANY ? undefined : amasoLinked === "yes",
+        group_by: groupBy,
         top_n: topN ? parseInt(topN) : undefined,
       })
       setReport(res.data)
@@ -118,6 +120,7 @@ export function SchoolPerformanceDialog({ open, onOpenChange }: SchoolPerformanc
         school_type: schoolType !== ANY ? schoolType : undefined,
         is_private: sector === ANY ? undefined : sector === "private",
         is_amaso_linked: amasoLinked === ANY ? undefined : amasoLinked === "yes",
+        group_by: groupBy,
         top_n: topN ? parseInt(topN) : undefined,
       })
       toast({ title: "تم تحميل التقرير" })
@@ -236,7 +239,20 @@ export function SchoolPerformanceDialog({ open, onOpenChange }: SchoolPerformanc
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">عدد الأوائل</Label>
+              <Label className="text-xs">ترتيب داخل</Label>
+              <Select value={groupBy} onValueChange={setGroupBy}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">ترتيب عام</SelectItem>
+                  <SelectItem value="level">كل مستوى دراسي</SelectItem>
+                  <SelectItem value="school">كل مؤسسة</SelectItem>
+                  <SelectItem value="gender">كل جنس</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">عدد الأوائل{groupBy !== "none" ? " (لكل فئة)" : ""}</Label>
               <Input
                 type="number"
                 min="1"
@@ -288,6 +304,53 @@ export function SchoolPerformanceDialog({ open, onOpenChange }: SchoolPerformanc
                 <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2">
                   {report.totals.ungraded} تلميذ(ة) بدون نقط مسجلة لهذه الفترة — غير مدرجين في الترتيب.
                 </p>
+              )}
+
+              {report.group_by !== "none" && report.groups?.length > 0 && (
+                <div className="space-y-3">
+                  {report.groups.map((group: any) => (
+                    <div key={group.label} className="border rounded-lg overflow-hidden">
+                      <div className="bg-teal-800 text-white px-3 py-1.5 text-sm font-semibold flex justify-between">
+                        <span>{group.label}</span>
+                        <span className="font-normal">
+                          {group.students_listed} من {group.students_total} — المعدل {pct(group.average_percentage)}
+                        </span>
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-center w-[60px]">#</TableHead>
+                            <TableHead className="text-right">التلميذ</TableHead>
+                            <TableHead className="text-right">المؤسسة</TableHead>
+                            <TableHead className="text-center">الأسدس 1</TableHead>
+                            <TableHead className="text-center">الأسدس 2</TableHead>
+                            <TableHead className="text-center">النسبة</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {group.students.map((student: any) => (
+                            <TableRow key={student.enrollment_id}>
+                              <TableCell className="text-center font-bold">
+                                {student.rank <= 3 ? (
+                                  <Badge className="bg-amber-500 hover:bg-amber-500">{student.rank}</Badge>
+                                ) : student.rank}
+                              </TableCell>
+                              <TableCell className="font-medium">{student.full_name}</TableCell>
+                              <TableCell>{student.school || "—"}</TableCell>
+                              <TableCell className="text-center">
+                                {student.first_semester_grade === null ? "—" : Number(student.first_semester_grade).toFixed(2)}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {student.second_semester_grade === null ? "—" : Number(student.second_semester_grade).toFixed(2)}
+                              </TableCell>
+                              <TableCell className="text-center font-semibold">{pct(student.percentage)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ))}
+                </div>
               )}
 
               <div className="border rounded-lg overflow-x-auto">
