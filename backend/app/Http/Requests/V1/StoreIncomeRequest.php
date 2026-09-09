@@ -47,6 +47,18 @@ class StoreIncomeRequest extends FormRequest
             if ($this->input('payment_method') === 'BankWire' && !$this->filled('bank_account_id')) {
                 $validator->errors()->add('bank_account_id', 'الحساب البنكي مطلوب لهذه طريقة الدفع');
             }
+
+            // Every income comes from exactly one source. Both set makes the
+            // donor/kafil reports double count it; neither leaves money in the
+            // books that nobody can be thanked or accounted for.
+            $hasDonor = $this->filled('donor_id');
+            $hasKafil = $this->filled('kafil_id');
+
+            if ($hasDonor && $hasKafil) {
+                $validator->errors()->add('donor_id', 'لا يمكن ربط الإيراد بمتبرع وكفيل في نفس الوقت، اختر مصدراً واحداً');
+            } elseif (!$hasDonor && !$hasKafil) {
+                $validator->errors()->add('donor_id', 'يجب تحديد مصدر الإيراد: متبرع أو كفيل');
+            }
         });
     }
 }

@@ -137,23 +137,6 @@ class FiscalYearController extends Controller
     }
 
     /**
-     * Transfer income to bank account
-     */
-    public function transferIncome(Request $request, Income $income): JsonResponse
-    {
-        $request->validate([
-            'bank_account_id' => 'required|exists:bank_accounts,id'
-        ]);
-
-        $result = $this->closingService->transferIncomeToBank(
-            $income,
-            $request->bank_account_id
-        );
-
-        return response()->json($result, $result['success'] ? 200 : 400);
-    }
-
-    /**
      * Get untransferred incomes for a fiscal year
      */
     public function getUntransferredIncomes(FiscalYear $fiscalYear): JsonResponse

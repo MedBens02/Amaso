@@ -224,7 +224,6 @@ Route::prefix('v1')->group(function () {
     Route::get('fiscal-years/{fiscalYear}/closing-summary', [FiscalYearController::class, 'getClosingSummary']);
     Route::post('fiscal-years/{fiscalYear}/close', [FiscalYearController::class, 'closeFiscalYear']);
     Route::get('fiscal-years/{fiscalYear}/untransferred-incomes', [FiscalYearController::class, 'getUntransferredIncomes']);
-    Route::post('incomes/{income}/transfer', [FiscalYearController::class, 'transferIncome']);
 
     });
 

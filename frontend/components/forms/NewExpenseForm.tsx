@@ -202,6 +202,17 @@ const expenseSchema = z.object({
   return true
 }, {
   message: "يجب اختيار مستفيدين إذا كان المصروف مرتبط بالمستفيدين"
+}).refine((data) => {
+  // What was handed out has to equal what was spent, otherwise the
+  // per-beneficiary figures drift from the financial ones. Mirrors the
+  // server rule so the mismatch is caught before submitting.
+  if (data.unrelated_to_benef) return true
+
+  const allocated = (data.beneficiaries || []).reduce((sum, b) => sum + (Number(b.amount) || 0), 0)
+  return Math.abs(allocated - (Number(data.amount) || 0)) <= 0.01
+}, {
+  message: "مجموع مبالغ المستفيدين يجب أن يساوي مبلغ المصروف",
+  path: ["beneficiaries"],
 })
 
 type ExpenseFormData = z.infer<typeof expenseSchema>

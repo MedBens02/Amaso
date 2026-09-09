@@ -16,10 +16,19 @@ sponsorship budgets and the dashboard/report aggregations.
 | 5a | Closing loses un-deposited cash | **Fixed** — closing is blocked, and `canClose`/`getClosingSummary` report it, while approved Cash/Cheque income has not been transferred to a bank. |
 | 9 | Kafil payments vs. sponsorships never reconciled | **Largely addressed** — `incomes.widow_id` designates the family, and `KafalaChamilaService::familyBalances()` derives per-family credited/spent/remaining. See "Per-family kafala coverage" below. |
 
-Still open, in priority order: **#6** (no ledger — balances remain unverifiable and this is
-now the biggest structural gap), **#7** (client-side dashboard aggregates capped at 1,000
-rows), **#5b** (real cash-box account), **#8** (`donors.total_given` never written), **#10**
-(validation gaps, duplicate transfer-to-bank endpoints), and the two partial items noted above.
+| 6 | No ledger, balances unverifiable | **Fixed** — `bank_account_transactions` records every balance change (signed amount + `balance_after` + source + who), written by `LedgerService` inside the same transaction as the change. `php artisan finance:reconcile` recomputes each balance from the ledger and each donor total from approved incomes, exits non-zero on drift, and takes `--fix-donor-totals`. |
+| 8 | `donors.total_given` never written | **Fixed** — incremented on income approval; `finance:reconcile --fix-donor-totals` recomputes and backfills. |
+| 10 | Validation gaps | **Fixed** — an income must have exactly one of donor/kafil; beneficiary amounts must sum to the expense amount (server and form); the duplicate `POST incomes/{id}/transfer` endpoint and its service method are gone, leaving `transfer-to-bank`. |
+
+Still open, in priority order: **#7** (client-side dashboard aggregates capped at 1,000
+rows), **#5b** (real cash-box account), **#6.3** (void/unapprove writing reversal entries —
+now cheap to add on top of the ledger), and the two partial items noted above (transaction
+date within the fiscal year; group-with-all-members-excluded).
+
+**Reconciliation is only as old as the ledger.** Rows written before it existed have no
+history, so `finance:reconcile` infers each account's opening balance from its earliest
+ledger row. It verifies everything from that point on; it cannot vouch for balances as they
+stood before. Worth running after each deploy and on a schedule.
 
 ---
 

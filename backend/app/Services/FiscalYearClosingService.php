@@ -265,69 +265,6 @@ class FiscalYearClosingService
         return $this->getClosingSummary($fiscalYear);
     }
 
-    public function transferIncomeToBank(Income $income, int $bankAccountId): array
-    {
-        try {
-            if ($income->status !== 'Approved') {
-                return [
-                    'success' => false,
-                    'message' => 'يجب اعتماد الإيراد قبل التحويل'
-                ];
-            }
-
-            if (!in_array($income->payment_method, ['Cash', 'Cheque'])) {
-                return [
-                    'success' => false,
-                    'message' => 'يمكن تحويل الإيرادات النقدية وإيرادات الشيكات فقط'
-                ];
-            }
-
-            if ($income->transferred_at) {
-                return [
-                    'success' => false,
-                    'message' => 'تم تحويل هذا الإيراد مسبقاً'
-                ];
-            }
-
-            $bankAccount = BankAccount::find($bankAccountId);
-            if (!$bankAccount) {
-                return [
-                    'success' => false,
-                    'message' => 'الحساب المصرفي غير موجود'
-                ];
-            }
-
-            DB::beginTransaction();
-
-            // Update income with transfer details
-            $income->update([
-                'bank_account_id' => $bankAccountId,
-                'transferred_at' => now()
-            ]);
-
-            // Update bank account balance
-            $bankAccount->increment('balance', $income->amount);
-
-            DB::commit();
-
-            return [
-                'success' => true,
-                'message' => 'تم تحويل الإيراد بنجاح',
-                'transferredAmount' => $income->amount,
-                'bankAccount' => $bankAccount->label
-            ];
-
-        } catch (Exception $e) {
-            DB::rollBack();
-            report($e);
-
-            return [
-                'success' => false,
-                'message' => 'خطأ في تحويل الإيراد',
-            ];
-        }
-    }
-
     public function getUntransferredIncomes(FiscalYear $fiscalYear): Collection
     {
         return Income::where('fiscal_year_id', $fiscalYear->id)

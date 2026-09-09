@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\BusinessRuleException;
 use App\Models\BankAccount;
+use App\Models\BankAccountTransaction;
 use App\Models\BeneficiaryGroup;
 use App\Models\Expense;
 use App\Models\ExpenseBeneficiary;
@@ -11,6 +12,10 @@ use Illuminate\Support\Facades\DB;
 
 class ExpenseService
 {
+    public function __construct(private readonly LedgerService $ledger)
+    {
+    }
+
     public function create(array $data): Expense
     {
         return DB::transaction(function () use ($data) {
@@ -87,7 +92,13 @@ class ExpenseService
                     );
                 }
 
-                $account->decrement('balance', $locked->amount);
+                $this->ledger->record(
+                    $account,
+                    -(float) $locked->amount,
+                    BankAccountTransaction::SOURCE_EXPENSE,
+                    $locked->id,
+                    'اعتماد مصروف',
+                );
             }
 
             $locked->update([

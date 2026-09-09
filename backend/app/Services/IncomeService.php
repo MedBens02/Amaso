@@ -4,11 +4,17 @@ namespace App\Services;
 
 use App\Exceptions\BusinessRuleException;
 use App\Models\BankAccount;
+use App\Models\BankAccountTransaction;
+use App\Models\Donor;
 use App\Models\Income;
 use Illuminate\Support\Facades\DB;
 
 class IncomeService
 {
+    public function __construct(private readonly LedgerService $ledger)
+    {
+    }
+
     /**
      * Approve a draft income. BankWire incomes are credited to their bank
      * account immediately; Cash/Cheque incomes stay in the cash box until
@@ -34,8 +40,22 @@ class IncomeService
                 'approved_at' => now(),
             ]);
 
+            // Displayed on the donor card and in reports, so it has to track
+            // approvals rather than sitting at whatever it was imported as.
+            if ($locked->donor_id) {
+                Donor::whereKey($locked->donor_id)->increment('total_given', $locked->amount);
+            }
+
             if ($locked->payment_method === 'BankWire' && $locked->bank_account_id) {
-                BankAccount::whereKey($locked->bank_account_id)->increment('balance', $locked->amount);
+                $account = BankAccount::whereKey($locked->bank_account_id)->lockForUpdate()->firstOrFail();
+
+                $this->ledger->record(
+                    $account,
+                    (float) $locked->amount,
+                    BankAccountTransaction::SOURCE_INCOME,
+                    $locked->id,
+                    'اعتماد إيراد بحوالة بنكية',
+                );
             }
 
             return $locked;
@@ -75,7 +95,13 @@ class IncomeService
                     : $locked->remarks,
             ]);
 
-            $bankAccount->increment('balance', $locked->amount);
+            $this->ledger->record(
+                $bankAccount,
+                (float) $locked->amount,
+                BankAccountTransaction::SOURCE_INCOME_DEPOSIT,
+                $locked->id,
+                'إيداع إيراد نقدي/شيك في البنك',
+            );
 
             return $locked;
         });

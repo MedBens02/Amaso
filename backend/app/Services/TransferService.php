@@ -4,11 +4,16 @@ namespace App\Services;
 
 use App\Exceptions\BusinessRuleException;
 use App\Models\BankAccount;
+use App\Models\BankAccountTransaction;
 use App\Models\Transfer;
 use Illuminate\Support\Facades\DB;
 
 class TransferService
 {
+    public function __construct(private readonly LedgerService $ledger)
+    {
+    }
+
     /**
      * Approve a draft transfer and move the amount between the two accounts.
      */
@@ -33,8 +38,23 @@ class TransferService
                 throw new BusinessRuleException('الرصيد في الحساب المصدر غير كافي لاعتماد التحويل', 422);
             }
 
-            $fromAccount->decrement('balance', $locked->amount);
-            BankAccount::whereKey($locked->to_account_id)->increment('balance', $locked->amount);
+            $toAccount = BankAccount::findOrFail($locked->to_account_id);
+
+            $this->ledger->record(
+                $fromAccount,
+                -(float) $locked->amount,
+                BankAccountTransaction::SOURCE_TRANSFER_OUT,
+                $locked->id,
+                "تحويل إلى حساب \"{$toAccount->label}\"",
+            );
+
+            $this->ledger->record(
+                $toAccount,
+                (float) $locked->amount,
+                BankAccountTransaction::SOURCE_TRANSFER_IN,
+                $locked->id,
+                "تحويل من حساب \"{$fromAccount->label}\"",
+            );
 
             $updateData = [
                 'status' => 'Approved',

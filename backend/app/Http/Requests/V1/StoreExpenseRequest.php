@@ -96,6 +96,23 @@ class StoreExpenseRequest extends FormRequest
                 if (!$hasBeneficiaries && !$hasGroups) {
                     $validator->errors()->add('beneficiaries', 'يجب اختيار مستفيدين أو مجموعات مستفيدين إذا كان المصروف مرتبط بالمستفيدين');
                 }
+
+                // What was handed out has to equal what was spent, or the
+                // per-beneficiary reports drift from the financial ones and
+                // family balances are computed from an incomplete picture.
+                if ($hasBeneficiaries || $hasGroups) {
+                    $allocated = collect($this->input('beneficiaries', []))->sum(fn ($row) => (float) ($row['amount'] ?? 0))
+                        + collect($this->input('beneficiary_groups', []))->sum(fn ($row) => (float) ($row['amount'] ?? 0));
+
+                    $amount = (float) $this->input('amount');
+
+                    if (abs($allocated - $amount) > 0.01) {
+                        $validator->errors()->add(
+                            'beneficiaries',
+                            "مجموع مبالغ المستفيدين ({$allocated}) يجب أن يساوي مبلغ المصروف ({$amount})"
+                        );
+                    }
+                }
             }
         });
     }
