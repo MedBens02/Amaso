@@ -4,11 +4,7 @@ import React, { useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { FileText, Printer, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import {
-  exportDataToCSV,
-  formatDateForExport,
-  genderArabic
-} from "@/lib/export-utils"
+import { exportDataToCSV, formatDateForExport, genderArabic, printHeader, PRINT_HEADER_STYLES } from "@/lib/export-utils"
 
 interface Orphan {
   id: number
@@ -248,13 +244,11 @@ export function ExportOrphans({ orphanGroups, filters = {}, searchTerm }: Export
     @media print {
       body { padding: 0; }
     }
+    ${PRINT_HEADER_STYLES}
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>جمعية أماسو الخيرية</h1>
-    <h2>تقرير الأيتام</h2>
-  </div>
+  ${printHeader(`تقرير الأيتام`)}
 
   ${searchTerm || Object.keys(filters).length > 0 ? `
   <div class="filters">
@@ -448,10 +442,7 @@ export function ExportOrphans({ orphanGroups, filters = {}, searchTerm }: Export
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>جمعية أماسو الخيرية</h1>
-    <h2>قائمة الأيتام حسب الجنس والعمر</h2>
-  </div>
+  ${printHeader(`قائمة الأيتام حسب الجنس والعمر`)}
 
   <div class="summary">
     <div class="summary-card"><h3>إجمالي الأيتام</h3><p>${allOrphans.length}</p></div>

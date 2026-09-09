@@ -4,13 +4,7 @@ import React, { useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { FileText, Printer, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import {
-  exportDataToCSV,
-  formatDateForExport,
-  formatCurrency,
-  paymentMethodArabic,
-  statusArabic
-} from "@/lib/export-utils"
+import { exportDataToCSV, formatDateForExport, formatCurrency, paymentMethodArabic, statusArabic, printHeader, PRINT_HEADER_STYLES } from "@/lib/export-utils"
 
 interface Income {
   id: number
@@ -227,13 +221,11 @@ export function ExportIncomes({ incomes, filters = {}, searchTerm }: ExportIncom
       color: #666;
     }
     @media print { body { padding: 0; } }
+    ${PRINT_HEADER_STYLES}
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>جمعية أماسو الخيرية</h1>
-    <h2>تقرير الإيرادات</h2>
-  </div>
+  ${printHeader(`تقرير الإيرادات`)}
 
   <div class="summary">
     <div class="summary-card">

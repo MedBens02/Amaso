@@ -5,11 +5,7 @@ import { ReportDialog, ExportFormat, StatisticItem } from "../report-dialog"
 import { ReportFilters, FilterOption, useReportFilters } from "../report-filters"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
-import {
-  exportDataToCSV,
-  formatDateForExport,
-  formatCurrency
-} from "@/lib/export-utils"
+import { exportDataToCSV, formatDateForExport, formatCurrency, printHeader, PRINT_HEADER_STYLES } from "@/lib/export-utils"
 
 interface Donor {
   id: number
@@ -342,13 +338,11 @@ export function DonorsReportDialog({ open, onOpenChange }: DonorsReportDialogPro
       color: #666;
     }
     @media print { body { padding: 0; } }
+    ${PRINT_HEADER_STYLES}
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>جمعية أماسو الخيرية</h1>
-    <h2>تقرير الكفلاء والمتبرعين</h2>
-  </div>
+  ${printHeader(`تقرير الكفلاء والمتبرعين`)}
 
   <div class="summary">
     <div class="summary-card">

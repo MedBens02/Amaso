@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Printer, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { format } from "date-fns"
-import { formatCurrency, paymentMethodArabic, statusArabic } from "@/lib/export-utils"
+import { formatCurrency, paymentMethodArabic, statusArabic, printHeader, PRINT_HEADER_STYLES } from "@/lib/export-utils"
 import { formatDateForExport } from "@/lib/export-utils"
 
 interface Income {
@@ -244,15 +244,12 @@ export function DonationHistoryPrint({
         display: none;
       }
     }
+    ${PRINT_HEADER_STYLES}
   </style>
 </head>
 <body>
   <!-- Header -->
-  <div class="header">
-    <h1>جمعية أماسو الخيرية</h1>
-    <h2>كشف حساب المتبرع</h2>
-    <p style="font-size: 11px; color: #999;">نظام إدارة الجمعية</p>
-  </div>
+  ${printHeader(`كشف حساب المتبرع`, `نظام إدارة الجمعية`)}
 
   <!-- Donor Information -->
   <div class="donor-info">

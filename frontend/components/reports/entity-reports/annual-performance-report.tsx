@@ -5,11 +5,7 @@ import { ReportDialog, ExportFormat, StatisticItem } from "../report-dialog"
 import { ReportFilters, FilterOption, useReportFilters } from "../report-filters"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
-import {
-  exportDataToCSV,
-  formatDateForExport,
-  formatCurrency
-} from "@/lib/export-utils"
+import { exportDataToCSV, formatDateForExport, formatCurrency, printHeader, PRINT_HEADER_STYLES } from "@/lib/export-utils"
 
 interface AnnualPerformanceReportProps {
   open: boolean
@@ -364,13 +360,11 @@ export function AnnualPerformanceReport({ open, onOpenChange }: AnnualPerformanc
       body { padding: 0; }
       .section { page-break-inside: avoid; }
     }
+    ${PRINT_HEADER_STYLES}
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>جمعية أماسو الخيرية</h1>
-    <h2>تقرير الأداء السنوي - ${filters.fiscal_year || new Date().getFullYear()}</h2>
-  </div>
+  ${printHeader(`تقرير الأداء السنوي - ${filters.fiscal_year || new Date().getFullYear()}`)}
 
   <div class="executive-summary">
     <h3>الملخص التنفيذي</h3>

@@ -5,13 +5,7 @@ import { Button } from "@/components/ui/button"
 import { FileText, Printer, Loader2, FileDown } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { format } from "date-fns"
-import {
-  exportDataToCSV,
-  formatCurrency,
-  formatDateForExport,
-  paymentMethodArabic,
-  statusArabic
-} from "@/lib/export-utils"
+import { exportDataToCSV, formatCurrency, formatDateForExport, paymentMethodArabic, statusArabic, printHeader, PRINT_HEADER_STYLES } from "@/lib/export-utils"
 
 interface Donor {
   id: number
@@ -214,13 +208,11 @@ export function ExportDonors({ donors, filters = {}, searchTerm }: ExportDonorsP
     @media print {
       body { padding: 0; }
     }
+    ${PRINT_HEADER_STYLES}
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>جمعية أماسو الخيرية</h1>
-    <h2>تقرير المتبرعين والكفلاء</h2>
-  </div>
+  ${printHeader(`تقرير المتبرعين والكفلاء`)}
 
   ${searchTerm || Object.keys(filters).length > 0 ? `
   <div class="filters">
