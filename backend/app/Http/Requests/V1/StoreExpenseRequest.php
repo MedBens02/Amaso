@@ -3,6 +3,7 @@
 namespace App\Http\Requests\V1;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class StoreExpenseRequest extends FormRequest
@@ -15,8 +16,11 @@ class StoreExpenseRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'fiscal_year_id' => ['required', 'exists:fiscal_years,id'],
-            'sub_budget_id' => ['required', 'exists:sub_budgets,id'],
+            // Posting into a closed year would change totals whose carryover
+            // was already copied into the following year and is never
+            // recomputed - the books would stop adding up.
+            'fiscal_year_id' => ['required', Rule::exists('fiscal_years', 'id')->where('is_active', true)],
+            'budget_id' => ['required', 'exists:budgets,id'],
             'expense_category_id' => ['required', 'exists:expense_categories,id'],
             'partner_id' => ['nullable', 'exists:partners,id'],
             'expense_date' => ['required', 'date'],
@@ -45,9 +49,9 @@ class StoreExpenseRequest extends FormRequest
     {
         return [
             'fiscal_year_id.required' => 'السنة المالية مطلوبة',
-            'fiscal_year_id.exists' => 'السنة المالية غير موجودة',
-            'sub_budget_id.required' => 'الميزانية الفرعية مطلوبة',
-            'sub_budget_id.exists' => 'الميزانية الفرعية غير موجودة',
+            'fiscal_year_id.exists' => 'يجب تسجيل العملية في السنة المالية النشطة. لا يمكن الترحيل إلى سنة مغلقة.',
+            'budget_id.required' => 'الميزانية الفرعية مطلوبة',
+            'budget_id.exists' => 'الميزانية الفرعية غير موجودة',
             'expense_category_id.required' => 'فئة المصروف مطلوبة',
             'expense_category_id.exists' => 'فئة المصروف غير موجودة',
             'partner_id.exists' => 'الشريك غير موجود',
@@ -91,6 +95,23 @@ class StoreExpenseRequest extends FormRequest
 
                 if (!$hasBeneficiaries && !$hasGroups) {
                     $validator->errors()->add('beneficiaries', 'يجب اختيار مستفيدين أو مجموعات مستفيدين إذا كان المصروف مرتبط بالمستفيدين');
+                }
+
+                // What was handed out has to equal what was spent, or the
+                // per-beneficiary reports drift from the financial ones and
+                // family balances are computed from an incomplete picture.
+                if ($hasBeneficiaries || $hasGroups) {
+                    $allocated = collect($this->input('beneficiaries', []))->sum(fn ($row) => (float) ($row['amount'] ?? 0))
+                        + collect($this->input('beneficiary_groups', []))->sum(fn ($row) => (float) ($row['amount'] ?? 0));
+
+                    $amount = (float) $this->input('amount');
+
+                    if (abs($allocated - $amount) > 0.01) {
+                        $validator->errors()->add(
+                            'beneficiaries',
+                            "مجموع مبالغ المستفيدين ({$allocated}) يجب أن يساوي مبلغ المصروف ({$amount})"
+                        );
+                    }
                 }
             }
         });

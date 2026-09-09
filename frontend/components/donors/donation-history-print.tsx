@@ -20,7 +20,7 @@ interface Income {
   income_category?: {
     label: string
   }
-  sub_budget?: {
+  budget?: {
     label: string
   }
   fiscal_year?: {

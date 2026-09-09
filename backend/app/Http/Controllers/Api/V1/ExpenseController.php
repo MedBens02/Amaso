@@ -14,7 +14,7 @@ class ExpenseController extends Controller
 {
     private const RELATIONS = [
         'fiscalYear',
-        'subBudget',
+        'budget',
         'expenseCategory',
         'partner',
         'bankAccount',
@@ -32,7 +32,7 @@ class ExpenseController extends Controller
     {
         $query = Expense::with(self::RELATIONS)
             ->when($request->filled('fiscal_year_id'), fn ($q) => $q->where('fiscal_year_id', $request->fiscal_year_id))
-            ->when($request->filled('sub_budget_id'), fn ($q) => $q->where('sub_budget_id', $request->sub_budget_id))
+            ->when($request->filled('budget_id'), fn ($q) => $q->where('budget_id', $request->budget_id))
             ->when($request->filled('expense_category_id'), fn ($q) => $q->where('expense_category_id', $request->expense_category_id))
             ->when($request->filled('partner_id'), fn ($q) => $q->where('partner_id', $request->partner_id))
             ->when($request->filled('payment_method'), fn ($q) => $q->where('payment_method', $request->payment_method))
@@ -47,7 +47,7 @@ class ExpenseController extends Controller
                 $q->where('details', 'like', "%{$search}%")
                     ->orWhere('remarks', 'like', "%{$search}%")
                     ->orWhereHas('partner', fn ($partner) => $partner->where('name', 'like', "%{$search}%"))
-                    ->orWhereHas('subBudget', fn ($budget) => $budget->where('label', 'like', "%{$search}%"))
+                    ->orWhereHas('budget', fn ($budget) => $budget->where('label', 'like', "%{$search}%"))
                     ->orWhereHas('expenseCategory', fn ($category) => $category->where('label', 'like', "%{$search}%"));
             });
         }

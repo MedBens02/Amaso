@@ -12,7 +12,7 @@ class AccountingExpenseCategoryController extends Controller
 {
     public function index(): JsonResponse
     {
-        $categories = ExpenseCategory::with('subBudget')
+        $categories = ExpenseCategory::with('parent')
             ->where('id', '!=', ExpenseCategory::DELETED_CATEGORY_ID)
             ->orderBy('label')
             ->get();
@@ -23,7 +23,7 @@ class AccountingExpenseCategoryController extends Controller
     public function store(Request $request): JsonResponse
     {
         $category = ExpenseCategory::create($this->validateCategory($request));
-        $category->load('subBudget');
+        $category->load('parent');
 
         return response()->json([
             'message' => 'تم إنشاء فئة المصروف بنجاح',
@@ -34,7 +34,7 @@ class AccountingExpenseCategoryController extends Controller
     public function update(Request $request, ExpenseCategory $category): JsonResponse
     {
         $category->update($this->validateCategory($request));
-        $category->load('subBudget');
+        $category->load('parent');
 
         return response()->json([
             'message' => 'تم تحديث فئة المصروف بنجاح',
@@ -74,7 +74,8 @@ class AccountingExpenseCategoryController extends Controller
     {
         return $request->validate([
             'label' => ['required', 'string', 'max:255'],
-            'sub_budget_id' => ['required', 'integer', 'exists:sub_budgets,id'],
+            // Categories are independent of budgets now; parent_id nests them.
+            'parent_id' => ['nullable', 'integer', 'exists:expense_categories,id'],
         ]);
     }
 }

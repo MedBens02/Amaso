@@ -20,7 +20,7 @@ export default function ExpensesPage() {
   const [appliedFilters, setAppliedFilters] = useState<FilterValues>({})
   const [isExporting, setIsExporting] = useState(false)
   const { toast } = useToast()
-  const [subBudgets, setSubBudgets] = useState<any[]>([])
+  const [budgets, setBudgets] = useState<any[]>([])
   const [expenseCategories, setExpenseCategories] = useState<any[]>([])
   const [partners, setPartners] = useState<any[]>([])
   const [fiscalYears, setFiscalYears] = useState<any[]>([])
@@ -29,13 +29,13 @@ export default function ExpensesPage() {
   useEffect(() => {
     const loadReferenceData = async () => {
       try {
-        const [subBudgetsRes, categoriesRes, partnersRes, fiscalYearsRes] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'}/references/sub-budgets`).then(r => r.json()),
+        const [budgetsRes, categoriesRes, partnersRes, fiscalYearsRes] = await Promise.all([
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'}/references/budgets`).then(r => r.json()),
           fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'}/references/expense-categories`).then(r => r.json()),
           fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'}/references/partners`).then(r => r.json()),
           fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'}/fiscal-years`).then(r => r.json())
         ])
-        setSubBudgets(subBudgetsRes.data || [])
+        setBudgets(budgetsRes.data || [])
         setExpenseCategories(categoriesRes.data || [])
         setPartners(partnersRes.data || [])
         setFiscalYears(fiscalYearsRes.data || [])
@@ -49,9 +49,9 @@ export default function ExpensesPage() {
   // Helper to get readable filter labels
   const getFilterLabel = (type: string, value: string) => {
     switch (type) {
-      case 'subBudget':
-        const subBudget = subBudgets.find(sb => sb.id.toString() === value)
-        return subBudget ? subBudget.label : value
+      case 'budget':
+        const budget = budgets.find(sb => sb.id.toString() === value)
+        return budget ? budget.label : value
       case 'expenseCategory':
         const category = expenseCategories.find(cat => cat.id.toString() === value)
         return category ? category.label : value
@@ -96,8 +96,8 @@ export default function ExpensesPage() {
       if (appliedFilters.toDate) {
         params.append('to_date', appliedFilters.toDate.toISOString().split('T')[0])
       }
-      if (appliedFilters.subBudgetId) {
-        params.append('sub_budget_id', appliedFilters.subBudgetId)
+      if (appliedFilters.budgetId) {
+        params.append('budget_id', appliedFilters.budgetId)
       }
       if (appliedFilters.expenseCategoryId) {
         params.append('expense_category_id', appliedFilters.expenseCategoryId)
@@ -145,7 +145,7 @@ export default function ExpensesPage() {
         allExpenses = allExpenses.filter((expense: any) => (
           (expense.details && expense.details.toLowerCase().includes(searchLower)) ||
           (expense.remarks && expense.remarks.toLowerCase().includes(searchLower)) ||
-          (expense.sub_budget && expense.sub_budget.label && expense.sub_budget.label.toLowerCase().includes(searchLower)) ||
+          (expense.budget && expense.budget.label && expense.budget.label.toLowerCase().includes(searchLower)) ||
           (expense.expense_category && expense.expense_category.label && expense.expense_category.label.toLowerCase().includes(searchLower)) ||
           (expense.partner && expense.partner.name && expense.partner.name.toLowerCase().includes(searchLower))
         ))
@@ -200,7 +200,7 @@ export default function ExpensesPage() {
       'رقم المصروف',
       'التاريخ',
       'السنة المالية', 
-      'الميزانية الفرعية',
+      'الميزانية',
       'فئة المصروف',
       'الشريك',
       'التفاصيل',
@@ -230,7 +230,7 @@ export default function ExpensesPage() {
         const labelMap: { [key: string]: string } = {
           'fromDate': 'من تاريخ',
           'toDate': 'إلى تاريخ',
-          'subBudgetId': 'الميزانية الفرعية',
+          'budgetId': 'الميزانية',
           'expenseCategoryId': 'فئة المصروف',
           'partnerId': 'الشريك',
           'paymentMethod': 'طريقة الدفع',
@@ -272,7 +272,7 @@ export default function ExpensesPage() {
         escapeCSVField(expense.id || ''),
         escapeCSVField(expense.expense_date ? format(new Date(expense.expense_date), 'dd/MM/yyyy') : ''),
         escapeCSVField(expense.fiscal_year?.year || ''),
-        escapeCSVField(expense.sub_budget?.label || ''),
+        escapeCSVField(expense.budget?.label || ''),
         escapeCSVField(expense.expense_category?.label || ''),
         escapeCSVField(expense.partner?.name || 'لا يوجد'),
         escapeCSVField(expense.details || ''),
@@ -310,8 +310,8 @@ export default function ExpensesPage() {
       if (appliedFilters.toDate) {
         params.append('to_date', appliedFilters.toDate.toISOString().split('T')[0])
       }
-      if (appliedFilters.subBudgetId) {
-        params.append('sub_budget_id', appliedFilters.subBudgetId)
+      if (appliedFilters.budgetId) {
+        params.append('budget_id', appliedFilters.budgetId)
       }
       if (appliedFilters.expenseCategoryId) {
         params.append('expense_category_id', appliedFilters.expenseCategoryId)
@@ -362,13 +362,13 @@ export default function ExpensesPage() {
           expense.details?.toLowerCase().includes(searchLower) ||
           expense.remarks?.toLowerCase().includes(searchLower) ||
           expense.partner?.name?.toLowerCase().includes(searchLower) ||
-          expense.sub_budget?.label?.toLowerCase().includes(searchLower) ||
+          expense.budget?.label?.toLowerCase().includes(searchLower) ||
           expense.expense_category?.label?.toLowerCase().includes(searchLower)
         ))
       }
 
       // Create HTML report and print
-      generatePrintableReport(allExpenses, appliedFilters, searchTerm, { subBudgets, expenseCategories, partners, fiscalYears })
+      generatePrintableReport(allExpenses, appliedFilters, searchTerm, { budgets, expenseCategories, partners, fiscalYears })
       
     } catch (error) {
       console.error('Error generating print report:', error)
@@ -382,7 +382,7 @@ export default function ExpensesPage() {
     }
   }
 
-  const generatePrintableReport = (expenses: any[], filters: FilterValues, search: string, referenceData: { subBudgets: any[], expenseCategories: any[], partners: any[], fiscalYears: any[] }) => {
+  const generatePrintableReport = (expenses: any[], filters: FilterValues, search: string, referenceData: { budgets: any[], expenseCategories: any[], partners: any[], fiscalYears: any[] }) => {
     const currentDate = format(new Date(), 'yyyy-MM-dd HH:mm')
     const totalAmount = expenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0)
     
@@ -398,9 +398,9 @@ export default function ExpensesPage() {
       const fiscalYear = referenceData.fiscalYears.find(fy => fy.id.toString() === filters.fiscalYearId)
       filterElements.push(`<div>السنة المالية: ${fiscalYear ? fiscalYear.year : filters.fiscalYearId}</div>`)
     }
-    if (filters.subBudgetId) {
-      const subBudget = referenceData.subBudgets.find(sb => sb.id.toString() === filters.subBudgetId)
-      filterElements.push(`<div>الميزانية الفرعية: ${subBudget ? subBudget.label : filters.subBudgetId}</div>`)
+    if (filters.budgetId) {
+      const budget = referenceData.budgets.find(sb => sb.id.toString() === filters.budgetId)
+      filterElements.push(`<div>الميزانية: ${budget ? budget.label : filters.budgetId}</div>`)
     }
     if (filters.expenseCategoryId) {
       const expenseCategory = referenceData.expenseCategories.find(ec => ec.id.toString() === filters.expenseCategoryId)

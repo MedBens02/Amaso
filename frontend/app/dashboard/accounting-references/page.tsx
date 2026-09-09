@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ChevronRight,
   Lock,
+  Star,
   HandCoins,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
@@ -26,39 +27,34 @@ import { AccountingReferenceDialog } from "@/components/accounting/accounting-re
 import { isCurrentUserAdmin } from "@/lib/roles"
 import api from "@/lib/api"
 
-interface SubBudget {
+interface Budget {
   id: number
   label: string
+  is_default?: boolean
   created_at?: string
   updated_at?: string
 }
 
-interface IncomeCategory {
+interface Category {
   id: number
-  sub_budget_id: number
   label: string
-  subBudget?: SubBudget
+  parent_id?: number | null
+  parent?: { id: number; label: string } | null
   created_at?: string
   updated_at?: string
 }
 
-interface ExpenseCategory {
-  id: number
-  sub_budget_id: number
-  label: string
-  subBudget?: SubBudget
-  created_at?: string
-  updated_at?: string
-}
+type IncomeCategory = Category
+type ExpenseCategory = Category
 
 interface KafalaChamilaSplit {
   id: number
   key: string
   label: string
   percentage: string | number
-  sub_budget_id: number
+  budget_id: number
   income_category_id: number
-  sub_budget?: SubBudget
+  budget?: Budget
   income_category?: IncomeCategory
 }
 
@@ -67,21 +63,46 @@ interface KafalaChamilaBalance {
   key: string
   label: string
   percentage: string | number
-  sub_budget?: SubBudget
+  budget?: Budget
   income_category?: IncomeCategory
   total_income: number
   total_expense: number
   remaining: number
 }
 
+interface CategoryBranch {
+  root: Category
+  children: Category[]
+}
+
+/** Roots first, each with the children that nest under it. */
+function buildTree(categories: Category[]): CategoryBranch[] {
+  const present = new Set(categories.map((c) => c.id))
+  const parentOf = (c: Category) => c.parent_id ?? c.parent?.id ?? null
+
+  const roots = categories.filter((c) => {
+    const parentId = parentOf(c)
+    return parentId === null || !present.has(parentId)
+  })
+
+  return roots
+    .sort((a, b) => a.label.localeCompare(b.label, "ar"))
+    .map((root) => ({
+      root,
+      children: categories
+        .filter((c) => parentOf(c) === root.id)
+        .sort((a, b) => a.label.localeCompare(b.label, "ar")),
+    }))
+}
+
 export default function AccountingReferencesPage() {
-  const [subBudgets, setSubBudgets] = useState<SubBudget[]>([])
+  const [budgets, setBudgets] = useState<Budget[]>([])
   const [incomeCategories, setIncomeCategories] = useState<IncomeCategory[]>([])
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([])
   const [loading, setLoading] = useState(true)
 
   // Kafala chamila split percentages - a fixed 7-part structure whose
-  // sub-budgets/categories are locked against edit/delete everywhere else.
+  // budgets/categories are locked against edit/delete everywhere else.
   const [kafalaChamilaSplits, setKafalaChamilaSplits] = useState<KafalaChamilaSplit[]>([])
   const [kafalaChamilaDraft, setKafalaChamilaDraft] = useState<Record<number, string>>({})
   const [savingSplits, setSavingSplits] = useState(false)
@@ -89,8 +110,8 @@ export default function AccountingReferencesPage() {
   const [kafalaChamilaBalances, setKafalaChamilaBalances] = useState<KafalaChamilaBalance[]>([])
   const [loadingBalances, setLoadingBalances] = useState(true)
 
-  const lockedSubBudgetIds = useMemo(
-    () => new Set(kafalaChamilaSplits.map((s) => s.sub_budget_id)),
+  const lockedBudgetIds = useMemo(
+    () => new Set(kafalaChamilaSplits.map((s) => s.budget_id)),
     [kafalaChamilaSplits],
   )
   const lockedIncomeCategoryIds = useMemo(
@@ -104,7 +125,7 @@ export default function AccountingReferencesPage() {
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [dialogType, setDialogType] = useState<'sub-budget' | 'income-category' | 'expense-category'>('sub-budget')
+  const [dialogType, setDialogType] = useState<'budget' | 'income-category' | 'expense-category'>('budget')
   const [selectedItem, setSelectedItem] = useState<any>()
 
   const { toast } = useToast()
@@ -122,37 +143,19 @@ export default function AccountingReferencesPage() {
     )
   }, [expenseCategories, expenseCategorySearch])
 
-  const groupedIncomeCategories = useMemo(() => {
-    const grouped = new Map<number, { subBudget: SubBudget, categories: IncomeCategory[] }>()
-    
-    filteredIncomeCategories.forEach(category => {
-      const subBudget = subBudgets.find(sb => sb.id === category.sub_budget_id)
-      if (subBudget) {
-        if (!grouped.has(subBudget.id)) {
-          grouped.set(subBudget.id, { subBudget, categories: [] })
-        }
-        grouped.get(subBudget.id)!.categories.push(category)
-      }
-    })
-    
-    return Array.from(grouped.values()).sort((a, b) => a.subBudget.label.localeCompare(b.subBudget.label))
-  }, [filteredIncomeCategories, subBudgets])
+  // Categories no longer belong to a budget - they nest under each other, so
+  // the list is a one-level-deep tree of roots and their children. Anything
+  // whose parent was filtered out by the search is shown as its own root so
+  // it never silently disappears.
+  const incomeCategoryTree = useMemo(
+    () => buildTree(filteredIncomeCategories),
+    [filteredIncomeCategories],
+  )
 
-  const groupedExpenseCategories = useMemo(() => {
-    const grouped = new Map<number, { subBudget: SubBudget, categories: ExpenseCategory[] }>()
-    
-    filteredExpenseCategories.forEach(category => {
-      const subBudget = subBudgets.find(sb => sb.id === category.sub_budget_id)
-      if (subBudget) {
-        if (!grouped.has(subBudget.id)) {
-          grouped.set(subBudget.id, { subBudget, categories: [] })
-        }
-        grouped.get(subBudget.id)!.categories.push(category)
-      }
-    })
-    
-    return Array.from(grouped.values()).sort((a, b) => a.subBudget.label.localeCompare(b.subBudget.label))
-  }, [filteredExpenseCategories, subBudgets])
+  const expenseCategoryTree = useMemo(
+    () => buildTree(filteredExpenseCategories),
+    [filteredExpenseCategories],
+  )
 
   // Load reference data on mount
   useEffect(() => {
@@ -231,19 +234,19 @@ export default function AccountingReferencesPage() {
       
       // Load all accounting reference data from APIs
       const responses = await Promise.allSettled([
-        fetch(`${baseUrl}/sub-budgets`).then(res => res.ok ? res.json() : { data: [] }),
+        fetch(`${baseUrl}/budgets`).then(res => res.ok ? res.json() : { data: [] }),
         fetch(`${baseUrl}/income-categories`).then(res => res.ok ? res.json() : { data: [] }),
         fetch(`${baseUrl}/expense-categories`).then(res => res.ok ? res.json() : { data: [] })
       ])
 
       const [
-        subBudgetsResponse, 
+        budgetsResponse, 
         incomeCategoriesResponse, 
         expenseCategoriesResponse
       ] = responses
 
-      if (subBudgetsResponse.status === 'fulfilled') {
-        setSubBudgets(subBudgetsResponse.value.data || [])
+      if (budgetsResponse.status === 'fulfilled') {
+        setBudgets(budgetsResponse.value.data || [])
       }
       if (incomeCategoriesResponse.status === 'fulfilled') {
         setIncomeCategories(incomeCategoriesResponse.value.data || [])
@@ -263,13 +266,13 @@ export default function AccountingReferencesPage() {
     }
   }
 
-  const handleAddItem = (type: 'sub-budget' | 'income-category' | 'expense-category') => {
+  const handleAddItem = (type: 'budget' | 'income-category' | 'expense-category') => {
     setSelectedItem(undefined)
     setDialogType(type)
     setDialogOpen(true)
   }
 
-  const handleEditItem = (type: 'sub-budget' | 'income-category' | 'expense-category', item: any) => {
+  const handleEditItem = (type: 'budget' | 'income-category' | 'expense-category', item: any) => {
     setDialogType(type)
     setSelectedItem(item)
     setDialogOpen(true)
@@ -286,10 +289,34 @@ export default function AccountingReferencesPage() {
     }
   }
 
-  const handleDeleteItem = async (type: 'sub-budget' | 'income-category' | 'expense-category', id: number) => {
+  const handleSetDefaultBudget = async (budget: Budget) => {
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
+      const response = await fetch(`${baseUrl}/references/budgets/${budget.id}/default`, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+      })
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.message || 'تعذر تعيين الميزانية الافتراضية')
+      }
+
+      toast({ title: "تم", description: result.message })
+      loadReferenceData()
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "تعذر تعيين الميزانية الافتراضية",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteItem = async (type: 'budget' | 'income-category' | 'expense-category', id: number) => {
     try {
       const apiUrls = {
-        'sub-budget': 'references/sub-budgets',
+        'budget': 'references/budgets',
         'income-category': 'references/income-categories',
         'expense-category': 'references/expense-categories'
       }
@@ -358,43 +385,121 @@ export default function AccountingReferencesPage() {
     }
   }
 
-  const SubBudgetsTable = () => (
+  const CategoryTree = ({
+    branches,
+    accent,
+    isLocked,
+    onEdit,
+    onDelete,
+  }: {
+    branches: CategoryBranch[]
+    accent: 'green' | 'red'
+    isLocked: (category: Category) => boolean
+    onEdit: (category: Category) => void
+    onDelete: (category: Category) => void
+  }) => {
+    const badgeClass =
+      accent === 'green'
+        ? 'bg-green-50 text-green-700 border-green-200'
+        : 'bg-red-50 text-red-700 border-red-200'
+
+    const actions = (category: Category) =>
+      isLocked(category) ? (
+        <Badge variant="outline" className="gap-1 text-amber-700 border-amber-300 bg-amber-50">
+          <Lock className="h-3 w-3" />
+          كفالة شاملة (ثابت)
+        </Badge>
+      ) : (
+        <>
+          <Button variant="ghost" size="sm" onClick={() => onEdit(category)}>
+            <Edit2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-red-600 hover:text-red-700"
+            onClick={() => onDelete(category)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </>
+      )
+
+    return (
+      <div className="space-y-3">
+        {branches.map(({ root, children }) => (
+          <Collapsible key={root.id} defaultOpen>
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-2">
+                {children.length > 0 ? (
+                  <CollapsibleTrigger className="flex items-center gap-2 hover:opacity-70 transition-opacity">
+                    <ChevronDown className="h-4 w-4" />
+                    <span className="font-semibold text-gray-700">{root.label}</span>
+                    <Badge variant="outline" className={badgeClass}>
+                      {children.length} فئة فرعية
+                    </Badge>
+                  </CollapsibleTrigger>
+                ) : (
+                  <span className="font-semibold text-gray-700 pr-6">{root.label}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">{actions(root)}</div>
+            </div>
+            <CollapsibleContent className="mt-2 space-y-2">
+              {children.map((category) => (
+                <div
+                  key={category.id}
+                  className="flex items-center justify-between p-3 border rounded-lg mr-6 bg-white"
+                >
+                  <span className="font-medium">{category.label}</span>
+                  <div className="flex items-center gap-2">{actions(category)}</div>
+                </div>
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
+        ))}
+      </div>
+    )
+  }
+
+  const BudgetsTable = () => (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Database className="h-5 w-5" />
-            الميزانيات الفرعية
+            الميزانيات
           </div>
-          <Button size="sm" onClick={() => handleAddItem('sub-budget')}>
+          <Button size="sm" onClick={() => handleAddItem('budget')}>
             <Plus className="h-4 w-4 ml-2" />
-            إضافة ميزانية فرعية
+            إضافة ميزانية
           </Button>
         </CardTitle>
+        <p className="text-sm text-gray-500">
+          الميزانية هي الوعاء الذي يُخصم منه المصروف ويُضاف إليه الإيراد. الفئات تصنّف العملية فقط ولا ترتبط بميزانية بعينها.
+        </p>
       </CardHeader>
       <CardContent>
         {loading ? (
           <div className="text-center py-4">جاري التحميل...</div>
-        ) : subBudgets.length === 0 ? (
+        ) : budgets.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            لا توجد ميزانيات فرعية مضافة بعد
+            لا توجد ميزانيات مضافة بعد
           </div>
         ) : (
           <div className="space-y-2">
-            {subBudgets.map((subBudget) => {
-              const locked = lockedSubBudgetIds.has(subBudget.id)
+            {budgets.map((budget) => {
+              const locked = lockedBudgetIds.has(budget.id)
               return (
-              <div key={subBudget.id} className="flex items-center justify-between p-3 border rounded-lg">
+              <div key={budget.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center gap-3">
-                  <span className="font-medium">{subBudget.label}</span>
-                  <div className="flex gap-2">
-                    <Badge variant="outline">
-                      الإيرادات: {incomeCategories.filter(cat => cat.sub_budget_id === subBudget.id).length}
+                  <span className="font-medium">{budget.label}</span>
+                  {budget.is_default && (
+                    <Badge variant="outline" className="gap-1 text-blue-700 border-blue-300 bg-blue-50">
+                      <Star className="h-3 w-3" />
+                      افتراضية
                     </Badge>
-                    <Badge variant="outline">
-                      المصروفات: {expenseCategories.filter(cat => cat.sub_budget_id === subBudget.id).length}
-                    </Badge>
-                  </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {locked ? (
@@ -404,14 +509,25 @@ export default function AccountingReferencesPage() {
                     </Badge>
                   ) : (
                     <>
-                      <Button variant="ghost" size="sm" onClick={() => handleEditItem('sub-budget', subBudget)}>
+                      {!budget.is_default && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-blue-600 hover:text-blue-700"
+                          onClick={() => handleSetDefaultBudget(budget)}
+                          title="تعيين كميزانية افتراضية"
+                        >
+                          <Star className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => handleEditItem('budget', budget)}>
                         <Edit2 className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         className="text-red-600 hover:text-red-700"
-                        onClick={() => handleDeleteItem('sub-budget', subBudget.id)}
+                        onClick={() => handleDeleteItem('budget', budget.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -456,60 +572,18 @@ export default function AccountingReferencesPage() {
         
         {loading ? (
           <div className="text-center py-4">جاري التحميل...</div>
-        ) : groupedIncomeCategories.length === 0 ? (
+        ) : incomeCategoryTree.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             {incomeCategorySearch ? "لم يتم العثور على فئات إيرادات تطابق البحث" : "لا توجد فئات إيرادات مضافة بعد"}
           </div>
         ) : (
-          <div className="space-y-4">
-            {groupedIncomeCategories.map(({ subBudget, categories }) => (
-              <Collapsible key={subBudget.id} defaultOpen>
-                <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                  <div className="flex items-center gap-2">
-                    <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
-                    <span className="font-semibold text-gray-700">{subBudget.label}</span>
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                      {categories.length} فئة
-                    </Badge>
-                  </div>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="mt-2 space-y-2">
-                  {categories.map((category) => {
-                    const locked = lockedIncomeCategoryIds.has(category.id)
-                    return (
-                    <div key={category.id} className="flex items-center justify-between p-3 border rounded-lg ml-6 bg-white">
-                      <div className="flex items-center gap-3">
-                        <span className="font-medium">{category.label}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {locked ? (
-                          <Badge variant="outline" className="gap-1 text-amber-700 border-amber-300 bg-amber-50">
-                            <Lock className="h-3 w-3" />
-                            كفالة شاملة (ثابت)
-                          </Badge>
-                        ) : (
-                          <>
-                            <Button variant="ghost" size="sm" onClick={() => handleEditItem('income-category', category)}>
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-red-600 hover:text-red-700"
-                              onClick={() => handleDeleteItem('income-category', category.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    )
-                  })}
-                </CollapsibleContent>
-              </Collapsible>
-            ))}
-          </div>
+          <CategoryTree
+            branches={incomeCategoryTree}
+            accent="green"
+            isLocked={(category) => lockedIncomeCategoryIds.has(category.id)}
+            onEdit={(category) => handleEditItem('income-category', category)}
+            onDelete={(category) => handleDeleteItem('income-category', category.id)}
+          />
         )}
       </CardContent>
     </Card>
@@ -544,48 +618,18 @@ export default function AccountingReferencesPage() {
         
         {loading ? (
           <div className="text-center py-4">جاري التحميل...</div>
-        ) : groupedExpenseCategories.length === 0 ? (
+        ) : expenseCategoryTree.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             {expenseCategorySearch ? "لم يتم العثور على فئات مصروفات تطابق البحث" : "لا توجد فئات مصروفات مضافة بعد"}
           </div>
         ) : (
-          <div className="space-y-4">
-            {groupedExpenseCategories.map(({ subBudget, categories }) => (
-              <Collapsible key={subBudget.id} defaultOpen>
-                <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                  <div className="flex items-center gap-2">
-                    <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
-                    <span className="font-semibold text-gray-700">{subBudget.label}</span>
-                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                      {categories.length} فئة
-                    </Badge>
-                  </div>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="mt-2 space-y-2">
-                  {categories.map((category) => (
-                    <div key={category.id} className="flex items-center justify-between p-3 border rounded-lg ml-6 bg-white">
-                      <div className="flex items-center gap-3">
-                        <span className="font-medium">{category.label}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleEditItem('expense-category', category)}>
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-red-600 hover:text-red-700" 
-                          onClick={() => handleDeleteItem('expense-category', category.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </CollapsibleContent>
-              </Collapsible>
-            ))}
-          </div>
+          <CategoryTree
+            branches={expenseCategoryTree}
+            accent="red"
+            isLocked={() => false}
+            onEdit={(category) => handleEditItem('expense-category', category)}
+            onDelete={(category) => handleDeleteItem('expense-category', category.id)}
+          />
         )}
       </CardContent>
     </Card>
@@ -619,7 +663,7 @@ export default function AccountingReferencesPage() {
       <CardContent>
         <p className="text-sm text-gray-600 mb-4">
           كل بند رصيد واحد مشترك بين جميع الكفلاء (ليس رصيداً خاصاً بكفيل أو بأسرة معينة): مجموع الإيرادات المعتمدة
-          الموجهة إلى ميزانيته الفرعية ناقص مجموع المصروفات المعتمدة منها. عند تسجيل كفالة شاملة، المبلغ يُوزَّع على
+          الموجهة إلى ميزانيته ناقص مجموع المصروفات المعتمدة منها. عند تسجيل كفالة شاملة، المبلغ يُوزَّع على
           هذه الميزانيات المشتركة نفسها بغض النظر عن الأسرة أو الكفيل.
         </p>
 
@@ -634,7 +678,7 @@ export default function AccountingReferencesPage() {
                 <div>
                   <span className="font-medium">{balance.label}</span>
                   <span className="text-xs text-gray-500 block">
-                    {balance.sub_budget?.label} ← {balance.income_category?.label}
+                    {balance.budget?.label} ← {balance.income_category?.label}
                   </span>
                 </div>
                 <div className="flex items-center gap-4 text-sm">
@@ -693,7 +737,7 @@ export default function AccountingReferencesPage() {
       </CardHeader>
       <CardContent>
         <p className="text-sm text-gray-600 mb-4">
-          كفالة شاملة (800 د.م افتراضياً) تُقسّم دائماً على هذه البنود السبعة الثابتة، وكل بند مرتبط بميزانية فرعية وفئة إيراد مقفلتين لا يمكن حذفهما أو تعديلهما.
+          كفالة شاملة (800 د.م افتراضياً) تُقسّم دائماً على هذه البنود السبعة الثابتة، وكل بند مرتبط بميزانية وفئة إيراد مقفلتين لا يمكن حذفهما أو تعديلهما.
           {isAdmin ? " يمكنك تعديل النسب أدناه بشرط أن يبقى مجموعها 100%." : " تعديل النسب مقتصر على المديرين."}
         </p>
 
@@ -708,7 +752,7 @@ export default function AccountingReferencesPage() {
                 <div>
                   <span className="font-medium">{split.label}</span>
                   <span className="text-xs text-gray-500 block">
-                    {split.sub_budget?.label} ← {split.income_category?.label}
+                    {split.budget?.label} ← {split.income_category?.label}
                   </span>
                 </div>
                 {isAdmin ? (
@@ -751,14 +795,14 @@ export default function AccountingReferencesPage() {
           <Calculator className="h-8 w-8" />
           المراجع المحاسبية
         </h1>
-        <p className="text-gray-600 mt-2">إدارة الميزانيات الفرعية وفئات الإيرادات والمصروفات</p>
+        <p className="text-gray-600 mt-2">إدارة الميزانيات وفئات الإيرادات والمصروفات</p>
       </div>
 
-      <Tabs defaultValue="sub-budgets" className="space-y-6">
+      <Tabs defaultValue="budgets" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="sub-budgets" className="flex items-center gap-2">
+          <TabsTrigger value="budgets" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
-            الميزانيات الفرعية
+            الميزانيات
           </TabsTrigger>
           <TabsTrigger value="income-categories" className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
@@ -774,8 +818,8 @@ export default function AccountingReferencesPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="sub-budgets">
-          <SubBudgetsTable />
+        <TabsContent value="budgets">
+          <BudgetsTable />
         </TabsContent>
 
         <TabsContent value="income-categories">

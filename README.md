@@ -44,15 +44,18 @@ Amaso is a complete management system designed specifically for charitable organ
 - **Financial Reporting**: Comprehensive financial reports and analytics
 
 ### 📊 **Accounting & Budgeting**
-- **Sub-Budget System**: Hierarchical budget categories and tracking
-- **Chart of Accounts**: Complete accounting structure with income/expense categories
+- **Budgets**: Named funds money is booked into and spent out of, one of them the default; the seven kafala chamila budgets are fixed and cannot be edited or deleted
+- **Chart of Accounts**: Income/expense categories that classify a transaction, nestable one level deep and independent of the budget it hits
 - **Approval Workflows**: Multi-level approval system for financial transactions
 - **Budget Monitoring**: Real-time budget utilization tracking
 - **Financial Controls**: Validation rules and spending limits
 
 ### 🏫 **Educational Services**
 - **Education Level Tracking**: Comprehensive academic progress monitoring
-- **School Information**: Educational institution tracking and records
+- **School Information**: Institutions carry their stage (school vs. university) and sector (public/private, AMASO-partnered)
+- **Enrollments**: One record per student per academic year — level, institution, specialty, result — opened from the family form and promoted by the year-end rollover
+- **Semester Grades**: Both semesters recorded per enrollment on a per-enrollment scale (out of 20 by default), with the year's average derived from them
+- **School Performance Report**: Students ranked by percentage, filterable by gender, academic year, level, institution, public/private, higher education and top N — for excellence awards
 - **Academic Support**: Educational assistance and scholarship management
 
 ### 👨‍👩‍👧‍👦 **Beneficiary Groups**
@@ -113,14 +116,17 @@ Core Tables (45 total):
 │   ├── bank_accounts (الحسابات البنكية)
 │   └── fiscal_years (السنوات المالية)
 ├── Accounting Structure
-│   ├── sub_budgets (الميزانيات الفرعية)
+│   ├── budgets (الميزانيات)
 │   ├── income_categories (فئات الإيرادات)
 │   ├── expense_categories (فئات المصروفات)
 │   └── expense_beneficiaries (مستفيدي المصروفات)
 ├── Groups & Education
 │   ├── beneficiary_groups (مجموعات المستفيدين)
 │   ├── beneficiary_group_members (أعضاء المجموعات)
-│   └── orphans_education_levels (مستويات التعليم)
+│   ├── orphans_education_levels (مستويات التعليم)
+│   ├── schools (المؤسسات التعليمية)
+│   ├── academic_years (السنوات الدراسية)
+│   └── orphan_enrollments (التسجيلات — بنقط الأسدسين)
 └── Reference Data
     ├── skills (المهارات)
     ├── illnesses (الأمراض) 
@@ -302,13 +308,16 @@ GET    /api/v1/references/skills           # Skills reference
 GET    /api/v1/references/illnesses        # Illnesses reference
 GET    /api/v1/references/aid-types        # Aid types reference
 GET    /api/v1/references/education-levels # Education levels
+GET    /api/v1/enrollments                 # Enrollments for an academic year
+POST   /api/v1/enrollments/grades          # Bulk semester-grade entry
+GET    /api/v1/reports/school-performance  # Ranked school performance
 GET    /api/v1/references/partners         # Partner organizations
 ```
 
 #### Accounting & Configuration  
 ```http
 GET    /api/v1/fiscal-years          # Fiscal year periods
-GET    /api/v1/sub-budgets           # Budget categories
+GET    /api/v1/budgets               # Budgets (funds)
 GET    /api/v1/income-categories     # Income classifications
 GET    /api/v1/expense-categories    # Expense classifications
 GET    /api/v1/bank-accounts         # Bank account list

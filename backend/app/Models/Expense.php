@@ -13,7 +13,7 @@ class Expense extends Model
 
     protected $fillable = [
         'fiscal_year_id',
-        'sub_budget_id',
+        'budget_id',
         'expense_category_id',
         'partner_id',
         'details',
@@ -43,9 +43,9 @@ class Expense extends Model
         return $this->belongsTo(FiscalYear::class);
     }
 
-    public function subBudget(): BelongsTo
+    public function budget(): BelongsTo
     {
-        return $this->belongsTo(SubBudget::class);
+        return $this->belongsTo(Budget::class);
     }
 
     public function expenseCategory(): BelongsTo

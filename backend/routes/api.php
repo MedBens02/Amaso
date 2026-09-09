@@ -73,11 +73,13 @@ Route::prefix('v1')->group(function () {
     // Kafala Chamila (comprehensive sponsorship) split
     Route::get('kafala-chamila/splits', [KafalaChamilaController::class, 'splits']);
     Route::get('kafala-chamila/balances', [KafalaChamilaController::class, 'balances']);
+    Route::get('kafala-chamila/family-balances', [KafalaChamilaController::class, 'familyBalances']);
     Route::put('kafala-chamila/splits', [KafalaChamilaController::class, 'updateSplits']);
     Route::post('kafala-chamila/incomes', [KafalaChamilaController::class, 'storeIncome']);
 
     // Reports
     Route::get('reports/kafils/{kafil}/statement', [ReportController::class, 'kafilStatement']);
+    Route::get('reports/school-performance', [ReportController::class, 'schoolPerformance']);
 
     // Expenses CRUD + approval
     Route::apiResource('expenses', ExpenseController::class);
@@ -99,6 +101,7 @@ Route::prefix('v1')->group(function () {
     Route::get('academic-years', [AcademicYearController::class, 'index']);
     Route::post('academic-years', [AcademicYearController::class, 'store']);
     Route::post('academic-years/rollover', [AcademicYearController::class, 'rollover']);
+    Route::post('enrollments/grades', [EnrollmentController::class, 'storeGrades']);
     Route::apiResource('enrollments', EnrollmentController::class)->except(['show'])
         ->parameters(['enrollments' => 'enrollment']);
 
@@ -109,15 +112,15 @@ Route::prefix('v1')->group(function () {
         ]);
     });
 
-    Route::get('sub-budgets', function () {
+    Route::get('budgets', function () {
         return response()->json([
-            'data' => \App\Models\SubBudget::orderBy('label')->get(),
+            'data' => \App\Models\Budget::orderByDesc('is_default')->orderBy('label')->get(),
         ]);
     });
 
     Route::get('income-categories', function () {
         return response()->json([
-            'data' => \App\Models\IncomeCategory::with('subBudget')
+            'data' => \App\Models\IncomeCategory::with('parent')
                 ->where('id', '!=', \App\Models\IncomeCategory::DELETED_CATEGORY_ID)
                 ->orderBy('label')
                 ->get(),
@@ -126,7 +129,7 @@ Route::prefix('v1')->group(function () {
 
     Route::get('expense-categories', function () {
         return response()->json([
-            'data' => \App\Models\ExpenseCategory::with('subBudget')
+            'data' => \App\Models\ExpenseCategory::with('parent')
                 ->where('id', '!=', \App\Models\ExpenseCategory::DELETED_CATEGORY_ID)
                 ->orderBy('label')
                 ->get(),
@@ -199,10 +202,11 @@ Route::prefix('v1')->group(function () {
         Route::post('education-levels/reorder', [References\EducationLevelController::class, 'reorder']);
 
         // Sub-Budgets
-        Route::get('sub-budgets', [References\SubBudgetController::class, 'index']);
-        Route::post('sub-budgets', [References\SubBudgetController::class, 'store']);
-        Route::put('sub-budgets/{subBudget}', [References\SubBudgetController::class, 'update']);
-        Route::delete('sub-budgets/{subBudget}', [References\SubBudgetController::class, 'destroy']);
+        Route::get('budgets', [References\BudgetController::class, 'index']);
+        Route::post('budgets', [References\BudgetController::class, 'store']);
+        Route::put('budgets/{budget}', [References\BudgetController::class, 'update']);
+        Route::delete('budgets/{budget}', [References\BudgetController::class, 'destroy']);
+        Route::post('budgets/{budget}/default', [References\BudgetController::class, 'setDefault']);
 
         // Widow Income Categories
         Route::get('widow-income-categories', [References\WidowIncomeCategoryController::class, 'index']);
@@ -223,7 +227,6 @@ Route::prefix('v1')->group(function () {
     Route::get('fiscal-years/{fiscalYear}/closing-summary', [FiscalYearController::class, 'getClosingSummary']);
     Route::post('fiscal-years/{fiscalYear}/close', [FiscalYearController::class, 'closeFiscalYear']);
     Route::get('fiscal-years/{fiscalYear}/untransferred-incomes', [FiscalYearController::class, 'getUntransferredIncomes']);
-    Route::post('incomes/{income}/transfer', [FiscalYearController::class, 'transferIncome']);
 
     });
 

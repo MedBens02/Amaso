@@ -5,10 +5,86 @@
 transfer, expense approval, inter-account transfers, fiscal-year closing, the cash view,
 sponsorship budgets and the dashboard/report aggregations.
 
-**Status of the code today:** the controller refactor (services + form requests) deliberately
-kept all money behavior *identical* to the original code so the diff stays reviewable.
-None of the issues below have been fixed yet — this document is the proposal for how to
-fix them, in order of priority.
+**Status of the code today:** Phase A is **done** (2026-09-08), plus #5a. What changed:
+
+| # | Issue | Status |
+|---|-------|--------|
+| 1 | Concurrent approval double-spends | **Fixed** — `lockForUpdate()` + re-check inside the transaction in `IncomeService::approve`, `IncomeService::transferToBank`, `ExpenseService::approve`, `TransferService::approve`. Transfers lock both accounts in sorted id order to avoid deadlocking opposite-direction transfers. |
+| 2 | Expense approval: non-atomic write, no funds check | **Fixed** — locks the account, refuses on insufficient funds, uses `decrement()`. |
+| 3 | Posting into closed fiscal years | **Fixed** — all four financial form requests now require the fiscal year to be `is_active`. (The *date within the year* half is still open.) |
+| 4 | Group split loses cents | **Fixed** — whole-cent division with remainder distribution, so member rows sum to the group amount exactly. (The `sum(beneficiaries) == expense.amount` server rule is still open.) |
+| 5a | Closing loses un-deposited cash | **Fixed** — closing is blocked, and `canClose`/`getClosingSummary` report it, while approved Cash/Cheque income has not been transferred to a bank. |
+| 9 | Kafil payments vs. sponsorships never reconciled | **Largely addressed** — `incomes.widow_id` designates the family, and `KafalaChamilaService::familyBalances()` derives per-family credited/spent/remaining. See "Per-family kafala coverage" below. |
+
+| 6 | No ledger, balances unverifiable | **Fixed** — `bank_account_transactions` records every balance change (signed amount + `balance_after` + source + who), written by `LedgerService` inside the same transaction as the change. `php artisan finance:reconcile` recomputes each balance from the ledger and each donor total from approved incomes, exits non-zero on drift, and takes `--fix-donor-totals`. |
+| 8 | `donors.total_given` never written | **Fixed** — incremented on income approval; `finance:reconcile --fix-donor-totals` recomputes and backfills. |
+| 10 | Validation gaps | **Fixed** — an income must have exactly one of donor/kafil; beneficiary amounts must sum to the expense amount (server and form); the duplicate `POST incomes/{id}/transfer` endpoint and its service method are gone, leaving `transfer-to-bank`. |
+
+Still open, in priority order: **#7** (client-side dashboard aggregates capped at 1,000
+rows), **#5b** (real cash-box account), **#6.3** (void/unapprove writing reversal entries —
+now cheap to add on top of the ledger), and the two partial items noted above (transaction
+date within the fiscal year; group-with-all-members-excluded).
+
+**Reconciliation is only as old as the ledger.** Rows written before it existed have no
+history, so `finance:reconcile` infers each account's opening balance from its earliest
+ledger row. It verifies everything from that point on; it cannot vouch for balances as they
+stood before. Worth running after each deploy and on a schedule.
+
+---
+
+## Per-family kafala coverage (added 2026-09-08)
+
+The kafala chamila pools are shared across all kafils, which raised a fair objection: a kafil
+paying 1,600/month for families A and B should not silently fund family C, whose kafil has not
+paid. This is now visible without breaking the pooling model:
+
+- **Nothing is siloed.** There is no per-family wallet, no second ledger, no new table. The
+  seven kafala chamila budgets remain the only record of the money.
+- **The balance is derived**, per family and per part: approved income designated to that
+  family (`incomes.widow_id`) minus approved expenses attributed to that family — the widow or
+  any of her orphans — out of the same budget.
+- **Designation is now required** when the kafil sponsors families, and must be one of *their*
+  families, so a payment can no longer land in the pools unattributed.
+- **Spending beyond a family's share is warned about, never blocked.** The expense form shows
+  the pool balance and the family's balance side by side and, when the allocation exceeds what
+  the family brought in, says plainly that the difference comes out of the pool other kafils
+  funded. Topping a family up from the pool is a legitimate act; it just should not be an
+  invisible one.
+
+Gap found and fixed while building this: the seeder created an income category per part but no
+**expense** category, so the pools could take money in and never pay anything out.
+
+---
+
+## Budgets separated from categories (added 2026-09-09)
+
+`sub_budgets` was doing two unrelated jobs: it was the fund a transaction's money belonged to,
+*and* the bucket every income/expense category was filed under. Because categories were owned by
+a sub-budget, the transaction forms could only offer categories belonging to the chosen fund —
+so a perfectly ordinary pairing (spend from the health fund, classify it as school fees) was
+structurally impossible, and the kafala chamila pools were unspendable until a matching set of
+categories was created under each of them.
+
+The two notions are now separate, which is the standard fund-accounting split:
+
+- **Budget** (`budgets`, renamed from `sub_budgets`) — *where the money is*. Every income and
+  expense names exactly one. `budgets.is_default` marks the one the forms preselect
+  (`الميزانية العامة`); users can add their own. A kafala chamila budget can never be made the
+  default, since those are fed by the split rules alone.
+- **Category** (`income_categories` / `expense_categories`) — *what the money was for*. No budget
+  link at all; a `parent_id` lets categories nest one level for grouping. Any category can be
+  paired with any budget.
+
+What this deliberately does **not** change:
+
+- The per-family kafala balance keys entirely on `budget_id`, never on categories, so the
+  derived balances and the overspend warning are unaffected.
+- The kafil statement still reports contributions by budget and *received* by category — both
+  survive because both concepts still exist, just separately.
+- The seven kafala chamila budgets stay locked against edit and delete.
+
+The migration renames the table and the `sub_budget_id` columns in place and drops the
+category→budget foreign key, so existing rows keep their fund assignment exactly as booked.
 
 ---
 

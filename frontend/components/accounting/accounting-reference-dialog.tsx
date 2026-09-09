@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { useForm, Controller } from "react-hook-form"
+import { useForm, Controller, type Resolver } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import {
@@ -18,39 +18,48 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 
-interface SubBudget {
+interface Category {
   id: number
   label: string
+  parent_id?: number | null
+  parent?: { id: number; label: string } | null
 }
 
 interface AccountingReferenceDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  type: 'sub-budget' | 'income-category' | 'expense-category'
+  type: 'budget' | 'income-category' | 'expense-category'
   item?: any
   onSuccess: () => void
 }
 
 const getTitle = (type: string) => {
   const titles = {
-    'sub-budget': 'الميزانية الفرعية',
+    'budget': 'الميزانية',
     'income-category': 'فئة الإيراد',
     'expense-category': 'فئة المصروف'
   }
   return titles[type as keyof typeof titles] || 'العنصر'
 }
 
+interface ReferenceFormValues {
+  label: string
+  parent_id?: number | null
+}
+
 const getSchema = (type: string) => {
-  if (type === 'sub-budget') {
+  if (type === 'budget') {
     return z.object({
-      label: z.string().min(1, "اسم الميزانية الفرعية مطلوب"),
+      label: z.string().min(1, "اسم الميزانية مطلوب"),
     })
   }
 
   if (type === 'income-category' || type === 'expense-category') {
+    // Categories classify, budgets hold the money - a category has no budget,
+    // only an optional parent category it nests under.
     return z.object({
       label: z.string().min(1, "اسم الفئة مطلوب"),
-      sub_budget_id: z.number().min(1, "يجب اختيار الميزانية الفرعية"),
+      parent_id: z.number().nullable().optional(),
     })
   }
 
@@ -62,37 +71,38 @@ const getSchema = (type: string) => {
 
 export function AccountingReferenceDialog({ open, onOpenChange, type, item, onSuccess }: AccountingReferenceDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [subBudgets, setSubBudgets] = useState<SubBudget[]>([])
+  const [parentOptions, setParentOptions] = useState<Category[]>([])
   const { toast } = useToast()
   const title = getTitle(type)
   const isEdit = !!item
 
-  const form = useForm({
-    resolver: zodResolver(getSchema(type)),
+  const form = useForm<ReferenceFormValues>({
+    resolver: zodResolver(getSchema(type)) as Resolver<ReferenceFormValues>,
     defaultValues: {
       label: item?.label || "",
-      sub_budget_id: item?.sub_budget_id || 0,
+      parent_id: item?.parent_id ?? null,
     },
   })
 
-  // Load sub-budgets for categories
+  // Load the sibling categories that could serve as a parent
   useEffect(() => {
     if (type === 'income-category' || type === 'expense-category') {
-      loadSubBudgets()
+      loadParentOptions()
     }
   }, [type])
 
-  const loadSubBudgets = async () => {
+  const loadParentOptions = async () => {
     try {
       const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
-      const response = await fetch(`${baseUrl}/sub-budgets`)
-      
+      const endpoint = type === 'income-category' ? 'income-categories' : 'expense-categories'
+      const response = await fetch(`${baseUrl}/${endpoint}`, { headers: { Accept: 'application/json' } })
+
       if (response.ok) {
         const result = await response.json()
-        setSubBudgets(result.data || [])
+        setParentOptions(result.data || [])
       }
     } catch (error) {
-      console.error('Error loading sub-budgets:', error)
+      console.error('Error loading parent categories:', error)
     }
   }
 
@@ -101,12 +111,12 @@ export function AccountingReferenceDialog({ open, onOpenChange, type, item, onSu
     if (item) {
       form.reset({
         label: item.label || "",
-        sub_budget_id: item.sub_budget_id || 0,
+        parent_id: item.parent_id ?? null,
       })
     } else {
       form.reset({
         label: "",
-        sub_budget_id: 0,
+        parent_id: null,
       })
     }
   }, [item, form])
@@ -116,12 +126,11 @@ export function AccountingReferenceDialog({ open, onOpenChange, type, item, onSu
     console.log('Type:', type)
     console.log('Form data:', data)
     console.log('Form errors:', form.formState.errors)
-    console.log('Sub budgets loaded:', subBudgets)
     
     setIsSubmitting(true)
     try {
       const apiUrls = {
-        'sub-budget': 'references/sub-budgets',
+        'budget': 'references/budgets',
         'income-category': 'references/income-categories',
         'expense-category': 'references/expense-categories'
       }
@@ -193,14 +202,14 @@ export function AccountingReferenceDialog({ open, onOpenChange, type, item, onSu
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="label">
-              {type === 'sub-budget' ? 'اسم الميزانية الفرعية' : 'اسم الفئة'} *
+              {type === 'budget' ? 'اسم الميزانية' : 'اسم الفئة'} *
             </Label>
             <Input
               id="label"
               {...form.register('label')}
               placeholder={
-                type === 'sub-budget' 
-                  ? "مثال: الرعاية الصحية، التعليم والتدريب"
+                type === 'budget' 
+                  ? "مثال: صندوق العمليات الجراحية، قافلة طبية 2026"
                   : "مثال: تبرعات للرعاية الصحية، أدوية ومستلزمات طبية"
               }
             />
@@ -211,31 +220,36 @@ export function AccountingReferenceDialog({ open, onOpenChange, type, item, onSu
 
           {(type === 'income-category' || type === 'expense-category') && (
             <div className="space-y-2">
-              <Label htmlFor="sub_budget_id">الميزانية الفرعية *</Label>
+              <Label htmlFor="parent_id">الفئة الأم</Label>
               <Controller
                 control={form.control}
-                name="sub_budget_id"
+                name="parent_id"
                 render={({ field }) => (
-                  <Select 
-                    value={field.value && field.value > 0 ? field.value.toString() : ""} 
-                    onValueChange={(value) => field.onChange(parseInt(value))}
+                  <Select
+                    value={field.value ? field.value.toString() : "none"}
+                    onValueChange={(value) => field.onChange(value === "none" ? null : parseInt(value))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="اختر الميزانية الفرعية" />
+                      <SelectValue placeholder="بدون فئة أم (فئة رئيسية)" />
                     </SelectTrigger>
                     <SelectContent>
-                      {subBudgets.map((subBudget) => (
-                        <SelectItem key={subBudget.id} value={subBudget.id.toString()}>
-                          {subBudget.label}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="none">بدون فئة أم (فئة رئيسية)</SelectItem>
+                      {parentOptions
+                        // A category cannot be its own parent, and one level of
+                        // nesting is what the pickers render.
+                        .filter((option) => option.id !== item?.id && !(option.parent_id ?? option.parent?.id))
+                        .map((option) => (
+                          <SelectItem key={option.id} value={option.id.toString()}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 )}
               />
-              {form.formState.errors.sub_budget_id && (
-                <p className="text-sm text-red-600">{form.formState.errors.sub_budget_id.message}</p>
-              )}
+              <p className="text-xs text-gray-500">
+                اختياري — يُستخدم لتجميع الفئات المتقاربة فقط، ولا علاقة له بالميزانية.
+              </p>
             </div>
           )}
 

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\V1;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class StoreIncomeRequest extends FormRequest
@@ -15,8 +16,11 @@ class StoreIncomeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'fiscal_year_id' => ['required', 'exists:fiscal_years,id'],
-            'sub_budget_id' => ['required', 'exists:sub_budgets,id'],
+            // Posting into a closed year would change totals whose carryover
+            // was already copied into the following year and is never
+            // recomputed - the books would stop adding up.
+            'fiscal_year_id' => ['required', Rule::exists('fiscal_years', 'id')->where('is_active', true)],
+            'budget_id' => ['required', 'exists:budgets,id'],
             'income_category_id' => ['required', 'exists:income_categories,id'],
             'donor_id' => ['nullable', 'exists:donors,id'],
             'kafil_id' => ['nullable', 'exists:kafils,id'],
@@ -42,6 +46,18 @@ class StoreIncomeRequest extends FormRequest
 
             if ($this->input('payment_method') === 'BankWire' && !$this->filled('bank_account_id')) {
                 $validator->errors()->add('bank_account_id', 'الحساب البنكي مطلوب لهذه طريقة الدفع');
+            }
+
+            // Every income comes from exactly one source. Both set makes the
+            // donor/kafil reports double count it; neither leaves money in the
+            // books that nobody can be thanked or accounted for.
+            $hasDonor = $this->filled('donor_id');
+            $hasKafil = $this->filled('kafil_id');
+
+            if ($hasDonor && $hasKafil) {
+                $validator->errors()->add('donor_id', 'لا يمكن ربط الإيراد بمتبرع وكفيل في نفس الوقت، اختر مصدراً واحداً');
+            } elseif (!$hasDonor && !$hasKafil) {
+                $validator->errors()->add('donor_id', 'يجب تحديد مصدر الإيراد: متبرع أو كفيل');
             }
         });
     }

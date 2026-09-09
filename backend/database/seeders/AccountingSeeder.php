@@ -6,21 +6,23 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Seeds the accounting structure: sub-budgets, income/expense categories
+ * Seeds the accounting structure: budgets, income/expense categories
  * and the active fiscal year.
  *
- * IDs are pinned for sub-budgets and categories because the two are linked
+ * IDs are pinned for budgets and categories because existing rows reference them
  * and because the application relies on the sentinel category id 999
  * ("Deleted Category (Default)") that deleted-category records fall back to.
  * Safe to re-run.
  */
 class AccountingSeeder extends Seeder
 {
+    public const GENERAL_BUDGET_ID = 7;
+
     public function run(): void
     {
         $now = now();
 
-        $subBudgets = [
+        $budgets = [
             [1, 'الرعاية الصحية'],
             [2, 'التعليم والتدريب'],
             [3, 'النقل والمواصلات'],
@@ -29,9 +31,17 @@ class AccountingSeeder extends Seeder
             [6, 'البرامج والفعاليات'],
             [8, 'كفالة شاملة'],
         ];
-        foreach ($subBudgets as [$id, $label]) {
-            DB::table('sub_budgets')->updateOrInsert(['id' => $id], ['label' => $label, 'updated_at' => $now, 'created_at' => $now]);
+        foreach ($budgets as [$id, $label]) {
+            DB::table('budgets')->updateOrInsert(['id' => $id], ['label' => $label, 'updated_at' => $now, 'created_at' => $now]);
         }
+
+        // The fund anything not tied to a specific one is booked against, so
+        // no income or expense is ever left without a budget.
+        DB::table('budgets')->updateOrInsert(
+            ['id' => self::GENERAL_BUDGET_ID],
+            ['label' => 'الميزانية العامة', 'is_default' => true, 'updated_at' => $now, 'created_at' => $now]
+        );
+        DB::table('budgets')->where('id', '!=', self::GENERAL_BUDGET_ID)->update(['is_default' => false]);
 
         $incomeCategories = [
             [1, 1, 'تبرعات للرعاية الصحية'],
@@ -51,10 +61,10 @@ class AccountingSeeder extends Seeder
             [999, 1, 'Deleted Category (Default)'],
             [1002, 8, 'كفالة شاملة'],
         ];
-        foreach ($incomeCategories as [$id, $subBudgetId, $label]) {
+        foreach ($incomeCategories as [$id, $budgetId, $label]) {
             DB::table('income_categories')->updateOrInsert(
                 ['id' => $id],
-                ['sub_budget_id' => $subBudgetId, 'label' => $label, 'updated_at' => $now, 'created_at' => $now]
+                ['label' => $label, 'updated_at' => $now, 'created_at' => $now]
             );
         }
 
@@ -92,10 +102,10 @@ class AccountingSeeder extends Seeder
             [31, 6, 'مواد دعائية وإعلانية'],
             [999, 1, 'Deleted Category (Default)'],
         ];
-        foreach ($expenseCategories as [$id, $subBudgetId, $label]) {
+        foreach ($expenseCategories as [$id, $budgetId, $label]) {
             DB::table('expense_categories')->updateOrInsert(
                 ['id' => $id],
-                ['sub_budget_id' => $subBudgetId, 'label' => $label, 'updated_at' => $now, 'created_at' => $now]
+                ['label' => $label, 'updated_at' => $now, 'created_at' => $now]
             );
         }
 

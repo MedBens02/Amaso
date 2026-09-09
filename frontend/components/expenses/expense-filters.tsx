@@ -17,7 +17,7 @@ import { formatDateArabic } from "@/lib/date-utils"
 export interface FilterValues {
   fromDate?: Date
   toDate?: Date
-  subBudgetId?: string
+  budgetId?: string
   expenseCategoryId?: string
   partnerId?: string
   paymentMethod?: string
@@ -146,7 +146,7 @@ const DatePicker = ({
 }
 
 export function ExpenseFilters({ filters, onFiltersChange, onApply, onClear }: ExpenseFiltersProps) {
-  const [subBudgets, setSubBudgets] = useState<any[]>([])
+  const [budgets, setBudgets] = useState<any[]>([])
   const [expenseCategories, setExpenseCategories] = useState<any[]>([])
   const [partners, setPartners] = useState<any[]>([])
   const [fiscalYears, setFiscalYears] = useState<any[]>([])
@@ -159,13 +159,13 @@ export function ExpenseFilters({ filters, onFiltersChange, onApply, onClear }: E
   const loadFilterData = async () => {
     setLoading(true)
     try {
-      const [subBudgetsRes, categoriesRes, partnersRes, fiscalYearsRes] = await Promise.all([
-        api.getSubBudgets(),
+      const [budgetsRes, categoriesRes, partnersRes, fiscalYearsRes] = await Promise.all([
+        api.getBudgets(),
         api.getExpenseCategories(),
         api.getPartners(),
         api.getFiscalYears()
       ])
-      setSubBudgets(subBudgetsRes.data || [])
+      setBudgets(budgetsRes.data || [])
       setExpenseCategories(categoriesRes.data || [])
       setPartners(partnersRes.data || [])
       setFiscalYears(fiscalYearsRes.data || [])
@@ -229,14 +229,14 @@ export function ExpenseFilters({ filters, onFiltersChange, onApply, onClear }: E
         </div>
 
         <div className="space-y-2">
-          <Label>الميزانية الفرعية</Label>
-          <Select value={filters.subBudgetId || "all"} onValueChange={(value) => updateFilter('subBudgetId', value === 'all' ? undefined : value)}>
+          <Label>الميزانية</Label>
+          <Select value={filters.budgetId || "all"} onValueChange={(value) => updateFilter('budgetId', value === 'all' ? undefined : value)}>
             <SelectTrigger>
-              <SelectValue placeholder="اختر الميزانية الفرعية" />
+              <SelectValue placeholder="اختر الميزانية" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">جميع الميزانيات الفرعية</SelectItem>
-              {subBudgets.map(sb => (
+              <SelectItem value="all">جميع الميزانيات</SelectItem>
+              {budgets.map(sb => (
                 <SelectItem key={sb.id} value={sb.id.toString()}>{sb.label}</SelectItem>
               ))}
             </SelectContent>

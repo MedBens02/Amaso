@@ -25,7 +25,7 @@ interface Income {
     id: number
     year: string
   }
-  sub_budget: {
+  budget: {
     id: number
     label: string
   }
@@ -74,7 +74,7 @@ export function ExportIncomes({ incomes, filters = {}, searchTerm }: ExportIncom
         'payment_method': 'طريقة الدفع',
         'status': 'الحالة',
         'fiscal_year': 'السنة المالية',
-        'sub_budget': 'الميزانية الفرعية',
+        'budget': 'الميزانية',
         'income_category': 'فئة الإيراد',
         'donor': 'المتبرع',
         'kafil': 'الكافل',
@@ -92,7 +92,7 @@ export function ExportIncomes({ incomes, filters = {}, searchTerm }: ExportIncom
         payment_method: paymentMethodArabic[income.payment_method] || income.payment_method,
         status: statusArabic[income.status] || income.status,
         fiscal_year: income.fiscal_year.year,
-        sub_budget: income.sub_budget.label,
+        budget: income.budget.label,
         income_category: income.income_category.label,
         donor: income.donor ? `${income.donor.first_name} ${income.donor.last_name}` : '',
         kafil: income.kafil ? `${income.kafil.first_name} ${income.kafil.last_name}` : '',

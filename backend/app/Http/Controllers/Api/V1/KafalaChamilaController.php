@@ -9,6 +9,7 @@ use App\Http\Requests\V1\UpdateKafalaChamilaSplitsRequest;
 use App\Models\KafalaChamilaSplit;
 use App\Services\KafalaChamilaService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class KafalaChamilaController extends Controller
 {
@@ -22,7 +23,7 @@ class KafalaChamilaController extends Controller
      */
     public function splits(): JsonResponse
     {
-        $splits = KafalaChamilaSplit::with(['subBudget', 'incomeCategory'])
+        $splits = KafalaChamilaSplit::with(['budget', 'incomeCategory'])
             ->orderBy('sort_order')
             ->get();
 
@@ -37,6 +38,25 @@ class KafalaChamilaController extends Controller
     public function balances(): JsonResponse
     {
         return response()->json(['data' => $this->kafalaChamila->balances()]);
+    }
+
+    /**
+     * Per-family view of the shared pools: what each family brought in and
+     * what has already been spent on them out of it. Advisory - see
+     * KafalaChamilaService::familyBalances().
+     */
+    public function familyBalances(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'widow_ids' => ['required', 'array', 'min:1', 'max:200'],
+            'widow_ids.*' => ['integer'],
+        ], [
+            'widow_ids.required' => 'يجب تحديد أسرة واحدة على الأقل',
+        ]);
+
+        return response()->json([
+            'data' => array_values($this->kafalaChamila->familyBalances($validated['widow_ids'])),
+        ]);
     }
 
     /**

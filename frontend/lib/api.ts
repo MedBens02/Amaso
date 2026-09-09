@@ -15,11 +15,14 @@ interface ApiResponse<T> {
 export class ApiError extends Error {
   status: number
   errors?: Record<string, string[]>
+  /** The failed response's `data` payload, for endpoints that report partial success. */
+  data?: any
 
   constructor(response: Response, data?: any) {
     super(data?.message || `HTTP ${response.status}`)
     this.status = response.status
     this.errors = data?.errors
+    this.data = data?.data
   }
 }
 
@@ -193,7 +196,7 @@ class ApiClient {
   // Incomes API
   async createIncome(data: {
     fiscal_year_id: number
-    sub_budget_id: number
+    budget_id: number
     income_category_id: number
     donor_id?: number
     widow_id?: number
@@ -215,7 +218,7 @@ class ApiClient {
 
   async updateIncome(id: number, data: {
     fiscal_year_id: number
-    sub_budget_id: number
+    budget_id: number
     income_category_id: number
     donor_id?: number
     widow_id?: number
@@ -270,6 +273,14 @@ class ApiClient {
   // out. One shared pool per part across every kafil, not per-widow.
   async getKafalaChamilaBalances() {
     return this.request<any>('/kafala-chamila/balances')
+  }
+
+  // What each family brought into the pools and what has already been spent
+  // on them out of it. Advisory - the money itself stays pooled.
+  async getKafalaChamilaFamilyBalances(widowIds: number[]) {
+    const params = new URLSearchParams()
+    widowIds.forEach((id) => params.append('widow_ids[]', String(id)))
+    return this.request<any>(`/kafala-chamila/family-balances?${params.toString()}`)
   }
 
   async updateKafalaChamilaSplits(splits: { id: number; percentage: number }[]) {
@@ -399,8 +410,8 @@ class ApiClient {
     return this.request<any[]>('/kafils')
   }
 
-  async getSubBudgets() {
-    return this.request<any[]>('/sub-budgets')
+  async getBudgets() {
+    return this.request<any[]>('/budgets')
   }
 
   async getIncomeCategories() {
@@ -639,12 +650,46 @@ class ApiClient {
     specialty?: string | null
     status?: string
     notes?: string | null
+    first_semester_grade?: number | null
+    second_semester_grade?: number | null
+    grade_scale?: number | null
   }) {
     return this.request<any>(`/enrollments/${id}`, { method: 'PUT', body: JSON.stringify(data) })
   }
 
   async deleteEnrollment(id: number) {
     return this.request<any>(`/enrollments/${id}`, { method: 'DELETE' })
+  }
+
+  /** Marks a whole class in one request; rows over their own scale come back rejected. */
+  async saveEnrollmentGrades(grades: Array<{
+    enrollment_id: number
+    first_semester_grade?: number | null
+    second_semester_grade?: number | null
+    grade_scale?: number | null
+  }>) {
+    return this.request<any>('/enrollments/grades', { method: 'POST', body: JSON.stringify({ grades }) })
+  }
+
+  async getSchoolPerformance(params?: {
+    academic_year_id?: number
+    gender?: string
+    education_level_id?: number
+    school_id?: number
+    school_type?: string
+    is_private?: boolean
+    is_amaso_linked?: boolean
+    semester?: string
+    top_n?: number
+  }) {
+    const searchParams = new URLSearchParams()
+    for (const [key, value] of Object.entries(params || {})) {
+      if (value !== undefined && value !== null && value !== '') {
+        searchParams.set(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value))
+      }
+    }
+    const query = searchParams.toString()
+    return this.request<any>(`/reports/school-performance${query ? `?${query}` : ''}`)
   }
 
   // Kafils API

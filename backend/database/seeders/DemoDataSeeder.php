@@ -18,7 +18,7 @@ use App\Models\PartnerField;
 use App\Models\PartnerSubfield;
 use App\Models\School;
 use App\Models\Skill;
-use App\Models\SubBudget;
+use App\Models\Budget;
 use App\Models\Widow;
 use App\Services\ExpenseService;
 use App\Services\IncomeService;
@@ -209,11 +209,14 @@ class DemoDataSeeder extends Seeder
 
     private function seedSchoolsAndEnrollments(array $widows): void
     {
+        // `type` is the education stage; public vs. private is the separate flag.
         $schools = [
-            School::create(['name' => 'مدرسة الأمل الابتدائية', 'type' => 'Public', 'is_private' => false, 'is_amaso_linked' => false]),
-            School::create(['name' => 'ثانوية النهضة', 'type' => 'Public', 'is_private' => false, 'is_amaso_linked' => false]),
-            School::create(['name' => 'مدرسة النور الخاصة', 'type' => 'Private', 'is_private' => true, 'is_amaso_linked' => true]),
-            School::create(['name' => 'إعدادية الفتح', 'type' => 'Public', 'is_private' => false, 'is_amaso_linked' => false]),
+            School::create(['name' => 'مدرسة الأمل الابتدائية', 'type' => School::TYPE_SCHOOL, 'is_private' => false, 'is_amaso_linked' => false]),
+            School::create(['name' => 'ثانوية النهضة', 'type' => School::TYPE_SCHOOL, 'is_private' => false, 'is_amaso_linked' => false]),
+            School::create(['name' => 'مدرسة النور الخاصة', 'type' => School::TYPE_SCHOOL, 'is_private' => true, 'is_amaso_linked' => true]),
+            School::create(['name' => 'إعدادية الفتح', 'type' => School::TYPE_SCHOOL, 'is_private' => false, 'is_amaso_linked' => false]),
+            School::create(['name' => 'كلية العلوم - جامعة ابن زهر', 'type' => School::TYPE_UNIVERSITY, 'is_private' => false, 'is_amaso_linked' => false]),
+            School::create(['name' => 'المعهد العالي للتكنولوجيا التطبيقية', 'type' => School::TYPE_UNIVERSITY, 'is_private' => true, 'is_amaso_linked' => false]),
         ];
 
         // EducationSeeder already creates the current academic year.
@@ -234,13 +237,28 @@ class DemoDataSeeder extends Seeder
                     continue;
                 }
 
-                OrphanEnrollment::create([
-                    'orphan_id' => $orphan->id,
-                    'academic_year_id' => $academicYear->id,
-                    'education_level_id' => $educationLevelIds[array_rand($educationLevelIds)] ?? null,
-                    'school_id' => $schools[$index % count($schools)]->id,
-                    'status' => $statuses[$index % count($statuses)],
-                ]);
+                $school = $schools[$index % count($schools)];
+                $isUniversity = $school->type === School::TYPE_UNIVERSITY;
+
+                // A spread of marks so the rankings and the top-N cut have
+                // something to actually sort, plus a few students left ungraded
+                // to exercise the "not yet graded" path.
+                $graded = $index % 7 !== 0;
+
+                // Creating the family already opened an enrollment for the
+                // current year, so this fills it in rather than inserting again.
+                OrphanEnrollment::updateOrCreate(
+                    ['orphan_id' => $orphan->id, 'academic_year_id' => $academicYear->id],
+                    [
+                        'education_level_id' => $educationLevelIds[array_rand($educationLevelIds)] ?? null,
+                        'school_id' => $school->id,
+                        'specialty' => $isUniversity ? ['علوم الحياة والأرض', 'الإعلاميات', 'الاقتصاد'][$index % 3] : null,
+                        'status' => $statuses[$index % count($statuses)],
+                        'grade_scale' => 20,
+                        'first_semester_grade' => $graded ? round(mt_rand(700, 1900) / 100, 2) : null,
+                        'second_semester_grade' => $graded && $index % 5 !== 0 ? round(mt_rand(700, 1950) / 100, 2) : null,
+                    ]
+                );
                 $index++;
             }
         }
@@ -248,6 +266,8 @@ class DemoDataSeeder extends Seeder
 
     private function seedIncomes(int $fiscalYearId, array $donors, array $kafils, array $bankAccounts): void
     {
+        $generalBudgetId = Budget::where('is_default', true)->value('id') ?? Budget::value('id');
+
         $donationCategory = IncomeCategory::where('label', 'تبرعات عامة')->first()
             ?? IncomeCategory::whereNotIn('id', [999])->first();
 
@@ -255,7 +275,7 @@ class DemoDataSeeder extends Seeder
         foreach (array_slice($donors, 4) as $index => $donor) {
             $income = Income::create([
                 'fiscal_year_id' => $fiscalYearId,
-                'sub_budget_id' => $donationCategory->sub_budget_id,
+                'budget_id' => $generalBudgetId,
                 'income_category_id' => $donationCategory->id,
                 'donor_id' => $donor->id,
                 'income_date' => now()->subDays(rand(1, 90))->format('Y-m-d'),
@@ -276,9 +296,9 @@ class DemoDataSeeder extends Seeder
         // sponsor are exercised. Goes through IncomeService::approve() (not
         // a raw status='Approved' create) so the BankWire balance credit
         // actually fires.
-        $kafalaSubBudget = SubBudget::where('label', 'كفالة شاملة')->first();
-        $kafalaCategory = IncomeCategory::where('label', 'كفالة شاملة')->where('sub_budget_id', $kafalaSubBudget?->id)->first();
-        if ($kafalaSubBudget && $kafalaCategory) {
+        $kafalaBudget = Budget::where('label', 'كفالة شاملة')->first();
+        $kafalaCategory = IncomeCategory::where('label', 'كفالة شاملة')->first();
+        if ($kafalaBudget && $kafalaCategory) {
             $multiFamilyKafilId = KafilSponsorship::select('kafil_id')
                 ->groupBy('kafil_id')
                 ->havingRaw('COUNT(*) > 1')
@@ -287,7 +307,7 @@ class DemoDataSeeder extends Seeder
             foreach (KafilSponsorship::where('kafil_id', $multiFamilyKafilId)->get() as $sponsorship) {
                 $income = Income::create([
                     'fiscal_year_id' => $fiscalYearId,
-                    'sub_budget_id' => $kafalaSubBudget->id,
+                    'budget_id' => $kafalaBudget->id,
                     'income_category_id' => $kafalaCategory->id,
                     'kafil_id' => $sponsorship->kafil_id,
                     'widow_id' => $sponsorship->widow_id,
@@ -343,16 +363,19 @@ class DemoDataSeeder extends Seeder
 
     private function seedExpenses(int $fiscalYearId, array $widows, array $bankAccounts): void
     {
+        $generalBudgetId = Budget::where('is_default', true)->value('id') ?? Budget::value('id');
+
         $categories = DB::table('expense_categories')->where('id', '!=', 999)->get();
         $beneficiaryByWidowId = DB::table('beneficiaries')->pluck('id', 'widow_id');
 
         foreach (array_slice($widows, 0, 6) as $index => $widow) {
             $category = $categories[$index % $categories->count()];
+            $budgetId = $generalBudgetId;
             $beneficiaryId = $beneficiaryByWidowId[$widow->id] ?? null;
 
             $expense = $this->expenses->create([
                 'fiscal_year_id' => $fiscalYearId,
-                'sub_budget_id' => $category->sub_budget_id,
+                'budget_id' => $budgetId,
                 'expense_category_id' => $category->id,
                 'expense_date' => now()->subDays(rand(1, 75))->format('Y-m-d'),
                 'amount' => [300, 750, 1200, 450, 600, 900][$index],
@@ -369,10 +392,10 @@ class DemoDataSeeder extends Seeder
 
         // One general-overhead expense, not tied to any family. Approved, so
         // its BankWire deduction actually exercises the bank balance effect.
-        $overheadCategory = $categories->firstWhere('sub_budget_id', 4) ?? $categories->first();
+        $overheadCategory = $categories->first();
         $overhead = $this->expenses->create([
             'fiscal_year_id' => $fiscalYearId,
-            'sub_budget_id' => $overheadCategory->sub_budget_id,
+            'budget_id' => $generalBudgetId,
             'expense_category_id' => $overheadCategory->id,
             'expense_date' => now()->subDays(10)->format('Y-m-d'),
             'amount' => 1500,

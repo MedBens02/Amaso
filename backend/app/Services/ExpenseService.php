@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Exceptions\BusinessRuleException;
+use App\Models\BankAccount;
+use App\Models\BankAccountTransaction;
 use App\Models\BeneficiaryGroup;
 use App\Models\Expense;
 use App\Models\ExpenseBeneficiary;
@@ -10,6 +12,10 @@ use Illuminate\Support\Facades\DB;
 
 class ExpenseService
 {
+    public function __construct(private readonly LedgerService $ledger)
+    {
+    }
+
     public function create(array $data): Expense
     {
         return DB::transaction(function () use ($data) {
@@ -61,30 +67,47 @@ class ExpenseService
      * Approve a draft expense and deduct the amount from the linked bank
      * account, if any.
      *
-     * NOTE: the balance update is a read-modify-write without a row lock and
-     * without a sufficient-funds check - kept as-is on purpose; the fixes are
-     * tracked in FINANCIAL-INTEGRITY.md (issues #1 and #2).
+     * Both rows are locked for the duration: the expense so two concurrent
+     * approvals cannot both pass the Draft guard and deduct twice, and the
+     * account so the balance read used for the funds check is the one being
+     * written. The deduction itself is an atomic decrement rather than a
+     * read-modify-write, which would silently drop a concurrent credit.
      */
     public function approve(Expense $expense): Expense
     {
-        if ($expense->status === 'Approved') {
-            throw new BusinessRuleException('المصروف معتمد مسبقاً', 400);
-        }
-
         return DB::transaction(function () use ($expense) {
-            $expense->update([
+            $locked = Expense::whereKey($expense->getKey())->lockForUpdate()->firstOrFail();
+
+            if ($locked->status === 'Approved') {
+                throw new BusinessRuleException('المصروف معتمد مسبقاً', 400);
+            }
+
+            if ($locked->bank_account_id) {
+                $account = BankAccount::whereKey($locked->bank_account_id)->lockForUpdate()->firstOrFail();
+
+                if ((float) $account->balance < (float) $locked->amount) {
+                    throw new BusinessRuleException(
+                        "الرصيد في حساب \"{$account->label}\" غير كافٍ لاعتماد هذا المصروف. الرصيد الحالي: {$account->balance}",
+                        422
+                    );
+                }
+
+                $this->ledger->record(
+                    $account,
+                    -(float) $locked->amount,
+                    BankAccountTransaction::SOURCE_EXPENSE,
+                    $locked->id,
+                    'اعتماد مصروف',
+                );
+            }
+
+            $locked->update([
                 'status' => 'Approved',
                 'approved_by' => auth()->id() ?? 1,
                 'approved_at' => now(),
             ]);
 
-            if ($expense->bank_account_id && $expense->bankAccount) {
-                $expense->bankAccount->update([
-                    'balance' => $expense->bankAccount->balance - $expense->amount,
-                ]);
-            }
-
-            return $expense;
+            return $locked;
         });
     }
 
@@ -92,7 +115,7 @@ class ExpenseService
     {
         return [
             'fiscal_year_id' => $data['fiscal_year_id'],
-            'sub_budget_id' => $data['sub_budget_id'],
+            'budget_id' => $data['budget_id'],
             'expense_category_id' => $data['expense_category_id'],
             'partner_id' => $data['partner_id'] ?? null,
             'expense_date' => $data['expense_date'],
@@ -136,14 +159,23 @@ class ExpenseService
                 continue;
             }
 
-            $amountPerMember = $groupData['amount'] / $members->count();
+            // Split in whole cents and hand the remainder out one cent at a
+            // time, so the member rows sum to the group amount exactly.
+            // Plain division leaves 100/3 as 33.33 x 3 = 99.99, and every
+            // per-beneficiary report then drifts from the financial one.
+            $totalCents = (int) round(((float) $groupData['amount']) * 100);
+            $memberCount = $members->count();
+            $baseCents = intdiv($totalCents, $memberCount);
+            $remainderCents = $totalCents % $memberCount;
 
-            foreach ($members as $member) {
+            foreach ($members->values() as $index => $member) {
+                $cents = $baseCents + ($index < $remainderCents ? 1 : 0);
+
                 ExpenseBeneficiary::create([
                     'expense_id' => $expense->id,
                     'beneficiary_id' => $member->id,
                     'group_id' => $group->id,
-                    'amount' => $amountPerMember,
+                    'amount' => $cents / 100,
                     'notes' => $groupData['notes'] ?? null,
                 ]);
             }

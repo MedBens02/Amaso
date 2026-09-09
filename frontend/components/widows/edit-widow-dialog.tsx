@@ -64,7 +64,8 @@ const editWidowSchema = z
           sex: z.enum(["male", "female"], { required_error: "الجنس مطلوب" }),
           birthDate: z.date({ required_error: "تاريخ الميلاد مطلوب" }),
           education_level_id: z.string().optional(), // Education level ID as string for form
-          schoolName: z.string().optional(),
+          school_id: z.string().optional(),
+          specialty: z.string().optional(),
           phone: z.string().optional(),
           cin: z.string().optional(),
           isWorking: z.boolean().default(false),
@@ -171,6 +172,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [educationLevels, setEducationLevels] = useState<any[]>([])
+  const [schools, setSchools] = useState<any[]>([])
   const [referenceData, setReferenceData] = useState({
     housing_types: [],
     skills: [],
@@ -269,6 +271,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
           partnerSubfields: partnerSubfieldsResponse.data || []
         })
         setEducationLevels(educationLevelsResponse.data || [])
+        api.getSchools().then((res) => setSchools(res.data || [])).catch(() => setSchools([]))
       } catch (error) {
         console.error("Failed to load reference data:", error)
       }
@@ -312,7 +315,9 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
           sex: child.gender || "male",
           birthDate: child.birth_date ? new Date(child.birth_date) : new Date(),
           education_level_id: child.education_level_id ? child.education_level_id.toString() : "0",
-          schoolName: "", // Not available in current data
+          // Both come from the child's enrollment in the current academic year.
+          school_id: child.school_id ? child.school_id.toString() : "",
+          specialty: child.specialty || "",
           phone: child.phone || "",
           cin: child.cin || "",
           isWorking: child.is_working || false,
@@ -458,6 +463,9 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
             masar_code: child.masarCode || null,
             is_not_interested: child.isNotInterested || false,
             is_inactive: child.isInactive || false,
+            // Opens/updates this child's enrollment for the current academic year.
+            school_id: child.school_id ? parseInt(child.school_id) : null,
+            specialty: child.specialty || null,
           };
           console.log(`EDIT - Final child data for child ${childIndex}:`, childData);
           return childData;
@@ -868,7 +876,8 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                         sex: "male",
                         birthDate: new Date(),
                         education_level_id: "0",
-                        schoolName: "",
+                        school_id: "",
+                        specialty: "",
                       })
                     }
                   >
@@ -979,10 +988,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                           }}
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label>اسم المؤسسة </Label>
-                        <Input {...form.register(`children.${index}.schoolName`)} placeholder="اسم المؤسسة " />
-                      </div>
+
                     </div>
 
                     <div className="space-y-2">
@@ -1001,7 +1007,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                       )}
                     </div>
 
-                    <ChildExtraFields form={form} index={index} />
+                    <ChildExtraFields form={form} index={index} schools={schools} />
                   </div>
                 ))}
               </TabsContent>

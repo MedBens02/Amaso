@@ -2,12 +2,13 @@
 
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FileText, BarChart3, PieChart, TrendingUp, Users, HandCoins } from "lucide-react"
+import { FileText, BarChart3, PieChart, TrendingUp, Users, HandCoins, GraduationCap } from "lucide-react"
 import { WidowsReportDialog } from "@/components/reports/entity-reports/widows-report-dialog"
 import { FinancialReportDialog } from "@/components/reports/entity-reports/financial-report-dialog"
 import { DonorsReportDialog } from "@/components/reports/entity-reports/donors-report-dialog"
 import { AnnualPerformanceReport } from "@/components/reports/entity-reports/annual-performance-report"
 import { KafilStatementDialog } from "@/components/reports/entity-reports/kafil-statement-dialog"
+import { SchoolPerformanceDialog } from "@/components/reports/entity-reports/school-performance-dialog"
 
 export default function ReportsPage() {
   const [openDialog, setOpenDialog] = useState<string | null>(null)
@@ -47,6 +48,13 @@ export default function ReportsPage() {
       description: "مساهمات الكفيل وتوزيعها، وما تلقّته الأسر المكفولة من الجمعية",
       icon: HandCoins,
       color: "bg-teal-500",
+    },
+    {
+      id: "school-performance",
+      title: "تقرير الأداء الدراسي",
+      description: "ترتيب التلاميذ حسب نقط الأسدسين، مع تصفية حسب الجنس والمستوى والمؤسسة والتعليم العالي",
+      icon: GraduationCap,
+      color: "bg-indigo-500",
     },
   ]
 
@@ -106,6 +114,10 @@ export default function ReportsPage() {
       <KafilStatementDialog
         open={openDialog === "kafil-statement"}
         onOpenChange={(open) => setOpenDialog(open ? "kafil-statement" : null)}
+      />
+      <SchoolPerformanceDialog
+        open={openDialog === "school-performance"}
+        onOpenChange={(open) => setOpenDialog(open ? "school-performance" : null)}
       />
     </div>
   )

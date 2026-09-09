@@ -9,7 +9,7 @@ import { formatDateArabic } from "@/lib/date-utils"
 interface IncomeData {
   id: number
   fiscal_year_id: number
-  sub_budget_id: number
+  budget_id: number
   income_category_id: number
   donor_id?: number
   kafil_id?: number
@@ -32,7 +32,7 @@ interface IncomeData {
     year: string
     is_active: boolean
   }
-  sub_budget: {
+  budget: {
     id: number
     label: string
   }
@@ -197,8 +197,8 @@ export function ViewIncomeDialog({ income, open, onOpenChange }: ViewIncomeDialo
           {/* Budget and Category */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <div className="text-sm font-medium text-gray-600">الميزانية الفرعية</div>
-              <div className="mt-1 font-semibold">{income.sub_budget.label}</div>
+              <div className="text-sm font-medium text-gray-600">الميزانية</div>
+              <div className="mt-1 font-semibold">{income.budget.label}</div>
             </div>
             <div>
               <div className="text-sm font-medium text-gray-600">فئة الإيراد</div>

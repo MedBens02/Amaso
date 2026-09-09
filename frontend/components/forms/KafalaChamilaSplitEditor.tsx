@@ -18,7 +18,7 @@ interface KafalaChamilaSplitRule {
   key: string
   label: string
   percentage: string | number
-  sub_budget: { id: number; label: string }
+  budget: { id: number; label: string }
   income_category: { id: number; label: string }
 }
 
@@ -92,7 +92,7 @@ export function KafalaChamilaSplitEditor({ totalAmount, value, onChange }: Kafal
             >
               <div>
                 <p className="text-sm font-medium">{rule.label}</p>
-                <p className="text-xs text-gray-500">{rule.sub_budget.label}</p>
+                <p className="text-xs text-gray-500">{rule.budget.label}</p>
               </div>
               <span className="text-xs text-gray-500 w-12 text-left">
                 {parseFloat(String(rule.percentage))}%

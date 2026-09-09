@@ -9,10 +9,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * The fixed 7-way split of a "kafala chamila" (comprehensive sponsorship)
  * payment: each row is one part (management/maouna/education/health/
- * activities/projects/formation), pinned to its own dedicated sub_budget +
- * income_category. The sub_budget/category pairing is permanent - only
+ * activities/projects/formation), pinned to its own dedicated budget +
+ * income_category. The budget/category pairing is permanent - only
  * `percentage` is meant to be changed, and only by an admin (see
- * KafalaChamilaController). SubBudgetController/AccountingIncomeCategoryController
+ * KafalaChamilaController). BudgetController/AccountingIncomeCategoryController
  * refuse to delete or rename the rows these point to.
  */
 class KafalaChamilaSplit extends Model
@@ -23,7 +23,7 @@ class KafalaChamilaSplit extends Model
         'key',
         'label',
         'percentage',
-        'sub_budget_id',
+        'budget_id',
         'income_category_id',
         'sort_order',
     ];
@@ -32,9 +32,9 @@ class KafalaChamilaSplit extends Model
         'percentage' => 'decimal:2',
     ];
 
-    public function subBudget(): BelongsTo
+    public function budget(): BelongsTo
     {
-        return $this->belongsTo(SubBudget::class);
+        return $this->belongsTo(Budget::class);
     }
 
     public function incomeCategory(): BelongsTo
@@ -43,9 +43,9 @@ class KafalaChamilaSplit extends Model
     }
 
     /** Sub-budget ids that must never be edited or deleted through the references UI. */
-    public static function lockedSubBudgetIds(): array
+    public static function lockedBudgetIds(): array
     {
-        return static::pluck('sub_budget_id')->all();
+        return static::pluck('budget_id')->all();
     }
 
     /** Income-category ids that must never be edited or deleted through the references UI. */

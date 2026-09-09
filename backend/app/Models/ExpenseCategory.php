@@ -19,13 +19,23 @@ class ExpenseCategory extends Model
     public const DELETED_CATEGORY_ID = 999;
 
     protected $fillable = [
-        'sub_budget_id',
+        'parent_id',
         'label',
     ];
 
-    public function subBudget(): BelongsTo
+    /**
+     * Categories classify what money was for and are independent of the
+     * budget it moved through, so the same category can be used from any
+     * fund. parent_id makes them nestable.
+     */
+    public function parent(): BelongsTo
     {
-        return $this->belongsTo(SubBudget::class);
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id');
     }
 
     public function expenses(): HasMany
