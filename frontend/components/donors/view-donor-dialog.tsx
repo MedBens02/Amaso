@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Phone, Mail, MapPin, HandCoins, Users } from "lucide-react"
-import { DonationHistoryPrint } from "./donation-history-print"
 import { PrintDonorPDF } from "./print-donor-pdf"
 import api from "@/lib/api"
 
@@ -196,11 +195,10 @@ export function ViewDonorDialog({ donor, open, onOpenChange }: ViewDonorDialogPr
         </div>
 
         <DialogFooter className="flex gap-2">
+          {/* The donor card PDF already carries the contribution history
+              (سجل المساهمات), so the separate printable view it used to sit
+              beside was a second, unsaveable rendering of the same thing. */}
           <PrintDonorPDF donor={donor} />
-          <DonationHistoryPrint
-            donor={donor}
-            incomes={incomes}
-          />
         </DialogFooter>
       </DialogContent>
     </Dialog>

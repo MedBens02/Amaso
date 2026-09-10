@@ -11,13 +11,13 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { FileDown, FileText, Printer, Loader2 } from "lucide-react"
+import { FileDown, FileText, Sheet, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 /**
  * Export format options
  */
-export type ExportFormat = 'pdf' | 'csv' | 'print'
+export type ExportFormat = 'pdf' | 'excel'
 
 /**
  * Statistic item for preview section
@@ -42,8 +42,7 @@ export interface ReportDialogProps {
   onGenerate: (format: ExportFormat) => Promise<void>
   loading?: boolean
   showPdfExport?: boolean
-  showCsvExport?: boolean
-  showPrintExport?: boolean
+  showExcelExport?: boolean
 }
 
 /**
@@ -78,9 +77,8 @@ export function ReportDialog({
   onGenerate,
   loading = false,
   showPdfExport = true,
-  showCsvExport = true,
-  showPrintExport = true
-}: ReportDialogProps) {
+  showExcelExport = true,
+  }: ReportDialogProps) {
   const { toast } = useToast()
   const [generatingFormat, setGeneratingFormat] = useState<ExportFormat | null>(null)
 
@@ -152,7 +150,7 @@ export function ReportDialog({
           <Separator />
           <div>
             <h3 className="text-sm font-semibold mb-3">تصدير التقرير</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {showPdfExport && (
                 <Button
                   variant="outline"
@@ -169,35 +167,19 @@ export function ReportDialog({
                 </Button>
               )}
 
-              {showCsvExport && (
+              {showExcelExport && (
                 <Button
                   variant="outline"
                   className="flex flex-col items-center justify-center h-24 gap-2"
-                  onClick={() => handleGenerate('csv')}
+                  onClick={() => handleGenerate('excel')}
                   disabled={isGenerating}
                 >
-                  {generatingFormat === 'csv' ? (
+                  {generatingFormat === 'excel' ? (
                     <Loader2 className="h-6 w-6 animate-spin" />
                   ) : (
-                    <FileText className="h-6 w-6" />
+                    <Sheet className="h-6 w-6" />
                   )}
-                  <span className="text-sm">تصدير CSV</span>
-                </Button>
-              )}
-
-              {showPrintExport && (
-                <Button
-                  variant="outline"
-                  className="flex flex-col items-center justify-center h-24 gap-2"
-                  onClick={() => handleGenerate('print')}
-                  disabled={isGenerating}
-                >
-                  {generatingFormat === 'print' ? (
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  ) : (
-                    <Printer className="h-6 w-6" />
-                  )}
-                  <span className="text-sm">طباعة</span>
+                  <span className="text-sm">تصدير Excel</span>
                 </Button>
               )}
             </div>
@@ -245,15 +227,13 @@ export function CompactReportExport({
   onGenerate,
   loading = false,
   showPdfExport = true,
-  showCsvExport = true,
-  showPrintExport = true,
-  className
+  showExcelExport = true,
+    className
 }: {
   onGenerate: (format: ExportFormat) => Promise<void>
   loading?: boolean
   showPdfExport?: boolean
-  showCsvExport?: boolean
-  showPrintExport?: boolean
+  showExcelExport?: boolean
   className?: string
 }) {
   const { toast } = useToast()
@@ -284,35 +264,19 @@ export function CompactReportExport({
   return (
     <div className={className}>
       <div className="flex gap-2">
-        {showCsvExport && (
+        {showExcelExport && (
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleGenerate('csv')}
+            onClick={() => handleGenerate('excel')}
             disabled={isGenerating}
           >
-            {generatingFormat === 'csv' ? (
+            {generatingFormat === 'excel' ? (
               <Loader2 className="ml-2 h-4 w-4 animate-spin" />
             ) : (
-              <FileText className="ml-2 h-4 w-4" />
+              <Sheet className="ml-2 h-4 w-4" />
             )}
-            تصدير CSV
-          </Button>
-        )}
-
-        {showPrintExport && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleGenerate('print')}
-            disabled={isGenerating}
-          >
-            {generatingFormat === 'print' ? (
-              <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Printer className="ml-2 h-4 w-4" />
-            )}
-            طباعة
+            تصدير Excel
           </Button>
         )}
 

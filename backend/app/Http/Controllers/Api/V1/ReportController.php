@@ -11,6 +11,7 @@ use App\Services\PdfService;
 use App\Services\ReportAggregateService;
 use App\Services\ReportService;
 use App\Services\SchoolPerformanceService;
+use App\Services\SpreadsheetService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -22,6 +23,7 @@ class ReportController extends Controller
         private readonly PdfService $pdf,
         private readonly ReportAggregateService $aggregates,
         private readonly FamilyReportService $familyReports,
+        private readonly SpreadsheetService $spreadsheets,
     ) {
     }
 
@@ -324,6 +326,258 @@ class ReportController extends Controller
         );
     }
 
+    public function incomeListExcel(Request $request)
+    {
+        $report = $this->aggregates->incomeList($this->reportFilters($request));
+
+        return $this->downloadSheet(
+            $this->spreadsheets->build(
+                'سجل الإيرادات',
+                'العمليات المسجلة خلال الفترة',
+                [
+                    ['key' => 'date', 'label' => 'التاريخ', 'width' => 14],
+                    ['key' => 'source', 'label' => 'المصدر', 'width' => 28],
+                    ['key' => 'budget', 'label' => 'الميزانية', 'width' => 24],
+                    ['key' => 'category', 'label' => 'التصنيف', 'width' => 24],
+                    ['key' => 'payment_method', 'label' => 'طريقة الأداء', 'width' => 16],
+                    ['key' => 'status', 'label' => 'الحالة', 'width' => 14],
+                    ['key' => 'amount', 'label' => 'المبلغ', 'width' => 18, 'money' => true],
+                ],
+                $report['rows'],
+                $this->periodCaptions($report),
+            ),
+            $this->filename('incomes', $report['period']['from'], 'xlsx'),
+        );
+    }
+
+    public function expenseListExcel(Request $request)
+    {
+        $report = $this->aggregates->expenseList($this->reportFilters($request));
+
+        return $this->downloadSheet(
+            $this->spreadsheets->build(
+                'سجل المصروفات',
+                'العمليات المسجلة خلال الفترة',
+                [
+                    ['key' => 'date', 'label' => 'التاريخ', 'width' => 14],
+                    ['key' => 'budget', 'label' => 'الميزانية', 'width' => 24],
+                    ['key' => 'category', 'label' => 'التصنيف', 'width' => 24],
+                    ['key' => 'partner', 'label' => 'الشريك', 'width' => 24],
+                    ['key' => 'payment_method', 'label' => 'طريقة الأداء', 'width' => 16],
+                    ['key' => 'status', 'label' => 'الحالة', 'width' => 14],
+                    ['key' => 'amount', 'label' => 'المبلغ', 'width' => 18, 'money' => true],
+                ],
+                $report['rows'],
+                $this->periodCaptions($report),
+            ),
+            $this->filename('expenses', $report['period']['from'], 'xlsx'),
+        );
+    }
+
+    public function widowsExcel(Request $request)
+    {
+        $report = $this->aggregates->widows($this->reportFilters($request));
+
+        return $this->downloadSheet(
+            $this->spreadsheets->build(
+                'قائمة الأرامل',
+                'الأسر المسجلة لدى الجمعية',
+                [
+                    ['key' => 'full_name', 'label' => 'الاسم الكامل', 'width' => 30],
+                    ['key' => 'phone', 'label' => 'الهاتف', 'width' => 18],
+                    ['key' => 'neighborhood', 'label' => 'الحي', 'width' => 22],
+                    ['key' => 'orphans_count', 'label' => 'عدد الأيتام', 'width' => 14],
+                    ['key' => 'sponsorships_count', 'label' => 'عدد الكفالات', 'width' => 14],
+                    ['key' => 'admission_date', 'label' => 'تاريخ الانتساب', 'width' => 16],
+                ],
+                $report['widows'],
+                ['count' => 'عدد الأسر: ' . count($report['widows'])],
+            ),
+            $this->filename('widows', null, 'xlsx'),
+        );
+    }
+
+    public function donorsExcel(Request $request)
+    {
+        $report = $this->aggregates->donors($this->reportFilters($request));
+
+        // The aggregate keys this list 'donors', not 'rows'.
+        $rows = array_map(fn (array $row) => $row + [
+            'kafil_label' => $row['is_kafil'] ? 'كفيل' : 'متبرع',
+        ], $report['donors']);
+
+        return $this->downloadSheet(
+            $this->spreadsheets->build(
+                'قائمة المتبرعين',
+                'المتبرعون والكفلاء ومساهماتهم',
+                [
+                    ['key' => 'full_name', 'label' => 'الاسم الكامل', 'width' => 30],
+                    ['key' => 'kafil_label', 'label' => 'الصفة', 'width' => 12],
+                    ['key' => 'phone', 'label' => 'الهاتف', 'width' => 18],
+                    ['key' => 'email', 'label' => 'البريد الإلكتروني', 'width' => 28],
+                    ['key' => 'period_payments', 'label' => 'عدد الدفعات', 'width' => 14],
+                    ['key' => 'period_total', 'label' => 'مساهمات الفترة', 'width' => 18, 'money' => true],
+                    ['key' => 'total_given', 'label' => 'مجموع المساهمات', 'width' => 18, 'money' => true],
+                ],
+                $rows,
+                $this->periodCaptions(['period' => $report['period'], 'totals' => ['count' => count($rows)]]),
+            ),
+            $this->filename('donors', $report['period']['from'], 'xlsx'),
+        );
+    }
+
+    public function orphansExcel(Request $request)
+    {
+        $report = $this->aggregates->orphanList($request->only(['gender', 'is_schooled']));
+
+        return $this->downloadSheet(
+            $this->spreadsheets->build(
+                'قائمة الأيتام',
+                'الأيتام المسجلون لدى الجمعية',
+                [
+                    ['key' => 'full_name', 'label' => 'الاسم الكامل', 'width' => 28],
+                    ['key' => 'gender', 'label' => 'الجنس', 'width' => 10],
+                    ['key' => 'age', 'label' => 'العمر', 'width' => 10],
+                    ['key' => 'birth_date', 'label' => 'تاريخ الميلاد', 'width' => 16],
+                    ['key' => 'widow', 'label' => 'الأسرة', 'width' => 28],
+                    ['key' => 'schooling', 'label' => 'التمدرس', 'width' => 14],
+                    ['key' => 'education_level', 'label' => 'المستوى', 'width' => 18],
+                ],
+                $report['rows'],
+                [
+                    'count' => "عدد الأيتام: {$report['totals']['count']}",
+                    'split' => "ذكور: {$report['totals']['male']} — إناث: {$report['totals']['female']}",
+                    'schooled' => "متمدرسون: {$report['totals']['schooled']}",
+                ],
+            ),
+            $this->filename('orphans', null, 'xlsx'),
+        );
+    }
+
+    public function orphansPdf(Request $request)
+    {
+        $report = $this->aggregates->orphanList($request->only(['gender', 'is_schooled']));
+
+        return $this->download(
+            $this->pdf->render('pdf.list', [
+                'title' => 'قائمة الأيتام',
+                'subtitle' => 'الأيتام المسجلون لدى الجمعية',
+                'entity' => null,
+                'heading' => 'الأيتام',
+                'columns' => [
+                    ['key' => 'full_name', 'label' => 'الاسم الكامل', 'width' => '24%'],
+                    ['key' => 'gender', 'label' => 'الجنس', 'width' => '9%', 'align' => 'center'],
+                    ['key' => 'age', 'label' => 'العمر', 'width' => '8%', 'align' => 'center'],
+                    ['key' => 'birth_date', 'label' => 'تاريخ الميلاد', 'width' => '13%', 'align' => 'center'],
+                    ['key' => 'widow', 'label' => 'الأسرة', 'width' => '24%'],
+                    ['key' => 'schooling', 'label' => 'التمدرس', 'width' => '10%', 'align' => 'center'],
+                    ['key' => 'education_level', 'label' => 'المستوى', 'width' => '12%'],
+                ],
+                'rows' => $report['rows'],
+                'meta' => ['عدد الأيتام' => $report['totals']['count']],
+                'stats' => [
+                    ['label' => 'ذكور', 'value' => $report['totals']['male']],
+                    ['label' => 'إناث', 'value' => $report['totals']['female']],
+                    ['label' => 'متمدرسون', 'value' => $report['totals']['schooled']],
+                ],
+            ], ['landscape' => true]),
+            $this->filename('orphans', null),
+        );
+    }
+
+    public function financialExcel(Request $request)
+    {
+        $report = $this->aggregates->financial($this->reportFilters($request));
+
+        return $this->downloadSheet(
+            $this->spreadsheets->buildSections(
+                'التقرير المالي الشامل',
+                'ملخص الإيرادات والمصروفات',
+                [
+                    $this->breakdown('الإيرادات حسب الميزانية', $report['income_by_budget']),
+                    $this->breakdown('الإيرادات حسب التصنيف', $report['income_by_category']),
+                    $this->breakdown('المصروفات حسب الميزانية', $report['expense_by_budget']),
+                    $this->breakdown('المصروفات حسب التصنيف', $report['expense_by_category']),
+                    $this->breakdown('حسب طريقة الأداء', $report['by_payment_method']),
+                ],
+                [
+                    'period' => "الفترة: {$report['period']['from']} — {$report['period']['to']}",
+                    'income' => 'مجموع الإيرادات: ' . number_format($report['totals']['income'], 2) . ' د.م',
+                    'expense' => 'مجموع المصروفات: ' . number_format($report['totals']['expense'], 2) . ' د.م',
+                    'balance' => 'الرصيد: ' . number_format($report['totals']['balance'], 2) . ' د.م',
+                ],
+            ),
+            $this->filename('financial', $report['period']['from'], 'xlsx'),
+        );
+    }
+
+    public function annualExcel(Request $request)
+    {
+        $report = $this->aggregates->annual($this->reportFilters($request));
+        $financial = $report['financial'] ?? $report;
+
+        return $this->downloadSheet(
+            $this->spreadsheets->buildSections(
+                'تقرير الأداء السنوي',
+                'الأداء المالي والاجتماعي خلال السنة',
+                [
+                    $this->breakdown('الإيرادات حسب الميزانية', $financial['income_by_budget'] ?? []),
+                    $this->breakdown('المصروفات حسب الميزانية', $financial['expense_by_budget'] ?? []),
+                    $this->breakdown('التوزيع حسب الحي', $report['widows']['by_neighborhood'] ?? [], 'الحي', 'العدد', false),
+                ],
+                [
+                    'period' => "الفترة: {$financial['period']['from']} — {$financial['period']['to']}",
+                ],
+            ),
+            $this->filename('annual', $financial['period']['from'] ?? null, 'xlsx'),
+        );
+    }
+
+    /**
+     * A label/count/total block as the aggregates return them.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array{heading: string, columns: array, rows: array}
+     */
+    private function breakdown(
+        string $heading,
+        array $rows,
+        string $labelHeading = 'البند',
+        string $valueHeading = 'المبلغ',
+        bool $money = true,
+    ): array {
+        $columns = [
+            ['key' => 'label', 'label' => $labelHeading, 'width' => 32],
+            ['key' => 'count', 'label' => 'العدد', 'width' => 12],
+            ['key' => 'total', 'label' => $valueHeading, 'width' => 20, 'money' => $money],
+        ];
+
+        return [
+            'heading' => $heading,
+            'columns' => $columns,
+            'rows' => array_map(fn (array $row) => $row + ['count' => $row['count'] ?? ''], $rows),
+        ];
+    }
+
+    /** @return array<string, string> */
+    private function periodCaptions(array $report): array
+    {
+        return [
+            'period' => "الفترة: {$report['period']['from']} — {$report['period']['to']}",
+            'count' => "عدد العمليات: {$report['totals']['count']}",
+            'generated' => 'تاريخ الإصدار: ' . now()->format('Y-m-d H:i'),
+        ];
+    }
+
+    private function downloadSheet(string $contents, string $filename)
+    {
+        return response($contents, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Access-Control-Expose-Headers' => 'Content-Disposition',
+        ]);
+    }
+
     /** Everything the association has done for one family, in one document. */
     public function familyFinancial(Request $request, Widow $widow): JsonResponse
     {
@@ -375,11 +629,11 @@ class ReportController extends Controller
         ]);
     }
 
-    private function filename(string $prefix, ?string $suffix): string
+    private function filename(string $prefix, ?string $suffix, string $extension = 'pdf'): string
     {
         $slug = trim(preg_replace('/[^A-Za-z0-9]+/', '-', (string) $suffix), '-');
 
-        return trim("{$prefix}-{$slug}", '-') . '-' . now()->format('Y-m-d') . '.pdf';
+        return trim("{$prefix}-{$slug}", '-') . '-' . now()->format('Y-m-d') . '.' . $extension;
     }
 
     /**

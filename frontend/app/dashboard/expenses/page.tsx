@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { ledgerReportParams } from "@/lib/ledger-filters"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -81,108 +82,6 @@ export default function ExpensesPage() {
     }
   }
 
-  const handleExportCSV = async () => {
-    setIsExporting(true)
-    try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
-      const url = new URL(`${baseUrl}/expenses`)
-      
-      const params = new URLSearchParams()
-      params.append('per_page', '10000') // Get all records for export
-      
-      // Apply the same filters as the table
-      if (appliedFilters.fromDate) {
-        params.append('from_date', appliedFilters.fromDate.toISOString().split('T')[0])
-      }
-      if (appliedFilters.toDate) {
-        params.append('to_date', appliedFilters.toDate.toISOString().split('T')[0])
-      }
-      if (appliedFilters.budgetId) {
-        params.append('budget_id', appliedFilters.budgetId)
-      }
-      if (appliedFilters.expenseCategoryId) {
-        params.append('expense_category_id', appliedFilters.expenseCategoryId)
-      }
-      if (appliedFilters.partnerId) {
-        params.append('partner_id', appliedFilters.partnerId)
-      }
-      if (appliedFilters.paymentMethod) {
-        params.append('payment_method', appliedFilters.paymentMethod)
-      }
-      if (appliedFilters.status) {
-        params.append('status', appliedFilters.status)
-      }
-      if (appliedFilters.minAmount) {
-        params.append('min_amount', appliedFilters.minAmount)
-      }
-      if (appliedFilters.maxAmount) {
-        params.append('max_amount', appliedFilters.maxAmount)
-      }
-      if (appliedFilters.fiscalYearId) {
-        params.append('fiscal_year_id', appliedFilters.fiscalYearId)
-      }
-
-      url.search = params.toString()
-      
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error(`Failed to fetch data for export: ${response.status} ${response.statusText}`)
-      }
-      
-      const responseText = await response.text()
-      let result
-      try {
-        result = JSON.parse(responseText)
-      } catch (jsonError) {
-        console.error('Export JSON parsing error:', jsonError)
-        console.error('Export response text:', responseText)
-        throw new Error('Server returned invalid JSON response for export')
-      }
-      let allExpenses = result.data || []
-
-      // Apply client-side search filter (same as in table)
-      if (searchTerm.trim()) {
-        const searchLower = searchTerm.toLowerCase()
-        allExpenses = allExpenses.filter((expense: any) => (
-          (expense.details && expense.details.toLowerCase().includes(searchLower)) ||
-          (expense.remarks && expense.remarks.toLowerCase().includes(searchLower)) ||
-          (expense.budget && expense.budget.label && expense.budget.label.toLowerCase().includes(searchLower)) ||
-          (expense.expense_category && expense.expense_category.label && expense.expense_category.label.toLowerCase().includes(searchLower)) ||
-          (expense.partner && expense.partner.name && expense.partner.name.toLowerCase().includes(searchLower))
-        ))
-      }
-
-      // Convert to CSV
-      const csvContent = convertExpensesToCSV(allExpenses, appliedFilters, searchTerm, getFilterLabel)
-      
-      // Create and download file
-      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
-      const link = document.createElement('a')
-      const url_obj = URL.createObjectURL(blob)
-      link.setAttribute('href', url_obj)
-      
-      const currentDate = format(new Date(), 'yyyy-MM-dd')
-      link.setAttribute('download', `expenses_export_${currentDate}.csv`)
-      link.style.visibility = 'hidden'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-
-      toast({
-        title: "تم التصدير بنجاح",
-        description: `تم تصدير ${allExpenses.length} مصروف إلى ملف CSV`,
-      })
-    } catch (error) {
-      console.error('Error exporting CSV:', error)
-      toast({
-        title: "خطأ في التصدير",
-        description: "حدث خطأ أثناء تصدير البيانات",
-        variant: "destructive",
-      })
-    } finally {
-      setIsExporting(false)
-    }
-  }
 
   const convertExpensesToCSV = (expenses: any[], filters: FilterValues, search: string, getLabel: (type: string, value: string) => string) => {
     // Utility function to properly escape CSV fields
@@ -297,9 +196,28 @@ export default function ExpensesPage() {
 
   // The ledger as a real-text PDF, rendered server-side from the same filters
   // the table is showing.
+  // The same rows the table is showing, as a branded workbook. Built
+  // server-side so the sheet and the PDF come from one report rather than
+  // from the table's own idea of the data.
+  const handleExportExcel = async () => {
+    setIsExporting(true)
+    try {
+      await api.downloadExcel('/reports/expenses.xlsx', ledgerReportParams(appliedFilters))
+      toast({ title: "تم تحميل ملف Excel" })
+    } catch (error: any) {
+      toast({
+        title: "خطأ في التصدير",
+        description: error?.message || "حدث خطأ أثناء إنشاء الملف",
+        variant: "destructive",
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const handleDownloadPdf = async () => {
     try {
-      await api.downloadPdf('/reports/expenses.pdf', appliedFilters)
+      await api.downloadPdf('/reports/expenses.pdf', ledgerReportParams(appliedFilters))
       toast({ title: "تم تحميل سجل المصروفات" })
     } catch (error: any) {
       toast({
@@ -308,341 +226,6 @@ export default function ExpensesPage() {
         variant: "destructive",
       })
     }
-  }
-
-  const handlePrintReport = async () => {
-    setIsExporting(true)
-    try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
-      const url = new URL(`${baseUrl}/expenses`)
-      
-      const params = new URLSearchParams()
-      params.append('per_page', '10000')
-      
-      // Apply the same filters
-      if (appliedFilters.fromDate) {
-        params.append('from_date', appliedFilters.fromDate.toISOString().split('T')[0])
-      }
-      if (appliedFilters.toDate) {
-        params.append('to_date', appliedFilters.toDate.toISOString().split('T')[0])
-      }
-      if (appliedFilters.budgetId) {
-        params.append('budget_id', appliedFilters.budgetId)
-      }
-      if (appliedFilters.expenseCategoryId) {
-        params.append('expense_category_id', appliedFilters.expenseCategoryId)
-      }
-      if (appliedFilters.partnerId) {
-        params.append('partner_id', appliedFilters.partnerId)
-      }
-      if (appliedFilters.paymentMethod) {
-        params.append('payment_method', appliedFilters.paymentMethod)
-      }
-      if (appliedFilters.status) {
-        params.append('status', appliedFilters.status)
-      }
-      if (appliedFilters.minAmount) {
-        params.append('min_amount', appliedFilters.minAmount)
-      }
-      if (appliedFilters.maxAmount) {
-        params.append('max_amount', appliedFilters.maxAmount)
-      }
-      if (appliedFilters.fiscalYearId) {
-        params.append('fiscal_year_id', appliedFilters.fiscalYearId)
-      }
-
-      url.search = params.toString()
-      
-      const response = await fetch(url)
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Print report fetch error:', response.status, errorText)
-        throw new Error(`Failed to fetch data for print: ${response.status}`)
-      }
-      
-      const responseText = await response.text()
-      let result
-      try {
-        result = JSON.parse(responseText)
-      } catch (parseError) {
-        console.error('JSON parse error:', parseError)
-        console.error('Response text:', responseText.substring(0, 500))
-        throw new Error('Server returned invalid JSON response')
-      }
-      let allExpenses = result.data || []
-
-      // Apply client-side search filter
-      if (searchTerm.trim()) {
-        const searchLower = searchTerm.toLowerCase()
-        allExpenses = allExpenses.filter((expense: any) => (
-          expense.details?.toLowerCase().includes(searchLower) ||
-          expense.remarks?.toLowerCase().includes(searchLower) ||
-          expense.partner?.name?.toLowerCase().includes(searchLower) ||
-          expense.budget?.label?.toLowerCase().includes(searchLower) ||
-          expense.expense_category?.label?.toLowerCase().includes(searchLower)
-        ))
-      }
-
-      // Create HTML report and print
-      generatePrintableReport(allExpenses, appliedFilters, searchTerm, { budgets, expenseCategories, partners, fiscalYears })
-      
-    } catch (error) {
-      console.error('Error generating print report:', error)
-      toast({
-        title: "خطأ في إنشاء التقرير",
-        description: "حدث خطأ أثناء إنشاء التقرير للطباعة",
-        variant: "destructive",
-      })
-    } finally {
-      setIsExporting(false)
-    }
-  }
-
-  const generatePrintableReport = (expenses: any[], filters: FilterValues, search: string, referenceData: { budgets: any[], expenseCategories: any[], partners: any[], fiscalYears: any[] }) => {
-    const currentDate = format(new Date(), 'yyyy-MM-dd HH:mm')
-    const totalAmount = expenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0)
-    
-    // Build filter lines for print report
-    const filterElements = []
-    if (filters.fromDate) {
-      filterElements.push(`<div>من تاريخ: ${format(filters.fromDate, 'yyyy-MM-dd')}</div>`)
-    }
-    if (filters.toDate) {
-      filterElements.push(`<div>إلى تاريخ: ${format(filters.toDate, 'yyyy-MM-dd')}</div>`)
-    }
-    if (filters.fiscalYearId) {
-      const fiscalYear = referenceData.fiscalYears.find(fy => fy.id.toString() === filters.fiscalYearId)
-      filterElements.push(`<div>السنة المالية: ${fiscalYear ? fiscalYear.year : filters.fiscalYearId}</div>`)
-    }
-    if (filters.budgetId) {
-      const budget = referenceData.budgets.find(sb => sb.id.toString() === filters.budgetId)
-      filterElements.push(`<div>الميزانية: ${budget ? budget.label : filters.budgetId}</div>`)
-    }
-    if (filters.expenseCategoryId) {
-      const expenseCategory = referenceData.expenseCategories.find(ec => ec.id.toString() === filters.expenseCategoryId)
-      filterElements.push(`<div>فئة المصروف: ${expenseCategory ? expenseCategory.label : filters.expenseCategoryId}</div>`)
-    }
-    if (filters.partnerId) {
-      const partner = referenceData.partners.find(p => p.id.toString() === filters.partnerId)
-      filterElements.push(`<div>الشريك: ${partner ? partner.name : filters.partnerId}</div>`)
-    }
-    if (filters.status) {
-      const statusArabic = filters.status === 'Approved' ? 'معتمد' : filters.status === 'Draft' ? 'مسودة' : filters.status === 'Rejected' ? 'مرفوض' : filters.status
-      filterElements.push(`<div>الحالة: ${statusArabic}</div>`)
-    }
-    if (filters.paymentMethod) {
-      const paymentArabic = filters.paymentMethod === 'Cash' ? 'نقدي' : filters.paymentMethod === 'Cheque' ? 'شيك' : filters.paymentMethod === 'BankWire' ? 'حوالة بنكية' : filters.paymentMethod
-      filterElements.push(`<div>طريقة الدفع: ${paymentArabic}</div>`)
-    }
-    if (filters.minAmount) {
-      filterElements.push(`<div>أقل مبلغ: ${filters.minAmount} د.م</div>`)
-    }
-    if (filters.maxAmount) {
-      filterElements.push(`<div>أعلى مبلغ: ${filters.maxAmount} د.م</div>`)
-    }
-    if (search.trim()) {
-      filterElements.push(`<div>البحث: ${search.trim()}</div>`)
-    }
-    
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) return
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html dir="rtl" lang="ar">
-      <head>
-        <meta charset="utf-8">
-        <title>تقرير المصروفات</title>
-        <style>
-          * { box-sizing: border-box; }
-          body { 
-            font-family: Arial, sans-serif; 
-            margin: 20px; 
-            color: #333;
-            direction: rtl;
-          }
-          .header {
-            text-align: center;
-            border-bottom: 3px solid #dc2626;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
-          }
-          .header h1 {
-            color: #b91c1c;
-            margin: 0;
-            font-size: 28px;
-          }
-          .header .subtitle {
-            color: #6b7280;
-            margin: 5px 0;
-          }
-          .summary {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 30px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-          }
-          .summary-item {
-            text-align: center;
-          }
-          .summary-item .label {
-            font-weight: bold;
-            color: #374151;
-            display: block;
-            margin-bottom: 5px;
-          }
-          .summary-item .value {
-            font-size: 18px;
-            color: #dc2626;
-            font-weight: bold;
-          }
-          .filters {
-            background: #fef3c7;
-            border: 1px solid #f59e0b;
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 20px;
-          }
-          .filters h3 {
-            margin: 0 0 10px 0;
-            color: #92400e;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            font-size: 11px;
-          }
-          th, td {
-            border: 1px solid #d1d5db;
-            padding: 6px;
-            text-align: center;
-          }
-          th {
-            background: #dc2626;
-            color: white;
-            font-weight: bold;
-          }
-          tr:nth-child(even) {
-            background: #f9fafb;
-          }
-          .amount {
-            font-weight: bold;
-            color: #dc2626;
-          }
-          .status-approved { color: #059669; }
-          .status-draft { color: #d97706; }
-          .status-rejected { color: #dc2626; }
-          @media print {
-            body { margin: 10px; }
-            .no-print { display: none; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>تقرير المصروفات</h1>
-          <div class="subtitle">نظام إدارة الجمعية</div>
-          <div class="subtitle">تاريخ التقرير: ${currentDate}</div>
-        </div>
-
-        <div class="summary">
-          <div class="summary-item">
-            <span class="label">إجمالي السجلات</span>
-            <span class="value">${expenses.length}</span>
-          </div>
-          <div class="summary-item">
-            <span class="label">إجمالي المبلغ</span>
-            <span class="value">${totalAmount.toFixed(2)} د.م</span>
-          </div>
-          <div class="summary-item">
-            <span class="label">المعتمد</span>
-            <span class="value">${expenses.filter(e => e.status === 'Approved').length}</span>
-          </div>
-          <div class="summary-item">
-            <span class="label">المسودات</span>
-            <span class="value">${expenses.filter(e => e.status === 'Draft').length}</span>
-          </div>
-        </div>
-
-        ${filterElements.length > 0 ? `
-        <div class="filters">
-          <h3>الفلاتر المطبقة:</h3>
-          ${filterElements.join('')}
-        </div>` : ''}
-
-        <table>
-          <thead>
-            <tr>
-              <th>رقم</th>
-              <th>التاريخ</th>
-              <th>الشريك</th>
-              <th>التفاصيل</th>
-              <th>الفئة</th>
-              <th>المبلغ</th>
-              <th>طريقة الدفع</th>
-              <th>المستفيدين</th>
-              <th>الحالة</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${expenses.map((expense, index) => {
-              const paymentMethodArabic = {
-                'Cash': 'نقدي',
-                'Cheque': 'شيك',
-                'BankWire': 'حوالة بنكية'
-              }[expense.payment_method] || expense.payment_method
-
-              const statusArabic = {
-                'Draft': 'مسودة',
-                'Approved': 'معتمد', 
-                'Rejected': 'مرفوض'
-              }[expense.status] || expense.status
-
-              const statusClass = expense.status === 'Approved' ? 'status-approved' : 
-                                expense.status === 'Draft' ? 'status-draft' : 'status-rejected'
-
-              const beneficiariesCount = expense.beneficiaries ? expense.beneficiaries.length : 0
-
-              return `
-                <tr>
-                  <td>${index + 1}</td>
-                  <td>${format(new Date(expense.expense_date), 'yyyy-MM-dd')}</td>
-                  <td>${expense.partner?.name || 'لا يوجد'}</td>
-                  <td>${expense.details || ''}</td>
-                  <td>${expense.expense_category?.label || ''}</td>
-                  <td class="amount">${parseFloat(expense.amount).toFixed(2)}</td>
-                  <td>${paymentMethodArabic}</td>
-                  <td>${beneficiariesCount}</td>
-                  <td class="${statusClass}">${statusArabic}</td>
-                </tr>
-              `
-            }).join('')}
-          </tbody>
-        </table>
-
-        <div style="margin-top: 30px; text-align: center; color: #6b7280; font-size: 12px;">
-          تم إنشاء هذا التقرير في ${currentDate} - نظام إدارة الجمعية
-        </div>
-
-        <script>
-          window.onload = function() {
-            window.print();
-            window.onafterprint = function() {
-              window.close();
-            }
-          }
-        </script>
-      </body>
-      </html>
-    `
-
-    printWindow.document.write(htmlContent)
-    printWindow.document.close()
   }
 
   const handleApplyFilters = () => {
@@ -675,17 +258,13 @@ export default function ExpensesPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onClick={handleExportCSV} disabled={isExporting}>
-                <Download className="h-4 w-4 ml-2" />
-                تصدير CSV
-              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleDownloadPdf}>
                 <FileDown className="h-4 w-4 ml-2" />
                 تصدير PDF
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handlePrintReport} disabled={isExporting}>
-                <FileText className="h-4 w-4 ml-2" />
-                تقرير للطباعة
+              <DropdownMenuItem onClick={handleExportExcel} disabled={isExporting}>
+                <Download className="h-4 w-4 ml-2" />
+                تصدير Excel
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

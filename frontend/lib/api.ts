@@ -794,7 +794,13 @@ class ApiClient {
    * rather than a screenshot), so downloading one is an authenticated fetch
    * whose blob is handed to the browser. The server names the file.
    */
-  async downloadPdf(endpoint: string, params?: Record<string, any>, fallbackName = 'report.pdf') {
+  /** Authenticated download of a generated report (PDF or spreadsheet). */
+  async downloadReport(
+    endpoint: string,
+    params?: Record<string, any>,
+    fallbackName = 'report',
+    accept = 'application/pdf',
+  ) {
     const searchParams = new URLSearchParams()
     const put = (key: string, value: any) => {
       if (value === undefined || value === null || value === '') return
@@ -817,13 +823,13 @@ class ApiClient {
 
     const response = await fetch(`${this.baseURL}${endpoint}${query ? `?${query}` : ''}`, {
       headers: {
-        Accept: 'application/pdf',
+        Accept: accept,
         ...(this.token && { Authorization: `Bearer ${this.token}` }),
       },
     })
 
     if (!response.ok) {
-      // An error comes back as JSON even though we asked for a PDF.
+      // An error comes back as JSON even though we asked for a file.
       let data: any = {}
       try { data = await response.json() } catch { /* non-JSON error body */ }
       throw new ApiError(response, data)
@@ -845,6 +851,19 @@ class ApiClient {
     setTimeout(() => URL.revokeObjectURL(url), 10_000)
 
     return filename
+  }
+
+  downloadPdf(endpoint: string, params?: Record<string, any>, fallbackName = 'report.pdf') {
+    return this.downloadReport(endpoint, params, fallbackName, 'application/pdf')
+  }
+
+  downloadExcel(endpoint: string, params?: Record<string, any>, fallbackName = 'report.xlsx') {
+    return this.downloadReport(
+      endpoint,
+      params,
+      fallbackName,
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
   }
 
   async getSchoolPerformance(params?: {

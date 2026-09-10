@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 import { PrintWidowPDF } from "./print-widow-pdf"
 import { KafalaFamilyBalance } from "./kafala-family-balance"
+import { cn } from "@/lib/utils"
 
 interface Widow {
   id: number
@@ -151,21 +152,93 @@ interface ViewWidowDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
+/**
+ * A labelled value: caption above, value beneath, both starting at the same
+ * edge.
+ *
+ * Every field went through <Label>, which renders an inline <label>. Next to
+ * a block <p> that stacked, but next to an inline <Badge> the two shared a
+ * line - so text fields and badge fields disagreed about their own layout on
+ * the same screen. Routing them all through here settles it.
+ */
+function Field({
+  label,
+  icon,
+  children,
+  className,
+}: {
+  label: string
+  icon?: React.ReactNode
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn("space-y-1", className)}>
+      <div className="text-sm font-medium text-muted-foreground">{label}</div>
+      <div className="flex min-h-6 items-center gap-2 font-medium">
+        {icon}
+        {children}
+      </div>
+    </div>
+  )
+}
+
+/** Amounts arrive from the API as decimal strings, so `+` concatenates. */
+function toAmount(value: unknown): number {
+  const parsed = typeof value === "number" ? value : Number.parseFloat(String(value ?? ""))
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function sumAmounts<T>(rows: T[] | undefined, pick: (row: T) => unknown): number {
+  return (rows ?? []).reduce<number>((total, row) => total + toAmount(pick(row)), 0)
+}
+
+/**
+ * Money and dates are left-to-right runs sitting inside Arabic text. Left to
+ * the bidi algorithm the parts get reordered against each other - a date
+ * came out as "282025/7/" - so each one is isolated.
+ */
+function Money({ value, className }: { value: unknown; className?: string }) {
+  return (
+    <span dir="ltr" className={cn("inline-block tabular-nums", className)}>
+      DH {toAmount(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+    </span>
+  )
+}
+
+/**
+ * The `ar-EG` formatter embeds U+200F marks between the day, month and year,
+ * which is what reordered the date even inside an isolate. Building the
+ * string here keeps it free of them.
+ */
+function DateText({ value }: { value?: string | null }) {
+  if (!value) return <span className="text-muted-foreground">غير محدد</span>
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return <span className="text-muted-foreground">غير محدد</span>
+
+  const day = String(date.getDate()).padStart(2, "0")
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+
+  return (
+    <span dir="ltr" className="inline-block tabular-nums">
+      {`${day}/${month}/${date.getFullYear()}`}
+    </span>
+  )
+}
+
 export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogProps) {
   if (!widow) return null
   
-  // Debug: log the widow data to see what we're getting
-  console.log("ViewWidowDialog widow data:", widow)
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              تفاصيل الأرملة - {widow.full_name}
-            </div>
+        {/* pr-12 keeps the row clear of the close button, which the dialog
+            pins to the physical right regardless of direction. */}
+        <DialogHeader className="pr-12">
+          <DialogTitle className="flex items-center gap-3">
+            <Users className="h-5 w-5 shrink-0" />
+            <span className="truncate">تفاصيل الأرملة - {widow.full_name}</span>
             <PrintWidowPDF widow={widow} variant="icon" />
           </DialogTitle>
         </DialogHeader>
@@ -193,11 +266,11 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">الاسم الكامل</Label>
+                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">الاسم الكامل</Label>
                       <p className="text-lg font-semibold">{widow.full_name}</p>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">رقم البطاقة الوطنية</Label>
+                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">رقم البطاقة الوطنية</Label>
                       <p className="flex items-center gap-2">
                         <IdCard className="h-4 w-4 text-muted-foreground" />
                         {widow.national_id}
@@ -207,22 +280,22 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
 
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">العمر</Label>
+                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">العمر</Label>
                       <p className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         {Math.floor(widow.age)} سنة
                       </p>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">الحالة الاجتماعية</Label>
+                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">الحالة الاجتماعية</Label>
                       <Badge variant="outline">{widow.marital_status}</Badge>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">صلة القرابة بالأيتام</Label>
+                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">صلة القرابة بالأيتام</Label>
                       <Badge variant="outline">{(widow as any).family_liaison || "أم"}</Badge>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">المستوى التعليمي</Label>
+                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">المستوى التعليمي</Label>
                       {widow.education_level ? (
                         <Badge variant="secondary">{widow.education_level}</Badge>
                       ) : (
@@ -233,7 +306,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">رقم الهاتف</Label>
+                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">رقم الهاتف</Label>
                       <p className="flex items-center gap-2">
                         <Phone className="h-4 w-4 text-muted-foreground" />
                         {widow.phone || "غير محدد"}
@@ -246,7 +319,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                       ))}
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">البريد الإلكتروني</Label>
+                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">البريد الإلكتروني</Label>
                       <p className="flex items-center gap-2">
                         <Mail className="h-4 w-4 text-muted-foreground" />
                         {widow.email || "غير محدد"}
@@ -256,20 +329,20 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">العنوان</Label>
+                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">العنوان</Label>
                       <p className="flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-muted-foreground" />
                         {widow.address || "غير محدد"}
                       </p>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">الحي</Label>
+                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">الحي</Label>
                       <p>{widow.neighborhood || "غير محدد"}</p>
                     </div>
                   </div>
 
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">الإعاقة</Label>
+                    <Label className="block mb-1 text-sm font-medium text-muted-foreground">الإعاقة</Label>
                     <div className="flex items-center gap-2 mt-1">
                       {widow.disability_flag ? (
                         <Badge variant="destructive">
@@ -284,8 +357,8 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                   <Separator />
                   
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">تاريخ الانتساب</Label>
-                    <p>{new Date(widow.admission_date).toLocaleDateString('ar-EG', { numberingSystem: 'latn' })}</p>
+                    <Label className="block mb-1 text-sm font-medium text-muted-foreground">تاريخ الانتساب</Label>
+                    <p><DateText value={widow.admission_date} /></p>
                   </div>
                 </CardContent>
               </Card>
@@ -304,14 +377,14 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">نوع السكن</Label>
+                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">نوع السكن</Label>
                       <p className="flex items-center gap-2">
                         <Building2 className="h-4 w-4 text-muted-foreground" />
                         {widow.widow_social?.housing_type?.label || "غير محدد"}
                       </p>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">حالة السكن</Label>
+                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">حالة السكن</Label>
                       <Badge variant="outline">
                         {widow.widow_social?.housing_status === 'owned' ? 'ملك' : 
                          widow.widow_social?.housing_status === 'rented' ? 'إيجار' : 
@@ -320,7 +393,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <Label className="text-sm font-medium text-muted-foreground">المياه</Label>
+                        <Label className="block mb-1 text-sm font-medium text-muted-foreground">المياه</Label>
                         <div className="flex items-center gap-1">
                           <Droplets className="h-4 w-4 text-blue-500" />
                           <Badge variant={widow.widow_social?.has_water ? "secondary" : "destructive"}>
@@ -329,7 +402,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                         </div>
                       </div>
                       <div>
-                        <Label className="text-sm font-medium text-muted-foreground">الكهرباء</Label>
+                        <Label className="block mb-1 text-sm font-medium text-muted-foreground">الكهرباء</Label>
                         <div className="flex items-center gap-1">
                           <Zap className="h-4 w-4 text-yellow-500" />
                           <Badge variant={widow.widow_social?.has_electricity ? "secondary" : "destructive"}>
@@ -338,7 +411,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                         </div>
                       </div>
                       <div>
-                        <Label className="text-sm font-medium text-muted-foreground">الأثاث</Label>
+                        <Label className="block mb-1 text-sm font-medium text-muted-foreground">الأثاث</Label>
                         <div className="flex items-center gap-1">
                           <Sofa className="h-4 w-4 text-brown-500" />
                           <div className="flex">
@@ -369,7 +442,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">الوضع الاجتماعي</Label>
+                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">الوضع الاجتماعي</Label>
                       <Badge variant="outline">
                         {widow.widow_files?.social_situation === 'widow' ? 'أرملة' :
                          widow.widow_files?.social_situation === 'divorced' ? 'مطلقة' :
@@ -378,13 +451,13 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                       </Badge>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">الأمراض المزمنة</Label>
+                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">الأمراض المزمنة</Label>
                       <Badge variant={widow.widow_files?.has_chronic_disease ? "destructive" : "secondary"}>
                         {widow.widow_files?.has_chronic_disease ? "يوجد" : "لا يوجد"}
                       </Badge>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">المؤونة</Label>
+                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">المؤونة</Label>
                       <Badge variant={widow.widow_files?.has_maouna ? "secondary" : "outline"}>
                         {widow.widow_files?.has_maouna ? "نشطة" : "غير نشطة"}
                       </Badge>
@@ -415,21 +488,21 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                               </h4>
                               <div className="grid grid-cols-3 gap-4 text-sm">
                                 <div>
-                                  <Label className="text-muted-foreground">العمر</Label>
+                                  <Label className="block mb-1 text-muted-foreground">العمر</Label>
                                   <p>{Math.floor(orphan.age)} سنة</p>
                                 </div>
                                 <div>
-                                  <Label className="text-muted-foreground">الجنس</Label>
+                                  <Label className="block mb-1 text-muted-foreground">الجنس</Label>
                                   <p>{orphan.gender === 'male' ? 'ذكر' : 'أنثى'}</p>
                                 </div>
                                 <div>
-                                  <Label className="text-muted-foreground">المستوى التعليمي</Label>
+                                  <Label className="block mb-1 text-muted-foreground">المستوى التعليمي</Label>
                                   <p>{orphan.education_level || 'غير محدد'}</p>
                                 </div>
                               </div>
                               {orphan.health_status && (
                                 <div>
-                                  <Label className="text-muted-foreground text-sm">الحالة الصحية</Label>
+                                  <Label className="block mb-1 text-muted-foreground text-sm">الحالة الصحية</Label>
                                   <p className="text-sm">{orphan.health_status}</p>
                                 </div>
                               )}
@@ -474,7 +547,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                               <div className="grid grid-cols-2 gap-4 text-sm">
                                 {sponsorship.kafil?.phone && (
                                   <div>
-                                    <Label className="text-muted-foreground">رقم الهاتف</Label>
+                                    <Label className="block mb-1 text-muted-foreground">رقم الهاتف</Label>
                                     <p className="flex items-center gap-1">
                                       <Phone className="h-3 w-3" />
                                       {sponsorship.kafil.phone}
@@ -483,14 +556,14 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                                 )}
                                 {sponsorship.kafil?.monthly_pledge && (
                                   <div>
-                                    <Label className="text-muted-foreground">التعهد الشهري</Label>
-                                    <p>DH {sponsorship.kafil.monthly_pledge}</p>
+                                    <Label className="block mb-1 text-muted-foreground">التعهد الشهري</Label>
+                                    <p><Money value={sponsorship.kafil.monthly_pledge} /></p>
                                   </div>
                                 )}
                               </div>
                               {sponsorship.kafil?.donor && (
                                 <div>
-                                  <Label className="text-muted-foreground text-sm">المتبرع الأساسي</Label>
+                                  <Label className="block mb-1 text-muted-foreground text-sm">المتبرع الأساسي</Label>
                                   <p className="text-sm">
                                     {sponsorship.kafil.donor.first_name} {sponsorship.kafil.donor.last_name}
                                   </p>
@@ -499,7 +572,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                             </div>
                             <div className="text-right">
                               <Badge variant="secondary" className="text-lg">
-                                DH {sponsorship.amount}
+                                <Money value={sponsorship.amount} />
                               </Badge>
                             </div>
                           </div>
@@ -510,7 +583,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                         <div className="flex justify-between items-center">
                           <span className="font-medium">إجمالي الكفالة الشهرية:</span>
                           <span className="text-xl font-bold text-green-600">
-                            DH {widow.total_sponsorship_amount || 0}
+                            <Money value={widow.total_sponsorship_amount} />
                           </span>
                         </div>
                       </div>
@@ -550,7 +623,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                                 )}
                               </div>
                               <Badge variant="secondary">
-                                DH {income.amount}
+                                <Money value={income.amount} />
                               </Badge>
                             </div>
                           </div>
@@ -559,7 +632,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                           <div className="flex justify-between font-medium">
                             <span>إجمالي الدخل:</span>
                             <span className="text-green-600">
-                              DH {widow.social_income.reduce((sum, income) => sum + income.amount, 0)}
+                              <Money value={sumAmounts(widow.social_income, (row) => row.amount)} />
                             </span>
                           </div>
                         </div>
@@ -595,7 +668,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                                 )}
                               </div>
                               <Badge variant="destructive">
-                                DH {expense.amount}
+                                <Money value={expense.amount} />
                               </Badge>
                             </div>
                           </div>
@@ -604,7 +677,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                           <div className="flex justify-between font-medium">
                             <span>إجمالي المصاريف:</span>
                             <span className="text-red-600">
-                              DH {widow.social_expenses.reduce((sum, expense) => sum + expense.amount, 0)}
+                              <Money value={sumAmounts(widow.social_expenses, (row) => row.amount)} />
                             </span>
                           </div>
                         </div>
@@ -647,7 +720,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                                 <div className="space-y-1">
                                   {maouna.partner?.field && (
                                     <div className="flex items-center gap-2">
-                                      <Label className="text-sm font-medium text-muted-foreground">المجال:</Label>
+                                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">المجال:</Label>
                                       <Badge variant="outline" className="text-xs">
                                         {maouna.partner.field.label}
                                       </Badge>
@@ -655,7 +728,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                                   )}
                                   {maouna.partner?.subfield && (
                                     <div className="flex items-center gap-2">
-                                      <Label className="text-sm font-medium text-muted-foreground">التخصص:</Label>
+                                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">التخصص:</Label>
                                       <Badge variant="secondary" className="text-xs">
                                         {maouna.partner.subfield.label}
                                       </Badge>
@@ -676,7 +749,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                             
                             <div className="text-right">
                               <Badge variant="secondary" className="text-lg">
-                                DH {maouna.amount}
+                                <Money value={maouna.amount} />
                               </Badge>
                             </div>
                           </div>
@@ -771,9 +844,9 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
           {/* Footer with registration info */}
           <div className="border-t pt-4 text-sm text-muted-foreground bg-gray-50 p-4 rounded-lg">
             <div className="flex justify-between">
-              <span>تاريخ التسجيل: {new Date(widow.created_at).toLocaleDateString('ar-EG', { numberingSystem: 'latn' })}</span>
+              <span className="flex items-center gap-1">تاريخ التسجيل: <DateText value={widow.created_at} /></span>
               {widow.updated_at !== widow.created_at && (
-                <span>آخر تحديث: {new Date(widow.updated_at).toLocaleDateString('ar-EG', { numberingSystem: 'latn' })}</span>
+                <span className="flex items-center gap-1">آخر تحديث: <DateText value={widow.updated_at} /></span>
               )}
             </div>
           </div>
