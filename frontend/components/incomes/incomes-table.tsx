@@ -358,7 +358,7 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
           <Badge variant="default" className="text-xs">
             محول
           </Badge>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-muted-foreground">
             {formatDateArabic(new Date(income.transferred_at), "dd/MM/yyyy")}
           </span>
         </div>
@@ -598,8 +598,8 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
   return (
     <div className="space-y-4">
       {selectedIds.size > 0 && (
-        <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <span className="text-sm font-medium text-blue-900">تم تحديد {selectedIds.size} عنصر</span>
+        <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-950/40 rounded-lg border border-blue-200 dark:border-blue-900">
+          <span className="text-sm font-medium text-blue-900 dark:text-blue-400">تم تحديد {selectedIds.size} عنصر</span>
           <div className="flex gap-2">
             {selectedApprovableItems.length > 0 && (
               <Button size="sm" onClick={handleBulkValidate}>
@@ -621,10 +621,10 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
       )}
 
       {transferableItems.length > 0 && (
-        <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-200">
+        <div className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-950/40 rounded-lg border border-orange-200 dark:border-orange-900">
           <div className="flex items-center gap-2">
             <Banknote className="h-4 w-4 text-orange-600" />
-            <span className="text-sm font-medium text-orange-900">
+            <span className="text-sm font-medium text-orange-900 dark:text-orange-400">
               يوجد {transferableItems.length} إيراد نقدي/شيك بحاجة للتحويل إلى البنك
             </span>
           </div>
@@ -665,13 +665,13 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
               </TableRow>
             ) : filteredData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                   {searchTerm ? "لم يتم العثور على إيرادات تطابق البحث" : "لا توجد إيرادات مسجلة"}
                 </TableCell>
               </TableRow>
             ) : (
               filteredData.map((income) => (
-                <TableRow key={income.id} className={cn(needsTransfer(income) && "bg-red-50 hover:bg-red-100")}>
+                <TableRow key={income.id} className={cn(needsTransfer(income) && "bg-red-50 dark:bg-red-950/40 hover:bg-red-100")}>
                   <TableCell className="text-center">
                     <Checkbox
                       checked={selectedIds.has(income.id)}
@@ -698,7 +698,7 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
                       </div>
                     )}
                     {!income.donor && !income.kafil && (
-                      <span className="text-gray-500">غير محدد</span>
+                      <span className="text-muted-foreground">غير محدد</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right font-bold text-green-600">
@@ -764,7 +764,7 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-muted-foreground">
             عرض {(currentPage - 1) * itemsPerPage + 1} إلى {Math.min(currentPage * itemsPerPage, totalItems)} من {totalItems}{" "}
             نتيجة
           </div>

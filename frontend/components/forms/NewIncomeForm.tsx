@@ -506,7 +506,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
 
         {loading && (
           <div className="flex justify-center py-8">
-            <div className="animate-spin h-8 w-8 border-4 border-gray-300 border-t-blue-600 rounded-full"></div>
+            <div className="animate-spin h-8 w-8 border-4 border-border border-t-blue-600 rounded-full"></div>
           </div>
         )}
 
@@ -723,32 +723,32 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                   )}
                 />
                 {selectedKafilSponsorship && (
-                  <div className="p-4 bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg">
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 dark:border-blue-900 rounded-lg">
                     <div className="mb-3">
-                      <h4 className="text-lg font-semibold text-blue-900 flex items-center gap-2">
+                      <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-400 flex items-center gap-2">
                         <HandCoins className="h-5 w-5" />
                         معلومات الكفيل: {selectedKafilSponsorship.first_name} {selectedKafilSponsorship.last_name}
                       </h4>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div className="bg-white p-3 rounded-lg border">
-                        <p className="text-sm font-medium text-gray-700">التعهد الشهري:</p>
+                      <div className="bg-card p-3 rounded-lg border">
+                        <p className="text-sm font-medium text-foreground">التعهد الشهري:</p>
                         <p className="text-lg font-bold text-green-600">{parseFloat(selectedKafilSponsorship.monthly_pledge || 0)} د.م</p>
                       </div>
-                      <div className="bg-white p-3 rounded-lg border">
-                        <p className="text-sm font-medium text-gray-700">عدد الأرامل المكفولات:</p>
+                      <div className="bg-card p-3 rounded-lg border">
+                        <p className="text-sm font-medium text-foreground">عدد الأرامل المكفولات:</p>
                         <p className="text-lg font-bold text-blue-600">{selectedKafilSponsorship.sponsorships?.length || 0} أرملة</p>
                       </div>
                     </div>
 
                     {selectedKafilSponsorship.sponsorships && selectedKafilSponsorship.sponsorships.length > 0 && (
-                      <div className="bg-white p-4 rounded-lg border">
-                        <h5 className="text-md font-semibold text-gray-800 mb-3">الأرامل المكفولات:</h5>
+                      <div className="bg-card p-4 rounded-lg border">
+                        <h5 className="text-md font-semibold text-foreground mb-3">الأرامل المكفولات:</h5>
                         <div className="space-y-2">
                           {selectedKafilSponsorship.sponsorships.map((sponsorship: any, index: number) => (
-                            <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                              <span className="font-medium text-gray-700">
+                            <div key={index} className="flex justify-between items-center p-2 bg-muted rounded">
+                              <span className="font-medium text-foreground">
                                 {sponsorship.widow?.first_name} {sponsorship.widow?.last_name}
                               </span>
                               <span className="text-green-600 font-semibold">
@@ -757,9 +757,9 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                             </div>
                           ))}
                         </div>
-                        <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="mt-3 pt-3 border-t border-border">
                           <div className="flex justify-between items-center">
-                            <span className="font-semibold text-gray-800">إجمالي المبالغ:</span>
+                            <span className="font-semibold text-foreground">إجمالي المبالغ:</span>
                             <span className="text-xl font-bold text-blue-600">
                               {selectedKafilSponsorship.sponsorships.reduce((sum: number, sp: any) => sum + parseFloat(sp.amount || 0), 0)} د.م
                             </span>
@@ -769,7 +769,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                     )}
                     
                     {incomeType === 'kafala' && (
-                      <div className="mt-3 text-xs text-blue-600 bg-blue-100 p-2 rounded">
+                      <div className="mt-3 text-xs text-blue-600 bg-blue-100 dark:bg-blue-950/50 p-2 rounded">
                         💡 تم تعيين المبلغ تلقائياً حسب إجمالي الكفالات. يمكن تعديل المبلغ حسب الحاجة.
                       </div>
                     )}
@@ -806,7 +806,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                     {form.formState.errors.widow_id && (
                       <p className="text-sm text-red-600">{form.formState.errors.widow_id.message}</p>
                     )}
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       {incomeType === 'kafala_chamila'
                         ? 'المبلغ يُملأ تلقائياً حسب المبلغ المتفق عليه لهذه الأسرة في صفحة كفلائها، ويبقى قابلاً للتعديل. المبالغ توزَّع على الميزانيات المشتركة، ويُحتسب ما قدّمته هذه الأسرة عند الصرف عليها.'
                         : 'يُسجَّل كوجهة مقصودة للمساهمة ويظهر في كشف الكفيل. المبالغ نفسها توزَّع على الميزانيات كالمعتاد.'}
@@ -829,7 +829,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                 min="0"
               />
               {incomeType === 'kafala_chamila' && (
-                <p className="text-xs text-gray-500">يُستخدم لتوليد التوزيع أدناه، ويبقى قابلاً للتعديل يدوياً لكل بند</p>
+                <p className="text-xs text-muted-foreground">يُستخدم لتوليد التوزيع أدناه، ويبقى قابلاً للتعديل يدوياً لكل بند</p>
               )}
               {form.formState.errors.amount && (
                 <p className="text-sm text-red-600">{form.formState.errors.amount.message}</p>
@@ -888,7 +888,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
               {form.formState.errors.cheque_number && (
                 <p className="text-sm text-red-600">{form.formState.errors.cheque_number.message}</p>
               )}
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 سيتم تحويل الشيك إلى الحساب البنكي لاحقاً عند إيداعه
               </p>
             </div>

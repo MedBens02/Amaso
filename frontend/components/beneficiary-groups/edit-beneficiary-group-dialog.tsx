@@ -332,7 +332,7 @@ export function EditBeneficiaryGroupDialog({
               </CardHeader>
               <CardContent>
                 {members.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-muted-foreground">
                     <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>لا توجد أعضاء في هذه المجموعة</p>
                   </div>
@@ -341,7 +341,7 @@ export function EditBeneficiaryGroupDialog({
                     {members.map((member) => {
                       const details = getMemberDetails(member)
                       return (
-                        <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
+                        <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="font-medium">{member.full_name}</span>
@@ -349,7 +349,7 @@ export function EditBeneficiaryGroupDialog({
                                 {member.type === 'Widow' ? 'أرملة' : 'يتيم'}
                               </Badge>
                             </div>
-                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
                               <span>العمر: {details.age} سنة</span>
                               {details.phone && (
                                 <span className="flex items-center gap-1">
@@ -403,7 +403,7 @@ export function EditBeneficiaryGroupDialog({
                   {/* Search and Filter */}
                   <div className="flex flex-col sm:flex-row gap-3">
                     <div className="flex-1 relative">
-                      <Search className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
+                      <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="البحث في المستفيدين..."
                         value={searchTerm}
@@ -429,13 +429,13 @@ export function EditBeneficiaryGroupDialog({
                       <p>جاري تحميل المستفيدين...</p>
                     </div>
                   ) : filteredBeneficiaries.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-8 text-muted-foreground">
                       <p>لا توجد مستفيدين متاحين للإضافة</p>
                     </div>
                   ) : (
                     <div className="max-h-64 overflow-y-auto space-y-2">
                       {filteredBeneficiaries.map((beneficiary) => (
-                        <div key={beneficiary.id} className="flex items-center space-x-3 space-x-reverse p-2 hover:bg-gray-50 rounded">
+                        <div key={beneficiary.id} className="flex items-center space-x-3 space-x-reverse p-2 hover:bg-muted rounded">
                           <Checkbox
                             checked={selectedBeneficiaries.has(beneficiary.id)}
                             onCheckedChange={(checked) => {
@@ -456,7 +456,7 @@ export function EditBeneficiaryGroupDialog({
                               </Badge>
                             </div>
                             {beneficiary.widow?.phone && (
-                              <span className="text-sm text-gray-500">{beneficiary.widow.phone}</span>
+                              <span className="text-sm text-muted-foreground">{beneficiary.widow.phone}</span>
                             )}
                           </div>
                         </div>
@@ -467,7 +467,7 @@ export function EditBeneficiaryGroupDialog({
                   {/* Add Members Actions */}
                   {selectedBeneficiaries.size > 0 && (
                     <div className="flex items-center justify-between pt-4 border-t">
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-muted-foreground">
                         تم تحديد {selectedBeneficiaries.size} مستفيد
                       </p>
                       <div className="flex gap-2">

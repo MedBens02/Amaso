@@ -293,7 +293,7 @@ export function SchoolPerformanceDialog({ open, onOpenChange }: SchoolPerformanc
                 ].map((stat) => (
                   <Card key={stat.label}>
                     <CardContent className="p-3 text-center">
-                      <p className="text-xs text-gray-500">{stat.label}</p>
+                      <p className="text-xs text-muted-foreground">{stat.label}</p>
                       <p className="text-lg font-bold">{stat.value}</p>
                     </CardContent>
                   </Card>
@@ -301,7 +301,7 @@ export function SchoolPerformanceDialog({ open, onOpenChange }: SchoolPerformanc
               </div>
 
               {report.totals.ungraded > 0 && (
-                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2">
+                <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-md p-2">
                   {report.totals.ungraded} تلميذ(ة) بدون نقط مسجلة لهذه الفترة — غير مدرجين في الترتيب.
                 </p>
               )}
@@ -370,7 +370,7 @@ export function SchoolPerformanceDialog({ open, onOpenChange }: SchoolPerformanc
                   <TableBody>
                     {report.students.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center text-gray-500 py-6">
+                        <TableCell colSpan={8} className="text-center text-muted-foreground py-6">
                           لا توجد نتائج مطابقة لهذه التصفية.
                         </TableCell>
                       </TableRow>
@@ -385,7 +385,7 @@ export function SchoolPerformanceDialog({ open, onOpenChange }: SchoolPerformanc
                             )}
                           </TableCell>
                           <TableCell className="font-medium">{student.full_name}</TableCell>
-                          <TableCell className="text-gray-600">{student.family || "—"}</TableCell>
+                          <TableCell className="text-muted-foreground">{student.family || "—"}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               {student.school || "—"}

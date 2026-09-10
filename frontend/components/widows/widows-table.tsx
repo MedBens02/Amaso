@@ -351,17 +351,17 @@ export function WidowsTable({
                     {widow.phone ? (
                       <div className="flex items-center justify-end gap-2">
                         <span>{widow.phone}</span>
-                        <Phone className="h-4 w-4 text-gray-400" />
+                        <Phone className="h-4 w-4 text-muted-foreground" />
                       </div>
                     ) : (
-                      <span className="text-gray-400">غير محدد</span>
+                      <span className="text-muted-foreground">غير محدد</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
                     {widow.education_level ? (
                       <Badge variant="outline">{widow.education_level}</Badge>
                     ) : (
-                      <span className="text-gray-400">غير محدد</span>
+                      <span className="text-muted-foreground">غير محدد</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right">

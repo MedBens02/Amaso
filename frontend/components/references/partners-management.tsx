@@ -329,7 +329,7 @@ export function PartnersManagement({ onDataChange }: PartnersManagementProps) {
               {loading ? (
                 <div className="text-center py-4">جاري التحميل...</div>
               ) : partnerFields.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   لا توجد مجالات مضافة بعد
                 </div>
               ) : (
@@ -390,7 +390,7 @@ export function PartnersManagement({ onDataChange }: PartnersManagementProps) {
               {loading ? (
                 <div className="text-center py-4">جاري التحميل...</div>
               ) : partnerSubfields.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   لا توجد تخصصات مضافة بعد
                 </div>
               ) : (
@@ -450,7 +450,7 @@ export function PartnersManagement({ onDataChange }: PartnersManagementProps) {
             <CardContent>
               <div className="mb-4">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                   <Input
                     placeholder="البحث في الشركاء (الاسم، الهاتف، البريد، العنوان)..."
                     value={partnerSearch}
@@ -463,17 +463,17 @@ export function PartnersManagement({ onDataChange }: PartnersManagementProps) {
               {loading ? (
                 <div className="text-center py-4">جاري التحميل...</div>
               ) : groupedPartners.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   {partnerSearch ? "لم يتم العثور على شركاء يطابقون البحث" : "لا توجد شركاء مضافين بعد"}
                 </div>
               ) : (
                 <div className="space-y-4">
                   {groupedPartners.map((group, index) => (
                     <Collapsible key={index} defaultOpen>
-                      <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-muted rounded-lg hover:bg-muted transition-colors">
                         <div className="flex items-center gap-2">
                           <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
-                          <span className="font-semibold text-gray-700">
+                          <span className="font-semibold text-foreground">
                             {group.field 
                               ? group.subfield 
                                 ? `${group.field.label} - ${group.subfield.label}`
@@ -481,19 +481,19 @@ export function PartnersManagement({ onDataChange }: PartnersManagementProps) {
                               : "بدون تصنيف"
                             }
                           </span>
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                          <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900">
                             {group.partners.length} شريك
                           </Badge>
                         </div>
                       </CollapsibleTrigger>
                       <CollapsibleContent className="mt-2 space-y-2">
                         {group.partners.map((partner) => (
-                          <div key={partner.id} className="flex items-center justify-between p-3 border rounded-lg ml-6 bg-white">
+                          <div key={partner.id} className="flex items-center justify-between p-3 border rounded-lg ml-6 bg-card">
                             <div className="flex flex-col gap-2">
                               <div className="flex items-center gap-3">
                                 <span className="font-medium">{partner.name}</span>
                               </div>
-                              <div className="flex items-center gap-4 text-sm text-gray-600">
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                 {partner.phone && (
                                   <span className="flex items-center gap-1">
                                     📞 {partner.phone}

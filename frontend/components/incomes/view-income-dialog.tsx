@@ -161,13 +161,13 @@ export function ViewIncomeDialog({ income, open, onOpenChange }: ViewIncomeDialo
 
         <div className="space-y-6">
           {/* Status and Basic Info */}
-          <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+          <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
             <div>
-              <div className="text-sm font-medium text-gray-600">الحالة</div>
+              <div className="text-sm font-medium text-muted-foreground">الحالة</div>
               <div className="mt-1">{getStatusBadge(income.status)}</div>
             </div>
             <div>
-              <div className="text-sm font-medium text-gray-600">السنة المالية</div>
+              <div className="text-sm font-medium text-muted-foreground">السنة المالية</div>
               <div className="mt-1 font-semibold">{income.fiscal_year.year}</div>
             </div>
           </div>
@@ -177,7 +177,7 @@ export function ViewIncomeDialog({ income, open, onOpenChange }: ViewIncomeDialo
             <div className="flex items-center gap-3 p-4 border rounded-lg">
               <DollarSign className="h-8 w-8 text-green-600" />
               <div>
-                <div className="text-sm font-medium text-gray-600">المبلغ</div>
+                <div className="text-sm font-medium text-muted-foreground">المبلغ</div>
                 <div className="text-xl font-bold text-green-600">
                   {parseFloat(income.amount).toLocaleString()} د.م
                 </div>
@@ -186,7 +186,7 @@ export function ViewIncomeDialog({ income, open, onOpenChange }: ViewIncomeDialo
             <div className="flex items-center gap-3 p-4 border rounded-lg">
               <Calendar className="h-8 w-8 text-blue-600" />
               <div>
-                <div className="text-sm font-medium text-gray-600">تاريخ الإيراد</div>
+                <div className="text-sm font-medium text-muted-foreground">تاريخ الإيراد</div>
                 <div className="text-lg font-semibold">
                   {formatDateArabic(new Date(income.income_date), "dd/MM/yyyy")}
                 </div>
@@ -197,11 +197,11 @@ export function ViewIncomeDialog({ income, open, onOpenChange }: ViewIncomeDialo
           {/* Budget and Category */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <div className="text-sm font-medium text-gray-600">الميزانية</div>
+              <div className="text-sm font-medium text-muted-foreground">الميزانية</div>
               <div className="mt-1 font-semibold">{income.budget.label}</div>
             </div>
             <div>
-              <div className="text-sm font-medium text-gray-600">فئة الإيراد</div>
+              <div className="text-sm font-medium text-muted-foreground">فئة الإيراد</div>
               <div className="mt-1 font-semibold">{income.income_category.label}</div>
             </div>
           </div>
@@ -211,7 +211,7 @@ export function ViewIncomeDialog({ income, open, onOpenChange }: ViewIncomeDialo
             <div className="p-4 border rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <User className="h-5 w-5" />
-                <div className="text-sm font-medium text-gray-600">
+                <div className="text-sm font-medium text-muted-foreground">
                   {income.donor ? 'المتبرع' : 'الكفيل'}
                 </div>
               </div>
@@ -219,10 +219,10 @@ export function ViewIncomeDialog({ income, open, onOpenChange }: ViewIncomeDialo
                 <div>
                   <div className="font-semibold">{income.donor.first_name} {income.donor.last_name}</div>
                   {income.donor.phone && (
-                    <div className="text-sm text-gray-600">الهاتف: {income.donor.phone}</div>
+                    <div className="text-sm text-muted-foreground">الهاتف: {income.donor.phone}</div>
                   )}
                   {income.donor.email && (
-                    <div className="text-sm text-gray-600">الإيميل: {income.donor.email}</div>
+                    <div className="text-sm text-muted-foreground">الإيميل: {income.donor.email}</div>
                   )}
                 </div>
               )}
@@ -230,10 +230,10 @@ export function ViewIncomeDialog({ income, open, onOpenChange }: ViewIncomeDialo
                 <div>
                   <div className="font-semibold">{income.kafil.first_name} {income.kafil.last_name}</div>
                   {income.kafil.phone && (
-                    <div className="text-sm text-gray-600">الهاتف: {income.kafil.phone}</div>
+                    <div className="text-sm text-muted-foreground">الهاتف: {income.kafil.phone}</div>
                   )}
                   {income.kafil.email && (
-                    <div className="text-sm text-gray-600">الإيميل: {income.kafil.email}</div>
+                    <div className="text-sm text-muted-foreground">الإيميل: {income.kafil.email}</div>
                   )}
                 </div>
               )}
@@ -244,25 +244,25 @@ export function ViewIncomeDialog({ income, open, onOpenChange }: ViewIncomeDialo
           <div className="space-y-4 p-4 border rounded-lg">
             <div className="flex items-center gap-2">
               <CreditCard className="h-5 w-5" />
-              <div className="text-sm font-medium text-gray-600">معلومات الدفع</div>
+              <div className="text-sm font-medium text-muted-foreground">معلومات الدفع</div>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <div className="text-sm font-medium text-gray-600">طريقة الدفع</div>
+                <div className="text-sm font-medium text-muted-foreground">طريقة الدفع</div>
                 <div className="mt-1">{getPaymentMethodBadge(income.payment_method)}</div>
               </div>
               
               {income.cheque_number && (
                 <div>
-                  <div className="text-sm font-medium text-gray-600">رقم الشيك</div>
+                  <div className="text-sm font-medium text-muted-foreground">رقم الشيك</div>
                   <div className="mt-1 font-semibold">{income.cheque_number}</div>
                 </div>
               )}
               
               {income.receipt_number && (
                 <div>
-                  <div className="text-sm font-medium text-gray-600">رقم الإيصال</div>
+                  <div className="text-sm font-medium text-muted-foreground">رقم الإيصال</div>
                   <div className="mt-1 font-semibold">{income.receipt_number}</div>
                 </div>
               )}
@@ -270,13 +270,13 @@ export function ViewIncomeDialog({ income, open, onOpenChange }: ViewIncomeDialo
 
             {income.bank_account && (
               <div>
-                <div className="text-sm font-medium text-gray-600">الحساب البنكي</div>
+                <div className="text-sm font-medium text-muted-foreground">الحساب البنكي</div>
                 <div className="mt-1 font-semibold">{income.bank_account.label} - {income.bank_account.bank_name}</div>
               </div>
             )}
 
             <div>
-              <div className="text-sm font-medium text-gray-600">حالة التحويل</div>
+              <div className="text-sm font-medium text-muted-foreground">حالة التحويل</div>
               <div className="mt-1">{getTransferStatus()}</div>
             </div>
           </div>
@@ -286,14 +286,14 @@ export function ViewIncomeDialog({ income, open, onOpenChange }: ViewIncomeDialo
             <div className="p-4 border rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <FileText className="h-5 w-5" />
-                <div className="text-sm font-medium text-gray-600">الملاحظات</div>
+                <div className="text-sm font-medium text-muted-foreground">الملاحظات</div>
               </div>
               <div className="text-sm">{income.remarks}</div>
             </div>
           )}
 
           {/* Audit Information */}
-          <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg text-xs text-gray-600">
+          <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg text-xs text-muted-foreground">
             <div>
               <div>تاريخ الإنشاء: {formatDateArabic(new Date(income.created_at), "dd/MM/yyyy HH:mm")}</div>
               <div>آخر تعديل: {formatDateArabic(new Date(income.updated_at), "dd/MM/yyyy HH:mm")}</div>

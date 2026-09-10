@@ -16,10 +16,10 @@ import { GraduationCap, Plus, Loader2, Search, Check, X, DoorOpen, Trash2, Save 
 import api from "@/lib/api"
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
-  enrolled: { label: "مسجل", className: "bg-blue-100 text-blue-800" },
-  passed: { label: "ناجح", className: "bg-green-100 text-green-800" },
-  failed: { label: "راسب", className: "bg-red-100 text-red-800" },
-  left: { label: "غادر", className: "bg-gray-200 text-gray-700" },
+  enrolled: { label: "مسجل", className: "bg-blue-100 dark:bg-blue-950/50 text-blue-800 dark:text-blue-400" },
+  passed: { label: "ناجح", className: "bg-green-100 dark:bg-green-950/50 text-green-800 dark:text-green-400" },
+  failed: { label: "راسب", className: "bg-red-100 dark:bg-red-950/50 text-red-800 dark:text-red-400" },
+  left: { label: "غادر", className: "bg-gray-200 text-foreground" },
 }
 
 export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
@@ -250,7 +250,7 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
         </div>
         <div className="flex flex-col sm:flex-row gap-2 mt-2">
           <div className="relative flex-1">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input placeholder="البحث بالاسم أو رمز مسار..." value={search} onChange={(e) => setSearch(e.target.value)} className="pr-10" />
           </div>
           <Select value={yearFilter} onValueChange={setYearFilter}>
@@ -304,7 +304,7 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
             <TableBody>
               {enrollments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center text-gray-500 py-8">
+                  <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                     لا توجد تسجيلات لهذه السنة الدراسية.
                   </TableCell>
                 </TableRow>
@@ -356,13 +356,13 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
                       </TableCell>
                       <TableCell className="text-center">
                         {average === null ? (
-                          <span className="text-gray-400">—</span>
+                          <span className="text-muted-foreground">—</span>
                         ) : (
-                          <span className={`font-semibold ${average >= scale / 2 ? "text-green-700" : "text-red-600"}`}>
+                          <span className={`font-semibold ${average >= scale / 2 ? "text-green-700 dark:text-green-400" : "text-red-600"}`}>
                             {average.toFixed(2)}
                           </span>
                         )}
-                        <span className="text-[10px] text-gray-400 block">/{scale}</span>
+                        <span className="text-[10px] text-muted-foreground block">/{scale}</span>
                       </TableCell>
                       <TableCell>
                         <Badge className={status.className + " hover:" + status.className}>{status.label}</Badge>

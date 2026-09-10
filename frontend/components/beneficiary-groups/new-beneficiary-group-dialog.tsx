@@ -278,13 +278,13 @@ export function NewBeneficiaryGroupDialog({ open, onOpenChange, onGroupCreated }
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">اختيار الأعضاء</CardTitle>
-              <p className="text-sm text-gray-600">اختر المستفيدين الذين تريد إضافتهم للمجموعة</p>
+              <p className="text-sm text-muted-foreground">اختر المستفيدين الذين تريد إضافتهم للمجموعة</p>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Filters */}
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
-                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                   <Input
                     placeholder="البحث بالاسم..."
                     value={searchTerm}
@@ -305,8 +305,8 @@ export function NewBeneficiaryGroupDialog({ open, onOpenChange, onGroupCreated }
               </div>
 
               {/* Selection Summary */}
-              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <span className="text-sm font-medium text-blue-900">
+              <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/40 rounded-lg border border-blue-200 dark:border-blue-900">
+                <span className="text-sm font-medium text-blue-900 dark:text-blue-400">
                   تم اختيار {selectedBeneficiaries.size} من {filteredBeneficiaries.length} مستفيد
                 </span>
                 <div className="flex gap-2">
@@ -343,7 +343,7 @@ export function NewBeneficiaryGroupDialog({ open, onOpenChange, onGroupCreated }
                   <TableBody>
                     {filteredBeneficiaries.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                           لا توجد مستفيدون متاحون
                         </TableCell>
                       </TableRow>
@@ -366,7 +366,7 @@ export function NewBeneficiaryGroupDialog({ open, onOpenChange, onGroupCreated }
                               {beneficiary.type === 'Widow' ? 'أرملة' : 'يتيم'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-right text-sm text-gray-600">
+                          <TableCell className="text-right text-sm text-muted-foreground">
                             {getBeneficiaryDetails(beneficiary)}
                           </TableCell>
                         </TableRow>

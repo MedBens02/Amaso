@@ -74,15 +74,15 @@ function SortableItem({ id, item }: { id: string; item: EducationLevel }) {
             {...listeners}
             className="cursor-grab active:cursor-grabbing"
           >
-            <GripVertical className="h-5 w-5 text-gray-400" />
+            <GripVertical className="h-5 w-5 text-muted-foreground" />
           </div>
           <div className="flex-1">
             <div className="font-medium text-right">{item.name_ar}</div>
             {item.name_en && (
-              <div className="text-sm text-gray-500 text-right">{item.name_en}</div>
+              <div className="text-sm text-muted-foreground text-right">{item.name_en}</div>
             )}
           </div>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-muted-foreground">
             الترتيب: {item.sort_order}
           </div>
         </div>

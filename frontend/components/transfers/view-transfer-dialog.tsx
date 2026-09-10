@@ -88,14 +88,14 @@ export function ViewTransferDialog({ transfer, open, onOpenChange }: ViewTransfe
 
         <div className="space-y-6">
           {/* Transfer Status and Amount */}
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
             <div className="flex items-center gap-3">
               <ArrowLeftRight className="h-8 w-8 text-blue-600" />
               <div>
                 <h3 className="text-lg font-bold text-blue-600">
                   DH {parseFloat(transfer.amount).toLocaleString()}
                 </h3>
-                <p className="text-sm text-gray-600">مبلغ التحويل</p>
+                <p className="text-sm text-muted-foreground">مبلغ التحويل</p>
               </div>
             </div>
             <div className="text-right">
@@ -107,14 +107,14 @@ export function ViewTransferDialog({ transfer, open, onOpenChange }: ViewTransfe
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* From Account */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+              <label className="text-sm font-medium text-foreground flex items-center gap-1">
                 <Banknote className="h-4 w-4" />
                 من حساب
               </label>
-              <div className="p-3 border rounded-lg bg-red-50 border-red-200">
-                <div className="font-medium text-gray-900">{transfer.from_account.label}</div>
-                <div className="text-sm text-gray-600">{transfer.from_account.bank_name}</div>
-                <div className="text-xs text-gray-500">{transfer.from_account.account_number}</div>
+              <div className="p-3 border rounded-lg bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900">
+                <div className="font-medium text-foreground">{transfer.from_account.label}</div>
+                <div className="text-sm text-muted-foreground">{transfer.from_account.bank_name}</div>
+                <div className="text-xs text-muted-foreground">{transfer.from_account.account_number}</div>
                 <div className="text-sm font-medium text-red-600 mt-1">
                   الرصيد: DH {parseFloat(transfer.from_account.balance).toLocaleString()}
                 </div>
@@ -123,14 +123,14 @@ export function ViewTransferDialog({ transfer, open, onOpenChange }: ViewTransfe
 
             {/* To Account */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+              <label className="text-sm font-medium text-foreground flex items-center gap-1">
                 <Banknote className="h-4 w-4" />
                 إلى حساب
               </label>
-              <div className="p-3 border rounded-lg bg-green-50 border-green-200">
-                <div className="font-medium text-gray-900">{transfer.to_account.label}</div>
-                <div className="text-sm text-gray-600">{transfer.to_account.bank_name}</div>
-                <div className="text-xs text-gray-500">{transfer.to_account.account_number}</div>
+              <div className="p-3 border rounded-lg bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-900">
+                <div className="font-medium text-foreground">{transfer.to_account.label}</div>
+                <div className="text-sm text-muted-foreground">{transfer.to_account.bank_name}</div>
+                <div className="text-xs text-muted-foreground">{transfer.to_account.account_number}</div>
                 <div className="text-sm font-medium text-green-600 mt-1">
                   الرصيد: DH {parseFloat(transfer.to_account.balance).toLocaleString()}
                 </div>
@@ -141,7 +141,7 @@ export function ViewTransferDialog({ transfer, open, onOpenChange }: ViewTransfe
           {/* Transfer Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+              <label className="text-sm font-medium text-foreground flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
                 تاريخ التحويل
               </label>
@@ -151,7 +151,7 @@ export function ViewTransferDialog({ transfer, open, onOpenChange }: ViewTransfe
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-foreground">
                 رقم التحويل
               </label>
               <div className="p-3 border rounded-lg font-mono">
@@ -163,10 +163,10 @@ export function ViewTransferDialog({ transfer, open, onOpenChange }: ViewTransfe
           {/* Remarks */}
           {transfer.remarks && (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-foreground">
                 ملاحظات
               </label>
-              <div className="p-3 border rounded-lg bg-gray-50">
+              <div className="p-3 border rounded-lg bg-muted">
                 {transfer.remarks}
               </div>
             </div>
@@ -174,25 +174,25 @@ export function ViewTransferDialog({ transfer, open, onOpenChange }: ViewTransfe
 
           {/* Approval Information */}
           {transfer.status === 'Approved' && transfer.approved_at && (
-            <div className="p-4 border rounded-lg bg-green-50 border-green-200">
+            <div className="p-4 border rounded-lg bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-900">
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle className="h-4 w-4 text-green-600" />
-                <span className="text-sm font-medium text-green-800">معلومات الاعتماد</span>
+                <span className="text-sm font-medium text-green-800 dark:text-green-400">معلومات الاعتماد</span>
               </div>
-              <div className="text-sm text-green-700">
+              <div className="text-sm text-green-700 dark:text-green-400">
                 تم اعتماد التحويل في: {format(new Date(transfer.approved_at), "dd/MM/yyyy HH:mm", { locale: ar })}
               </div>
             </div>
           )}
 
           {/* Creation Information */}
-          <div className="pt-4 border-t border-gray-200">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="pt-4 border-t border-border">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <User className="h-4 w-4" />
               تم إنشاؤه في: {format(new Date(transfer.created_at), "dd/MM/yyyy HH:mm", { locale: ar })}
             </div>
             {transfer.updated_at !== transfer.created_at && (
-              <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                 <User className="h-4 w-4" />
                 آخر تحديث: {format(new Date(transfer.updated_at), "dd/MM/yyyy HH:mm", { locale: ar })}
               </div>

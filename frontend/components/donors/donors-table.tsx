@@ -197,7 +197,7 @@ export function DonorsTable({ searchTerm, isKafilFilter, refreshTrigger }: Donor
                     {donor.phone && (
                       <div className="flex items-center justify-end gap-2">
                         <span>{donor.phone}</span>
-                        <Phone className="h-4 w-4 text-gray-400" />
+                        <Phone className="h-4 w-4 text-muted-foreground" />
                       </div>
                     )}
                   </TableCell>
@@ -205,10 +205,10 @@ export function DonorsTable({ searchTerm, isKafilFilter, refreshTrigger }: Donor
                     {donor.email ? (
                       <div className="flex items-center justify-end gap-2">
                         <span>{donor.email}</span>
-                        <Mail className="h-4 w-4 text-gray-400" />
+                        <Mail className="h-4 w-4 text-muted-foreground" />
                       </div>
                     ) : (
-                      <span className="text-gray-400">غير محدد</span>
+                      <span className="text-muted-foreground">غير محدد</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
@@ -224,7 +224,7 @@ export function DonorsTable({ searchTerm, isKafilFilter, refreshTrigger }: Donor
                     {donor.kafil?.monthly_pledge ? (
                       <span className="text-blue-600 font-medium">DH {donor.kafil.monthly_pledge}</span>
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
                   <TableCell className="text-center">

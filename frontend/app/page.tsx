@@ -26,6 +26,7 @@ import { Illustration } from "@/components/landing/illustration"
 import { Reveal } from "@/components/landing/reveal"
 import { CountUp } from "@/components/landing/count-up"
 import { KafalaSplit } from "@/components/landing/kafala-split"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 /**
  * The association's public face.
@@ -169,6 +170,7 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <ThemeToggle className="text-slate-600 hover:text-teal-700 dark:text-slate-300" />
             <Button
               variant="ghost"
               className="hidden text-slate-600 hover:text-teal-700 sm:inline-flex dark:text-slate-300"

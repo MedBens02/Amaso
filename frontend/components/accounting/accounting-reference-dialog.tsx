@@ -247,7 +247,7 @@ export function AccountingReferenceDialog({ open, onOpenChange, type, item, onSu
                   </Select>
                 )}
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 اختياري — يُستخدم لتجميع الفئات المتقاربة فقط، ولا علاقة له بالميزانية.
               </p>
             </div>

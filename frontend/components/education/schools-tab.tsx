@@ -123,7 +123,7 @@ export function SchoolsTab() {
           </Button>
         </div>
         <div className="relative mt-2">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input placeholder="البحث في المؤسسات..." value={search} onChange={(e) => setSearch(e.target.value)} className="pr-10" />
         </div>
       </CardHeader>
@@ -148,7 +148,7 @@ export function SchoolsTab() {
             <TableBody>
               {schools.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     لا توجد مؤسسات. أضف أول مؤسسة تعليمية.
                   </TableCell>
                 </TableRow>
@@ -166,7 +166,7 @@ export function SchoolsTab() {
                       {school.is_amaso_linked ? (
                         <Badge className="bg-green-600 hover:bg-green-600">شريكة AMASO</Badge>
                       ) : (
-                        <span className="text-gray-400">—</span>
+                        <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
                     <TableCell>{school.enrollments_count ?? 0}</TableCell>

@@ -209,7 +209,7 @@ export function TransfersTable({ filters, onBalanceUpdate }: TransfersTableProps
       <div className="flex justify-center items-center min-h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">جاري تحميل التحويلات...</p>
+          <p className="text-muted-foreground">جاري تحميل التحويلات...</p>
         </div>
       </div>
     )
@@ -233,7 +233,7 @@ export function TransfersTable({ filters, onBalanceUpdate }: TransfersTableProps
           <TableBody>
             {transfers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   لا توجد تحويلات تطابق المعايير المحددة
                 </TableCell>
               </TableRow>
@@ -246,23 +246,23 @@ export function TransfersTable({ filters, onBalanceUpdate }: TransfersTableProps
                   <TableCell className="font-medium text-right">
                     <div>
                       <div className="font-medium">{transfer.from_account.label}</div>
-                      <div className="text-xs text-gray-500">{transfer.from_account.bank_name}</div>
+                      <div className="text-xs text-muted-foreground">{transfer.from_account.bank_name}</div>
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center gap-2 justify-end">
                       <div>
                         <div className="font-medium">{transfer.to_account.label}</div>
-                        <div className="text-xs text-gray-500">{transfer.to_account.bank_name}</div>
+                        <div className="text-xs text-muted-foreground">{transfer.to_account.bank_name}</div>
                       </div>
-                      <ArrowRight className="h-4 w-4 text-gray-400" />
+                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
                     </div>
                   </TableCell>
                   <TableCell className="font-bold text-blue-600 text-right">
                     DH {parseFloat(transfer.amount).toLocaleString()}
                   </TableCell>
                   <TableCell className="text-right">{getStatusBadge(transfer.status)}</TableCell>
-                  <TableCell className="text-sm text-gray-600 text-right max-w-48 truncate">
+                  <TableCell className="text-sm text-muted-foreground text-right max-w-48 truncate">
                     {transfer.remarks || '-'}
                   </TableCell>
                   <TableCell className="text-center">
@@ -317,7 +317,7 @@ export function TransfersTable({ filters, onBalanceUpdate }: TransfersTableProps
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-muted-foreground">
             عرض {((currentPage - 1) * itemsPerPage) + 1} إلى {Math.min(currentPage * itemsPerPage, total)} من {total}{" "}
             نتيجة
           </div>

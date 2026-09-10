@@ -126,7 +126,7 @@ export function OperationalReportDialog({ open, onOpenChange, spec }: Operationa
               {spec.stats.map((stat) => (
                 <Card key={stat.key}>
                   <CardContent className="p-3 text-center">
-                    <p className="text-xs text-gray-500">{stat.label}</p>
+                    <p className="text-xs text-muted-foreground">{stat.label}</p>
                     <p className="text-lg font-bold">
                       {stat.format ? stat.format(report.totals?.[stat.key]) : report.totals?.[stat.key] ?? "—"}
                     </p>
@@ -149,7 +149,7 @@ export function OperationalReportDialog({ open, onOpenChange, spec }: Operationa
                 <TableBody>
                   {rows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={spec.columns.length} className="text-center text-gray-500 py-6">
+                      <TableCell colSpan={spec.columns.length} className="text-center text-muted-foreground py-6">
                         {spec.emptyMessage ?? "لا توجد نتائج."}
                       </TableCell>
                     </TableRow>

@@ -151,27 +151,27 @@ export function KafilStatementDialog({ open, onOpenChange }: KafilStatementDialo
               </Button>
             </div>
           </div>
-          <p className="text-xs text-gray-500">اترك التواريخ فارغة لاستخدام السنة المالية النشطة</p>
+          <p className="text-xs text-muted-foreground">اترك التواريخ فارغة لاستخدام السنة المالية النشطة</p>
 
           {statement && (
             <div className="space-y-4 mt-2">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <Card>
                   <CardContent className="p-4">
-                    <p className="text-sm text-gray-600">إجمالي المساهمات</p>
+                    <p className="text-sm text-muted-foreground">إجمالي المساهمات</p>
                     <p className="text-2xl font-bold text-green-600">{money(statement.totals.contributed)}</p>
-                    <p className="text-xs text-gray-500">{statement.contributions.payments_count} عملية</p>
+                    <p className="text-xs text-muted-foreground">{statement.contributions.payments_count} عملية</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-4">
-                    <p className="text-sm text-gray-600">مخصّص لأسر محددة</p>
+                    <p className="text-sm text-muted-foreground">مخصّص لأسر محددة</p>
                     <p className="text-2xl font-bold text-blue-600">{money(statement.totals.designated)}</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-4">
-                    <p className="text-sm text-gray-600">ما تلقّته الأسر المكفولة</p>
+                    <p className="text-sm text-muted-foreground">ما تلقّته الأسر المكفولة</p>
                     <p className="text-2xl font-bold text-purple-600">{money(statement.totals.received_by_families)}</p>
                   </CardContent>
                 </Card>
@@ -187,7 +187,7 @@ export function KafilStatementDialog({ open, onOpenChange }: KafilStatementDialo
                     </div>
                   ))}
                   {statement.contributions.by_budget.length === 0 && (
-                    <p className="text-sm text-gray-500 p-2">لا توجد مساهمات معتمدة في هذه الفترة</p>
+                    <p className="text-sm text-muted-foreground p-2">لا توجد مساهمات معتمدة في هذه الفترة</p>
                   )}
                 </div>
               </div>
@@ -200,36 +200,36 @@ export function KafilStatementDialog({ open, onOpenChange }: KafilStatementDialo
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <p className="font-medium">{family.full_name}</p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-muted-foreground">
                             {family.orphans_count} أيتام — كفالة متفق عليها: {money(family.sponsorship_amount)}
                           </p>
                         </div>
                         <div className="text-left">
-                          <p className="text-xs text-gray-500">تلقّت</p>
+                          <p className="text-xs text-muted-foreground">تلقّت</p>
                           <p className="font-bold text-purple-600">{money(family.received.total)}</p>
                         </div>
                       </div>
                       {family.received.by_category.length > 0 ? (
                         <div className="space-y-1">
                           {family.received.by_category.map((row: any, index: number) => (
-                            <div key={index} className="flex justify-between text-sm text-gray-700">
+                            <div key={index} className="flex justify-between text-sm text-foreground">
                               <span>{row.label}</span>
                               <span>{money(row.amount)}</span>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <p className="text-sm text-gray-500">لا توجد مساعدات مسجلة في هذه الفترة</p>
+                        <p className="text-sm text-muted-foreground">لا توجد مساعدات مسجلة في هذه الفترة</p>
                       )}
                     </div>
                   ))}
                   {statement.families.length === 0 && (
-                    <p className="text-sm text-gray-500">هذا الكفيل لا يكفل أي أسرة حالياً</p>
+                    <p className="text-sm text-muted-foreground">هذا الكفيل لا يكفل أي أسرة حالياً</p>
                   )}
                 </div>
               </div>
 
-              <p className="text-xs text-gray-600 bg-gray-50 border rounded p-3 leading-relaxed">{DISCLOSURE}</p>
+              <p className="text-xs text-muted-foreground bg-muted border rounded p-3 leading-relaxed">{DISCLOSURE}</p>
             </div>
           )}
 

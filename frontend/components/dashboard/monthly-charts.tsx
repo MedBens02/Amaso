@@ -135,40 +135,40 @@ export function MonthlyCharts() {
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+        <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 dark:border-green-900">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-700">إجمالي الإيرادات (6 أشهر)</p>
-                <p className="text-2xl font-bold text-green-800">{formatCurrency(totalIncomes)}</p>
+                <p className="text-sm font-medium text-green-700 dark:text-green-400">إجمالي الإيرادات (6 أشهر)</p>
+                <p className="text-2xl font-bold text-green-800 dark:text-green-400">{formatCurrency(totalIncomes)}</p>
               </div>
-              <div className="p-3 bg-green-100 rounded-full">
+              <div className="p-3 bg-green-100 dark:bg-green-950/50 rounded-full">
                 <TrendingUp className="h-6 w-6 text-green-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-r from-red-50 to-rose-50 border-red-200">
+        <Card className="bg-gradient-to-r from-red-50 to-rose-50 border-red-200 dark:border-red-900">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-red-700">إجمالي المصروفات (6 أشهر)</p>
-                <p className="text-2xl font-bold text-red-800">{formatCurrency(totalExpenses)}</p>
+                <p className="text-sm font-medium text-red-700 dark:text-red-400">إجمالي المصروفات (6 أشهر)</p>
+                <p className="text-2xl font-bold text-red-800 dark:text-red-400">{formatCurrency(totalExpenses)}</p>
               </div>
-              <div className="p-3 bg-red-100 rounded-full">
+              <div className="p-3 bg-red-100 dark:bg-red-950/50 rounded-full">
                 <TrendingDown className="h-6 w-6 text-red-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 dark:border-blue-900">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-700">متوسط الصافي الشهري</p>
-                <p className="text-2xl font-bold text-blue-800">{formatCurrency(avgMonthlyNet)}</p>
+                <p className="text-sm font-medium text-blue-700 dark:text-blue-400">متوسط الصافي الشهري</p>
+                <p className="text-2xl font-bold text-blue-800 dark:text-blue-400">{formatCurrency(avgMonthlyNet)}</p>
                 <div className="flex items-center mt-1">
                   {trend >= 0 ? (
                     <TrendingUp className="h-4 w-4 text-green-500 ml-1" />
@@ -180,7 +180,7 @@ export function MonthlyCharts() {
                   </span>
                 </div>
               </div>
-              <div className="p-3 bg-blue-100 rounded-full">
+              <div className="p-3 bg-blue-100 dark:bg-blue-950/50 rounded-full">
                 <DollarSign className="h-6 w-6 text-blue-600" />
               </div>
             </div>
@@ -198,11 +198,11 @@ export function MonthlyCharts() {
               <div className="flex gap-4">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded bg-emerald-500"></div>
-                  <span className="text-xs text-gray-600">الإيرادات</span>
+                  <span className="text-xs text-muted-foreground">الإيرادات</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded bg-red-500"></div>
-                  <span className="text-xs text-gray-600">المصروفات</span>
+                  <span className="text-xs text-muted-foreground">المصروفات</span>
                 </div>
               </div>
             </div>

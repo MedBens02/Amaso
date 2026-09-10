@@ -203,8 +203,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">لوحة التحكم</h1>
-        <p className="text-gray-600 mt-2">مرحباً بك في نظام إدارة جمعية المنصور لكفالة اليتيم</p>
+        <h1 className="text-3xl font-bold text-foreground">لوحة التحكم</h1>
+        <p className="text-muted-foreground mt-2">مرحباً بك في نظام إدارة جمعية المنصور لكفالة اليتيم</p>
       </div>
 
       {/* Stats Grid */}
@@ -215,7 +215,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-lg border p-6">
+      <div className="bg-card rounded-lg border p-6">
         <h2 className="text-xl font-semibold mb-4">الإجراءات السريعة</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {quickActions.map((action, index) => (
@@ -236,7 +236,7 @@ export default function DashboardPage() {
               </div>
               <div className="text-right">
                 <div className="font-medium">{action.title}</div>
-                <div className="text-sm text-gray-600">{action.description}</div>
+                <div className="text-sm text-muted-foreground">{action.description}</div>
               </div>
             </Button>
           ))}

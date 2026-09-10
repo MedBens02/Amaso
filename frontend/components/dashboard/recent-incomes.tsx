@@ -74,7 +74,7 @@ export function RecentIncomes() {
         <div className="space-y-4">
           {loading ? (
             <div className="text-center py-4">
-              <p className="text-sm text-gray-500">جار التحميل...</p>
+              <p className="text-sm text-muted-foreground">جار التحميل...</p>
             </div>
           ) : incomes.length > 0 ? (
             incomes.map((income) => (
@@ -96,8 +96,8 @@ export function RecentIncomes() {
                       </Badge>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600">{income.donor_name || "مجهول"}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-sm text-muted-foreground">{income.donor_name || "مجهول"}</p>
+                  <p className="text-xs text-muted-foreground">
                     {formatDateArabic(new Date(income.created_at || income.income_date), "dd/MM/yyyy - HH:mm")}
                   </p>
                 </div>
@@ -105,7 +105,7 @@ export function RecentIncomes() {
             ))
           ) : (
             <div className="text-center py-4">
-              <p className="text-sm text-gray-500">لا توجد إيرادات حديثة</p>
+              <p className="text-sm text-muted-foreground">لا توجد إيرادات حديثة</p>
             </div>
           )}
         </div>

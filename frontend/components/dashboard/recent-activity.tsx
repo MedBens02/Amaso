@@ -69,8 +69,8 @@ export function RecentActivity() {
                     {activity.status}
                   </Badge>
                 </div>
-                <p className="text-sm text-gray-600">{activity.description}</p>
-                <p className="text-xs text-gray-500">{activity.time}</p>
+                <p className="text-sm text-muted-foreground">{activity.description}</p>
+                <p className="text-xs text-muted-foreground">{activity.time}</p>
               </div>
             </div>
           ))}

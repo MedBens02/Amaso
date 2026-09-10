@@ -41,11 +41,11 @@ export default function DonorsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
             <Users className="h-8 w-8" />
             إدارة المتبرعين والكفلاء
           </h1>
-          <p className="text-gray-600 mt-2">إدارة وتتبع المتبرعين والكفلاء ومساهماتهم</p>
+          <p className="text-muted-foreground mt-2">إدارة وتتبع المتبرعين والكفلاء ومساهماتهم</p>
         </div>
         <Button onClick={() => setShowAddSheet(true)}>
           <Plus className="h-4 w-4 ml-2" />
@@ -58,7 +58,7 @@ export default function DonorsPage() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder="البحث في المتبرعين (الاسم أو الهاتف)..."
                 value={searchTerm}

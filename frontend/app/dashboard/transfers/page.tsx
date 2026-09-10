@@ -126,7 +126,7 @@ export default function TransfersPage() {
         <div className="flex justify-center items-center min-h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">جاري تحميل البيانات...</p>
+            <p className="text-muted-foreground">جاري تحميل البيانات...</p>
           </div>
         </div>
       </div>
@@ -137,11 +137,11 @@ export default function TransfersPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
             <ArrowLeftRight className="h-8 w-8" />
             إدارة التحويلات
           </h1>
-          <p className="text-gray-600 mt-2">إدارة التحويلات بين الحسابات المصرفية</p>
+          <p className="text-muted-foreground mt-2">إدارة التحويلات بين الحسابات المصرفية</p>
         </div>
         <Button onClick={() => setShowNewDialog(true)}>
           <Plus className="h-4 w-4 ml-2" />
@@ -168,7 +168,7 @@ export default function TransfersPage() {
                 DH {account.balance.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground">{account.bank_name}</p>
-              <p className="text-xs text-gray-400">{account.account_number}</p>
+              <p className="text-xs text-muted-foreground">{account.account_number}</p>
             </CardContent>
           </Card>
         ))}
@@ -203,7 +203,7 @@ export default function TransfersPage() {
           
           {/* Basic Search */}
           <div className="relative">
-            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="البحث في التحويلات أو الحسابات..."
               value={filters.search}
@@ -293,7 +293,7 @@ export default function TransfersPage() {
               <div className="space-y-2">
                 <Label>الحد الأدنى للمبلغ</Label>
                 <div className="relative">
-                  <DollarSign className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <DollarSign className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                   <Input
                     type="number"
                     placeholder="0"
@@ -307,7 +307,7 @@ export default function TransfersPage() {
               <div className="space-y-2">
                 <Label>الحد الأقصى للمبلغ</Label>
                 <div className="relative">
-                  <DollarSign className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <DollarSign className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                   <Input
                     type="number"
                     placeholder="∞"
@@ -337,7 +337,7 @@ export default function TransfersPage() {
               <div className="space-y-2">
                 <Label>من تاريخ</Label>
                 <div className="relative">
-                  <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                   <Input
                     type="date"
                     value={filters.from_date}

@@ -27,11 +27,11 @@ export default function OrphansPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
             <Users className="h-8 w-8" />
             إدارة الأيتام
           </h1>
-          <p className="text-gray-600 mt-2">عرض وتتبع بيانات الأيتام مجمعة حسب الأسر</p>
+          <p className="text-muted-foreground mt-2">عرض وتتبع بيانات الأيتام مجمعة حسب الأسر</p>
         </div>
         
         <Alert>
@@ -47,7 +47,7 @@ export default function OrphansPage() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder="البحث في الأيتام..."
                 value={searchTerm}

@@ -69,11 +69,11 @@ export function KafalaChamilaSplitEditor({ totalAmount, value, onChange }: Kafal
   const isMismatched = Math.abs(recordedTotal - (totalAmount || 0)) > 0.01
 
   if (loading) {
-    return <div className="text-sm text-gray-500">جاري تحميل بنود توزيع الكفالة الشاملة...</div>
+    return <div className="text-sm text-muted-foreground">جاري تحميل بنود توزيع الكفالة الشاملة...</div>
   }
 
   return (
-    <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
+    <div className="space-y-3 border rounded-lg p-4 bg-muted">
       <div className="flex items-center justify-between">
         <Label className="text-base font-semibold">توزيع الكفالة الشاملة</Label>
         <Button type="button" variant="ghost" size="sm" onClick={handleReset} className="gap-1 text-xs">
@@ -88,13 +88,13 @@ export function KafalaChamilaSplitEditor({ totalAmount, value, onChange }: Kafal
           return (
             <div
               key={rule.id}
-              className="grid grid-cols-[1fr_auto_140px] items-center gap-3 bg-white rounded-md border p-2"
+              className="grid grid-cols-[1fr_auto_140px] items-center gap-3 bg-card rounded-md border p-2"
             >
               <div>
                 <p className="text-sm font-medium">{rule.label}</p>
-                <p className="text-xs text-gray-500">{rule.budget.label}</p>
+                <p className="text-xs text-muted-foreground">{rule.budget.label}</p>
               </div>
-              <span className="text-xs text-gray-500 w-12 text-left">
+              <span className="text-xs text-muted-foreground w-12 text-left">
                 {parseFloat(String(rule.percentage))}%
               </span>
               <Input
@@ -111,7 +111,7 @@ export function KafalaChamilaSplitEditor({ totalAmount, value, onChange }: Kafal
       </div>
 
       <div className="flex items-center justify-between pt-2 border-t text-sm">
-        <span className="text-gray-600">الإجمالي الذي سيتم تسجيله:</span>
+        <span className="text-muted-foreground">الإجمالي الذي سيتم تسجيله:</span>
         <span className={`font-bold ${isMismatched ? "text-orange-600" : "text-green-600"}`}>
           {recordedTotal.toFixed(2)} د.م
         </span>

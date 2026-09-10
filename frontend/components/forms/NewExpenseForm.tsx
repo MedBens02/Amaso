@@ -754,13 +754,13 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                     
                     {/* Project (Disabled) */}
                     <div className="space-y-2">
-                      <Label className="text-gray-400">المشروع الممول</Label>
+                      <Label className="text-muted-foreground">المشروع الممول</Label>
                       <Select disabled>
-                        <SelectTrigger className="bg-gray-50 text-gray-400 cursor-not-allowed">
+                        <SelectTrigger className="bg-muted text-muted-foreground cursor-not-allowed">
                           <SelectValue placeholder="غير متاح حالياً" />
                         </SelectTrigger>
                       </Select>
-                      <p className="text-sm text-gray-400">إدارة المشاريع غير متاحة حالياً</p>
+                      <p className="text-sm text-muted-foreground">إدارة المشاريع غير متاحة حالياً</p>
                     </div>
                     
                     {/* Details */}
@@ -946,7 +946,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
 
                       {/* Search Results */}
                       {beneficiaries.length === 0 && !beneficiarySearchLoading ? (
-                        <div className="text-center py-8 text-gray-500">
+                        <div className="text-center py-8 text-muted-foreground">
                           <p>ابحث عن المستفيدين لإضافتهم</p>
                         </div>
                       ) : (
@@ -967,7 +967,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                                   "relative p-4 rounded-xl border-2 transition-all duration-200 hover:shadow-md",
                                   isSelected 
                                     ? "border-blue-400 bg-gradient-to-l from-blue-50 to-blue-100 shadow-lg" 
-                                    : "border-gray-200 hover:border-gray-300 bg-white"
+                                    : "border-border hover:border-primary/40 bg-card"
                                 )}
                               >
                                 <div className="flex items-start justify-between">
@@ -981,30 +981,30 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                                   
                                   <div className="flex-1 space-y-2 text-right">
                                     <div className="flex items-center justify-end space-x-2 space-x-reverse">
-                                      <h4 className="font-semibold text-gray-900 text-lg">
+                                      <h4 className="font-semibold text-foreground text-lg">
                                         {beneficiary.full_name || `${beneficiary.first_name} ${beneficiary.last_name}`}
                                       </h4>
                                       <Badge variant={isWidow ? 'secondary' : 'outline'} className="text-xs">
                                         {isWidow ? 'أرملة' : 'يتيم'}
                                       </Badge>
                                       {age && (
-                                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
+                                        <Badge variant="outline" className="text-xs bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-400">
                                           {age} سنة
                                         </Badge>
                                       )}
                                     </div>
                                     
                                     {isOrphan && motherName && (
-                                      <div className="flex items-center justify-end space-x-2 space-x-reverse text-sm text-gray-600">
+                                      <div className="flex items-center justify-end space-x-2 space-x-reverse text-sm text-muted-foreground">
                                         <span className="font-medium">{motherName}</span>
-                                        <span className="text-gray-500">:الأم</span>
+                                        <span className="text-muted-foreground">:الأم</span>
                                       </div>
                                     )}
                                     
                                     {isOrphan && beneficiary.orphan?.education_level?.name_ar && (
-                                      <div className="flex items-center justify-end space-x-2 space-x-reverse text-sm text-gray-600">
+                                      <div className="flex items-center justify-end space-x-2 space-x-reverse text-sm text-muted-foreground">
                                         <span>{beneficiary.orphan.education_level.name_ar}</span>
-                                        <span className="text-gray-500">:التعليم</span>
+                                        <span className="text-muted-foreground">:التعليم</span>
                                       </div>
                                     )}
                                     
@@ -1021,8 +1021,8 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                                   </div>
                                   
                                   {isSelected && (
-                                    <div className="flex items-center space-x-3 space-x-reverse bg-white rounded-lg p-3 shadow-sm border mr-4">
-                                      <Label className="text-sm font-medium text-gray-700">:المبلغ</Label>
+                                    <div className="flex items-center space-x-3 space-x-reverse bg-card rounded-lg p-3 shadow-sm border mr-4">
+                                      <Label className="text-sm font-medium text-foreground">:المبلغ</Label>
                                       <Input
                                         type="number"
                                         step="0.01"
@@ -1031,7 +1031,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                                         placeholder="0.00"
                                         {...form.register(`beneficiaries.${beneficiaryFields.findIndex(f => f.beneficiary_id === beneficiary.id)}.amount`, { valueAsNumber: true })}
                                       />
-                                      <span className="text-sm font-medium text-gray-600">DH</span>
+                                      <span className="text-sm font-medium text-muted-foreground">DH</span>
                                     </div>
                                   )}
                                 </div>
@@ -1046,25 +1046,25 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
 
                       {/* Selected Beneficiaries Summary */}
                       {beneficiaryFields.length > 0 && (
-                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200 dark:border-blue-900">
                           <div className="flex items-center space-x-2 space-x-reverse mb-4">
                             <Users className="h-5 w-5 text-blue-600" />
-                            <h4 className="font-semibold text-blue-900">ملخص المستفيدين المحددين</h4>
+                            <h4 className="font-semibold text-blue-900 dark:text-blue-400">ملخص المستفيدين المحددين</h4>
                           </div>
                           <div className="grid grid-cols-3 gap-4 text-center">
-                            <div className="bg-white p-3 rounded-lg border border-blue-100">
+                            <div className="bg-card p-3 rounded-lg border border-blue-100 dark:border-blue-900">
                               <p className="text-2xl font-bold text-blue-600">{beneficiaryFields.length}</p>
-                              <p className="text-xs text-gray-600">مستفيد</p>
+                              <p className="text-xs text-muted-foreground">مستفيد</p>
                             </div>
-                            <div className="bg-white p-3 rounded-lg border border-green-100">
+                            <div className="bg-card p-3 rounded-lg border border-green-100 dark:border-green-900">
                               <p className="text-2xl font-bold text-green-600">
                                 {beneficiaryFields.reduce((sum, field) => sum + (parseFloat(field.amount) || 0), 0).toFixed(0)}
                               </p>
-                              <p className="text-xs text-gray-600">DH موزع</p>
+                              <p className="text-xs text-muted-foreground">DH موزع</p>
                             </div>
-                            <div className="bg-white p-3 rounded-lg border border-orange-100">
+                            <div className="bg-card p-3 rounded-lg border border-orange-100 dark:border-orange-900">
                               <p className="text-2xl font-bold text-orange-600">{(parseFloat(totalAmount) || 0).toFixed(0)}</p>
-                              <p className="text-xs text-gray-600">DH إجمالي</p>
+                              <p className="text-xs text-muted-foreground">DH إجمالي</p>
                             </div>
                           </div>
                         </div>

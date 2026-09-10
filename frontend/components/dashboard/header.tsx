@@ -10,11 +10,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Bell, Moon, Sun, User, LogOut, Loader2 } from "lucide-react"
-import { useTheme } from "next-themes"
+import { Bell, User, LogOut, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { logout } from "@/lib/auth"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 interface HeaderProps {
   user: {
@@ -56,7 +56,6 @@ function formatToday(): string {
 }
 
 export function Header({ user }: HeaderProps) {
-  const { theme, setTheme } = useTheme()
   const router = useRouter()
   const [signingOut, setSigningOut] = useState(false)
 
@@ -71,17 +70,7 @@ export function Header({ user }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Theme Toggle */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="relative"
-          >
-            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            <span className="sr-only">تبديل الوضع الليلي</span>
-          </Button>
+          <ThemeToggle />
 
           {/* Notifications */}
           <Button variant="ghost" size="sm">

@@ -242,11 +242,11 @@ export default function ExpensesPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
             <Wallet className="h-8 w-8" />
             إدارة المصروفات
           </h1>
-          <p className="text-gray-600 mt-2">إدارة وتتبع جميع المصروفات والمساعدات</p>
+          <p className="text-muted-foreground mt-2">إدارة وتتبع جميع المصروفات والمساعدات</p>
         </div>
         <div className="flex gap-2">
           <DropdownMenu>
@@ -280,7 +280,7 @@ export default function ExpensesPage() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder="البحث في المصروفات..."
                 value={searchTerm}
@@ -291,7 +291,7 @@ export default function ExpensesPage() {
             <Button 
               variant="outline" 
               onClick={() => setShowFilters(!showFilters)}
-              className={Object.keys(appliedFilters).length > 0 ? "border-blue-500 bg-blue-50" : ""}
+              className={Object.keys(appliedFilters).length > 0 ? "border-blue-500 bg-blue-50 dark:bg-blue-950/40" : ""}
             >
               <Filter className="h-4 w-4 ml-2" />
               الفلاتر المتقدمة

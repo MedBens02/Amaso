@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Logo } from "@/components/landing/logo"
+import { ThemeToggle } from "@/components/theme-toggle"
 import api from "@/lib/api"
 import { DEMO_ACCOUNTS } from "@/lib/roles"
 
@@ -66,13 +67,16 @@ export default function LoginPage() {
     <div className="flex min-h-screen bg-[#fdfcfa] text-slate-800 dark:bg-slate-950 dark:text-slate-200">
       {/* ------------------------------------------------------------ form */}
       <div className="flex w-full flex-col px-5 py-8 sm:px-10 lg:w-[52%] lg:px-16">
-        <Link
-          href="/"
-          className="inline-flex w-fit items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-teal-50 hover:text-teal-700 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-teal-400"
-        >
-          <ArrowRight className="h-4 w-4" />
-          العودة إلى الموقع
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link
+            href="/"
+            className="inline-flex w-fit items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-teal-50 hover:text-teal-700 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-teal-400"
+          >
+            <ArrowRight className="h-4 w-4" />
+            العودة إلى الموقع
+          </Link>
+          <ThemeToggle className="text-slate-500 dark:text-slate-400" />
+        </div>
 
         <div className="flex flex-1 items-center justify-center py-10">
           <div className="w-full max-w-md">

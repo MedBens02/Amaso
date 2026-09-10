@@ -223,7 +223,7 @@ export function BudgetedProjectsTable({ searchTerm }: BudgetedProjectsTableProps
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-muted-foreground">
             عرض {startIndex + 1} إلى {Math.min(startIndex + itemsPerPage, filteredData.length)} من {filteredData.length}{" "}
             نتيجة
           </div>

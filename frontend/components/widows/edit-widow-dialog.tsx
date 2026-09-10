@@ -784,7 +784,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                 </div>
 
                 {childrenFields.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-muted-foreground">
                     لا توجد أطفال مضافين. اضغط "إضافة طفل" لإضافة طفل جديد.
                   </div>
                 )}
@@ -1343,7 +1343,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
 
                       {/* Show filtered partners count */}
                       {referenceData.partners && (
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-muted-foreground">
                           {(selectedPartnerField || selectedPartnerSubfield) ? (
                             <span>عرض {filteredPartners.length} من أصل {referenceData.partners.length} شريك</span>
                           ) : (
@@ -1415,7 +1415,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                   
                   {/* Display kafils validation errors */}
                   {form.formState.errors.kafils && (
-                    <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+                    <div className="text-sm text-red-600 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded p-2">
                       {form.formState.errors.kafils.message || JSON.stringify(form.formState.errors.kafils)}
                     </div>
                   )}

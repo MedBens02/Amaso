@@ -161,7 +161,7 @@ export function FinancialReportDialog({ open, onOpenChange }: FinancialReportDia
     setStatistics([
       { label: 'إجمالي الإيرادات', value: totalIncome, format: 'currency' },
       { label: 'إجمالي المصروفات', value: totalExpenses, format: 'currency' },
-      { label: 'الرصيد', value: balance, format: 'currency', color: balance >= 0 ? 'bg-green-50' : 'bg-red-50' },
+      { label: 'الرصيد', value: balance, format: 'currency', color: balance >= 0 ? 'bg-green-50 dark:bg-green-950/40' : 'bg-red-50 dark:bg-red-950/40' },
       { label: 'من متبرعين', value: donorPercentage, format: 'percentage' },
       { label: 'من كفلاء', value: kafilPercentage, format: 'percentage' },
       { label: 'نقدي', value: cashPercentage, format: 'percentage' }

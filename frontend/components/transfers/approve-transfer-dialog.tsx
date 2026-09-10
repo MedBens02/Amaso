@@ -130,23 +130,23 @@ export function ApproveTransferDialog({
         </DialogHeader>
 
         <div className="space-y-4 text-right">
-          <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+          <div className="bg-muted p-4 rounded-lg space-y-2">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-500">المبلغ:</span>
+              <span className="text-sm text-muted-foreground">المبلغ:</span>
               <span className="font-bold text-blue-600">
                 DH {parseFloat(transfer.amount).toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-500">من:</span>
+              <span className="text-sm text-muted-foreground">من:</span>
               <span className="font-medium">{transfer.from_account.label}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-500">إلى:</span>
+              <span className="text-sm text-muted-foreground">إلى:</span>
               <span className="font-medium">{transfer.to_account.label}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-500">التاريخ:</span>
+              <span className="text-sm text-muted-foreground">التاريخ:</span>
               <span className="font-medium">
                 {new Date(transfer.transfer_date).toLocaleDateString('ar-MA')}
               </span>
@@ -156,10 +156,10 @@ export function ApproveTransferDialog({
           {/* Show existing remarks if any */}
           {transfer.remarks && (
             <div className="space-y-2">
-              <Label className="text-right block text-sm font-medium text-gray-700">
+              <Label className="text-right block text-sm font-medium text-foreground">
                 الملاحظات الحالية
               </Label>
-              <div className="p-3 bg-gray-50 border rounded-lg text-right text-sm text-gray-700">
+              <div className="p-3 bg-muted border rounded-lg text-right text-sm text-foreground">
                 {transfer.remarks}
               </div>
             </div>
@@ -179,14 +179,14 @@ export function ApproveTransferDialog({
               dir="rtl"
             />
             {transfer.remarks && remarks !== transfer.remarks && (
-              <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+              <div className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-950/40 p-2 rounded">
                 💡 تم تعديل الملاحظات - سيتم حفظ النسخة الجديدة
               </div>
             )}
           </div>
 
-          <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg">
-            <p className="text-sm text-amber-700 text-right">
+          <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 p-3 rounded-lg">
+            <p className="text-sm text-amber-700 dark:text-amber-400 text-right">
               ⚠️ سيتم تحديث أرصدة الحسابات فور اعتماد هذا التحويل
             </p>
           </div>

@@ -151,7 +151,7 @@ export default function FiscalYearsPage() {
         <div className="flex justify-center items-center min-h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">جاري تحميل السنوات المالية...</p>
+            <p className="text-muted-foreground">جاري تحميل السنوات المالية...</p>
           </div>
         </div>
       </div>
@@ -162,11 +162,11 @@ export default function FiscalYearsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
             <Calendar className="h-8 w-8" />
             السنوات المالية
           </h1>
-          <p className="text-gray-600 mt-2">إدارة السنوات المالية والميزانيات</p>
+          <p className="text-muted-foreground mt-2">إدارة السنوات المالية والميزانيات</p>
         </div>
         <Button onClick={() => setShowNewDialog(true)}>
           <Plus className="h-4 w-4 ml-2" />
@@ -182,17 +182,17 @@ export default function FiscalYearsPage() {
                 <CardTitle className="text-xl">السنة المالية {year.year}</CardTitle>
                 {getStatusBadge(year.status)}
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 {year.startDate} - {year.endDate}
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 {/* Current Cash from Database View */}
-                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                <div className="bg-blue-50 dark:bg-blue-950/40 p-3 rounded-lg border border-blue-200 dark:border-blue-900">
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-blue-700">الرصيد النقدي الحالي:</span>
-                    <span className="font-bold text-blue-800">
+                    <span className="text-blue-700 dark:text-blue-400">الرصيد النقدي الحالي:</span>
+                    <span className="font-bold text-blue-800 dark:text-blue-400">
                       {year.isActive ? `DH ${formatAmount(year.current_cash)}` : 'NaN'}
                     </span>
                   </div>
@@ -219,10 +219,10 @@ export default function FiscalYearsPage() {
 
                 {/* Real-time Bank Information for Active Years */}
                 {year.isActive && closingSummaries[year.id] && (
-                  <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                  <div className="bg-green-50 dark:bg-green-950/40 p-3 rounded-lg border border-green-200 dark:border-green-900">
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="text-green-700">الرصيد النقدي الحالي:</span>
-                      <span className="font-bold text-green-800">
+                      <span className="text-green-700 dark:text-green-400">الرصيد النقدي الحالي:</span>
+                      <span className="font-bold text-green-800 dark:text-green-400">
                         DH {formatAmount(closingSummaries[year.id].currentCash)}
                       </span>
                     </div>
@@ -236,7 +236,7 @@ export default function FiscalYearsPage() {
 
                 {/* Pending Items for Active Years */}
                 {year.isActive && closingSummaries[year.id] && (
-                  <div className="text-xs text-gray-600 space-y-1">
+                  <div className="text-xs text-muted-foreground space-y-1">
                     {closingSummaries[year.id].unapprovedIncomes > 0 && (
                       <div>• إيرادات غير معتمدة: {closingSummaries[year.id].unapprovedIncomes}</div>
                     )}
@@ -251,10 +251,10 @@ export default function FiscalYearsPage() {
                 
                 {/* Carryover to Next Year (for closed years) */}
                 {year.carryoverNextYear > 0 && (
-                  <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                  <div className="bg-purple-50 dark:bg-purple-950/40 p-3 rounded-lg border border-purple-200 dark:border-purple-900">
                     <div className="flex justify-between text-sm">
-                      <span className="text-purple-700">المرحل للسنة القادمة:</span>
-                      <span className="font-bold text-purple-800">DH {formatAmount(year.carryoverNextYear)}</span>
+                      <span className="text-purple-700 dark:text-purple-400">المرحل للسنة القادمة:</span>
+                      <span className="font-bold text-purple-800 dark:text-purple-400">DH {formatAmount(year.carryoverNextYear)}</span>
                     </div>
                   </div>
                 )}

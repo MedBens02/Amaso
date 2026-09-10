@@ -90,20 +90,20 @@ export function KafalaCoveragePanel({ budgetId, allocations }: KafalaCoveragePan
   })
 
   return (
-    <div className="rounded-xl border border-teal-200 bg-teal-50/60 p-4 space-y-3">
+    <div className="rounded-xl border border-teal-200 dark:border-teal-900 bg-teal-50/60 p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <HandCoins className="h-5 w-5 text-teal-700" />
-          <h4 className="font-semibold text-teal-900">تغطية الكفالة الشاملة — {pool.label}</h4>
+          <HandCoins className="h-5 w-5 text-teal-700 dark:text-teal-400" />
+          <h4 className="font-semibold text-teal-900 dark:text-teal-400">تغطية الكفالة الشاملة — {pool.label}</h4>
         </div>
         <div className="text-left">
-          <p className="text-xs text-gray-600">الرصيد المشترك في هذا البند</p>
-          <p className="font-bold text-teal-800">{money(pool.remaining)}</p>
+          <p className="text-xs text-muted-foreground">الرصيد المشترك في هذا البند</p>
+          <p className="font-bold text-teal-800 dark:text-teal-400">{money(pool.remaining)}</p>
         </div>
       </div>
 
       {allocations.length === 0 ? (
-        <p className="text-sm text-gray-600">حدد المستفيدين لعرض رصيد كل أسرة في هذا البند.</p>
+        <p className="text-sm text-muted-foreground">حدد المستفيدين لعرض رصيد كل أسرة في هذا البند.</p>
       ) : (
         <div className="space-y-1">
           {allocations.map((allocation) => {
@@ -113,14 +113,14 @@ export function KafalaCoveragePanel({ budgetId, allocations }: KafalaCoveragePan
             return (
               <div
                 key={allocation.widowId}
-                className="flex items-center justify-between rounded-lg bg-white border p-2 text-sm"
+                className="flex items-center justify-between rounded-lg bg-card border p-2 text-sm"
               >
                 <span className="font-medium">{allocation.widowName}</span>
                 <div className="flex items-center gap-4">
-                  <span className="text-gray-600">
+                  <span className="text-muted-foreground">
                     المخصص: <span className="font-semibold">{money(allocation.amount)}</span>
                   </span>
-                  <span className={isOver ? "text-amber-700 font-semibold" : "text-gray-600"}>
+                  <span className={isOver ? "text-amber-700 dark:text-amber-400 font-semibold" : "text-muted-foreground"}>
                     رصيد الأسرة: {remaining === null ? "…" : money(remaining)}
                   </span>
                 </div>
@@ -131,7 +131,7 @@ export function KafalaCoveragePanel({ budgetId, allocations }: KafalaCoveragePan
       )}
 
       {overspending.length > 0 && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/40 p-3 text-sm text-amber-900 dark:text-amber-400">
           <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
           <p>
             المبلغ المخصص لـ{" "}
