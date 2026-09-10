@@ -27,10 +27,15 @@ Open `C:\xampp\php\php.ini` in VS Code, find these lines and remove the leading 
 ```ini
 extension=curl
 extension=fileinfo
+extension=gd
 extension=mbstring
 extension=pdo_mysql
 extension=zip
 ```
+
+`gd` is easy to miss because nothing needs it until you generate a PDF or
+Excel report — those embed the association's logo as an image, and the
+libraries that do it (mPDF, PhpSpreadsheet) refuse to install without it.
 
 ### 1.5 Composer (PHP package manager)
 Download and run **Composer-Setup.exe**: https://getcomposer.org/download/
@@ -192,4 +197,5 @@ After pulling new code: `composer install` (backend), `npm install` (frontend),
 | Frontend shows network errors | Backend not running, or you changed `.env.local` without restarting `npm run dev` (Next.js reads env files only at startup). |
 | PDF or Excel export returns HTTP 500 | The PHP packages that render them aren't installed. `cd backend` → `composer install`. |
 | `composer install` says no lock file | You're on an old checkout — `git pull` first; `backend/composer.lock` is committed. |
+| `composer install`/`update` complains about `ext-gd` | `extension=gd` is still commented out in `php.ini` (step 1.4) — enable it and restart the terminal, then run `composer install` again. |
 | Backup / restore | `C:\xampp\mysql\bin\mysqldump -u root amaso > backup.sql` / `C:\xampp\mysql\bin\mysql -u root amaso < backup.sql` |
