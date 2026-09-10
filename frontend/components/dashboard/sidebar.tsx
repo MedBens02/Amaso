@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -26,8 +26,11 @@ import {
   Database,
   Calculator,
   UserCog,
+  Loader2,
+  LayoutDashboard,
 } from "lucide-react"
 import { isCurrentUserAdmin } from "@/lib/roles"
+import { logout } from "@/lib/auth"
 import api from "@/lib/api"
 
 const navigation = [
@@ -35,6 +38,13 @@ const navigation = [
     name: "الرئيسية",
     href: "/dashboard",
     icon: Home,
+  },
+  // A second take on the main dashboard, kept alongside the first so the two
+  // can be compared side by side before one of them is settled on.
+  {
+    name: "الرئيسية ٢",
+    href: "/dashboard/dashboard2",
+    icon: LayoutDashboard,
   },
   {
     name: "الأرامل",
@@ -130,7 +140,6 @@ const referencesNavigation = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
   // Read after mount: localStorage is not available during SSR, and
   // rendering the admin entry on the server would flash it for everyone.
@@ -138,6 +147,7 @@ export function Sidebar() {
   // Whatever the admin saved on the settings screen, so the sidebar carries
   // the association's own name rather than a generic label.
   const [orgName, setOrgName] = useState("")
+  const [signingOut, setSigningOut] = useState(false)
 
   useEffect(() => {
     setIsAdmin(isCurrentUserAdmin())
@@ -299,17 +309,23 @@ export function Sidebar() {
       <div className="p-3 border-t">
         <Button
           variant="ghost"
+          disabled={signingOut}
           className={cn(
             "w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50",
             collapsed ? "px-2" : "px-3",
           )}
           onClick={() => {
-            localStorage.removeItem("user")
-            router.push("/login")
+            if (signingOut) return
+            setSigningOut(true)
+            logout()
           }}
         >
-          <LogOut className={cn("h-4 w-4", collapsed ? "" : "ml-2")} />
-          {!collapsed && "تسجيل الخروج"}
+          {signingOut ? (
+            <Loader2 className={cn("h-4 w-4 animate-spin", collapsed ? "" : "ml-2")} />
+          ) : (
+            <LogOut className={cn("h-4 w-4", collapsed ? "" : "ml-2")} />
+          )}
+          {!collapsed && (signingOut ? "جاري تسجيل الخروج..." : "تسجيل الخروج")}
         </Button>
       </div>
     </div>

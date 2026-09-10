@@ -10,10 +10,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Bell, Moon, Sun, User, LogOut } from "lucide-react"
+import { Bell, Moon, Sun, User, LogOut, Loader2 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
-import api from "@/lib/api"
+import { useState } from "react"
+import { logout } from "@/lib/auth"
 
 interface HeaderProps {
   user: {
@@ -57,6 +58,7 @@ function formatToday(): string {
 export function Header({ user }: HeaderProps) {
   const { theme, setTheme } = useTheme()
   const router = useRouter()
+  const [signingOut, setSigningOut] = useState(false)
 
   return (
     <header className="bg-background border-b border-border px-6 py-3 transition-colors">
@@ -123,15 +125,23 @@ export function Header({ user }: HeaderProps) {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-red-600 focus:text-red-700"
-                onClick={async () => {
-                  // Revoke the token server-side; clears the local session
-                  // either way (see ApiClient.logout).
-                  await api.logout().catch(() => {})
-                  router.push("/login")
+                disabled={signingOut}
+                // Keep the menu open for the moment the sign-out takes, so
+                // the pending label below is actually visible and a second
+                // press lands on a disabled item rather than starting over.
+                onSelect={(event) => {
+                  event.preventDefault()
+                  if (signingOut) return
+                  setSigningOut(true)
+                  logout()
                 }}
               >
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>تسجيل الخروج</span>
+                {signingOut ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <LogOut className="mr-2 h-4 w-4" />
+                )}
+                <span>{signingOut ? "جاري تسجيل الخروج..." : "تسجيل الخروج"}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
