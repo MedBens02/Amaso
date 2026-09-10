@@ -1,0 +1,11 @@
+# Windows batch files must keep CRLF endings: cmd.exe mis-parses labels and
+# `goto` in LF-only files, so a checkout on Linux (or a Git client set to
+# `core.autocrlf=input`) would otherwise ship a script that fails on the
+# machine it exists for.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Shell scripts and the SQL dump are read by Linux tools; CRLF would break
+# the shebang line and leave stray \r in imported string values.
+*.sh  text eol=lf
+*.sql text eol=lf

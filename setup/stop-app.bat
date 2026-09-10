@@ -1,52 +1,62 @@
 @echo off
-title Amaso App - Stopping Services
-color 0c
-echo.
-echo =============================================
-echo       🛑 Amaso App - Quick Stop 🛑
-echo =============================================
-echo.
+chcp 65001 >nul
+setlocal EnableDelayedExpansion
 
-echo 🧹 Stopping all Amaso services...
-echo.
+REM Appele avec --quiet par start-app.bat : on nettoie sans afficher
+REM de banniere ni attendre de touche.
+set "QUIET="
+if /I "%~1"=="--quiet" set "QUIET=1"
 
-REM Stop Laravel Backend
-echo [1/2] 🔄 Stopping Laravel Backend...
-for /f "tokens=5" %%i in ('netstat -ano 2^>nul ^| findstr ":8000"') do (
-    if not "%%i"=="0" taskkill /PID %%i /F >nul 2>&1
+if not defined QUIET (
+    title Amaso - Arret
+    color 0c
+    echo.
+    echo =====================================================
+    echo    AMASO - Arret de l'application
+    echo =====================================================
+    echo.
 )
-taskkill /IM php.exe /F >nul 2>&1
-echo     ✅ Backend stopped
 
-REM Stop Next.js Frontend  
-echo [2/2] 🔄 Stopping Next.js Frontend...
-for /f "tokens=5" %%i in ('netstat -ano 2^>nul ^| findstr ":3000"') do (
-    if not "%%i"=="0" taskkill /PID %%i /F >nul 2>&1
-)
-wmic process where "name='node.exe' and commandline like '%next%'" delete >nul 2>&1
-echo     ✅ Frontend stopped
+REM ---------------------------------------------------------------
+REM On arrete uniquement les processus qui ecoutent sur nos ports.
+REM Un "taskkill /IM php.exe" ou "/IM node.exe" arreterait aussi le
+REM PHP d'Apache dans XAMPP et tout autre projet Node ouvert.
+REM ---------------------------------------------------------------
+call :kill_port 8000 "Backend Laravel"
+call :kill_port 3000 "Frontend Next.js"
 
-REM Close service windows
-echo.
-echo 🗙 Closing service windows...
+REM Les fenetres cmd hotes survivent a l'arret de leur processus fils.
 taskkill /FI "WINDOWTITLE eq Amaso Backend*" /F >nul 2>&1
 taskkill /FI "WINDOWTITLE eq Amaso Frontend*" /F >nul 2>&1
-echo     ✅ Windows closed
 
-echo.
-echo =============================================
-echo         🛑 Services Stopped! 🛑
-echo =============================================
-echo.
-echo 📊 Final Status:
-echo   ✅ Laravel Backend (port 8000) - Stopped
-echo   ✅ Next.js Frontend (port 3000) - Stopped  
-echo   ✅ Service windows - Closed
-echo   ⏸️  MySQL Database (XAMPP) - Still running
-echo.
-echo 💡 MySQL is left running in XAMPP for quick restart
-echo 🚀 Use start-app.bat to restart services
-echo.
-echo Closing in 5 seconds...
-timeout /t 5 >nul
-exit
+if not defined QUIET (
+    echo.
+    echo   MySQL reste demarre dans XAMPP.
+    echo.
+    timeout /t 4 >nul
+)
+exit /b 0
+
+REM ---------------------------------------------------------------
+REM :kill_port PORT LIBELLE
+REM ---------------------------------------------------------------
+:kill_port
+set "PORT=%~1"
+set "LABEL=%~2"
+set "FOUND="
+
+for /f "tokens=5" %%p in ('netstat -ano ^| findstr /R /C:":%PORT% .*LISTENING"') do (
+    if not "%%p"=="0" (
+        taskkill /F /PID %%p >nul 2>&1
+        set "FOUND=1"
+    )
+)
+
+if not defined QUIET (
+    if defined FOUND (
+        echo   [OK] %LABEL% arrete ^(port %PORT%^)
+    ) else (
+        echo   [--] %LABEL% n'etait pas demarre
+    )
+)
+exit /b 0
