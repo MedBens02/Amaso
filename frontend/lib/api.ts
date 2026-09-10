@@ -473,9 +473,15 @@ class ApiClient {
     })
   }
 
-  async approveExpense(id: number) {
+  /**
+   * bankAccountId is only needed for a cash expense that was recorded
+   * without one - the approver is choosing, right now, which account the
+   * cash came out of. It's ignored if the expense already has an account.
+   */
+  async approveExpense(id: number, bankAccountId?: number) {
     return this.request<any>(`/expenses/${id}/approve`, {
       method: 'POST',
+      body: JSON.stringify({ bank_account_id: bankAccountId ?? null }),
     })
   }
 

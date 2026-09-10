@@ -104,13 +104,19 @@ class ExpenseController extends Controller
         ]);
     }
 
-    public function approve(Expense $expense): JsonResponse
+    public function approve(Request $request, Expense $expense): JsonResponse
     {
-        $expense = $this->expenses->approve($expense);
+        $validated = $request->validate([
+            // A cash expense may still be missing a bank account when it was
+            // first recorded; the approver picks one now, at approval time.
+            'bank_account_id' => ['nullable', 'integer', 'exists:bank_accounts,id'],
+        ]);
+
+        $expense = $this->expenses->approve($expense, $validated['bank_account_id'] ?? null);
 
         return response()->json([
             'message' => 'تم اعتماد المصروف بنجاح',
-            'data' => $expense->load(['approvedBy']),
+            'data' => $expense->load(['approvedBy', 'bankAccount']),
         ]);
     }
 }
