@@ -28,6 +28,13 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Every route here is API. Without this, an exception on an endpoint
+        // the frontend fetched with `Accept: application/pdf` came back as
+        // Laravel's HTML debug page, which the caller could not read - the
+        // browser only saw "HTTP 500" with no idea that, say, a dependency
+        // was missing from vendor/.
+        $exceptions->shouldRenderJsonWhen(fn () => true);
+
         $exceptions->render(function (\App\Exceptions\BusinessRuleException $e) {
             return response()->json(['message' => $e->getMessage()], $e->status);
         });
