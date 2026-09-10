@@ -3,6 +3,8 @@
  * Helper functions for data fetching, processing, filtering, and statistics calculation
  */
 
+import { apiUrl } from "@/lib/api"
+
 /**
  * Builds URL search params from filter object
  * Converts filter values to API query parameters
@@ -44,12 +46,12 @@ export async function fetchReportData<T>(
   } = {}
 ): Promise<T[]> {
   const {
-    baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1',
+    baseUrl,
     perPage = 10000,
     additionalParams = {}
   } = options
 
-  const url = new URL(`${baseUrl}${endpoint}`)
+  const url = baseUrl ? apiUrl(endpoint, baseUrl) : apiUrl(endpoint)
   const params = buildFilterQuery({ ...filters, ...additionalParams, per_page: perPage })
 
   url.search = params.toString()

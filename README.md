@@ -88,7 +88,7 @@ Amaso is a complete management system designed specifically for charitable organ
 ### Technology Stack
 
 #### 🖥️ Frontend (Next.js)
-- **Framework**: Next.js 15.2.4 with App Router
+- **Framework**: Next.js 15.5 with App Router; built as a static export for production
 - **Language**: TypeScript for type safety
 - **Styling**: Tailwind CSS with RTL configuration
 - **UI Components**: shadcn/ui built on Radix UI primitives  
@@ -99,16 +99,15 @@ Amaso is a complete management system designed specifically for charitable organ
 
 #### ⚙️ Backend (Laravel)
 - **Framework**: Laravel 12 with PHP 8.2+
-- **Database**: MySQL 8.0+ with comprehensive schema
+- **Database**: MySQL 8.0+ / MariaDB 10.6+, utf8mb4 throughout
 - **Authentication**: Laravel Sanctum for API security
 - **Testing**: PHPUnit with SQLite in-memory testing
 - **API**: RESTful API architecture at `/api/v1/`
-- **Queue System**: Laravel Queues for background processing
 - **Validation**: Form Request classes with Arabic error messages
 
 #### 🗄️ Database Design
 ```
-Core Tables (45 total):
+Core Tables (52 total):
 ├── People & Relationships
 │   ├── donors (المتبرعين)
 │   ├── kafils (الكفلاء) 
@@ -129,7 +128,7 @@ Core Tables (45 total):
 ├── Groups & Education
 │   ├── beneficiary_groups (مجموعات المستفيدين)
 │   ├── beneficiary_group_members (أعضاء المجموعات)
-│   ├── orphans_education_levels (مستويات التعليم)
+│   ├── orphans_education_level (مستويات التعليم)
 │   ├── schools (المؤسسات التعليمية)
 │   ├── academic_years (السنوات الدراسية)
 │   └── orphan_enrollments (التسجيلات — بنقط الأسدسين)
@@ -143,85 +142,50 @@ Core Tables (45 total):
 
 ## 🚀 Getting Started
 
-### Prerequisites
-- **Node.js** 18+ with npm
-- **PHP** 8.2+ with Composer
-- **MySQL** 8.0+
-- **Git** for version control
+Setup lives in one place rather than being repeated here, so the two cannot
+drift apart:
 
-### 🔧 Installation
+| | |
+|---|---|
+| **Develop** — edit the code, hot reload | [`SETUP_GUIDE.md`](SETUP_GUIDE.md) |
+| **Run it on a Windows PC** | [`setup/README.md`](setup/README.md) *(français)* |
+| **Deploy to a server** | [`deploy/README.md`](deploy/README.md) |
 
-#### 1. Clone Repository
+The short version, once PHP 8.2+, Composer, Node 20+ and MySQL are
+installed:
+
 ```bash
-git clone <repository-url>
-cd amaso-management-system
+cd backend  && composer install && cp .env.example .env && php artisan key:generate
+#              edit .env for your database, then:
+              php artisan migrate && php artisan db:seed
+              php artisan db:seed --class=DemoDataSeeder   # optional demo records
+
+cd ../frontend && npm install && cp ../setup/.env.local.example .env.local
 ```
 
-#### 2. Backend Setup
+Then run the two servers:
+
 ```bash
-cd backend
-composer install
-cp .env.example .env
-
-# Configure database connection in .env
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=amaso
-DB_USERNAME=your_username
-DB_PASSWORD=your_password
-
-# Generate application key and run migrations
-php artisan key:generate
-php artisan migrate --seed
+cd backend  && php artisan serve      # http://localhost:8000
+cd frontend && npm run dev            # http://localhost:3000
 ```
 
-#### 3. Frontend Setup  
-```bash
-cd frontend
-npm install
-cp .env.local.example .env.local
+On Windows, `setup\start-app.bat` does both and opens the browser.
 
-# Configure API endpoint in .env.local
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+Sign in as `admin@amaso.org` / `password` — and change that password before
+the application holds anything real.
+
+### Production
+
+`deploy/` provisions a VM and releases to it. The frontend is built as a
+**static export**, so nginx serves it from disk and proxies `/api` to
+Laravel through PHP-FPM: there is no Node process in production.
+
+```bash
+sudo bash deploy/provision.sh                 # once, on a fresh Ubuntu VM
+sudo bash deploy/deploy.sh <git-url>          # and again for every update
 ```
 
-### 🏃‍♂️ Running the Application
-
-#### Development Mode
-
-**Backend Services:**
-```bash
-cd backend
-composer dev    # Starts all services (recommended)
-
-# Or run individually:
-php artisan serve     # API server (port 8000)
-php artisan queue:work # Background jobs  
-php artisan pail      # Log monitoring
-npm run dev          # Asset compilation
-```
-
-**Frontend Server:**
-```bash
-cd frontend
-npm run dev    # Development server (port 3000)
-```
-
-#### Production Deployment
-```bash
-# Frontend build
-cd frontend
-npm run build
-npm run start
-
-# Backend optimization
-cd backend  
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-composer install --no-dev --optimize-autoloader
-```
 
 ## 📱 User Interface Features
 

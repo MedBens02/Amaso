@@ -1,222 +1,166 @@
 @echo off
+chcp 65001 >nul
 setlocal EnableDelayedExpansion
-title Amaso App - Mise à Jour Automatique
-color 0e
+title Amaso - Mise a jour
+color 0b
+
+set "ROOT=%~dp0.."
+set "BACKEND=%ROOT%\backend"
+set "FRONTEND=%ROOT%\frontend"
+
 echo.
-echo =============================================
-echo       🔄 Amaso App - Mise à Jour 🔄
-echo =============================================
+echo =====================================================
+echo    AMASO - Mise a jour
+echo =====================================================
 echo.
 
-REM Vérifier si nous sommes dans le bon répertoire
-if not exist "..\backend" (
-    echo ❌ Erreur: Exécutez ce script depuis le dossier 'setup'
-    timeout /t 5 >nul
-    exit /b 1
-)
-
-echo 🔍 Vérification du système...
-
-REM Vérifier si Git est installé
-git --version >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo ❌ Git n'est pas installé ou pas dans le PATH
-    echo.
-    echo 💡 Pour installer Git:
-    echo   1. Téléchargez Git depuis: https://git-scm.com/downloads
-    echo   2. Installez avec les options par défaut
-    echo   3. Redémarrez cette application
+where git >nul 2>&1
+if errorlevel 1 (
+    echo   [X] Git n'est pas installe - https://git-scm.com
     echo.
     pause
     exit /b 1
 )
 
-echo ✅ Git est installé
-
-REM Vérifier si c'est un dépôt Git
-if not exist "..\.git" (
-    echo ❌ Ce dossier n'est pas un dépôt Git
-    echo.
-    echo 💡 Si vous avez téléchargé un ZIP:
-    echo   - Cette fonction ne peut pas être utilisée
-    echo   - Téléchargez la nouvelle version manuellement
+if not exist "%ROOT%\.git" (
+    echo   [X] Ce dossier n'est pas un depot Git.
+    echo       La mise a jour automatique n'est pas possible ; recuperez
+    echo       la nouvelle version manuellement.
     echo.
     pause
     exit /b 1
 )
 
-echo ✅ Dépôt Git détecté
-
-echo.
-echo 🚨 ATTENTION: Cette opération va:
-echo   ✓ Sauvegarder vos fichiers de configuration
-echo   ✓ Télécharger la dernière version du code
-echo   ✓ Restaurer vos configurations
-echo   ✓ Installer les nouvelles dépendances
-echo.
-echo ⚠️  Les modifications non commitées seront perdues!
+REM ---------------------------------------------------------------
+REM 1. Arreter l'application avant de toucher aux fichiers
+REM ---------------------------------------------------------------
+echo [1/5] Arret de l'application...
+call "%~dp0stop-app.bat" --quiet
+echo   [OK] Services arretes
 echo.
 
-set /p "continue=Continuer la mise à jour? (o/N): "
-if /i not "%continue%"=="o" (
-    echo Mise à jour annulée par l'utilisateur
-    timeout /t 3 >nul
-    exit /b 0
-)
+pushd "%ROOT%"
 
-echo.
-echo 🔄 Début de la mise à jour...
-echo.
+REM ---------------------------------------------------------------
+REM 2. Recuperer le code
+REM
+REM Les fichiers de configuration (.env, .env.local) ne sont pas
+REM suivis par Git : ils ne risquent rien. On met de cote d'eventuelles
+REM modifications locales, et surtout on les RESTAURE apres - l'ancien
+REM script faisait le "stash" sans jamais le "pop", ce qui donnait
+REM l'impression que le travail local avait disparu.
+REM ---------------------------------------------------------------
+echo [2/5] Recuperation de la nouvelle version...
 
-REM Arrêter les services en cours
-echo [1/8] 🛑 Arrêt des services...
-call stop-app.bat >nul 2>&1
-echo     ✅ Services arrêtés
+REM "git diff HEAD" ignore les fichiers non suivis, qui sont pourtant
+REM la cause la plus frequente d'un "pull" refuse. On teste donc la
+REM sortie de "git status --porcelain", qui les inclut.
+set "DIRTY="
+set "STASHED="
+git status --porcelain > "%TEMP%\amaso-git-status.txt" 2>nul
+for %%A in ("%TEMP%\amaso-git-status.txt") do if %%~zA GTR 0 set "DIRTY=1"
+del "%TEMP%\amaso-git-status.txt" >nul 2>&1
 
-REM Sauvegarder les fichiers de configuration
-echo [2/8] 💾 Sauvegarde des configurations...
-if exist "..\backend\.env" (
-    copy "..\backend\.env" "..\backend\.env.backup" >nul
-    echo     ✅ Configuration backend sauvegardée
-)
-if exist "..\frontend\.env.local" (
-    copy "..\frontend\.env.local" "..\frontend\.env.local.backup" >nul
-    echo     ✅ Configuration frontend sauvegardée
-)
-
-REM Obtenir le statut Git actuel
-echo [3/8] 📊 Vérification du dépôt...
-cd ..
-git status --porcelain > temp_status.txt
-if exist temp_status.txt (
-    for %%A in (temp_status.txt) do set "size=%%~zA"
-    if not "!size!"=="0" (
-        echo     ⚠️  Modifications locales détectées - sauvegarde...
-        git stash push -m "Automatic backup before update - %date% %time%" >nul 2>&1
-        echo     ✅ Modifications sauvegardées dans Git stash
-    ) else (
-        echo     ✅ Aucune modification locale
+if defined DIRTY (
+    git stash push -u -m "amaso-update-app" >nul 2>&1
+    if not errorlevel 1 (
+        set "STASHED=1"
+        echo   [!] Modifications locales mises de cote
     )
-    del temp_status.txt
 )
 
-REM Télécharger les dernières modifications
-echo [4/8] ⬇️  Téléchargement des mises à jour...
-git fetch origin >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo     ❌ Erreur lors du téléchargement
-    echo     Vérifiez votre connexion Internet
+for /f "tokens=*" %%b in ('git rev-parse --abbrev-ref HEAD') do set "BRANCH=%%b"
+git pull origin !BRANCH!
+if errorlevel 1 (
+    echo.
+    echo   [X] "git pull" a echoue - lisez le message ci-dessus.
+    if defined STASHED (
+        git stash pop
+        echo   [OK] Modifications locales restaurees
+    )
+    popd
     pause
     exit /b 1
 )
+echo   [OK] Code mis a jour ^(branche !BRANCH!^)
 
-REM Vérifier s'il y a des mises à jour
-for /f %%i in ('git rev-list HEAD...origin/master --count 2^>nul') do set "updates=%%i"
-if "%updates%"=="0" (
-    echo     ℹ️  Aucune mise à jour disponible
-    echo     Votre version est déjà à jour!
-    cd setup
-    pause
-    exit /b 0
+if defined STASHED (
+    git stash pop
+    if errorlevel 1 (
+        echo   [!] Vos modifications locales sont dans "git stash" et
+        echo       entrent en conflit avec la nouvelle version.
+        echo       Recuperez-les avec : git stash pop
+    ) else (
+        echo   [OK] Modifications locales restaurees
+    )
 )
+popd
+echo.
 
-echo     ✅ %updates% mise(s) à jour disponible(s)
-
-REM Appliquer les mises à jour
-echo [5/8] 🔄 Application des mises à jour...
-git pull origin master >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo     ❌ Erreur lors de la mise à jour
-    echo     Restauration de la sauvegarde...
-    git stash pop >nul 2>&1
-    cd setup
+REM ---------------------------------------------------------------
+REM 3. Dependances PHP
+REM
+REM Une mise a jour ajoute regulierement une bibliotheque ; sans cette
+REM etape l'application demarre puis echoue sur la premiere page qui
+REM s'en sert.
+REM ---------------------------------------------------------------
+echo [3/5] Mise a jour des dependances PHP...
+pushd "%BACKEND%"
+call composer install --no-interaction --prefer-dist
+if errorlevel 1 (
+    echo   [X] composer install a echoue.
+    popd
     pause
     exit /b 1
 )
-echo     ✅ Code mis à jour avec succès
-
-REM Restaurer les configurations
-echo [6/8] 🔙 Restauration des configurations...
-if exist "backend\.env.backup" (
-    copy "backend\.env.backup" "backend\.env" >nul
-    del "backend\.env.backup" >nul
-    echo     ✅ Configuration backend restaurée
-)
-if exist "frontend\.env.local.backup" (
-    copy "frontend\.env.local.backup" "frontend\.env.local" >nul
-    del "frontend\.env.local.backup" >nul
-    echo     ✅ Configuration frontend restaurée
-)
-
-REM Mettre à jour les dépendances
-echo [7/8] 📦 Mise à jour des dépendances...
-
-REM Backend
-echo     🔄 Dépendances PHP (Backend)...
-cd backend
-composer install --no-interaction >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo     ⚠️  Erreur avec les dépendances PHP - continuons
-) else (
-    echo     ✅ Dépendances PHP mises à jour
-)
-
-REM Frontend
-echo     🔄 Dépendances JavaScript (Frontend)...
-cd ..\frontend
-npm install >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo     ⚠️  Erreur avec les dépendances JavaScript - continuons
-) else (
-    echo     ✅ Dépendances JavaScript mises à jour
-)
-
-REM Migrations de base de données
-echo [8/8] 🗄️  Mise à jour de la base de données...
-cd ..\backend
-php artisan migrate --force >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo     ⚠️  Erreur de migration - vérifiez manuellement
-) else (
-    echo     ✅ Base de données mise à jour
-)
-
-REM Effacer les caches
-echo     🧹 Nettoyage des caches...
-php artisan config:clear >nul 2>&1
-php artisan cache:clear >nul 2>&1
-php artisan view:clear >nul 2>&1
-
-cd ..\setup
-
-echo.
-echo =============================================
-echo         🎉 Mise à Jour Terminée! 🎉
-echo =============================================
-echo.
-echo 📊 Résumé:
-echo   ✅ %updates% mise(s) à jour appliquée(s)
-echo   ✅ Configurations préservées
-echo   ✅ Dépendances mises à jour
-echo   ✅ Base de données synchronisée
-echo.
-echo 💡 Prochaines étapes:
-echo   1. Testez l'application: start-app.bat
-echo   2. Vérifiez que tout fonctionne
-echo   3. Signalez tout problème à l'équipe technique
+echo   [OK] Dependances PHP a jour
+popd
 echo.
 
-set /p "start_now=🚀 Démarrer l'application maintenant? (o/N): "
-if /i "%start_now%"=="o" (
+REM ---------------------------------------------------------------
+REM 4. Dependances JavaScript
+REM ---------------------------------------------------------------
+echo [4/5] Mise a jour des dependances JavaScript...
+pushd "%FRONTEND%"
+call npm install
+if errorlevel 1 (
+    echo   [X] npm install a echoue.
+    popd
+    pause
+    exit /b 1
+)
+echo   [OK] Dependances JavaScript a jour
+popd
+echo.
+
+REM ---------------------------------------------------------------
+REM 5. Base de donnees et caches
+REM
+REM "migrate" applique uniquement les nouveautes de structure et ne
+REM touche pas aux donnees existantes.
+REM ---------------------------------------------------------------
+echo [5/5] Mise a jour de la base de donnees...
+pushd "%BACKEND%"
+call php artisan migrate --force
+if errorlevel 1 (
     echo.
-    echo Démarrage de l'application...
-    call start-app.bat
-) else (
-    echo.
-    echo ℹ️  Utilisez start-app.bat quand vous serez prêt
-    echo.
-    echo Fermeture dans 10 secondes...
-    timeout /t 10 >nul
+    echo   [X] La migration a echoue. Verifiez que MySQL tourne.
+    popd
+    pause
+    exit /b 1
 )
+call php artisan config:clear >nul 2>&1
+call php artisan cache:clear >nul 2>&1
+call php artisan view:clear >nul 2>&1
+echo   [OK] Base de donnees et caches a jour
+popd
+echo.
 
-exit
+echo =====================================================
+echo    Mise a jour terminee
+echo =====================================================
+echo.
+echo   Relancez l'application avec :  start-app.bat
+echo.
+pause
+exit /b 0

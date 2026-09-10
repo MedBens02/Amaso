@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
+import { apiUrl } from "@/lib/api"
 import { formatDateArabic } from "@/lib/date-utils"
 import { NewIncomeDialog } from "@/components/forms/NewIncomeForm"
 import { TransferIncomeDialog } from "@/components/incomes/transfer-income-dialog"
@@ -188,8 +189,7 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
   const fetchIncomes = async () => {
     setLoading(true)
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
-      const url = new URL(`${baseUrl}/incomes`)
+      const url = apiUrl('/incomes')
       
       const params = new URLSearchParams()
       params.append('page', currentPage.toString())
