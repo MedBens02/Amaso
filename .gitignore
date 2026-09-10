@@ -41,12 +41,15 @@ backend/storage/logs/*.log
 # Laravel specific
 backend/vendor/
 backend/storage/app/public/
-backend/storage/framework/cache/
-backend/storage/framework/sessions/
-backend/storage/framework/testing/
-backend/storage/framework/views/
-backend/storage/logs/
-backend/bootstrap/cache/
+# storage/framework/{cache,sessions,testing,views}, storage/logs and
+# bootstrap/cache each carry their own tracked .gitignore (Laravel's stock
+# `*` + `!.gitignore` placeholder) - that's what keeps the directory itself
+# in git while still ignoring the runtime files inside it. A blanket
+# `backend/storage/framework/views/` rule here excluded that placeholder
+# too, so a fresh clone never got the directory at all: Blade has nowhere
+# to write compiled views, and every PDF export (all of them render a
+# Blade template) failed with "Please provide a valid cache path."
+# regardless of what request or filters produced it.
 backend/.phpunit.result.cache
 backend/Homestead.json
 backend/Homestead.yaml

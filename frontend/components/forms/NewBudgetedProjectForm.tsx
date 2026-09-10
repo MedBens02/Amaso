@@ -17,13 +17,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
 import { useToast } from "@/hooks/use-toast"
-import { CalendarIcon, FolderOpen } from "lucide-react"
-import { format } from "date-fns"
-import { ar } from "date-fns/locale"
-import { cn } from "@/lib/utils"
+import { FolderOpen } from "lucide-react"
+import { toDateInputValue, fromDateInputValue } from "@/lib/date-utils"
 
 const budgetedProjectSchema = z
   .object({
@@ -184,23 +180,11 @@ export function NewBudgetedProjectDialog({
                 name="startDate"
                 control={form.control}
                 render={({ field }) => (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !field.value && "text-muted-foreground",
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {field.value ? format(field.value, "PPP", { locale: ar }) : "اختر تاريخ البداية"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-                    </PopoverContent>
-                  </Popover>
+                  <Input
+                    type="date"
+                    value={toDateInputValue(field.value)}
+                    onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
+                  />
                 )}
               />
               {form.formState.errors.startDate && (
@@ -214,23 +198,11 @@ export function NewBudgetedProjectDialog({
                 name="endDate"
                 control={form.control}
                 render={({ field }) => (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !field.value && "text-muted-foreground",
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {field.value ? format(field.value, "PPP", { locale: ar }) : "اختر تاريخ النهاية"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-                    </PopoverContent>
-                  </Popover>
+                  <Input
+                    type="date"
+                    value={toDateInputValue(field.value)}
+                    onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
+                  />
                 )}
               />
               {form.formState.errors.endDate && (

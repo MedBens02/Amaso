@@ -381,10 +381,19 @@ class ReportAggregateService
      */
     public function incomeList(array $filters = []): array
     {
-        [$from, $to] = $this->period($filters);
+        // Unlike every other report here, this one mirrors a browsable page
+        // (the incomes table) rather than standing alone - so no date filter
+        // has to mean "everything", the same as the table shows with none
+        // applied. period()'s current-year default is right for a report
+        // that only ever exists as a period snapshot; it is wrong here,
+        // where it would silently drop every income from prior years out of
+        // an export the screen gave no indication was time-bounded at all.
+        $from = $filters['from'] ?? null;
+        $to = $filters['to'] ?? null;
 
         $rows = Income::with(['budget', 'incomeCategory', 'donor', 'kafil'])
-            ->whereBetween('income_date', [$from, $to])
+            ->when($from, fn ($q) => $q->whereDate('income_date', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('income_date', '<=', $to))
             ->when(!empty($filters['status']), fn ($q) => $q->where('status', $filters['status']))
             ->when(!empty($filters['budget_id']), fn ($q) => $q->where('budget_id', $filters['budget_id']))
             ->when(!empty($filters['fiscal_year_id']), fn ($q) => $q->where('fiscal_year_id', $filters['fiscal_year_id']))
@@ -415,10 +424,14 @@ class ReportAggregateService
 
     public function expenseList(array $filters = []): array
     {
-        [$from, $to] = $this->period($filters);
+        // See the matching comment in incomeList() - no filter means every
+        // expense ever recorded, the same as the table with none applied.
+        $from = $filters['from'] ?? null;
+        $to = $filters['to'] ?? null;
 
         $rows = Expense::with(['budget', 'expenseCategory', 'partner'])
-            ->whereBetween('expense_date', [$from, $to])
+            ->when($from, fn ($q) => $q->whereDate('expense_date', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('expense_date', '<=', $to))
             ->when(!empty($filters['status']), fn ($q) => $q->where('status', $filters['status']))
             ->when(!empty($filters['budget_id']), fn ($q) => $q->where('budget_id', $filters['budget_id']))
             ->when(!empty($filters['fiscal_year_id']), fn ($q) => $q->where('fiscal_year_id', $filters['fiscal_year_id']))
