@@ -187,7 +187,7 @@ class ReportController extends Controller
             $this->pdf->render('pdf.financial', [
                 'title' => 'التقرير المالي الشامل',
                 'subtitle' => 'الإيرادات والمصروفات المعتمدة',
-                'entity' => "{$report['period']['from']} — {$report['period']['to']}",
+                'entity' => \App\Support\PdfFormat::periodLabel($report['period']['from'], $report['period']['to']),
                 'report' => $report,
             ]),
             $this->filename('financial-report', $report['period']['from']),
@@ -207,7 +207,7 @@ class ReportController extends Controller
             $this->pdf->render('pdf.donors', [
                 'title' => 'تقرير الكفلاء والمتبرعين',
                 'subtitle' => 'المساهمات المسجلة خلال الفترة',
-                'entity' => "{$report['period']['from']} — {$report['period']['to']}",
+                'entity' => \App\Support\PdfFormat::periodLabel($report['period']['from'], $report['period']['to']),
                 'report' => $report,
             ]),
             $this->filename('donors-report', $report['period']['from']),
@@ -227,7 +227,7 @@ class ReportController extends Controller
             $this->pdf->render('pdf.annual', [
                 'title' => 'تقرير الأداء السنوي',
                 'subtitle' => 'الأداء المالي والاجتماعي',
-                'entity' => "{$report['period']['from']} — {$report['period']['to']}",
+                'entity' => \App\Support\PdfFormat::periodLabel($report['period']['from'], $report['period']['to']),
                 'report' => $report,
             ]),
             $this->filename('annual-report', $report['period']['from']),
@@ -266,7 +266,7 @@ class ReportController extends Controller
             $this->pdf->render('pdf.kafil-follow-up', [
                 'title' => 'متابعة التزامات الكفلاء',
                 'subtitle' => 'المتوقّع مقابل المحصّل خلال الفترة',
-                'entity' => "{$report['period']['from']} — {$report['period']['to']}",
+                'entity' => \App\Support\PdfFormat::periodLabel($report['period']['from'], $report['period']['to']),
                 'report' => $report,
             ], ['landscape' => true]),
             $this->filename('kafil-follow-up', $report['period']['from']),
@@ -286,7 +286,7 @@ class ReportController extends Controller
             $this->pdf->render('pdf.budget-utilization', [
                 'title' => 'تقرير استعمال الميزانيات',
                 'subtitle' => 'الوارد والمصروف والمتبقي في كل ميزانية',
-                'entity' => "{$report['period']['from']} — {$report['period']['to']}",
+                'entity' => \App\Support\PdfFormat::periodLabel($report['period']['from'], $report['period']['to']),
                 'report' => $report,
             ]),
             $this->filename('budget-utilization', $report['period']['from']),
@@ -302,7 +302,7 @@ class ReportController extends Controller
             $this->pdf->render('pdf.transactions', [
                 'title' => 'سجل الإيرادات',
                 'subtitle' => 'العمليات المسجلة خلال الفترة',
-                'entity' => "{$report['period']['from']} — {$report['period']['to']}",
+                'entity' => \App\Support\PdfFormat::periodLabel($report['period']['from'], $report['period']['to']),
                 'kind' => 'income',
                 'report' => $report,
             ], ['landscape' => true]),
@@ -318,7 +318,7 @@ class ReportController extends Controller
             $this->pdf->render('pdf.transactions', [
                 'title' => 'سجل المصروفات',
                 'subtitle' => 'العمليات المسجلة خلال الفترة',
-                'entity' => "{$report['period']['from']} — {$report['period']['to']}",
+                'entity' => \App\Support\PdfFormat::periodLabel($report['period']['from'], $report['period']['to']),
                 'kind' => 'expense',
                 'report' => $report,
             ], ['landscape' => true]),
@@ -563,7 +563,7 @@ class ReportController extends Controller
     private function periodCaptions(array $report): array
     {
         return [
-            'period' => "الفترة: {$report['period']['from']} — {$report['period']['to']}",
+            'period' => 'الفترة: ' . \App\Support\PdfFormat::periodLabel($report['period']['from'], $report['period']['to']),
             'count' => "عدد العمليات: {$report['totals']['count']}",
             'generated' => 'تاريخ الإصدار: ' . now()->format('Y-m-d H:i'),
         ];

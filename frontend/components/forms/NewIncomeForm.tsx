@@ -18,14 +18,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
 import { useToast } from "@/hooks/use-toast"
-import { CalendarIcon, HandCoins, Plus } from "lucide-react"
+import { HandCoins, Plus } from "lucide-react"
 import { format } from "date-fns"
 import { ar } from "date-fns/locale"
-import { formatDateArabic } from "@/lib/date-utils"
-import { cn } from "@/lib/utils"
+import { toDateInputValue, fromDateInputValue } from "@/lib/date-utils"
 import { AddDonorSheet } from "@/components/donors/add-donor-sheet"
 import { KafalaChamilaSplitEditor } from "@/components/forms/KafalaChamilaSplitEditor"
 import { buildCategoryOptions } from "@/lib/categories"
@@ -495,118 +492,6 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
     }),
   }
 
-  // Custom date picker component
-  const CustomDatePicker = ({
-    value,
-    onChange,
-    placeholder,
-  }: {
-    value?: Date
-    onChange: (date: Date | undefined) => void
-    placeholder: string
-  }) => {
-    const [open, setOpen] = useState(false)
-    const [currentMonth, setCurrentMonth] = useState<Date>(value || new Date())
-    
-    const handleOpenChange = (newOpen: boolean) => {
-      setOpen(newOpen)
-    }
-    
-    const handleSelect = (date: Date | undefined) => {
-      onChange(date)
-      setOpen(false)
-    }
-
-    const handleMonthChange = (newMonth: Date) => {
-      setCurrentMonth(newMonth)
-    }
-
-    const years = Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i)
-    const months = [
-      "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-      "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
-    ]
-    
-    return (
-      <Popover open={open} onOpenChange={handleOpenChange} modal={true}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            className={cn("w-full justify-start text-left font-normal", !value && "text-muted-foreground")}
-            type="button"
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              setOpen(!open)
-            }}
-          >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {value ? formatDateArabic(value, "PPP") : placeholder}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent 
-          className="w-auto p-0" 
-          align="start" 
-          sideOffset={4}
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
-          <div className="p-3 border-b">
-            <div className="flex gap-2 mb-3">
-              <Select
-                value={currentMonth.getFullYear().toString()}
-                onValueChange={(year) => {
-                  const newDate = new Date(currentMonth)
-                  newDate.setFullYear(parseInt(year))
-                  setCurrentMonth(newDate)
-                }}
-              >
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map((year) => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <Select
-                value={currentMonth.getMonth().toString()}
-                onValueChange={(month) => {
-                  const newDate = new Date(currentMonth)
-                  newDate.setMonth(parseInt(month))
-                  setCurrentMonth(newDate)
-                }}
-              >
-                <SelectTrigger className="flex-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {months.map((month, index) => (
-                    <SelectItem key={index} value={index.toString()}>
-                      {month}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <Calendar
-            mode="single"
-            selected={value}
-            onSelect={handleSelect}
-            disabled={(date) => date > new Date()}
-            month={currentMonth}
-            onMonthChange={handleMonthChange}
-            initialFocus
-          />
-        </PopoverContent>
-      </Popover>
-    )
-  }
-
   return (
     <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -634,10 +519,11 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                 name="income_date"
                 control={form.control}
                 render={({ field }) => (
-                  <CustomDatePicker
-                    value={field.value}
-                    onChange={field.onChange}
-                    placeholder="اختر تاريخ الإيراد"
+                  <Input
+                    type="date"
+                    max={toDateInputValue(new Date())}
+                    value={toDateInputValue(field.value)}
+                    onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
                   />
                 )}
               />

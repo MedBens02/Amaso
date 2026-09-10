@@ -4,14 +4,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, X, RefreshCw } from "lucide-react"
-import { format } from "date-fns"
-import { ar } from "date-fns/locale"
-import { cn } from "@/lib/utils"
+import { X, RefreshCw } from "lucide-react"
 import { useState, useEffect } from "react"
 import api from "@/lib/api"
+import { toDateInputValue, fromDateInputValue } from "@/lib/date-utils"
 
 export interface FilterValues {
   fromDate?: Date
@@ -73,51 +69,23 @@ export function IncomeFilters({ filters, onFiltersChange, onApply, onClear }: In
       {/* Date Range */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>من تاريخ</Label>
-          <Popover modal={true}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn("w-full justify-start text-left font-normal", !filters.fromDate && "text-muted-foreground")}
-                type="button"
-              >
-                <CalendarIcon className="ml-2 h-4 w-4" />
-                {filters.fromDate ? format(filters.fromDate, "dd/MM/yyyy", { locale: ar }) : "اختر التاريخ"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar 
-                mode="single" 
-                selected={filters.fromDate} 
-                onSelect={(date) => updateFilter('fromDate', date)}
-                initialFocus 
-              />
-            </PopoverContent>
-          </Popover>
+          <Label htmlFor="income-from-date">من تاريخ</Label>
+          <Input
+            id="income-from-date"
+            type="date"
+            value={toDateInputValue(filters.fromDate)}
+            onChange={(e) => updateFilter('fromDate', fromDateInputValue(e.target.value))}
+          />
         </div>
 
         <div className="space-y-2">
-          <Label>إلى تاريخ</Label>
-          <Popover modal={true}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn("w-full justify-start text-left font-normal", !filters.toDate && "text-muted-foreground")}
-                type="button"
-              >
-                <CalendarIcon className="ml-2 h-4 w-4" />
-                {filters.toDate ? format(filters.toDate, "dd/MM/yyyy", { locale: ar }) : "اختر التاريخ"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar 
-                mode="single" 
-                selected={filters.toDate} 
-                onSelect={(date) => updateFilter('toDate', date)}
-                initialFocus 
-              />
-            </PopoverContent>
-          </Popover>
+          <Label htmlFor="income-to-date">إلى تاريخ</Label>
+          <Input
+            id="income-to-date"
+            type="date"
+            value={toDateInputValue(filters.toDate)}
+            onChange={(e) => updateFilter('toDate', fromDateInputValue(e.target.value))}
+          />
         </div>
       </div>
 

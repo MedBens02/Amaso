@@ -5,14 +5,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Switch } from "@/components/ui/switch"
-import { CalendarIcon, Filter, X } from "lucide-react"
-import { format } from "date-fns"
-import { cn } from "@/lib/utils"
-import { formatDateArabic } from "@/lib/date-utils"
+import { Filter, X } from "lucide-react"
+import { toDateInputValue, fromDateInputValue } from "@/lib/date-utils"
 
 /**
  * Filter option types supported by the component
@@ -54,101 +50,6 @@ export interface ReportFiltersProps {
   onClear: () => void
   showApplyButton?: boolean
   accordionDefaultOpen?: boolean
-}
-
-/**
- * Date picker component (reused from expense-filters pattern)
- */
-const DatePicker = ({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value?: Date
-  onChange: (date: Date | undefined) => void
-  placeholder: string
-}) => {
-  const [open, setOpen] = useState(false)
-  const [currentMonth, setCurrentMonth] = useState<Date>(value || new Date())
-
-  const handleSelect = (date: Date | undefined) => {
-    onChange(date)
-    setOpen(false)
-  }
-
-  const years = Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i)
-  const months = [
-    "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
-    "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"
-  ]
-
-  return (
-    <Popover open={open} onOpenChange={setOpen} modal={true}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={cn("w-full justify-start text-left font-normal", !value && "text-muted-foreground")}
-          type="button"
-        >
-          <CalendarIcon className="ml-2 h-4 w-4" />
-          {value ? formatDateArabic(value, "PPP") : placeholder}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start" sideOffset={4}>
-        <div className="p-3 border-b">
-          <div className="flex gap-2 mb-3">
-            <Select
-              value={currentMonth.getFullYear().toString()}
-              onValueChange={(year) => {
-                const newDate = new Date(currentMonth)
-                newDate.setFullYear(parseInt(year))
-                setCurrentMonth(newDate)
-              }}
-            >
-              <SelectTrigger className="w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map(year => (
-                  <SelectItem key={year} value={year.toString()}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={currentMonth.getMonth().toString()}
-              onValueChange={(month) => {
-                const newDate = new Date(currentMonth)
-                newDate.setMonth(parseInt(month))
-                setCurrentMonth(newDate)
-              }}
-            >
-              <SelectTrigger className="w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {months.map((month, index) => (
-                  <SelectItem key={index} value={index.toString()}>
-                    {month}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <Calendar
-          mode="single"
-          selected={value}
-          onSelect={handleSelect}
-          month={currentMonth}
-          onMonthChange={setCurrentMonth}
-          locale={undefined}
-          dir="rtl"
-        />
-      </PopoverContent>
-    </Popover>
-  )
 }
 
 /**
@@ -211,18 +112,18 @@ export function ReportFilters({
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">من تاريخ</Label>
-                <DatePicker
-                  value={values[fromField]}
-                  onChange={(date) => handleValueChange(fromField, date)}
-                  placeholder="اختر التاريخ"
+                <Input
+                  type="date"
+                  value={toDateInputValue(values[fromField])}
+                  onChange={(e) => handleValueChange(fromField, fromDateInputValue(e.target.value))}
                 />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">إلى تاريخ</Label>
-                <DatePicker
-                  value={values[toField]}
-                  onChange={(date) => handleValueChange(toField, date)}
-                  placeholder="اختر التاريخ"
+                <Input
+                  type="date"
+                  value={toDateInputValue(values[toField])}
+                  onChange={(e) => handleValueChange(toField, fromDateInputValue(e.target.value))}
                 />
               </div>
             </div>

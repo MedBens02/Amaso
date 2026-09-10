@@ -16,152 +16,12 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
-import { CalendarIcon, Plus, Trash2, Users, DollarSign, FileText, CreditCard } from "lucide-react"
+import { Plus, Trash2, Users, DollarSign, FileText, CreditCard } from "lucide-react"
 import { format } from "date-fns"
-import { ar } from "date-fns/locale"
 import { cn } from "@/lib/utils"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { formatDateArabic } from "@/lib/date-utils"
+import { toDateInputValue, fromDateInputValue } from "@/lib/date-utils"
 import { KafalaCoveragePanel } from "@/components/forms/KafalaCoveragePanel"
 import { buildCategoryOptions } from "@/lib/categories"
-
-// Enhanced DatePicker component
-const DatePicker = ({
-  value,
-  onChange,
-  placeholder,
-  dialogOpen,
-}: {
-  value?: Date
-  onChange: (date: Date | undefined) => void
-  placeholder: string
-  dialogOpen?: boolean
-}) => {
-  const [open, setOpen] = useState(false)
-  const [currentMonth, setCurrentMonth] = useState<Date>(() => {
-    // Ensure we always have a valid Date object
-    if (value && value instanceof Date && !isNaN(value.getTime())) {
-      return value
-    }
-    return new Date()
-  })
-  
-  // Update currentMonth when value changes
-  useEffect(() => {
-    if (value && value instanceof Date && !isNaN(value.getTime())) {
-      setCurrentMonth(value)
-    }
-  }, [value])
-  
-  // Close popover when parent dialog closes
-  useEffect(() => {
-    if (dialogOpen === false) {
-      setOpen(false)
-    }
-  }, [dialogOpen])
-  
-  const handleOpenChange = (newOpen: boolean) => {
-    setOpen(newOpen)
-  }
-  
-  const handleSelect = (date: Date | undefined) => {
-    onChange(date)
-    setOpen(false)
-  }
-  
-  const handleMonthChange = (newMonth: Date) => {
-    if (newMonth && newMonth instanceof Date && !isNaN(newMonth.getTime())) {
-      setCurrentMonth(newMonth)
-    }
-  }
-  
-  const years = Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i)
-  const months = [
-    "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
-    "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"
-  ]
-  
-  return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={cn("w-full justify-start text-left font-normal", !value && "text-muted-foreground")}
-          type="button"
-          onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            setOpen(!open)
-          }}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {value ? formatDateArabic(value, "PPP") : placeholder}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent 
-        className="w-auto p-0" 
-        align="start" 
-        sideOffset={4}
-      >
-        <div className="p-3 border-b">
-          <div className="flex gap-2 mb-3">
-            <Select
-              value={currentMonth && currentMonth instanceof Date ? currentMonth.getFullYear().toString() : new Date().getFullYear().toString()}
-              onValueChange={(year) => {
-                const baseDate = currentMonth && currentMonth instanceof Date ? currentMonth : new Date()
-                const newDate = new Date(baseDate)
-                newDate.setFullYear(parseInt(year))
-                setCurrentMonth(newDate)
-              }}
-            >
-              <SelectTrigger className="w-24">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map((year) => (
-                  <SelectItem key={year} value={year.toString()}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <Select
-              value={currentMonth && currentMonth instanceof Date ? currentMonth.getMonth().toString() : new Date().getMonth().toString()}
-              onValueChange={(month) => {
-                const baseDate = currentMonth && currentMonth instanceof Date ? currentMonth : new Date()
-                const newDate = new Date(baseDate)
-                newDate.setMonth(parseInt(month))
-                setCurrentMonth(newDate)
-              }}
-            >
-              <SelectTrigger className="flex-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {months.map((month, index) => (
-                  <SelectItem key={index} value={index.toString()}>
-                    {month}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <Calendar
-          mode="single"
-          selected={value}
-          onSelect={handleSelect}
-          disabled={(date) => date > new Date()}
-          month={currentMonth && currentMonth instanceof Date ? currentMonth : new Date()}
-          onMonthChange={handleMonthChange}
-          initialFocus
-        />
-      </PopoverContent>
-    </Popover>
-  )
-}
 
 // Form validation schema
 const expenseSchema = z.object({
@@ -795,11 +655,11 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                         name="expense_date"
                         control={form.control}
                         render={({ field }) => (
-                          <DatePicker
-                            value={field.value}
-                            onChange={field.onChange}
-                            placeholder="اختر تاريخ المصروف"
-                            dialogOpen={open}
+                          <Input
+                            type="date"
+                            max={toDateInputValue(new Date())}
+                            value={toDateInputValue(field.value)}
+                            onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
                           />
                         )}
                       />

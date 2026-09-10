@@ -20,16 +20,14 @@ import { Switch } from "@/components/ui/switch"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
 import { MultiSelectRS } from "@/components/common/MultiSelectRS"
 import { ExtraPhonesField } from "@/components/widows/extra-phones-field"
 import { ChildExtraFields } from "@/components/widows/child-extra-fields"
 import { SingleSelectRS } from "@/components/common/SingleSelectRS"
 import { StarRating } from "@/components/common/StarRating"
 import { useToast } from "@/hooks/use-toast"
-import { CalendarIcon, Plus, Trash2, User, Users, Home, Heart, HandHeart, Edit } from "lucide-react"
-import { formatDateArabic } from "@/lib/date-utils"
+import { Plus, Trash2, User, Users, Home, Heart, HandHeart, Edit } from "lucide-react"
+import { toDateInputValue, fromDateInputValue } from "@/lib/date-utils"
 import { cn } from "@/lib/utils"
 import { KafilSelector } from "@/components/kafils/kafil-selector"
 import api from "@/lib/api"
@@ -530,117 +528,6 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
     }
   }
 
-  const DatePicker = ({
-    value,
-    onChange,
-    placeholder,
-  }: {
-    value?: Date
-    onChange: (date: Date | undefined) => void
-    placeholder: string
-  }) => {
-    const [open, setOpen] = useState(false)
-    const [currentMonth, setCurrentMonth] = useState<Date>(value || new Date())
-
-    const handleOpenChange = (newOpen: boolean) => {
-      setOpen(newOpen)
-    }
-
-    const handleSelect = (date: Date | undefined) => {
-      onChange(date)
-      setOpen(false)
-    }
-
-    const handleMonthChange = (newMonth: Date) => {
-      setCurrentMonth(newMonth)
-    }
-
-    const years = Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i)
-    const months = [
-      "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-      "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
-    ]
-
-    return (
-      <Popover open={open} onOpenChange={handleOpenChange} modal={true}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            className={cn("w-full justify-start text-left font-normal", !value && "text-muted-foreground")}
-            type="button"
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              setOpen(!open)
-            }}
-          >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {value ? formatDateArabic(value, "PPP") : placeholder}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          className="w-auto p-0"
-          align="start"
-          sideOffset={4}
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
-          <div className="p-3 border-b">
-            <div className="flex gap-2 mb-3">
-              <Select
-                value={currentMonth.getFullYear().toString()}
-                onValueChange={(year) => {
-                  const newDate = new Date(currentMonth)
-                  newDate.setFullYear(parseInt(year))
-                  setCurrentMonth(newDate)
-                }}
-              >
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map((year) => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={currentMonth.getMonth().toString()}
-                onValueChange={(month) => {
-                  const newDate = new Date(currentMonth)
-                  newDate.setMonth(parseInt(month))
-                  setCurrentMonth(newDate)
-                }}
-              >
-                <SelectTrigger className="flex-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {months.map((month, index) => (
-                    <SelectItem key={index} value={index.toString()}>
-                      {month}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <Calendar
-            mode="single"
-            selected={value}
-            onSelect={handleSelect}
-            disabled={(date) => date > new Date()}
-            month={currentMonth}
-            onMonthChange={handleMonthChange}
-            initialFocus
-          />
-        </PopoverContent>
-      </Popover>
-    )
-  }
-
   if (!widow) return null
 
   return (
@@ -761,7 +648,12 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                       control={form.control}
                       render={({ field }) => (
                         <div onClick={(e) => e.stopPropagation()}>
-                          <DatePicker value={field.value} onChange={field.onChange} placeholder="اختر تاريخ الميلاد" />
+                          <Input
+                            type="date"
+                            max={toDateInputValue(new Date())}
+                            value={toDateInputValue(field.value)}
+                            onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
+                          />
                         </div>
                       )}
                     />
@@ -846,7 +738,12 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                       control={form.control}
                       render={({ field }) => (
                         <div onClick={(e) => e.stopPropagation()}>
-                          <DatePicker value={field.value} onChange={field.onChange} placeholder="اختر تاريخ الانضمام" />
+                          <Input
+                            type="date"
+                            max={toDateInputValue(new Date())}
+                            value={toDateInputValue(field.value)}
+                            onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
+                          />
                         </div>
                       )}
                     />
@@ -998,7 +895,12 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                         control={form.control}
                         render={({ field }) => (
                           <div onClick={(e) => e.stopPropagation()}>
-                            <DatePicker value={field.value} onChange={field.onChange} placeholder="اختر تاريخ الميلاد" />
+                            <Input
+                            type="date"
+                            max={toDateInputValue(new Date())}
+                            value={toDateInputValue(field.value)}
+                            onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
+                          />
                           </div>
                         )}
                       />

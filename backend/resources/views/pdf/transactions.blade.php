@@ -17,7 +17,7 @@
     <table class="meta" width="100%">
         <tr>
             <td class="k">الفترة</td>
-            <td class="v">{{ $report['period']['from'] }} إلى {{ $report['period']['to'] }}</td>
+            <td class="v">{{ PdfFormat::periodLabel($report['period']['from'], $report['period']['to']) }}</td>
             <td class="k">عدد العمليات</td>
             <td class="v">{{ $report['totals']['count'] }}</td>
         </tr>

@@ -43,6 +43,26 @@ class PdfFormat
         return $value === null ? '—' : self::ltr(number_format((float) $value, $decimals) . '%');
     }
 
+    /**
+     * A report's period, for the header subtitle and caption lines.
+     *
+     * Most reports always have both bounds - `period()` in the aggregate
+     * service defaults them to the current year. The transaction ledgers are
+     * the exception: exporting with no date filter applied means "everything
+     * on the screen", not a hidden default, so their bounds can genuinely be
+     * absent. This renders whichever combination shows up rather than
+     * printing a bare "—" or a literal "null" when one side is missing.
+     */
+    public static function periodLabel(?string $from, ?string $to): string
+    {
+        return match (true) {
+            $from !== null && $to !== null => "{$from} — {$to}",
+            $from !== null => "من {$from}",
+            $to !== null => "حتى {$to}",
+            default => 'كل الفترات',
+        };
+    }
+
     /** Isolate a run so neighbouring RTL text cannot reorder its signs. */
     public static function ltr(string $text): string
     {
