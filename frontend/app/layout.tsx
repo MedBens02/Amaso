@@ -4,6 +4,7 @@ import { Cairo } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
+import { RadixPointerEventsGuard } from "@/components/radix-pointer-events-guard"
 // Side-effect only: installs the fetch() auth patch (see lib/api.ts) before
 // any page's components can make an unauthenticated raw fetch() call.
 import "@/lib/api"
@@ -37,6 +38,8 @@ export default function RootLayout({
           {children}
           {/* Global toast outlet - without it every toast() in the app is invisible */}
           <Toaster />
+          {/* Releases the body pointer-events lock Radix can leave behind */}
+          <RadixPointerEventsGuard />
         </ThemeProvider>
       </body>
     </html>
