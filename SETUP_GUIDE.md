@@ -1,28 +1,36 @@
-# Amaso — Setup Guide (Windows, from scratch)
+# AMASO — Setup
 
-Goal: run the app on a fresh Windows PC that only has Windows + VS Code.
-Takes about 30 minutes, mostly downloads.
+Three ways to run this, depending on what you need.
 
-The stack: **Next.js** (frontend, port 3000) + **Laravel** (API, port 8000) + **MySQL**.
+| I want to… | Go to | Time |
+|---|---|---|
+| **Develop** — edit the code, hot reload | [Development](#development) below | ~20 min |
+| **Test it on the association's PC** | [`setup/README.md`](setup/README.md) *(français)* | ~10 min |
+| **Put it on a server** they can reach from anywhere | [`deploy/README.md`](deploy/README.md) | ~20 min |
+
+The stack is Next.js 15 (frontend), Laravel 12 (API) and MySQL/MariaDB.
+Arabic throughout, RTL layout.
 
 ---
 
-## 1. Install the tools (one time)
+## Development
 
-Install in this order, accepting the default options unless noted.
+### Prerequisites
 
-### 1.1 Git
-Download and install: https://git-scm.com/download/win
+| | Version | |
+|---|---|---|
+| PHP | 8.2+ | XAMPP is the easiest route on Windows |
+| Composer | 2.x | <https://getcomposer.org> |
+| Node.js | 20+ | <https://nodejs.org> |
+| MySQL / MariaDB | 8.0 / 10.6+ | Comes with XAMPP |
+| Git | any | |
 
-### 1.2 XAMPP (gives you PHP 8.2+ and MySQL)
-Download and install: https://www.apachefriends.org (pick the PHP 8.2 version, install to `C:\xampp`)
+**On Windows**, install XAMPP to `C:\xampp`, then add `C:\xampp\php` to your
+`PATH` (search "environment variables" → Path → New).
 
-### 1.3 Put PHP on your PATH
-1. Press `Win`, type **"environment variables"**, open *Edit the system environment variables* → **Environment Variables**
-2. Under *User variables*, select **Path** → **Edit** → **New** → enter `C:\xampp\php` → OK everywhere
+### PHP extensions
 
-### 1.4 Enable the PHP extensions Laravel needs
-Open `C:\xampp\php\php.ini` in VS Code, find these lines and remove the leading `;` if present, then save:
+In `php.ini`, remove the leading `;` from each of these:
 
 ```ini
 extension=curl
@@ -33,169 +41,147 @@ extension=pdo_mysql
 extension=zip
 ```
 
-`gd` is easy to miss because nothing needs it until you generate a PDF or
-Excel report — those embed the association's logo as an image, and the
-libraries that do it (mPDF, PhpSpreadsheet) refuse to install without it.
+`gd` is the one that catches people out: nothing needs it until you generate
+a PDF or an Excel report — those embed the association's logo, and mPDF and
+PhpSpreadsheet will not install without it. If `composer install` fails
+citing `ext-gd`, this is why.
 
-### 1.5 Composer (PHP package manager)
-Download and run **Composer-Setup.exe**: https://getcomposer.org/download/
-(it should auto-detect `C:\xampp\php\php.exe`)
+Check with `php -m | grep -E "gd|mbstring|pdo_mysql"`.
 
-### 1.6 Node.js (includes npm)
-Download and install the **LTS** version: https://nodejs.org
+### Setting up
 
-### 1.7 Verify everything
-Close and reopen any terminal, then run:
-
-```powershell
-git --version
-php -v          # should say 8.2 or newer
-composer -V
-node -v
-npm -v
-```
-
-All five must print a version. If `php` is not recognized, redo step 1.3 and reopen the terminal.
-
----
-
-## 2. Get the code
-
-```powershell
-cd C:\
+```bash
 git clone https://github.com/MedBens02/Amaso.git
+cd Amaso
 ```
 
-Open the `C:\Amaso` folder in VS Code. Use its integrated terminal (`` Ctrl+` ``) for all commands below.
+**Backend**
 
----
-
-## 3. Create the database
-
-1. Open the **XAMPP Control Panel** (Start menu) and click **Start** next to **MySQL** (and **Apache** if you want phpMyAdmin)
-2. Create the database — either in phpMyAdmin (http://localhost/phpmyadmin → *New* → name `amaso`, collation `utf8mb4_unicode_ci` → *Create*), or from the terminal:
-
-```powershell
-C:\xampp\mysql\bin\mysql -u root -e "CREATE DATABASE amaso CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-```
-
-> MySQL must be running (green in XAMPP) every time you use the app.
-
----
-
-## 4. Set up the backend (Laravel)
-
-```powershell
+```bash
 cd backend
 composer install
-copy .env.example .env
+cp .env.example .env          # copy .env.example .env   on Windows
 php artisan key:generate
 ```
 
-Open `backend/.env` in VS Code and change the database block to:
+Edit `backend/.env` so the database section matches your MySQL:
 
-```env
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
+```
 DB_DATABASE=amaso
 DB_USERNAME=root
 DB_PASSWORD=
 ```
 
-(`root` with an empty password is the XAMPP default.)
+Create the database, then fill it:
 
-Then build the schema and seed the base data:
-
-```powershell
-php artisan migrate --seed
+```bash
+php artisan migrate
+php artisan db:seed                              # reference data + accounts
+php artisan db:seed --class=DemoDataSeeder       # optional: demo records
 ```
 
-This creates all 44 tables + the `v_current_cash` view, and seeds the admin user,
-reference data, accounting categories (including the required fallback category
-id 999) and the current fiscal year.
+**Frontend**
 
-> Have an existing database exported from `amaso.sql` instead? Import it first,
-> then run `php artisan migrate` — the migrations detect existing tables and skip them.
-
----
-
-## 5. Set up the frontend (Next.js)
-
-```powershell
-cd ..\frontend
+```bash
+cd ../frontend
 npm install
-copy ..\setup\.env.local.example .env.local
+cp ../setup/.env.local.example .env.local
 ```
 
-The copied `.env.local` already points at the API (`http://localhost:8000/api/v1`) — no edits needed.
+### Running
+
+Two terminals:
+
+```bash
+cd backend  && php artisan serve      # http://localhost:8000
+cd frontend && npm run dev            # http://localhost:3000
+```
+
+On Windows, `setup\start-app.bat` does both and opens the browser.
+
+Sign in at <http://localhost:3000> as `admin@amaso.org` / `password`.
 
 ---
 
-## 6. Run the app
+## The database
 
-Two terminals in VS Code (`+` button in the terminal panel to open a second one):
+Three ways to get one, for three different situations.
 
-```powershell
-# Terminal 1 — API
+| | When | How |
+|---|---|---|
+| **Migrate + seed** | Developing. Always matches the current migrations. | `php artisan migrate:fresh && php artisan db:seed` |
+| **Import `amaso.sql`** | No PHP to hand — a colleague on a fresh machine, or phpMyAdmin only. | Create an empty database, then import the file |
+| **Migrate only** | Real data already in place. | `php artisan migrate` |
+
+`amaso.sql` is generated from `migrate:fresh` plus both seeders, so the two
+first rows produce the same database. It holds 26 families, 53 orphans, 18
+donors, 8 sponsors, three fiscal years of accounts and three academic years
+of school records — **all of it invented**. Importing it drops and recreates
+every table, so never run it against a database holding real records.
+
+### Demo accounts
+
+Password `password` for all three. Present only with the demo data.
+
+| | |
+|---|---|
+| `admin@amaso.org` | Administrator — everything, including account management |
+| `accountant@amaso.org` | Accountant — income, expenses, reports |
+| `social@amaso.org` | Social worker — families, orphans, schooling |
+
+**Change these before the application is used for anything real** (Settings
+→ Account management).
+
+---
+
+## Layout
+
+```
+Amaso/
+├── backend/        Laravel 12 API
+│   ├── app/
+│   │   ├── Http/Controllers/Api/V1/    endpoints
+│   │   ├── Services/                   business rules, money handling
+│   │   └── Models/
+│   ├── database/
+│   │   ├── migrations/                 the schema, in order
+│   │   └── seeders/                    reference data + DemoDataSeeder
+│   └── resources/views/pdf/            PDF templates (mPDF)
+├── frontend/       Next.js 15, App Router
+│   ├── app/dashboard/                  one folder per screen
+│   ├── components/                     shadcn/ui + the app's own
+│   └── lib/api.ts                      the API client
+├── setup/          Windows scripts and guide  (français)
+├── deploy/         VM provisioning, deployment, backups
+└── amaso.sql       demo database
+```
+
+Also worth reading: [`FINANCIAL-INTEGRITY.md`](FINANCIAL-INTEGRITY.md) for
+how money movements are kept consistent, and [`REPORTS.md`](REPORTS.md) for
+the reporting and export system.
+
+---
+
+## Common problems
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `composer install` fails on `ext-gd` | Extension not enabled | See [PHP extensions](#php-extensions) |
+| `composer install` fails on the PHP version | Your PHP is older than the lock file expects | `composer.json` pins `config.platform.php`; check `php -v` matches |
+| Excel export returns 500 | `gd` missing | Same as above |
+| PDF export returns 500, "Please provide a valid cache path" | `storage/framework/views` missing | `php artisan view:clear` recreates it |
+| Every API call returns 401 | Token expired | Sign out and back in |
+| Frontend shows "Failed to fetch" | Backend not running, or wrong URL | Check port 8000, and `NEXT_PUBLIC_API_BASE_URL` in `frontend/.env.local` |
+| Changes to `.env` have no effect | Config is cached | `php artisan config:clear` |
+| Arabic shows as `???` in the database | Wrong charset | The database must be `utf8mb4` / `utf8mb4_unicode_ci` |
+
+### Starting the database over
+
+Deletes everything in it:
+
+```bash
 cd backend
-php artisan serve
+php artisan migrate:fresh --force
+php artisan db:seed --force
+php artisan db:seed --class=DemoDataSeeder --force
 ```
-
-```powershell
-# Terminal 2 — frontend
-cd frontend
-npm run dev
-```
-
-Open **http://localhost:3000** and log in with one of the seeded demo accounts
-(password `password` for all three; the login page also has one-click chips
-for these):
-
-| Role | Email |
-|---|---|
-| Admin (مدير النظام) | `admin@amaso.org` |
-| Accountant (محاسب) | `accountant@amaso.org` |
-| Social worker (أخصائي اجتماعي) | `social@amaso.org` |
-
-Only the admin account can close a fiscal year — the other two will not see
-that action.
-
-To stop, press `Ctrl+C` in each terminal.
-
-> Alternative: the `setup/` folder has Windows launchers (`start-app.bat`,
-> `stop-app.bat`, `app-launcher.bat`) that start/stop both servers for you —
-> XAMPP MySQL must be running first. See `setup/README-SETUP.md`.
-
----
-
-## Daily routine (after the first setup)
-
-1. XAMPP → Start **MySQL**
-2. Terminal 1: `cd backend` → `php artisan serve`
-3. Terminal 2: `cd frontend` → `npm run dev`
-4. http://localhost:3000
-
-After pulling new code: `composer install` (backend), `npm install` (frontend),
-`php artisan migrate` — then start as usual.
-
-`composer install` is not optional: reports are rendered by PHP packages
-(mPDF for the PDFs, PhpSpreadsheet for the workbooks), so a checkout whose
-`vendor/` predates them answers every export with a 500.
-
----
-
-## Troubleshooting
-
-| Problem | Fix |
-|---|---|
-| `php` / `composer` / `node` not recognized | The tool isn't installed or not on PATH (step 1.3). Reopen the terminal after fixing. |
-| `could not find driver` during migrate | `extension=pdo_mysql` still commented in `C:\xampp\php\php.ini` (step 1.4). |
-| `SQLSTATE[HY000] [2002]` connection refused | MySQL isn't running — start it in the XAMPP Control Panel. |
-| `Access denied for user 'root'` | Your MySQL root has a password — put it in `DB_PASSWORD` in `backend/.env`. |
-| Port 3000 or 8000 already in use | `php artisan serve --port=8001` / `npm run dev -- -p 3001`, and update `NEXT_PUBLIC_API_BASE_URL` in `frontend/.env.local` to the new API port. |
-| Frontend shows network errors | Backend not running, or you changed `.env.local` without restarting `npm run dev` (Next.js reads env files only at startup). |
-| PDF or Excel export returns HTTP 500 | The PHP packages that render them aren't installed. `cd backend` → `composer install`. |
-| `composer install` says no lock file | You're on an old checkout — `git pull` first; `backend/composer.lock` is committed. |
-| `composer install`/`update` complains about `ext-gd` | `extension=gd` is still commented out in `php.ini` (step 1.4) — enable it and restart the terminal, then run `composer install` again. |
-| Backup / restore | `C:\xampp\mysql\bin\mysqldump -u root amaso > backup.sql` / `C:\xampp\mysql\bin\mysql -u root amaso < backup.sql` |
