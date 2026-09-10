@@ -27,7 +27,7 @@ const PARTS: Array<{
   color: string
   blurb: string
 }> = [
-  { key: "maouna", label: "معونة", percentage: 50, icon: ShoppingBasket, color: "#0d9488", blurb: "سلة غذائية شهرية ولوازم المنزل" },
+  { key: "maouna", label: "مؤونة", percentage: 50, icon: ShoppingBasket, color: "#0d9488", blurb: "سلة غذائية شهرية ولوازم المنزل" },
   { key: "education", label: "تعليم", percentage: 20, icon: BookOpen, color: "#0891b2", blurb: "رسوم التمدرس واللوازم المدرسية" },
   { key: "management", label: "تسيير", percentage: 10, icon: Settings2, color: "#64748b", blurb: "ما تحتاجه الجمعية لتصل المساعدة" },
   { key: "projects", label: "مشاريع", percentage: 6, icon: Hammer, color: "#b45309", blurb: "مشاريع مدرّة للدخل تُخرج الأسرة من الحاجة" },

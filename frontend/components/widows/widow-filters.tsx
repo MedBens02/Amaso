@@ -165,8 +165,8 @@ export function WidowFilters({ onFiltersChange, initialFilters = {} }: WidowFilt
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">جميع الحالات</SelectItem>
-              <SelectItem value="true">معونة نشطة</SelectItem>
-              <SelectItem value="false">بدون معونة نشطة</SelectItem>
+              <SelectItem value="true">مؤونة نشطة</SelectItem>
+              <SelectItem value="false">بدون مؤونة نشطة</SelectItem>
             </SelectContent>
           </Select>
         </div>
