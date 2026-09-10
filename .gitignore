@@ -56,7 +56,12 @@ backend/.env.production
 backend/.phpunit.cache
 
 # Composer
-backend/composer.lock
+# composer.lock is deliberately NOT ignored. This is an application, not a
+# library: the lock is what makes `composer install` reproduce the same
+# dependency set everywhere. While it was ignored, adding mpdf and
+# phpspreadsheet shipped the composer.json entry without the packages, and
+# every PDF and Excel export returned a 500 on machines that had not
+# happened to install them by hand.
 backend/auth.json
 
 # Runtime data

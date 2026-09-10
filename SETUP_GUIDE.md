@@ -174,6 +174,10 @@ To stop, press `Ctrl+C` in each terminal.
 After pulling new code: `composer install` (backend), `npm install` (frontend),
 `php artisan migrate` — then start as usual.
 
+`composer install` is not optional: reports are rendered by PHP packages
+(mPDF for the PDFs, PhpSpreadsheet for the workbooks), so a checkout whose
+`vendor/` predates them answers every export with a 500.
+
 ---
 
 ## Troubleshooting
@@ -186,4 +190,6 @@ After pulling new code: `composer install` (backend), `npm install` (frontend),
 | `Access denied for user 'root'` | Your MySQL root has a password — put it in `DB_PASSWORD` in `backend/.env`. |
 | Port 3000 or 8000 already in use | `php artisan serve --port=8001` / `npm run dev -- -p 3001`, and update `NEXT_PUBLIC_API_BASE_URL` in `frontend/.env.local` to the new API port. |
 | Frontend shows network errors | Backend not running, or you changed `.env.local` without restarting `npm run dev` (Next.js reads env files only at startup). |
+| PDF or Excel export returns HTTP 500 | The PHP packages that render them aren't installed. `cd backend` → `composer install`. |
+| `composer install` says no lock file | You're on an old checkout — `git pull` first; `backend/composer.lock` is committed. |
 | Backup / restore | `C:\xampp\mysql\bin\mysqldump -u root amaso > backup.sql` / `C:\xampp\mysql\bin\mysql -u root amaso < backup.sql` |

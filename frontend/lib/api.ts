@@ -829,9 +829,19 @@ class ApiClient {
     })
 
     if (!response.ok) {
-      // An error comes back as JSON even though we asked for a file.
+      // The error usually comes back as JSON even though we asked for a file.
+      // A 500 with Laravel's debug page is HTML, though, and swallowing that
+      // left the toast saying only "HTTP 500" - so pull the exception line
+      // out of it, which is what actually names a missing dependency or an
+      // unreadable font.
       let data: any = {}
-      try { data = await response.json() } catch { /* non-JSON error body */ }
+      const body = await response.text().catch(() => '')
+      try {
+        data = JSON.parse(body)
+      } catch {
+        const title = body.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim()
+        if (title && title !== 'Laravel') data = { message: title }
+      }
       throw new ApiError(response, data)
     }
 
