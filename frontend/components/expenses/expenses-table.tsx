@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
+import { api, apiUrl } from "@/lib/api"
 import { formatDateArabic } from "@/lib/date-utils"
 import { NewExpenseDialog } from "@/components/forms/NewExpenseForm"
 
@@ -108,8 +109,7 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
   const fetchExpenses = async () => {
     setLoading(true)
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
-      const url = new URL(`${baseUrl}/expenses`)
+      const url = apiUrl('/expenses')
       
       const params = new URLSearchParams()
       params.append('page', currentPage.toString())

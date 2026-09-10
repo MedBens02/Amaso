@@ -1,0 +1,104 @@
+# AMASO - one origin serves both halves of the application.
+#
+# The frontend is a static export (Next.js `output: 'export'`), so there is
+# no Node process to keep alive: nginx serves the files straight from disk.
+# Requests under /api go to Laravel through PHP-FPM. Because both live on
+# the same origin the browser makes same-origin requests, which means no
+# CORS configuration and only one hostname to certificate.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name __SERVER_NAME__;
+
+    charset utf-8;
+    client_max_body_size 8M;
+
+    # Arabic content compresses very well; these pages are mostly text.
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/javascript application/javascript
+               application/json application/xml image/svg+xml font/woff2;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    access_log /var/log/nginx/amaso-access.log;
+    error_log  /var/log/nginx/amaso-error.log;
+
+    # -----------------------------------------------------------------
+    # API - Laravel behind PHP-FPM
+    #
+    # Every /api request goes straight to Laravel's front controller.
+    # There are no static files under /api, so there is nothing to
+    # try_files for - and an internal redirect to /index.php would be
+    # re-matched from the server level, missing this block entirely.
+    # Passing directly avoids that whole class of misrouting.
+    #
+    # ^~ stops nginx from considering regex locations once this prefix
+    # matches, so a later `location ~ \.php$` cannot steal the request.
+    # -----------------------------------------------------------------
+    location ^~ /api {
+        include fastcgi_params;
+        fastcgi_pass unix:/run/php/php-fpm-amaso.sock;
+
+        # fastcgi_params sets SCRIPT_NAME from the request path. Laravel
+        # routes on REQUEST_URI, and needs SCRIPT_NAME to name the front
+        # controller instead - otherwise it computes a base path from
+        # "/api/v1/widows" and strips part of the route.
+        fastcgi_param SCRIPT_FILENAME __APP_DIR__/backend/public/index.php;
+        fastcgi_param SCRIPT_NAME     /index.php;
+        fastcgi_param DOCUMENT_ROOT   __APP_DIR__/backend/public;
+
+        # A year-end PDF over a few thousand rows outruns the 60s default.
+        fastcgi_read_timeout 120;
+
+        # Report downloads are far larger than the 4k default buffer, and
+        # nginx spools the overflow to disk without these.
+        fastcgi_buffer_size 32k;
+        fastcgi_buffers 16 16k;
+    }
+
+    # -----------------------------------------------------------------
+    # Frontend - the static export
+    # -----------------------------------------------------------------
+    root __APP_DIR__/frontend/out;
+    index index.html;
+
+    # Hashed build assets never change under the same name.
+    location /_next/static/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+
+    # The export writes /dashboard/widows.html, not /dashboard/widows/,
+    # so $uri.html is what makes a typed URL or a refresh on a deep link
+    # work instead of returning 404.
+    #
+    # The fallback is =404 rather than /404.html: falling back to a file
+    # serves that file with a 200, so a mistyped address would look to a
+    # browser, a crawler or a monitor like a page that exists. error_page
+    # below still shows the styled page - with the right status.
+    location / {
+        try_files $uri $uri.html $uri/index.html =404;
+    }
+
+    error_page 404 /404.html;
+    location = /404.html {
+        internal;
+    }
+
+    # index.html names the hashed chunks; caching it would serve the
+    # previous build's script tags after a deploy.
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+    }
+
+    # Dotfiles, except the ACME challenge directory certbot writes into.
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+}

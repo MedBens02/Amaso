@@ -1040,6 +1040,29 @@ class ApiClient {
 export const api = new ApiClient()
 
 /**
+ * Builds a URL against the API base, for the call sites that need a URL
+ * object to assemble their query string.
+ *
+ * `new URL('/api/v1/incomes')` throws: a relative path needs a base. That
+ * makes a relative NEXT_PUBLIC_API_BASE_URL - which is exactly what a
+ * single-origin deployment sets, where one web server hosts the pages and
+ * proxies /api to Laravel - break every such call site with an unhelpful
+ * "Invalid URL". Resolving against the page's own origin makes an absolute
+ * base and a relative one both work.
+ */
+export function apiUrl(path: string, base: string = API_BASE_URL): URL {
+  const target = `${base.replace(/\/$/, '')}${path}`
+
+  if (/^https?:\/\//i.test(target)) {
+    return new URL(target)
+  }
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost'
+
+  return new URL(target, origin)
+}
+
+/**
  * A large part of this codebase calls `fetch()` directly against the API
  * instead of going through ApiClient (relative `/api/v1/...` paths proxied
  * by next.config.mjs, or absolute NEXT_PUBLIC_API_BASE_URL calls). None of
