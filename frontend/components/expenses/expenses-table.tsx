@@ -33,6 +33,10 @@ interface Expense {
   cheque_number?: string
   receipt_number?: string
   unrelated_to_benef: boolean
+  // The raw foreign key, alongside the loaded `bank_account` relation below -
+  // the approval flow checks this directly rather than the relation, since a
+  // cash expense with no account yet has this as null/absent.
+  bank_account_id?: number
   budget: {
     id: number
     label: string
@@ -86,7 +90,6 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
   const itemsPerPage = 15
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [showValidateDialog, setShowValidateDialog] = useState(false)
-  const [validateTarget, setValidateTarget] = useState<{ type: "single" | "bulk"; id?: number }>({ type: "single" })
   const [duplicateExpense, setDuplicateExpense] = useState<any>(null)
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
@@ -96,6 +99,9 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
   const [selectedExpenseBeneficiaries, setSelectedExpenseBeneficiaries] = useState<any[]>([])
   const [showBankAccountDialog, setShowBankAccountDialog] = useState(false)
   const [pendingApprovalExpense, setPendingApprovalExpense] = useState<any>(null)
+  // The id currently being approved, or null. Blocks a second approval
+  // click from firing while one is already in flight - see performApproval.
+  const [approvingId, setApprovingId] = useState<number | null>(null)
   const [bankAccounts, setBankAccounts] = useState<any[]>([])
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null)
@@ -233,26 +239,7 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
     setSelectedIds(newSelected)
   }
 
-  const handleValidateExpense = async (id: number) => {
-    try {
-      await api.approveExpense(id)
-      toast({
-        title: "تم التأكيد بنجاح",
-        description: "تم تأكيد المصروف بنجاح",
-      })
-      fetchExpenses()
-    } catch (error) {
-      console.error('Error approving expense:', error)
-      toast({
-        title: "خطأ",
-        description: "حدث خطأ في تأكيد المصروف",
-        variant: "destructive",
-      })
-    }
-  }
-
   const handleBulkValidate = () => {
-    setValidateTarget({ type: "bulk" })
     setShowValidateDialog(true)
   }
 
@@ -268,20 +255,57 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
     setDuplicateExpense(duplicatedExpense)
   }
 
-  const confirmValidation = () => {
-    if (validateTarget.type === "single" && validateTarget.id) {
-      // Update single expense status to معتمد
+  /**
+   * This used to just show a success toast without calling the API at
+   * all - selecting expenses and confirming "تأكيد المحدد" looked like it
+   * approved them, but nothing was ever sent to the backend: the list
+   * still showed them as drafts on the next refresh, and no bank balance
+   * ever moved.
+   *
+   * A cash expense with no bank account can't be bulk-approved silently -
+   * that would either skip the ledger deduction the single-row dialog
+   * exists to collect, or force a choice on every row without asking. It
+   * gets excluded here and reported separately instead.
+   */
+  const confirmValidation = async () => {
+    const targets = expenses.filter((expense) => selectedIds.has(expense.id))
+    const needsBankAccount = targets.filter(
+      (expense) => expense.payment_method === 'Cash' && !expense.bank_account_id
+    )
+    const readyToApprove = targets.filter(
+      (expense) => !(expense.payment_method === 'Cash' && !expense.bank_account_id)
+    )
+
+    const results = await Promise.allSettled(
+      readyToApprove.map((expense) => api.approveExpense(expense.id))
+    )
+    const succeeded = results.filter((r) => r.status === 'fulfilled').length
+    const failed = results.length - succeeded
+
+    if (succeeded > 0) {
       toast({
-        title: "تم التأكيد بنجاح",
-        description: "تم تأكيد المصروف بنجاح",
+        title: "تم التأكيد",
+        description: `تم تأكيد ${succeeded} مصروف بنجاح`
+          + (failed > 0 ? `، وتعذر تأكيد ${failed}` : ''),
       })
-    } else if (validateTarget.type === "bulk") {
-      // Update multiple expenses status to معتمد
+    } else if (failed > 0) {
       toast({
-        title: "تم التأكيد بنجاح",
-        description: `تم تأكيد ${selectedIds.size} مصروف بنجاح`,
+        title: "تعذر التأكيد",
+        description: `فشل تأكيد ${failed} مصروف`,
+        variant: "destructive",
       })
-      setSelectedIds(new Set())
+    }
+
+    if (needsBankAccount.length > 0) {
+      toast({
+        title: "مصروفات تحتاج حساباً بنكياً",
+        description: `${needsBankAccount.length} مصروف نقدي بلا حساب بنكي - أكّده فردياً لاختيار الحساب`,
+      })
+    }
+
+    setSelectedIds(new Set())
+    if (succeeded > 0) {
+      fetchExpenses()
     }
     setShowValidateDialog(false)
   }
@@ -355,6 +379,8 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
 
   // Handle approve expense (with bank account selection for cash)
   const handleApproveExpense = async (expense: any) => {
+    if (approvingId !== null) return // an approval is already in flight
+
     if (expense.payment_method === 'Cash' && !expense.bank_account_id) {
       // For cash expenses without bank account, show bank account selection
       setPendingApprovalExpense(expense)
@@ -366,87 +392,43 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
     }
   }
 
-  // Perform the actual approval
-  const performApproval = async (expenseId: number, bankAccountId?: number) => {
+  /**
+   * Sends the approval to the API. The backend applies bankAccountId itself
+   * (only when the expense doesn't already have an account), so this is a
+   * single request rather than a fetch-then-update-then-approve chain.
+   *
+   * approvingId guards against a second invocation landing while the first
+   * is still in flight - a real risk here since nothing else disables the
+   * bank-account dialog's rows while the request is out, so an impatient
+   * second click used to fire this same function again after the first
+   * click's success handler had already cleared pendingApprovalExpense,
+   * sending a request for expense id `undefined` and surfacing a scary
+   * error toast for what was, underneath it, a successful approval.
+   */
+  const performApproval = async (expenseId?: number, bankAccountId?: number) => {
+    if (!expenseId) {
+      console.error('performApproval called without an expense id - ignoring')
+      return
+    }
+    if (approvingId !== null) return
+
+    setApprovingId(expenseId)
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
-      
-      // First, if bank account is provided, get current expense data and update with bank account
-      if (bankAccountId) {
-        console.log('Updating expense with bank account:', bankAccountId)
-        
-        // Get current expense data
-        const expenseResponse = await fetch(`${baseUrl}/expenses/${expenseId}`)
-        if (!expenseResponse.ok) {
-          throw new Error('Failed to fetch expense data')
-        }
-        const expenseData = await expenseResponse.json()
-        const expense = expenseData.data
-        
-        // Update with all required fields plus the new bank account
-        const updateData = {
-          fiscal_year_id: expense.fiscal_year_id,
-          budget_id: expense.budget_id,
-          expense_category_id: expense.expense_category_id,
-          partner_id: expense.partner_id,
-          details: expense.details,
-          expense_date: expense.expense_date,
-          amount: expense.amount,
-          payment_method: expense.payment_method,
-          cheque_number: expense.cheque_number,
-          receipt_number: expense.receipt_number,
-          bank_account_id: bankAccountId,
-          remarks: expense.remarks,
-          unrelated_to_benef: expense.unrelated_to_benef,
-          beneficiaries: expense.beneficiaries || [],
-          beneficiary_groups: expense.beneficiary_groups || []
-        }
-        
-        const updateResponse = await fetch(`${baseUrl}/expenses/${expenseId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(updateData)
-        })
-        
-        if (!updateResponse.ok) {
-          const errorData = await updateResponse.text()
-          console.error('Failed to update bank account:', errorData)
-          throw new Error('Failed to update bank account')
-        }
-      }
-      
-      // Then approve the expense
-      console.log('Approving expense:', expenseId)
-      const response = await fetch(`${baseUrl}/expenses/${expenseId}/approve`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ bank_account_id: bankAccountId })
+      await api.approveExpense(expenseId, bankAccountId)
+      toast({
+        title: "تم التأكيد بنجاح",
+        description: "تم تأكيد المصروف وتحديث رصيد الحساب",
       })
-      
-      if (response.ok) {
-        const result = await response.json()
-        console.log('Approval response:', result)
-        toast({
-          title: "تم التأكيد بنجاح",
-          description: "تم تأكيد المصروف وتحديث رصيد الحساب",
-        })
-        fetchExpenses()
-      } else {
-        const errorData = await response.text()
-        console.error('Approval failed:', errorData)
-        throw new Error('Failed to approve expense')
-      }
+      fetchExpenses()
     } catch (error) {
       console.error('Error approving expense:', error)
       toast({
-        title: "خطأ",
-        description: "حدث خطأ في تأكيد المصروف",
+        title: "خطأ في تأكيد المصروف",
+        description: error instanceof Error ? error.message : "حدث خطأ في تأكيد المصروف",
         variant: "destructive",
       })
+    } finally {
+      setApprovingId(null)
     }
   }
 
@@ -546,7 +528,7 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
                           onClick={() => handleApproveExpense(expense)}
-                          disabled={expense.status === "Approved"}
+                          disabled={expense.status === "Approved" || approvingId === expense.id}
                         >
                           <CheckCircle className="mr-2 h-4 w-4" />
                           تأكيد
@@ -625,9 +607,7 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
           <AlertDialogHeader>
             <AlertDialogTitle>تأكيد العملية</AlertDialogTitle>
             <AlertDialogDescription>
-              {validateTarget.type === "single"
-                ? "هل أنت متأكد من تأكيد هذا المصروف؟ لن تتمكن من تعديله بعد التأكيد."
-                : `هل أنت متأكد من تأكيد ${selectedIds.size} مصروف؟ لن تتمكن من تعديلها بعد التأكيد.`}
+              {`هل أنت متأكد من تأكيد ${selectedIds.size} مصروف؟ لن تتمكن من تعديلها بعد التأكيد.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -703,9 +683,18 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
             {bankAccounts.map(account => (
               <div
                 key={account.id}
-                className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
+                className={`p-3 border rounded-lg ${
+                  approvingId !== null ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-gray-50'
+                }`}
                 onClick={async () => {
-                  await performApproval(pendingApprovalExpense?.id, account.id)
+                  // Without this guard, a second click landing while the
+                  // first is still in flight re-enters with
+                  // pendingApprovalExpense already cleared by the first
+                  // click's own success handler below - the exact bug this
+                  // whole function's redesign fixed.
+                  if (approvingId !== null || !pendingApprovalExpense?.id) return
+
+                  await performApproval(pendingApprovalExpense.id, account.id)
                   setShowBankAccountDialog(false)
                   setPendingApprovalExpense(null)
                 }}
@@ -721,12 +710,20 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
                 </div>
               </div>
             ))}
+            {approvingId !== null && (
+              <p className="text-sm text-muted-foreground text-center">جارٍ التأكيد...</p>
+            )}
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setShowBankAccountDialog(false)
-              setPendingApprovalExpense(null)
-            }}>إلغاء</AlertDialogCancel>
+            <AlertDialogCancel
+              disabled={approvingId !== null}
+              onClick={() => {
+                setShowBankAccountDialog(false)
+                setPendingApprovalExpense(null)
+              }}
+            >
+              إلغاء
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
