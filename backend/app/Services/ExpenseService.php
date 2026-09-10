@@ -67,19 +67,30 @@ class ExpenseService
      * Approve a draft expense and deduct the amount from the linked bank
      * account, if any.
      *
+     * A cash expense often has no bank_account_id yet - the association
+     * still has to say which account the cash came out of, and that choice
+     * is made at approval time rather than when the expense was first
+     * recorded. $bankAccountId carries that choice; it is only applied when
+     * the expense doesn't already have one, so it can never override an
+     * account chosen earlier (a cheque or wire's own account, for example).
+     *
      * Both rows are locked for the duration: the expense so two concurrent
      * approvals cannot both pass the Draft guard and deduct twice, and the
      * account so the balance read used for the funds check is the one being
      * written. The deduction itself is an atomic decrement rather than a
      * read-modify-write, which would silently drop a concurrent credit.
      */
-    public function approve(Expense $expense): Expense
+    public function approve(Expense $expense, ?int $bankAccountId = null): Expense
     {
-        return DB::transaction(function () use ($expense) {
+        return DB::transaction(function () use ($expense, $bankAccountId) {
             $locked = Expense::whereKey($expense->getKey())->lockForUpdate()->firstOrFail();
 
             if ($locked->status === 'Approved') {
                 throw new BusinessRuleException('المصروف معتمد مسبقاً', 400);
+            }
+
+            if ($bankAccountId && !$locked->bank_account_id) {
+                $locked->bank_account_id = $bankAccountId;
             }
 
             if ($locked->bank_account_id) {
