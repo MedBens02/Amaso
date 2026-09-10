@@ -169,112 +169,26 @@ export function FinancialReportDialog({ open, onOpenChange }: FinancialReportDia
   }
 
   const handleGenerate = async (format: ExportFormat) => {
-    switch (format) {
-      case 'csv':
-        await exportToCSV()
-        break
-      case 'pdf':
-        await exportToPDF()
-        break
-      case 'print':
-        await printReport()
-        break
+    if (format === 'pdf') {
+      await exportToPDF()
+      return
+    }
+    await exportToExcel()
+  }
+
+  const exportToExcel = async () => {
+    try {
+      await api.downloadExcel('/reports/financial.xlsx', appliedFilters)
+      toast({ title: "تم تحميل ملف Excel" })
+    } catch (error: any) {
+      toast({
+        title: "تعذر إنشاء الملف",
+        description: error?.message || "حدث خطأ أثناء التصدير",
+        variant: "destructive",
+      })
     }
   }
 
-  const exportToCSV = async () => {
-    // Export incomes CSV
-    const incomesColumnMapping: Record<string, string> = {
-      'id': 'رقم الإيراد',
-      'income_date': 'التاريخ',
-      'amount': 'المبلغ (د.م)',
-      'payment_method': 'طريقة الدفع',
-      'status': 'الحالة',
-      'fiscal_year': 'السنة المالية',
-      'budget': 'الميزانية',
-      'income_category': 'فئة الإيراد',
-      'source': 'المصدر'
-    }
-
-    const incomesData = incomes.map(income => ({
-      id: income.id,
-      income_date: formatDateForExport(income.income_date),
-      amount: parseFloat(String(income.amount)).toFixed(2),
-      payment_method: paymentMethodArabic[income.payment_method] || income.payment_method,
-      status: statusArabic[income.status] || income.status,
-      fiscal_year: income.fiscal_year.year,
-      budget: income.budget.label,
-      income_category: income.income_category.label,
-      source: income.donor
-        ? `متبرع: ${income.donor.first_name} ${income.donor.last_name}`
-        : income.kafil
-        ? `كافل: ${income.kafil.first_name} ${income.kafil.last_name}`
-        : '-'
-    }))
-
-    exportDataToCSV(incomesData, 'financial_report_incomes', incomesColumnMapping, {
-      entityType: 'incomes',
-      filters,
-      totalCount: incomes.length
-    })
-
-    // Export expenses CSV
-    const expensesColumnMapping: Record<string, string> = {
-      'id': 'رقم المصروف',
-      'expense_date': 'التاريخ',
-      'amount': 'المبلغ (د.م)',
-      'payment_method': 'طريقة الدفع',
-      'status': 'الحالة',
-      'budget': 'الميزانية',
-      'expense_category': 'فئة المصروف',
-      'partner': 'الشريك',
-      'beneficiaries': 'عدد المستفيدين'
-    }
-
-    const expensesData = expenses.map(expense => ({
-      id: expense.id,
-      expense_date: formatDateForExport(expense.expense_date),
-      amount: expense.amount.toFixed(2),
-      payment_method: paymentMethodArabic[expense.payment_method] || expense.payment_method,
-      status: statusArabic[expense.status] || expense.status,
-      budget: expense.budget.label,
-      expense_category: expense.expense_category.label,
-      partner: expense.partner?.name || '',
-      beneficiaries: expense.beneficiaries?.length || 0
-    }))
-
-    exportDataToCSV(expensesData, 'financial_report_expenses', expensesColumnMapping, {
-      entityType: 'expenses',
-      filters,
-      totalCount: expenses.length
-    })
-
-    // Export summary CSV
-    const totalIncome = incomes.reduce((sum, inc) => sum + parseFloat(String(inc.amount)), 0)
-    const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(String(exp.amount)), 0)
-    const balance = totalIncome - totalExpenses
-
-    const summaryData = [{
-      description: 'إجمالي الإيرادات',
-      amount: totalIncome.toFixed(2)
-    }, {
-      description: 'إجمالي المصروفات',
-      amount: totalExpenses.toFixed(2)
-    }, {
-      description: 'الرصيد',
-      amount: balance.toFixed(2)
-    }]
-
-    const summaryColumnMapping: Record<string, string> = {
-      'description': 'البيان',
-      'amount': 'المبلغ (د.م)'
-    }
-
-    exportDataToCSV(summaryData, 'financial_report_summary', summaryColumnMapping, {
-      entityType: 'financial_summary',
-      filters
-    })
-  }
 
   const exportToPDF = async () => {
     // Rendered server-side as real text, so the PDF can be selected, searched
@@ -291,177 +205,6 @@ export function FinancialReportDialog({ open, onOpenChange }: FinancialReportDia
     }
   }
 
-  const printReport = async () => {
-    const totalIncome = incomes.reduce((sum, inc) => sum + parseFloat(String(inc.amount)), 0)
-    const approvedIncome = incomes
-      .filter(inc => inc.status === 'Approved')
-      .reduce((sum, inc) => sum + parseFloat(String(inc.amount)), 0)
-    const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(String(exp.amount)), 0)
-    const approvedExpenses = expenses
-      .filter(exp => exp.status === 'Approved')
-      .reduce((sum, exp) => sum + parseFloat(String(exp.amount)), 0)
-    const balance = approvedIncome - approvedExpenses
-
-    // Group incomes by category
-    const incomesByCategory: Record<string, number> = {}
-    incomes.forEach(income => {
-      const category = income.income_category.label
-      incomesByCategory[category] = (incomesByCategory[category] || 0) + parseFloat(String(income.amount))
-    })
-
-    // Group expenses by category
-    const expensesByCategory: Record<string, number> = {}
-    expenses.forEach(expense => {
-      const category = expense.expense_category.label
-      expensesByCategory[category] = (expensesByCategory[category] || 0) + parseFloat(String(expense.amount))
-    })
-
-    const htmlContent = `
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-  <meta charset="UTF-8">
-  <title>التقرير المالي</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
-      direction: rtl;
-      padding: 20px;
-      font-size: 12px;
-    }
-    .header {
-      text-align: center;
-      border-bottom: 3px solid #333;
-      padding-bottom: 15px;
-      margin-bottom: 20px;
-    }
-    .header h1 { font-size: 24px; margin-bottom: 5px; }
-    .summary {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 15px;
-      margin-bottom: 30px;
-    }
-    .summary-card {
-      border: 2px solid #ddd;
-      padding: 20px;
-      text-align: center;
-      border-radius: 5px;
-    }
-    .summary-card.income { border-color: #4CAF50; background: #e8f5e9; }
-    .summary-card.expense { border-color: #f44336; background: #ffebee; }
-    .summary-card.balance { border-color: #2196F3; background: #e3f2fd; }
-    .summary-card h3 { font-size: 12px; color: #666; margin-bottom: 10px; }
-    .summary-card p { font-size: 24px; font-weight: bold; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-    th {
-      background: #333;
-      color: white;
-      padding: 10px;
-      text-align: right;
-      font-size: 11px;
-    }
-    td { padding: 8px; border-bottom: 1px solid #ddd; font-size: 11px; }
-    tr:nth-child(even) { background: #f9f9f9; }
-    .section-title {
-      font-size: 16px;
-      font-weight: bold;
-      margin: 25px 0 10px 0;
-      color: #333;
-      border-bottom: 2px solid #ddd;
-      padding-bottom: 5px;
-    }
-    .footer {
-      margin-top: 30px;
-      padding-top: 10px;
-      border-top: 2px solid #333;
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-      color: #666;
-    }
-    @media print { body { padding: 0; } }
-    ${PRINT_HEADER_STYLES}
-  </style>
-</head>
-<body>
-  ${printHeader(`التقرير المالي الشامل`)}
-
-  <div class="summary">
-    <div class="summary-card income">
-      <h3>إجمالي الإيرادات</h3>
-      <p>${formatCurrency(totalIncome)}</p>
-      <small>معتمد: ${formatCurrency(approvedIncome)}</small>
-    </div>
-    <div class="summary-card expense">
-      <h3>إجمالي المصروفات</h3>
-      <p>${formatCurrency(totalExpenses)}</p>
-      <small>معتمد: ${formatCurrency(approvedExpenses)}</small>
-    </div>
-    <div class="summary-card balance">
-      <h3>الرصيد</h3>
-      <p style="color: ${balance >= 0 ? '#4CAF50' : '#f44336'}">${formatCurrency(balance)}</p>
-    </div>
-  </div>
-
-  <h3 class="section-title">الإيرادات حسب الفئة</h3>
-  <table>
-    <thead>
-      <tr><th>الفئة</th><th>المبلغ</th><th>النسبة</th></tr>
-    </thead>
-    <tbody>
-      ${Object.entries(incomesByCategory).map(([category, amount]) => `
-      <tr>
-        <td>${category}</td>
-        <td><strong>${formatCurrency(amount)}</strong></td>
-        <td>${totalIncome > 0 ? ((amount / totalIncome) * 100).toFixed(1) : 0}%</td>
-      </tr>
-      `).join('')}
-    </tbody>
-  </table>
-
-  <h3 class="section-title">المصروفات حسب الفئة</h3>
-  <table>
-    <thead>
-      <tr><th>الفئة</th><th>المبلغ</th><th>النسبة</th></tr>
-    </thead>
-    <tbody>
-      ${Object.entries(expensesByCategory).map(([category, amount]) => `
-      <tr>
-        <td>${category}</td>
-        <td><strong>${formatCurrency(amount)}</strong></td>
-        <td>${totalExpenses > 0 ? ((amount / totalExpenses) * 100).toFixed(1) : 0}%</td>
-      </tr>
-      `).join('')}
-    </tbody>
-  </table>
-
-  <div class="footer">
-    <div>
-      <p>تاريخ الطباعة: ${formatDateForExport(new Date())}</p>
-      <p>الوقت: ${new Date().toLocaleTimeString('ar-MA')}</p>
-    </div>
-    <div style="text-align: left;">
-      <p>جمعية المنصور لكفالة اليتيم</p>
-      <p>قسم المالية</p>
-    </div>
-  </div>
-</body>
-</html>
-    `
-
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) {
-      throw new Error('تعذر فتح نافذة الطباعة')
-    }
-
-    printWindow.document.write(htmlContent)
-    printWindow.document.close()
-    printWindow.onload = () => {
-      printWindow.print()
-    }
-  }
 
   return (
     <ReportDialog

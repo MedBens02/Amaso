@@ -19,7 +19,12 @@ const Switch = React.forwardRef<
   >
     <SwitchPrimitives.Thumb
       className={cn(
-        "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0"
+        // The app runs RTL, where the thumb rests against the right edge and
+        // has to travel left to read as "on". A bare translate-x-5 pushes it
+        // the wrong way, off the end of the track.
+        "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform",
+        "data-[state=unchecked]:translate-x-0",
+        "data-[state=checked]:translate-x-5 rtl:data-[state=checked]:-translate-x-5"
       )}
     />
   </SwitchPrimitives.Root>

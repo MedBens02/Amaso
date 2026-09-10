@@ -303,15 +303,15 @@ export function TransferIncomeDialog({ open, onOpenChange, items, onSuccess }: T
                       </TableCell>
                       <TableCell className="text-right">
                         {item.donor && (
-                          <div className="flex items-center gap-1 justify-end">
-                            <span>{`${item.donor.first_name} ${item.donor.last_name}`}</span>
+                          <div className="flex items-center justify-start gap-1">
                             <span className="text-xs text-blue-600">متبرع:</span>
+                            <span>{`${item.donor.first_name} ${item.donor.last_name}`}</span>
                           </div>
                         )}
                         {item.kafil && (
-                          <div className="flex items-center gap-1 justify-end">
-                            <span>{`${item.kafil.first_name} ${item.kafil.last_name}`}</span>
+                          <div className="flex items-center justify-start gap-1">
                             <span className="text-xs text-green-600">كفيل:</span>
+                            <span>{`${item.kafil.first_name} ${item.kafil.last_name}`}</span>
                           </div>
                         )}
                         {!item.donor && !item.kafil && (

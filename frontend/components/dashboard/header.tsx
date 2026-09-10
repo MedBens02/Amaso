@@ -23,35 +23,49 @@ interface HeaderProps {
   }
 }
 
+/**
+ * Today, Gregorian then Hijri on one line.
+ *
+ * The Hijri half has to name its calendar: "ar-SA" resolves to the Gregorian
+ * calendar in the browsers this runs in, so asking it for a date and adding
+ * "هـ" printed the Gregorian date twice, once with a Hijri suffix that made
+ * it wrong rather than merely redundant. The Umm al-Qura formatter supplies
+ * its own "هـ", and the weekday is dropped from it because it is the same
+ * weekday already named on the left.
+ */
+function formatToday(): string {
+  const today = new Date()
+
+  const gregorian = today.toLocaleDateString("ar-EG", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    numberingSystem: "latn",
+  })
+
+  const hijri = today.toLocaleDateString("ar-SA-u-ca-islamic-umalqura", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    numberingSystem: "latn",
+  })
+
+  return `${gregorian} — ${hijri}`
+}
+
 export function Header({ user }: HeaderProps) {
   const { theme, setTheme } = useTheme()
   const router = useRouter()
 
   return (
-    <header className="bg-background border-b border-border px-6 py-4 transition-colors">
+    <header className="bg-background border-b border-border px-6 py-3 transition-colors">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">مرحباً، {user.name}</h1>
-          <div className="text-sm text-muted-foreground space-y-1">
-            <p>
-              {new Date().toLocaleDateString("ar-SA", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-                numberingSystem: "latn"
-              })} هـ
-            </p>
-            <p>
-              {new Date().toLocaleDateString("ar-EG", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-                numberingSystem: "latn"
-              })} م
-            </p>
-          </div>
+          <h1 className="text-lg font-semibold text-foreground">مرحباً، {user.name}</h1>
+          <p className="text-sm text-muted-foreground" suppressHydrationWarning>
+            {formatToday()}
+          </p>
         </div>
 
         <div className="flex items-center gap-4">

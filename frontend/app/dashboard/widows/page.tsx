@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { WidowsTable } from "@/components/widows/widows-table"
 import { WidowFilters } from "@/components/widows/widow-filters"
 import { AddWidowDialog } from "@/components/widows/add-widow-dialog"
-import { ExportWidows } from "@/components/widows/export-widows"
+import { ReportExportButtons } from "@/components/reports/report-export-buttons"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
 
@@ -19,30 +19,8 @@ export default function WidowsPage() {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [filters, setFilters] = useState({})
-  const [allWidows, setAllWidows] = useState<any[]>([])
-  const [loadingExport, setLoadingExport] = useState(false)
   const { toast } = useToast()
 
-  // Fetch all widows for export purposes
-  useEffect(() => {
-    const fetchAllWidows = async () => {
-      try {
-        setLoadingExport(true)
-        const response = await api.getWidows({
-          search: searchTerm || undefined,
-          per_page: 1000, // Fetch large number for export
-          ...filters
-        })
-        setAllWidows(response.data || [])
-      } catch (error: any) {
-        console.error('Error fetching widows for export:', error)
-      } finally {
-        setLoadingExport(false)
-      }
-    }
-
-    fetchAllWidows()
-  }, [searchTerm, filters, refreshTrigger])
 
   return (
     <div className="space-y-6">
@@ -98,10 +76,9 @@ export default function WidowsPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>قائمة الأرامل</CardTitle>
-                <ExportWidows
-                  widows={allWidows}
-                  filters={filters}
-                  searchTerm={searchTerm}
+                <ReportExportButtons
+                  endpoint="/reports/widows"
+                  label="قائمة الأرامل"
                 />
               </div>
             </CardHeader>

@@ -107,6 +107,8 @@ Route::prefix('v1')->group(function () {
     Route::get('reports/kafils/{kafil}/statement', [ReportController::class, 'kafilStatement']);
     Route::get('reports/incomes.pdf', [ReportController::class, 'incomeListPdf']);
     Route::get('reports/expenses.pdf', [ReportController::class, 'expenseListPdf']);
+    Route::get('reports/incomes.xlsx', [ReportController::class, 'incomeListExcel']);
+    Route::get('reports/expenses.xlsx', [ReportController::class, 'expenseListExcel']);
     Route::get('reports/families/{widow}/financial', [ReportController::class, 'familyFinancial']);
     Route::get('reports/families/{widow}/financial.pdf', [ReportController::class, 'familyFinancialPdf']);
     Route::get('reports/sponsorship-gaps', [ReportController::class, 'sponsorshipGaps']);
@@ -117,12 +119,18 @@ Route::prefix('v1')->group(function () {
     Route::get('reports/budget-utilization.pdf', [ReportController::class, 'budgetUtilizationPdf']);
     Route::get('reports/widows', [ReportController::class, 'widows']);
     Route::get('reports/widows.pdf', [ReportController::class, 'widowsPdf']);
+    Route::get('reports/widows.xlsx', [ReportController::class, 'widowsExcel']);
+    Route::get('reports/orphans.pdf', [ReportController::class, 'orphansPdf']);
+    Route::get('reports/orphans.xlsx', [ReportController::class, 'orphansExcel']);
     Route::get('reports/financial', [ReportController::class, 'financial']);
     Route::get('reports/financial.pdf', [ReportController::class, 'financialPdf']);
+    Route::get('reports/financial.xlsx', [ReportController::class, 'financialExcel']);
     Route::get('reports/donors', [ReportController::class, 'donors']);
     Route::get('reports/donors.pdf', [ReportController::class, 'donorsPdf']);
+    Route::get('reports/donors.xlsx', [ReportController::class, 'donorsExcel']);
     Route::get('reports/annual', [ReportController::class, 'annual']);
     Route::get('reports/annual.pdf', [ReportController::class, 'annualPdf']);
+    Route::get('reports/annual.xlsx', [ReportController::class, 'annualExcel']);
     Route::get('reports/school-performance', [ReportController::class, 'schoolPerformance']);
     Route::get('reports/school-performance.pdf', [ReportController::class, 'schoolPerformancePdf']);
     Route::get('reports/kafils/{kafil}/statement.pdf', [ReportController::class, 'kafilStatementPdf']);

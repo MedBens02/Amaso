@@ -164,6 +164,37 @@ class ReportAggregateService
         ];
     }
 
+    /**
+     * Every registered orphan with the family they belong to - the roster the
+     * education and gifts work is planned from.
+     */
+    public function orphanList(array $filters = []): array
+    {
+        $rows = Orphan::with('widow')
+            ->when(!empty($filters['gender']), fn ($q) => $q->where('gender', $filters['gender']))
+            ->when(isset($filters['is_schooled']), fn ($q) => $q->where('is_schooled', (bool) $filters['is_schooled']))
+            ->orderBy('first_name')
+            ->get();
+
+        return [
+            'totals' => [
+                'count' => $rows->count(),
+                'male' => $rows->where('gender', 'male')->count(),
+                'female' => $rows->where('gender', 'female')->count(),
+                'schooled' => $rows->where('is_schooled', true)->count(),
+            ],
+            'rows' => $rows->map(fn (Orphan $orphan) => [
+                'full_name' => trim("{$orphan->first_name} {$orphan->last_name}"),
+                'gender' => $orphan->gender === 'male' ? 'ذكر' : 'أنثى',
+                'birth_date' => $orphan->birth_date?->format('Y-m-d'),
+                'age' => $orphan->birth_date?->age,
+                'widow' => $orphan->widow?->full_name,
+                'schooling' => $orphan->is_schooled ? 'متمدرس' : 'غير متمدرس',
+                'education_level' => $orphan->education_level,
+            ])->all(),
+        ];
+    }
+
     /** The year at a glance: money in and out beside who it reached. */
     public function annual(array $filters = []): array
     {

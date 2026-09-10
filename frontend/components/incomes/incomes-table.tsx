@@ -686,15 +686,15 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
                   <TableCell className="text-right">{income.income_category.label}</TableCell>
                   <TableCell className="text-right">
                     {income.donor && (
-                      <div className="flex items-center gap-1 justify-end">
-                        <span>{`${income.donor.first_name} ${income.donor.last_name}`}</span>
+                      <div className="flex items-center justify-start gap-1">
                         <span className="text-xs text-blue-600">متبرع:</span>
+                        <span>{`${income.donor.first_name} ${income.donor.last_name}`}</span>
                       </div>
                     )}
                     {income.kafil && (
-                      <div className="flex items-center gap-1 justify-end">
-                        <span>{`${income.kafil.first_name} ${income.kafil.last_name}`}</span>
+                      <div className="flex items-center justify-start gap-1">
                         <span className="text-xs text-green-600">كفيل:</span>
+                        <span>{`${income.kafil.first_name} ${income.kafil.last_name}`}</span>
                       </div>
                     )}
                     {!income.donor && !income.kafil && (

@@ -8,7 +8,7 @@ import { Search, Filter, Users, Info } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { OrphansTable } from "@/components/orphans/orphans-table"
 import { OrphanFilters } from "@/components/orphans/orphan-filters"
-import { ExportOrphans } from "@/components/orphans/export-orphans"
+import { ReportExportButtons } from "@/components/reports/report-export-buttons"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
 
@@ -16,34 +16,12 @@ export default function OrphansPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState({})
-  const [allOrphanGroups, setAllOrphanGroups] = useState<any[]>([])
-  const [loadingExport, setLoadingExport] = useState(false)
   const { toast } = useToast()
 
   const handleFiltersChange = (newFilters: any) => {
     setFilters(newFilters)
   }
 
-  // Fetch all orphan groups for export purposes
-  useEffect(() => {
-    const fetchAllOrphans = async () => {
-      try {
-        setLoadingExport(true)
-        const response = await api.getOrphans({
-          search: searchTerm || undefined,
-          per_page: 1000, // Fetch large number for export
-          ...filters
-        })
-        setAllOrphanGroups(response.data || [])
-      } catch (error: any) {
-        console.error('Error fetching orphans for export:', error)
-      } finally {
-        setLoadingExport(false)
-      }
-    }
-
-    fetchAllOrphans()
-  }, [searchTerm, filters])
 
   return (
     <div className="space-y-6">
@@ -95,10 +73,9 @@ export default function OrphansPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>قائمة الأيتام</CardTitle>
-            <ExportOrphans
-              orphanGroups={allOrphanGroups}
-              filters={filters}
-              searchTerm={searchTerm}
+            <ReportExportButtons
+              endpoint="/reports/orphans"
+              label="قائمة الأيتام"
             />
           </div>
         </CardHeader>
