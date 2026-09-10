@@ -195,7 +195,7 @@ export function CloseFiscalYearDialog({
                       <h4 className="font-medium text-sm">الملاحظات:</h4>
                       <ul className="space-y-1">
                         {closingSummary.validationMessages.map((message, index) => (
-                          <li key={index} className="text-sm text-gray-600 flex items-start gap-2">
+                          <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
                             <span className="text-yellow-500 mt-1">•</span>
                             {message}
                           </li>
@@ -215,40 +215,40 @@ export function CloseFiscalYearDialog({
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-3">
-                      <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                      <div className="flex justify-between items-center p-3 bg-green-50 dark:bg-green-950/40 rounded-lg">
                         <div className="flex items-center gap-2">
                           <TrendingUp className="h-4 w-4 text-green-600" />
                           <span className="text-sm font-medium">إجمالي الإيرادات المعتمدة</span>
                         </div>
-                        <span className="font-bold text-green-700">
+                        <span className="font-bold text-green-700 dark:text-green-400">
                           {formatAmount(fiscalYear.totalIncomes)} د.م
                         </span>
                       </div>
                       
-                      <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                      <div className="flex justify-between items-center p-3 bg-red-50 dark:bg-red-950/40 rounded-lg">
                         <div className="flex items-center gap-2">
                           <TrendingDown className="h-4 w-4 text-red-600" />
                           <span className="text-sm font-medium">إجمالي المصروفات المعتمدة</span>
                         </div>
-                        <span className="font-bold text-red-700">
+                        <span className="font-bold text-red-700 dark:text-red-400">
                           {formatAmount(fiscalYear.totalSpent)} د.م
                         </span>
                       </div>
 
-                      <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                      <div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-950/40 rounded-lg">
                         <div className="flex items-center gap-2">
                           <DollarSign className="h-4 w-4 text-blue-600" />
                           <span className="text-sm font-medium">الرصيد النقدي الحالي</span>
                         </div>
-                        <span className="font-bold text-blue-700">
+                        <span className="font-bold text-blue-700 dark:text-blue-400">
                           {formatAmount(closingSummary.currentCash)} د.م
                         </span>
                       </div>
 
                       {fiscalYear.carryOver > 0 && (
-                        <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
+                        <div className="flex justify-between items-center p-3 bg-purple-50 dark:bg-purple-950/40 rounded-lg">
                           <span className="text-sm font-medium">المرحل من السنة السابقة</span>
-                          <span className="font-bold text-purple-700">
+                          <span className="font-bold text-purple-700 dark:text-purple-400">
                             {formatAmount(fiscalYear.carryOver)} د.م
                           </span>
                         </div>
@@ -265,7 +265,7 @@ export function CloseFiscalYearDialog({
                   <CardContent className="space-y-4">
                     <div className="space-y-3">
                       <div className={`p-3 rounded-lg ${
-                        closingSummary.unapprovedIncomes === 0 ? 'bg-green-50' : 'bg-yellow-50'
+                        closingSummary.unapprovedIncomes === 0 ? 'bg-green-50 dark:bg-green-950/40' : 'bg-yellow-50 dark:bg-yellow-950/40'
                       }`}>
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium">الإيرادات غير المعتمدة</span>
@@ -283,7 +283,7 @@ export function CloseFiscalYearDialog({
                       </div>
 
                       <div className={`p-3 rounded-lg ${
-                        closingSummary.unapprovedExpenses === 0 ? 'bg-green-50' : 'bg-yellow-50'
+                        closingSummary.unapprovedExpenses === 0 ? 'bg-green-50 dark:bg-green-950/40' : 'bg-yellow-50 dark:bg-yellow-950/40'
                       }`}>
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium">المصروفات غير المعتمدة</span>
@@ -301,7 +301,7 @@ export function CloseFiscalYearDialog({
                       </div>
 
                       <div className={`p-3 rounded-lg ${
-                        closingSummary.unapprovedTransfers === 0 ? 'bg-green-50' : 'bg-yellow-50'
+                        closingSummary.unapprovedTransfers === 0 ? 'bg-green-50 dark:bg-green-950/40' : 'bg-yellow-50 dark:bg-yellow-950/40'
                       }`}>
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium">التحويلات غير المعتمدة</span>
@@ -319,7 +319,7 @@ export function CloseFiscalYearDialog({
                       </div>
 
                       <div className={`p-3 rounded-lg ${
-                        closingSummary.cashIsValid ? 'bg-green-50' : 'bg-red-50'
+                        closingSummary.cashIsValid ? 'bg-green-50 dark:bg-green-950/40' : 'bg-red-50 dark:bg-red-950/40'
                       }`}>
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium">صحة الرصيد النقدي</span>
@@ -342,7 +342,7 @@ export function CloseFiscalYearDialog({
 
               {/* Next Year Preview */}
               {closingSummary.canClose && (
-                <Card className="border-green-200 bg-green-50">
+                <Card className="border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950/40">
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                       <ArrowRight className="h-5 w-5 text-green-600" />
@@ -351,10 +351,10 @@ export function CloseFiscalYearDialog({
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      <p className="text-sm text-gray-700">
+                      <p className="text-sm text-foreground">
                         سيتم تطبيق الإجراءات التالية عند إغلاق السنة المالية:
                       </p>
-                      <ul className="list-disc list-inside text-sm text-gray-600 space-y-1 mr-4">
+                      <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 mr-4">
                         <li>إغلاق السنة المالية {fiscalYear.year}</li>
                         <li>إنشاء/تفعيل السنة المالية {parseInt(fiscalYear.year) + 1}</li>
                         <li>
@@ -368,7 +368,7 @@ export function CloseFiscalYearDialog({
               )}
             </>
           ) : (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               فشل في تحميل بيانات الإغلاق
             </div>
           )}

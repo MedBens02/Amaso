@@ -185,33 +185,33 @@ export function ViewBeneficiaryGroupDialog({ group, open, onOpenChange }: ViewBe
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">اسم المجموعة</label>
+                    <label className="text-sm font-medium text-foreground">اسم المجموعة</label>
                     <p className="text-lg font-semibold">{group.name}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">عدد الأعضاء</label>
+                    <label className="text-sm font-medium text-foreground">عدد الأعضاء</label>
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4 text-blue-600" />
-                      <span className="text-lg font-bold text-blue-800">{members.length}</span>
+                      <span className="text-lg font-bold text-blue-800 dark:text-blue-400">{members.length}</span>
                     </div>
                   </div>
                   {group.description && (
                     <div className="md:col-span-2">
-                      <label className="text-sm font-medium text-gray-700">الوصف</label>
-                      <p className="text-gray-600">{group.description}</p>
+                      <label className="text-sm font-medium text-foreground">الوصف</label>
+                      <p className="text-muted-foreground">{group.description}</p>
                     </div>
                   )}
                   <div>
-                    <label className="text-sm font-medium text-gray-700">تاريخ الإنشاء</label>
+                    <label className="text-sm font-medium text-foreground">تاريخ الإنشاء</label>
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-gray-500" />
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span>{formatDateArabic(new Date(group.created_at), "dd/MM/yyyy")}</span>
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">آخر تحديث</label>
+                    <label className="text-sm font-medium text-foreground">آخر تحديث</label>
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-gray-500" />
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span>{formatDateArabic(new Date(group.updated_at), "dd/MM/yyyy")}</span>
                     </div>
                   </div>
@@ -228,7 +228,7 @@ export function ViewBeneficiaryGroupDialog({ group, open, onOpenChange }: ViewBe
                 {loading ? (
                   <div className="text-center py-8">جاري التحميل...</div>
                 ) : members.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">لا توجد أعضاء في المجموعة</div>
+                  <div className="text-center py-8 text-muted-foreground">لا توجد أعضاء في المجموعة</div>
                 ) : (
                   <div className="rounded-md border">
                     <Table>
@@ -251,7 +251,7 @@ export function ViewBeneficiaryGroupDialog({ group, open, onOpenChange }: ViewBe
                                 {member.type === 'Widow' ? 'أرملة' : 'يتيم'}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-right text-sm text-gray-600">
+                            <TableCell className="text-right text-sm text-muted-foreground">
                               {getMemberDetails(member)}
                             </TableCell>
                             <TableCell className="text-center">

@@ -85,20 +85,20 @@ export function ViewGroupDetailsDialog({
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-700">اسم المجموعة</label>
+                  <label className="text-sm font-medium text-foreground">اسم المجموعة</label>
                   <p className="text-lg font-semibold">{group.name}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">عدد الأعضاء</label>
+                  <label className="text-sm font-medium text-foreground">عدد الأعضاء</label>
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-blue-600" />
-                    <span className="text-lg font-bold text-blue-800">{members.length}</span>
+                    <span className="text-lg font-bold text-blue-800 dark:text-blue-400">{members.length}</span>
                   </div>
                 </div>
                 {group.description && (
                   <div className="md:col-span-2">
-                    <label className="text-sm font-medium text-gray-700">الوصف</label>
-                    <p className="text-gray-900 mt-1">{group.description}</p>
+                    <label className="text-sm font-medium text-foreground">الوصف</label>
+                    <p className="text-foreground mt-1">{group.description}</p>
                   </div>
                 )}
               </div>
@@ -115,7 +115,7 @@ export function ViewGroupDetailsDialog({
             </CardHeader>
             <CardContent>
               {members.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>لا توجد أعضاء في هذه المجموعة</p>
                 </div>
@@ -124,7 +124,7 @@ export function ViewGroupDetailsDialog({
                   {members.map((member) => {
                     const details = getMemberDetails(member)
                     return (
-                      <div key={member.id} className="border rounded-lg p-4 bg-gray-50">
+                      <div key={member.id} className="border rounded-lg p-4 bg-muted">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
@@ -133,7 +133,7 @@ export function ViewGroupDetailsDialog({
                                 {member.type === 'Widow' ? 'أرملة' : 'يتيم'}
                               </Badge>
                             </div>
-                            <div className="space-y-1 text-sm text-gray-600">
+                            <div className="space-y-1 text-sm text-muted-foreground">
                               <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4" />
                                 <span>العمر: {details.age} سنة</span>

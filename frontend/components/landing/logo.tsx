@@ -35,17 +35,25 @@ export function Logo({
 }) {
   return (
     <span
-      className={`amaso-logo relative inline-block overflow-hidden ${
-        plate ? "rounded-2xl bg-white p-[6%] shadow-sm ring-1 ring-black/5" : ""
+      className={`amaso-logo relative overflow-hidden ${
+        plate
+          ? "inline-flex items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-black/5"
+          : "inline-block"
       } ${animate ? "is-animated" : ""} ${className}`}
     >
+      {/* The inset used to be `p-[6%]` on this span. Percentage padding
+          resolves against the containing block's width, not the element's
+          own — so the same plated logo that sits correctly in a tight flex
+          row shrank to a 10px dot inside a wide column, where 6% was a
+          quarter of the available box. Insetting the image itself instead
+          keeps the proportion at every size and in any container. */}
       <Image
         src="/amaso-logo.png"
         alt="شعار الجمعية"
         width={size}
         height={size}
         priority={priority}
-        className="h-full w-full object-contain"
+        className={plate ? "h-[88%] w-[88%] object-contain" : "h-full w-full object-contain"}
       />
       <style jsx>{`
         .is-animated {

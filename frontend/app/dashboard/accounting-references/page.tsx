@@ -400,12 +400,12 @@ export default function AccountingReferencesPage() {
   }) => {
     const badgeClass =
       accent === 'green'
-        ? 'bg-green-50 text-green-700 border-green-200'
-        : 'bg-red-50 text-red-700 border-red-200'
+        ? 'bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900'
+        : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900'
 
     const actions = (category: Category) =>
       isLocked(category) ? (
-        <Badge variant="outline" className="gap-1 text-amber-700 border-amber-300 bg-amber-50">
+        <Badge variant="outline" className="gap-1 text-amber-700 dark:text-amber-400 border-amber-300 bg-amber-50 dark:bg-amber-950/40">
           <Lock className="h-3 w-3" />
           كفالة شاملة (ثابت)
         </Badge>
@@ -429,18 +429,18 @@ export default function AccountingReferencesPage() {
       <div className="space-y-3">
         {branches.map(({ root, children }) => (
           <Collapsible key={root.id} defaultOpen>
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
               <div className="flex items-center gap-2">
                 {children.length > 0 ? (
                   <CollapsibleTrigger className="flex items-center gap-2 hover:opacity-70 transition-opacity">
                     <ChevronDown className="h-4 w-4" />
-                    <span className="font-semibold text-gray-700">{root.label}</span>
+                    <span className="font-semibold text-foreground">{root.label}</span>
                     <Badge variant="outline" className={badgeClass}>
                       {children.length} فئة فرعية
                     </Badge>
                   </CollapsibleTrigger>
                 ) : (
-                  <span className="font-semibold text-gray-700 pr-6">{root.label}</span>
+                  <span className="font-semibold text-foreground pr-6">{root.label}</span>
                 )}
               </div>
               <div className="flex items-center gap-2">{actions(root)}</div>
@@ -449,7 +449,7 @@ export default function AccountingReferencesPage() {
               {children.map((category) => (
                 <div
                   key={category.id}
-                  className="flex items-center justify-between p-3 border rounded-lg mr-6 bg-white"
+                  className="flex items-center justify-between p-3 border rounded-lg mr-6 bg-card"
                 >
                   <span className="font-medium">{category.label}</span>
                   <div className="flex items-center gap-2">{actions(category)}</div>
@@ -475,7 +475,7 @@ export default function AccountingReferencesPage() {
             إضافة ميزانية
           </Button>
         </CardTitle>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-muted-foreground">
           الميزانية هي الوعاء الذي يُخصم منه المصروف ويُضاف إليه الإيراد. الفئات تصنّف العملية فقط ولا ترتبط بميزانية بعينها.
         </p>
       </CardHeader>
@@ -483,7 +483,7 @@ export default function AccountingReferencesPage() {
         {loading ? (
           <div className="text-center py-4">جاري التحميل...</div>
         ) : budgets.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             لا توجد ميزانيات مضافة بعد
           </div>
         ) : (
@@ -495,7 +495,7 @@ export default function AccountingReferencesPage() {
                 <div className="flex items-center gap-3">
                   <span className="font-medium">{budget.label}</span>
                   {budget.is_default && (
-                    <Badge variant="outline" className="gap-1 text-blue-700 border-blue-300 bg-blue-50">
+                    <Badge variant="outline" className="gap-1 text-blue-700 dark:text-blue-400 border-blue-300 bg-blue-50 dark:bg-blue-950/40">
                       <Star className="h-3 w-3" />
                       افتراضية
                     </Badge>
@@ -503,7 +503,7 @@ export default function AccountingReferencesPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   {locked ? (
-                    <Badge variant="outline" className="gap-1 text-amber-700 border-amber-300 bg-amber-50">
+                    <Badge variant="outline" className="gap-1 text-amber-700 dark:text-amber-400 border-amber-300 bg-amber-50 dark:bg-amber-950/40">
                       <Lock className="h-3 w-3" />
                       كفالة شاملة (ثابت)
                     </Badge>
@@ -560,7 +560,7 @@ export default function AccountingReferencesPage() {
       <CardContent>
         <div className="mb-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="البحث في فئات الإيرادات..."
               value={incomeCategorySearch}
@@ -573,7 +573,7 @@ export default function AccountingReferencesPage() {
         {loading ? (
           <div className="text-center py-4">جاري التحميل...</div>
         ) : incomeCategoryTree.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             {incomeCategorySearch ? "لم يتم العثور على فئات إيرادات تطابق البحث" : "لا توجد فئات إيرادات مضافة بعد"}
           </div>
         ) : (
@@ -606,7 +606,7 @@ export default function AccountingReferencesPage() {
       <CardContent>
         <div className="mb-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="البحث في فئات المصروفات..."
               value={expenseCategorySearch}
@@ -619,7 +619,7 @@ export default function AccountingReferencesPage() {
         {loading ? (
           <div className="text-center py-4">جاري التحميل...</div>
         ) : expenseCategoryTree.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             {expenseCategorySearch ? "لم يتم العثور على فئات مصروفات تطابق البحث" : "لا توجد فئات مصروفات مضافة بعد"}
           </div>
         ) : (
@@ -661,7 +661,7 @@ export default function AccountingReferencesPage() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="text-sm text-muted-foreground mb-4">
           كل بند رصيد واحد مشترك بين جميع الكفلاء (ليس رصيداً خاصاً بكفيل أو بأسرة معينة): مجموع الإيرادات المعتمدة
           الموجهة إلى ميزانيته ناقص مجموع المصروفات المعتمدة منها. عند تسجيل كفالة شاملة، المبلغ يُوزَّع على
           هذه الميزانيات المشتركة نفسها بغض النظر عن الأسرة أو الكفيل.
@@ -670,28 +670,28 @@ export default function AccountingReferencesPage() {
         {loadingBalances ? (
           <div className="text-center py-4">جاري التحميل...</div>
         ) : kafalaChamilaBalances.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">تعذر تحميل أرصدة الكفالة الشاملة</div>
+          <div className="text-center py-8 text-muted-foreground">تعذر تحميل أرصدة الكفالة الشاملة</div>
         ) : (
           <div className="space-y-2">
             {kafalaChamilaBalances.map((balance) => (
               <div key={balance.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div>
                   <span className="font-medium">{balance.label}</span>
-                  <span className="text-xs text-gray-500 block">
+                  <span className="text-xs text-muted-foreground block">
                     {balance.budget?.label} ← {balance.income_category?.label}
                   </span>
                 </div>
                 <div className="flex items-center gap-4 text-sm">
                   <div className="text-left">
-                    <p className="text-xs text-gray-500">إيرادات</p>
+                    <p className="text-xs text-muted-foreground">إيرادات</p>
                     <p className="font-semibold text-green-600">{money(balance.total_income)}</p>
                   </div>
                   <div className="text-left">
-                    <p className="text-xs text-gray-500">مصروفات</p>
+                    <p className="text-xs text-muted-foreground">مصروفات</p>
                     <p className="font-semibold text-red-600">{money(balance.total_expense)}</p>
                   </div>
                   <div className="text-left min-w-[110px]">
-                    <p className="text-xs text-gray-500">الرصيد المتبقي</p>
+                    <p className="text-xs text-muted-foreground">الرصيد المتبقي</p>
                     <p className={`font-bold ${balance.remaining < 0 ? "text-red-600" : "text-blue-600"}`}>
                       {money(balance.remaining)}
                     </p>
@@ -702,15 +702,15 @@ export default function AccountingReferencesPage() {
 
             <div className="flex items-center justify-end gap-4 pt-3 border-t text-sm">
               <div className="text-left">
-                <p className="text-xs text-gray-500">إجمالي الإيرادات</p>
+                <p className="text-xs text-muted-foreground">إجمالي الإيرادات</p>
                 <p className="font-semibold text-green-600">{money(kafalaChamilaTotals.income)}</p>
               </div>
               <div className="text-left">
-                <p className="text-xs text-gray-500">إجمالي المصروفات</p>
+                <p className="text-xs text-muted-foreground">إجمالي المصروفات</p>
                 <p className="font-semibold text-red-600">{money(kafalaChamilaTotals.expense)}</p>
               </div>
               <div className="text-left min-w-[110px]">
-                <p className="text-xs text-gray-500">إجمالي الرصيد</p>
+                <p className="text-xs text-muted-foreground">إجمالي الرصيد</p>
                 <p className="font-bold text-blue-600">{money(kafalaChamilaTotals.remaining)}</p>
               </div>
             </div>
@@ -736,7 +736,7 @@ export default function AccountingReferencesPage() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="text-sm text-muted-foreground mb-4">
           كفالة شاملة (800 د.م افتراضياً) تُقسّم دائماً على هذه البنود السبعة الثابتة، وكل بند مرتبط بميزانية وفئة إيراد مقفلتين لا يمكن حذفهما أو تعديلهما.
           {isAdmin ? " يمكنك تعديل النسب أدناه بشرط أن يبقى مجموعها 100%." : " تعديل النسب مقتصر على المديرين."}
         </p>
@@ -744,14 +744,14 @@ export default function AccountingReferencesPage() {
         {loading ? (
           <div className="text-center py-4">جاري التحميل...</div>
         ) : kafalaChamilaSplits.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">تعذر تحميل بنود توزيع الكفالة الشاملة</div>
+          <div className="text-center py-8 text-muted-foreground">تعذر تحميل بنود توزيع الكفالة الشاملة</div>
         ) : (
           <div className="space-y-2">
             {kafalaChamilaSplits.map((split) => (
               <div key={split.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div>
                   <span className="font-medium">{split.label}</span>
-                  <span className="text-xs text-gray-500 block">
+                  <span className="text-xs text-muted-foreground block">
                     {split.budget?.label} ← {split.income_category?.label}
                   </span>
                 </div>
@@ -768,7 +768,7 @@ export default function AccountingReferencesPage() {
                       }
                       className="w-24 text-left"
                     />
-                    <span className="text-sm text-gray-500">%</span>
+                    <span className="text-sm text-muted-foreground">%</span>
                   </div>
                 ) : (
                   <Badge variant="outline">{parseFloat(String(split.percentage))}%</Badge>
@@ -791,11 +791,11 @@ export default function AccountingReferencesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+        <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
           <Calculator className="h-8 w-8" />
           المراجع المحاسبية
         </h1>
-        <p className="text-gray-600 mt-2">إدارة الميزانيات وفئات الإيرادات والمصروفات</p>
+        <p className="text-muted-foreground mt-2">إدارة الميزانيات وفئات الإيرادات والمصروفات</p>
       </div>
 
       <Tabs defaultValue="budgets" className="space-y-6">

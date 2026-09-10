@@ -54,19 +54,19 @@ export function KafalaFamilyBalance({ widowId }: { widowId: number }) {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-3 gap-3 text-center">
-          <div className="bg-green-50 border border-green-100 rounded-lg p-3">
-            <p className="text-xl font-bold text-green-700">{money(balance.total_credited)}</p>
-            <p className="text-xs text-gray-600">ما قدّمه كفلاء الأسرة</p>
+          <div className="bg-green-50 dark:bg-green-950/40 border border-green-100 dark:border-green-900 rounded-lg p-3">
+            <p className="text-xl font-bold text-green-700 dark:text-green-400">{money(balance.total_credited)}</p>
+            <p className="text-xs text-muted-foreground">ما قدّمه كفلاء الأسرة</p>
           </div>
-          <div className="bg-red-50 border border-red-100 rounded-lg p-3">
-            <p className="text-xl font-bold text-red-700">{money(balance.total_spent)}</p>
-            <p className="text-xs text-gray-600">ما صُرف على الأسرة</p>
+          <div className="bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900 rounded-lg p-3">
+            <p className="text-xl font-bold text-red-700 dark:text-red-400">{money(balance.total_spent)}</p>
+            <p className="text-xs text-muted-foreground">ما صُرف على الأسرة</p>
           </div>
-          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-            <p className={`text-xl font-bold ${balance.total_remaining < 0 ? "text-red-700" : "text-blue-700"}`}>
+          <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900 rounded-lg p-3">
+            <p className={`text-xl font-bold ${balance.total_remaining < 0 ? "text-red-700 dark:text-red-400" : "text-blue-700 dark:text-blue-400"}`}>
               {money(balance.total_remaining)}
             </p>
-            <p className="text-xs text-gray-600">المتبقي</p>
+            <p className="text-xs text-muted-foreground">المتبقي</p>
           </div>
         </div>
 
@@ -75,7 +75,7 @@ export function KafalaFamilyBalance({ widowId }: { widowId: number }) {
             {activeParts.map((part: any) => (
               <div key={part.split_id} className="flex justify-between text-sm border rounded p-2">
                 <span>{part.label}</span>
-                <span className="text-gray-600">
+                <span className="text-muted-foreground">
                   قُدّم {money(part.credited)} — صُرف {money(part.spent)} —{" "}
                   <span className={part.remaining < 0 ? "text-red-600 font-semibold" : "font-semibold"}>
                     متبقٍ {money(part.remaining)}
@@ -86,7 +86,7 @@ export function KafalaFamilyBalance({ widowId }: { widowId: number }) {
           </div>
         )}
 
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-muted-foreground">
           المبالغ تُجمع في الميزانيات المشتركة. هذا الرصيد يوضح ما قدّمته كفالات هذه الأسرة تحديداً وما صُرف
           عليها منه، ولا يمنع الصرف من الرصيد المشترك عند الحاجة.
         </p>

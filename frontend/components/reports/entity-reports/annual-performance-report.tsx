@@ -125,7 +125,7 @@ export function AnnualPerformanceReport({ open, onOpenChange }: AnnualPerformanc
     setStatistics([
       { label: 'إجمالي الإيرادات', value: totalIncome, format: 'currency' },
       { label: 'إجمالي المصروفات', value: totalExpenses, format: 'currency' },
-      { label: 'صافي الرصيد', value: balance, format: 'currency', color: balance >= 0 ? 'bg-green-50' : 'bg-red-50' },
+      { label: 'صافي الرصيد', value: balance, format: 'currency', color: balance >= 0 ? 'bg-green-50 dark:bg-green-950/40' : 'bg-red-50 dark:bg-red-950/40' },
       { label: 'المستفيدون', value: totalBeneficiaries, format: 'number' },
       { label: 'المتبرعون النشطون', value: activeDonors, format: 'number' },
       { label: 'متوسط التبرع', value: avgDonation, format: 'currency' }

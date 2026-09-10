@@ -435,8 +435,8 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
   return (
     <div className="space-y-4">
       {selectedIds.size > 0 && (
-        <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <span className="text-sm font-medium text-blue-900">تم تحديد {selectedIds.size} عنصر</span>
+        <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-950/40 rounded-lg border border-blue-200 dark:border-blue-900">
+          <span className="text-sm font-medium text-blue-900 dark:text-blue-400">تم تحديد {selectedIds.size} عنصر</span>
           <div className="flex gap-2">
             <Button size="sm" onClick={handleBulkValidate}>
               <CheckCircle className="h-4 w-4 ml-2" />
@@ -483,7 +483,7 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
               </TableRow>
             ) : expenses.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-6 text-gray-500">
+                <TableCell colSpan={11} className="text-center py-6 text-muted-foreground">
                   لا توجد مصروفات
                 </TableCell>
               </TableRow>
@@ -572,7 +572,7 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-muted-foreground">
             عرض {((currentPage - 1) * itemsPerPage) + 1} إلى {Math.min(currentPage * itemsPerPage, totalExpenses)} من {totalExpenses}{" "}
             نتيجة
           </div>
@@ -644,17 +644,17 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
           </AlertDialogHeader>
           <div className="max-h-96 overflow-y-auto space-y-3">
             {selectedExpenseBeneficiaries.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">لا توجد بيانات مستفيدين</p>
+              <p className="text-center text-muted-foreground py-8">لا توجد بيانات مستفيدين</p>
             ) : (
               selectedExpenseBeneficiaries.map((beneficiary, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                   <div className="text-right">
                     <p className="font-medium">{beneficiary.beneficiary?.full_name || beneficiary.beneficiary?.first_name + ' ' + beneficiary.beneficiary?.last_name}</p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-muted-foreground">
                       {beneficiary.beneficiary?.type === 'Widow' ? 'أرملة' : 'يتيم'}
                     </p>
                     {beneficiary.notes && (
-                      <p className="text-xs text-gray-500 mt-1">{beneficiary.notes}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{beneficiary.notes}</p>
                     )}
                   </div>
                   <div className="text-left">
@@ -684,7 +684,7 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
               <div
                 key={account.id}
                 className={`p-3 border rounded-lg ${
-                  approvingId !== null ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-gray-50'
+                  approvingId !== null ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-muted'
                 }`}
                 onClick={async () => {
                   // Without this guard, a second click landing while the
@@ -702,7 +702,7 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
                 <div className="flex justify-between items-center">
                   <div className="text-right">
                     <p className="font-medium">{account.name}</p>
-                    <p className="text-sm text-gray-600">{account.bank_name}</p>
+                    <p className="text-sm text-muted-foreground">{account.bank_name}</p>
                   </div>
                   <div className="text-left">
                     <p className="font-bold text-green-600">DH {Number(account.balance || 0).toLocaleString()}</p>

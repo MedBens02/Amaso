@@ -62,7 +62,7 @@ export function StarRating({
                 'transition-colors duration-200',
                 index < value 
                   ? 'fill-yellow-400 text-yellow-400' 
-                  : 'text-gray-300 hover:text-gray-400'
+                  : 'text-gray-300 hover:text-muted-foreground'
               )}
             />
           </button>

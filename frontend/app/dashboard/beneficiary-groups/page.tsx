@@ -134,11 +134,11 @@ export default function BeneficiaryGroupsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
             <Users className="h-8 w-8" />
             إدارة مجموعات المستفيدين
           </h1>
-          <p className="text-gray-600 mt-2">إنشاء وإدارة مجموعات المستفيدين من الأرامل والأيتام</p>
+          <p className="text-muted-foreground mt-2">إنشاء وإدارة مجموعات المستفيدين من الأرامل والأيتام</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setShowNewDialog(true)}>
@@ -153,7 +153,7 @@ export default function BeneficiaryGroupsPage() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder="البحث في المجموعات..."
                 value={searchTerm}

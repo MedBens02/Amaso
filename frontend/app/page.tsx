@@ -26,6 +26,7 @@ import { Illustration } from "@/components/landing/illustration"
 import { Reveal } from "@/components/landing/reveal"
 import { CountUp } from "@/components/landing/count-up"
 import { KafalaSplit } from "@/components/landing/kafala-split"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 /**
  * The association's public face.
@@ -116,11 +117,17 @@ export default function HomePage() {
   const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  // Signed-in staff are shown a way back to the dashboard rather than being
+  // redirected to it: this is the association's public page, and the people
+  // who maintain it have every reason to want to look at it too.
+  //
+  // Read after mount. localStorage does not exist while this renders on the
+  // server, so deciding during render would mismatch the hydrated markup.
+  const [signedIn, setSignedIn] = useState(false)
 
-  // Staff who are already signed in do not need the public page.
   useEffect(() => {
-    if (localStorage.getItem("user")) router.push("/dashboard")
-  }, [router])
+    setSignedIn(Boolean(localStorage.getItem("user")))
+  }, [])
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16)
@@ -163,12 +170,13 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <ThemeToggle className="text-slate-600 hover:text-teal-700 dark:text-slate-300" />
             <Button
               variant="ghost"
               className="hidden text-slate-600 hover:text-teal-700 sm:inline-flex dark:text-slate-300"
-              onClick={() => router.push("/login")}
+              onClick={() => router.push(signedIn ? "/dashboard" : "/login")}
             >
-              دخول الأعضاء
+              {signedIn ? "لوحة التحكم" : "دخول الأعضاء"}
             </Button>
             <a
               href="#join"
@@ -200,10 +208,10 @@ export default function HomePage() {
               </a>
             ))}
             <button
-              onClick={() => router.push("/login")}
+              onClick={() => router.push(signedIn ? "/dashboard" : "/login")}
               className="mt-1 block w-full rounded-lg px-3 py-2.5 text-right text-sm font-medium text-slate-700 hover:bg-teal-50 dark:text-slate-200 dark:hover:bg-slate-800"
             >
-              دخول الأعضاء
+              {signedIn ? "لوحة التحكم" : "دخول الأعضاء"}
             </button>
             <a
               href="#join"
@@ -548,8 +556,11 @@ export default function HomePage() {
           <div className="flex items-center gap-6 text-sm">
             <a href="#about" className="transition-colors hover:text-white">من نحن</a>
             <a href="#join" className="transition-colors hover:text-white">كن كفيلاً</a>
-            <button onClick={() => router.push("/login")} className="transition-colors hover:text-white">
-              دخول الأعضاء
+            <button
+              onClick={() => router.push(signedIn ? "/dashboard" : "/login")}
+              className="transition-colors hover:text-white"
+            >
+              {signedIn ? "لوحة التحكم" : "دخول الأعضاء"}
             </button>
           </div>
         </div>

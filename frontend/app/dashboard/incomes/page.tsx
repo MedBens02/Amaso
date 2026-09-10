@@ -109,11 +109,11 @@ export default function IncomesPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
             <HandCoins className="h-8 w-8" />
             إدارة الإيرادات
           </h1>
-          <p className="text-gray-600 mt-2">إدارة وتتبع جميع الإيرادات والتبرعات</p>
+          <p className="text-muted-foreground mt-2">إدارة وتتبع جميع الإيرادات والتبرعات</p>
         </div>
         <div className="flex gap-2">
           <DropdownMenu>
@@ -147,7 +147,7 @@ export default function IncomesPage() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder="البحث في الإيرادات..."
                 value={searchTerm}

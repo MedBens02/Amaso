@@ -76,7 +76,7 @@ export function RecentExpenses() {
         <div className="space-y-4">
           {loading ? (
             <div className="text-center py-4">
-              <p className="text-sm text-gray-500">جار التحميل...</p>
+              <p className="text-sm text-muted-foreground">جار التحميل...</p>
             </div>
           ) : expenses.length > 0 ? (
             expenses.map((expense) => (
@@ -98,8 +98,8 @@ export function RecentExpenses() {
                       </Badge>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600">{expense.description || "بلا وصف"}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-sm text-muted-foreground">{expense.description || "بلا وصف"}</p>
+                  <p className="text-xs text-muted-foreground">
                     {formatDateArabic(new Date(expense.created_at || expense.expense_date), "dd/MM/yyyy - HH:mm")}
                   </p>
                 </div>
@@ -107,7 +107,7 @@ export function RecentExpenses() {
             ))
           ) : (
             <div className="text-center py-4">
-              <p className="text-sm text-gray-500">لا توجد مصروفات حديثة</p>
+              <p className="text-sm text-muted-foreground">لا توجد مصروفات حديثة</p>
             </div>
           )}
         </div>

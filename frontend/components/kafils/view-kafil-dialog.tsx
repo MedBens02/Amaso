@@ -122,10 +122,10 @@ export function ViewKafilDialog({ open, onOpenChange, onEdit, kafilId }: ViewKaf
         <div className="space-y-6">
           {/* Basic Information */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900">معلومات الكفيل</h3>
+            <h3 className="text-lg font-medium text-foreground">معلومات الكفيل</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <User className="h-4 w-4" />
                   الاسم الكامل
                 </div>
@@ -134,7 +134,7 @@ export function ViewKafilDialog({ open, onOpenChange, onEdit, kafilId }: ViewKaf
               
               {kafil.phone && (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Phone className="h-4 w-4" />
                     رقم الهاتف
                   </div>
@@ -146,7 +146,7 @@ export function ViewKafilDialog({ open, onOpenChange, onEdit, kafilId }: ViewKaf
             <div className="grid grid-cols-2 gap-4">
               {kafil.email && (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Mail className="h-4 w-4" />
                     البريد الإلكتروني
                   </div>
@@ -156,7 +156,7 @@ export function ViewKafilDialog({ open, onOpenChange, onEdit, kafilId }: ViewKaf
               
               {kafil.donor && (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <HandCoins className="h-4 w-4" />
                     المتبرع المرتبط
                   </div>
@@ -167,7 +167,7 @@ export function ViewKafilDialog({ open, onOpenChange, onEdit, kafilId }: ViewKaf
 
             {kafil.address && (
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <MapPin className="h-4 w-4" />
                   العنوان
                 </div>
@@ -178,25 +178,25 @@ export function ViewKafilDialog({ open, onOpenChange, onEdit, kafilId }: ViewKaf
 
           {/* Financial Summary */}
           <div className="border-t pt-4 space-y-4">
-            <h3 className="text-lg font-medium text-gray-900">الملخص المالي</h3>
-            <div className="bg-blue-50 p-4 rounded-lg">
+            <h3 className="text-lg font-medium text-foreground">الملخص المالي</h3>
+            <div className="bg-blue-50 dark:bg-blue-950/40 p-4 rounded-lg">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-sm text-gray-600">التعهد الشهري</div>
-                  <div className="font-medium text-blue-900">DH {kafil.monthly_pledge}</div>
+                  <div className="text-sm text-muted-foreground">التعهد الشهري</div>
+                  <div className="font-medium text-blue-900 dark:text-blue-400">DH {kafil.monthly_pledge}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-600">إجمالي الكفالات</div>
+                  <div className="text-sm text-muted-foreground">إجمالي الكفالات</div>
                   <div className="font-medium text-green-600">DH {kafil.total_sponsorship_amount}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-600">المبلغ المتبقي</div>
+                  <div className="text-sm text-muted-foreground">المبلغ المتبقي</div>
                   <div className={`font-medium ${kafil.remaining_pledge_amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     DH {kafil.remaining_pledge_amount}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-600">نسبة الاستخدام</div>
+                  <div className="text-sm text-muted-foreground">نسبة الاستخدام</div>
                   <div className="font-medium text-purple-600">{kafil.sponsorship_utilization.toFixed(1)}%</div>
                 </div>
               </div>
@@ -205,9 +205,9 @@ export function ViewKafilDialog({ open, onOpenChange, onEdit, kafilId }: ViewKaf
 
           {/* Sponsorships */}
           <div className="border-t pt-4 space-y-4">
-            <h3 className="text-lg font-medium text-gray-900">الكفالات ({kafil.sponsorships.length})</h3>
+            <h3 className="text-lg font-medium text-foreground">الكفالات ({kafil.sponsorships.length})</h3>
             {kafil.sponsorships.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-muted-foreground">
                 لا توجد كفالات مرتبطة بهذا الكفيل
               </div>
             ) : (
@@ -215,16 +215,16 @@ export function ViewKafilDialog({ open, onOpenChange, onEdit, kafilId }: ViewKaf
                 {kafil.sponsorships.map((sponsorship) => (
                   <div key={sponsorship.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex-1">
-                      <div className="font-medium text-gray-900">
+                      <div className="font-medium text-foreground">
                         {sponsorship.widow?.full_name || `أرملة رقم ${sponsorship.widow_id}`}
                       </div>
                       {sponsorship.widow?.national_id && (
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-muted-foreground">
                           رقم البطاقة الوطنية: {sponsorship.widow.national_id}
                         </div>
                       )}
                       {sponsorship.widow?.neighborhood && (
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-muted-foreground">
                           الحي: {sponsorship.widow.neighborhood}
                         </div>
                       )}

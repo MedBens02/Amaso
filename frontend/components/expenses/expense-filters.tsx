@@ -215,7 +215,7 @@ export function ExpenseFilters({ filters, onFiltersChange, onApply, onClear }: E
       <div className="flex flex-col sm:flex-row gap-3 justify-between items-center pt-4 border-t">
         <div className="flex items-center gap-2">
           {hasActiveFilters && (
-            <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+            <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 dark:bg-blue-950/40 px-3 py-1 rounded-full">
               <span>{Object.values(filters).filter(v => v !== undefined && v !== null && v !== '').length} فلتر نشط</span>
             </div>
           )}

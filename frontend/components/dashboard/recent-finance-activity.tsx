@@ -116,7 +116,7 @@ export function RecentFinanceActivity() {
       case "transfer":
         return "text-blue-600"
       default:
-        return "text-gray-600"
+        return "text-muted-foreground"
     }
   }
 
@@ -140,7 +140,7 @@ export function RecentFinanceActivity() {
         <div className="space-y-4">
           {loading ? (
             <div className="text-center py-4">
-              <p className="text-sm text-gray-500">جار التحميل...</p>
+              <p className="text-sm text-muted-foreground">جار التحميل...</p>
             </div>
           ) : activities.length > 0 ? (
             activities.map((activity) => {
@@ -170,15 +170,15 @@ export function RecentFinanceActivity() {
                         </Badge>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-600">{activity.description}</p>
-                    <p className="text-xs text-gray-500">{formatDateArabic(activity.time, "dd/MM/yyyy - HH:mm")}</p>
+                    <p className="text-sm text-muted-foreground">{activity.description}</p>
+                    <p className="text-xs text-muted-foreground">{formatDateArabic(activity.time, "dd/MM/yyyy - HH:mm")}</p>
                   </div>
                 </div>
               )
             })
           ) : (
             <div className="text-center py-4">
-              <p className="text-sm text-gray-500">لا يوجد نشاط مالي حديث</p>
+              <p className="text-sm text-muted-foreground">لا يوجد نشاط مالي حديث</p>
             </div>
           )}
         </div>

@@ -88,11 +88,11 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+        <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
           <FileText className="h-8 w-8" />
           التقارير والإحصائيات
         </h1>
-        <p className="text-gray-600 mt-2">اضغط على أي تقرير لإنشاءه وتصديره</p>
+        <p className="text-muted-foreground mt-2">اضغط على أي تقرير لإنشاءه وتصديره</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -111,7 +111,7 @@ export default function ReportsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600 mb-4">{report.description}</p>
+              <p className="text-muted-foreground mb-4">{report.description}</p>
               <div className="flex items-center gap-2 text-sm text-primary">
                 <FileText className="h-4 w-4" />
                 <span>اضغط لفتح التقرير</span>

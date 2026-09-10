@@ -145,7 +145,7 @@ export function BeneficiaryGroupsTable({ searchTerm, onViewGroup, onEditGroup }:
               </TableRow>
             ) : filteredData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                   {searchTerm ? "لم يتم العثور على مجموعات تطابق البحث" : "لا توجد مجموعات مسجلة"}
                 </TableCell>
               </TableRow>
@@ -157,7 +157,7 @@ export function BeneficiaryGroupsTable({ searchTerm, onViewGroup, onEditGroup }:
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-1">
                       <Users className="h-4 w-4 text-blue-600" />
-                      <span className="font-bold text-blue-800">{group.members_count}</span>
+                      <span className="font-bold text-blue-800 dark:text-blue-400">{group.members_count}</span>
                     </div>
                   </TableCell>
                   <TableCell className="text-right">

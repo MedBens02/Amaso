@@ -530,6 +530,26 @@ class ApiClient {
     return this.request<any[]>('/bank-accounts')
   }
 
+  /**
+   * Year-to-date figures, already aggregated by the database: financial
+   * totals, beneficiary counts and sponsorship coverage, and a month-by-month
+   * series - all in one response.
+   *
+   * Worth preferring over counting rows in the browser. The dashboard used to
+   * pull six months of incomes and expenses at per_page=1000 apiece, a dozen
+   * requests and megabytes of JSON, to end up with the same handful of sums
+   * this returns in one.
+   */
+  async getAnnualReport(params?: { from?: string; to?: string }) {
+    const queryString = params ? '?' + new URLSearchParams(params).toString() : ''
+    return this.request<any>(`/reports/annual${queryString}`)
+  }
+
+  /** Families whose sponsorship falls short of the monthly target. */
+  async getSponsorshipGaps() {
+    return this.request<any>('/reports/sponsorship-gaps')
+  }
+
   async getKafils() {
     return this.request<any[]>('/kafils')
   }

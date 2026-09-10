@@ -299,18 +299,18 @@ export function AddKafilSheet({ open, onOpenChange, onSuccess }: AddKafilSheetPr
             <h3 className="text-lg font-medium">الكفالات</h3>
 
             {/* Summary */}
-            <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="bg-blue-50 dark:bg-blue-950/40 p-4 rounded-lg">
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
-                  <span className="text-gray-600">التعهد الشهري:</span>
-                  <span className="font-medium text-blue-900 mr-2">DH {monthlyPledge || 0}</span>
+                  <span className="text-muted-foreground">التعهد الشهري:</span>
+                  <span className="font-medium text-blue-900 dark:text-blue-400 mr-2">DH {monthlyPledge || 0}</span>
                 </div>
                 <div>
-                  <span className="text-gray-600">مجموع الكفالات:</span>
+                  <span className="text-muted-foreground">مجموع الكفالات:</span>
                   <span className="font-medium text-green-600 mr-2">DH {totalSponsorships}</span>
                 </div>
                 <div>
-                  <span className="text-gray-600">المبلغ المتبقي:</span>
+                  <span className="text-muted-foreground">المبلغ المتبقي:</span>
                   <span className={`font-medium mr-2 ${remainingAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     DH {remainingAmount}
                   </span>
@@ -372,7 +372,7 @@ export function AddKafilSheet({ open, onOpenChange, onSuccess }: AddKafilSheetPr
                       step="0.01"
                       min="0"
                     />
-                    <span className="text-sm text-gray-500">DH</span>
+                    <span className="text-sm text-muted-foreground">DH</span>
                     {sponsoredWidows.length > 1 && (
                       <Button
                         type="button"

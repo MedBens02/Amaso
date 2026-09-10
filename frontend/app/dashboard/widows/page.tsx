@@ -26,8 +26,8 @@ export default function WidowsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">إدارة الأرامل</h1>
-          <p className="text-gray-600 mt-2">إدارة وتتبع بيانات الأرامل والمساعدات</p>
+          <h1 className="text-3xl font-bold text-foreground">إدارة الأرامل</h1>
+          <p className="text-muted-foreground mt-2">إدارة وتتبع بيانات الأرامل والمساعدات</p>
         </div>
         <Button onClick={() => setShowAddDialog(true)}>
           <Plus className="h-4 w-4 ml-2" />
@@ -40,7 +40,7 @@ export default function WidowsPage() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder="البحث في الأرامل..."
                 value={searchTerm}

@@ -89,7 +89,7 @@ export function StartNewFiscalYearDialog({ open, onOpenChange }: StartNewFiscalY
             <Label htmlFor="year">السنة المالية *</Label>
             <Input id="year" {...form.register("year")} placeholder="2025" />
             {form.formState.errors.year && <p className="text-sm text-red-600">{form.formState.errors.year.message}</p>}
-            <p className="text-xs text-gray-500">السنة المقترحة تلقائياً: {suggestedYear}</p>
+            <p className="text-xs text-muted-foreground">السنة المقترحة تلقائياً: {suggestedYear}</p>
           </div>
 
           <div className="space-y-2">
@@ -102,14 +102,14 @@ export function StartNewFiscalYearDialog({ open, onOpenChange }: StartNewFiscalY
               {...form.register("carryOverAmount", { valueAsNumber: true })}
               placeholder="0"
               readOnly
-              className="bg-gray-50"
+              className="bg-muted"
             />
-            <p className="text-xs text-gray-500">هذا المبلغ محسوب تلقائياً من مجموع المتبقي من السنة المالية السابقة</p>
+            <p className="text-xs text-muted-foreground">هذا المبلغ محسوب تلقائياً من مجموع المتبقي من السنة المالية السابقة</p>
           </div>
 
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h4 className="font-medium text-blue-900 mb-2">ملخص السنة المالية الجديدة:</h4>
-            <div className="space-y-1 text-sm text-blue-800">
+          <div className="bg-blue-50 dark:bg-blue-950/40 p-4 rounded-lg">
+            <h4 className="font-medium text-blue-900 dark:text-blue-400 mb-2">ملخص السنة المالية الجديدة:</h4>
+            <div className="space-y-1 text-sm text-blue-800 dark:text-blue-400">
               <div className="flex justify-between">
                 <span>السنة:</span>
                 <span>{form.watch("year") || suggestedYear}</span>

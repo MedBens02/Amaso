@@ -234,7 +234,7 @@ export default function ReferencesPage() {
         {loading ? (
           <div className="text-center py-4">جاري التحميل...</div>
         ) : data.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             لا توجد بيانات مضافة بعد
           </div>
         ) : (
@@ -277,11 +277,11 @@ export default function ReferencesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+        <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
           <Database className="h-8 w-8" />
           البيانات المرجعية
         </h1>
-        <p className="text-gray-600 mt-2">إدارة البيانات الأساسية للنظام</p>
+        <p className="text-muted-foreground mt-2">إدارة البيانات الأساسية للنظام</p>
       </div>
 
       <Tabs defaultValue="illnesses" className="space-y-6">

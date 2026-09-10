@@ -125,7 +125,7 @@ export function AcademicYearsTab({ onChanged }: { onChanged?: () => void }) {
             <TableBody>
               {years.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center text-gray-500 py-8">
+                  <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
                     لا توجد سنوات دراسية بعد.
                   </TableCell>
                 </TableRow>

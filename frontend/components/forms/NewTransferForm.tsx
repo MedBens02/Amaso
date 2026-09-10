@@ -200,7 +200,7 @@ export function NewTransferDialog({ open, onOpenChange, onTransferCreated }: New
           <div className="flex justify-center items-center py-8">
             <div className="text-center">
               <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-              <p className="text-gray-600">جاري تحميل البيانات...</p>
+              <p className="text-muted-foreground">جاري تحميل البيانات...</p>
             </div>
           </div>
         ) : (
@@ -240,7 +240,7 @@ export function NewTransferDialog({ open, onOpenChange, onTransferCreated }: New
                         <SelectItem key={account.id} value={account.id.toString()}>
                           <div className="flex items-center justify-between w-full">
                             <span>{account.label}</span>
-                            <span className="text-sm text-gray-500">DH {account.balance.toLocaleString()}</span>
+                            <span className="text-sm text-muted-foreground">DH {account.balance.toLocaleString()}</span>
                           </div>
                         </SelectItem>
                       ))}
@@ -249,7 +249,7 @@ export function NewTransferDialog({ open, onOpenChange, onTransferCreated }: New
                 )}
               />
               {fromAccount && (
-                <div className="text-sm text-gray-600 flex items-center gap-2">
+                <div className="text-sm text-muted-foreground flex items-center gap-2">
                   <Banknote className="h-4 w-4" />
                   الرصيد الحالي: DH {getAccountBalance(fromAccount).toLocaleString()}
                 </div>
@@ -276,7 +276,7 @@ export function NewTransferDialog({ open, onOpenChange, onTransferCreated }: New
                           <SelectItem key={account.id} value={account.id.toString()}>
                             <div className="flex items-center justify-between w-full">
                               <span>{account.label}</span>
-                              <span className="text-sm text-gray-500">DH {account.balance.toLocaleString()}</span>
+                              <span className="text-sm text-muted-foreground">DH {account.balance.toLocaleString()}</span>
                             </div>
                           </SelectItem>
                         ))}
@@ -285,7 +285,7 @@ export function NewTransferDialog({ open, onOpenChange, onTransferCreated }: New
                 )}
               />
               {toAccount && (
-                <div className="text-sm text-gray-600 flex items-center gap-2">
+                <div className="text-sm text-muted-foreground flex items-center gap-2">
                   <Banknote className="h-4 w-4" />
                   الرصيد الحالي: DH {getAccountBalance(toAccount).toLocaleString()}
                 </div>

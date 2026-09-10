@@ -15,8 +15,8 @@ export default function EducationPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">التتبع الدراسي</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-3xl font-bold text-foreground">التتبع الدراسي</h1>
+        <p className="text-muted-foreground mt-2">
           تتبع مسار الأيتام الدراسي سنة بسنة، من التمدرس الأول إلى التخرج من الجامعة
         </p>
       </div>

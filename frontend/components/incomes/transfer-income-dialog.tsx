@@ -200,7 +200,7 @@ export function TransferIncomeDialog({ open, onOpenChange, items, onSuccess }: T
                           </div>
                         )}
                         {!item.donor && !item.kafil && (
-                          <span className="text-gray-500">غير محدد</span>
+                          <span className="text-muted-foreground">غير محدد</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right font-bold text-green-600">
@@ -216,9 +216,9 @@ export function TransferIncomeDialog({ open, onOpenChange, items, onSuccess }: T
 
             {/* Total Amount */}
             <div className="flex justify-end">
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <div className="bg-blue-50 dark:bg-blue-950/40 p-4 rounded-lg border border-blue-200 dark:border-blue-900">
                 <div className="text-sm text-blue-600">إجمالي المبلغ المراد تحويله</div>
-                <div className="text-2xl font-bold text-blue-800">{totalAmount.toLocaleString()} د.م</div>
+                <div className="text-2xl font-bold text-blue-800 dark:text-blue-400">{totalAmount.toLocaleString()} د.م</div>
               </div>
             </div>
           </div>
@@ -259,8 +259,8 @@ export function TransferIncomeDialog({ open, onOpenChange, items, onSuccess }: T
             </div>
           </div>
 
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-            <p className="text-sm text-blue-800">
+          <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-md">
+            <p className="text-sm text-blue-800 dark:text-blue-400">
               <strong>ملاحظة:</strong> تاريخ الإيراد الأصلي سيبقى كما هو، وسيتم تسجيل تاريخ التحويل المحدد أعلاه
             </p>
           </div>

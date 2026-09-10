@@ -50,7 +50,7 @@ export function QuickActions() {
               </div>
               <div className="text-right">
                 <div className="font-medium">{action.title}</div>
-                <div className="text-sm text-gray-600">{action.description}</div>
+                <div className="text-sm text-muted-foreground">{action.description}</div>
               </div>
             </Button>
           ))}

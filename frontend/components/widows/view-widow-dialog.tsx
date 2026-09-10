@@ -480,7 +480,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                   {widow.orphans && widow.orphans.length > 0 ? (
                     <div className="grid gap-4">
                       {widow.orphans.map((orphan) => (
-                        <div key={orphan.id} className="bg-blue-50 p-4 rounded-lg">
+                        <div key={orphan.id} className="bg-blue-50 dark:bg-blue-950/40 p-4 rounded-lg">
                           <div className="flex justify-between items-start">
                             <div className="space-y-2">
                               <h4 className="font-medium text-lg">
@@ -535,7 +535,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                   {widow.sponsorships && widow.sponsorships.length > 0 ? (
                     <div className="space-y-4">
                       {widow.sponsorships.map((sponsorship) => (
-                        <div key={sponsorship.id} className="bg-green-50 p-4 rounded-lg">
+                        <div key={sponsorship.id} className="bg-green-50 dark:bg-green-950/40 p-4 rounded-lg">
                           <div className="flex justify-between items-start">
                             <div className="space-y-2">
                               <h4 className="font-medium text-lg">
@@ -579,7 +579,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                         </div>
                       ))}
                       
-                      <div className="bg-green-100 p-4 rounded-lg">
+                      <div className="bg-green-100 dark:bg-green-950/50 p-4 rounded-lg">
                         <div className="flex justify-between items-center">
                           <span className="font-medium">إجمالي الكفالة الشهرية:</span>
                           <span className="text-xl font-bold text-green-600">
@@ -610,7 +610,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                     {widow.social_income && widow.social_income.length > 0 ? (
                       <div className="space-y-3">
                         {widow.social_income.map((income) => (
-                          <div key={income.id} className="bg-green-50 p-3 rounded-lg">
+                          <div key={income.id} className="bg-green-50 dark:bg-green-950/40 p-3 rounded-lg">
                             <div className="flex justify-between items-start">
                               <div>
                                 <p className="font-medium">
@@ -655,7 +655,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                     {widow.social_expenses && widow.social_expenses.length > 0 ? (
                       <div className="space-y-3">
                         {widow.social_expenses.map((expense) => (
-                          <div key={expense.id} className="bg-red-50 p-3 rounded-lg">
+                          <div key={expense.id} className="bg-red-50 dark:bg-red-950/40 p-3 rounded-lg">
                             <div className="flex justify-between items-start">
                               <div>
                                 <p className="font-medium">
@@ -701,7 +701,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                   <CardContent>
                     <div className="space-y-3">
                       {widow.active_maouna.map((maouna) => (
-                        <div key={maouna.id} className="bg-purple-50 p-4 rounded-lg">
+                        <div key={maouna.id} className="bg-purple-50 dark:bg-purple-950/40 p-4 rounded-lg">
                           <div className="flex justify-between items-start">
                             <div className="space-y-2">
                               <div>
@@ -842,7 +842,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
           </div>
 
           {/* Footer with registration info */}
-          <div className="border-t pt-4 text-sm text-muted-foreground bg-gray-50 p-4 rounded-lg">
+          <div className="border-t pt-4 text-sm text-muted-foreground bg-muted p-4 rounded-lg">
             <div className="flex justify-between">
               <span className="flex items-center gap-1">تاريخ التسجيل: <DateText value={widow.created_at} /></span>
               {widow.updated_at !== widow.created_at && (

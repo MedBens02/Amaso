@@ -155,7 +155,7 @@ export function ChildExtraFields({ form, index, schools = [] }: ChildExtraFields
                   </Select>
                 )}
               />
-              <p className="text-[11px] text-gray-500">
+              <p className="text-[11px] text-muted-foreground">
                 تُسجَّل ضمن السنة الدراسية الحالية وتظهر في صفحة التعليم وتقارير الأداء.
               </p>
             </div>

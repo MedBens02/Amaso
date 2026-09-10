@@ -145,10 +145,10 @@ export function ViewDonorDialog({ donor, open, onOpenChange }: ViewDonorDialogPr
             </div>
 
             {donor.is_kafil && donor.kafil && (
-              <div className="bg-blue-50 p-4 rounded-lg space-y-3">
+              <div className="bg-blue-50 dark:bg-blue-950/40 p-4 rounded-lg space-y-3">
                 <div className="flex items-center gap-2">
                   <HandCoins className="h-5 w-5 text-blue-600" />
-                  <Label className="font-medium text-blue-900">معلومات الكفالة</Label>
+                  <Label className="font-medium text-blue-900 dark:text-blue-400">معلومات الكفالة</Label>
                 </div>
                 
                 <div>
@@ -163,7 +163,7 @@ export function ViewDonorDialog({ donor, open, onOpenChange }: ViewDonorDialogPr
                     <Label className="text-sm font-medium text-muted-foreground">الأرامل المكفولة</Label>
                     <div className="mt-2 space-y-2">
                       {donor.kafil.sponsorships.map((sponsorship) => (
-                        <div key={sponsorship.id} className="flex items-center justify-between bg-white p-2 rounded border">
+                        <div key={sponsorship.id} className="flex items-center justify-between bg-card p-2 rounded border">
                           <span className="font-medium">{sponsorship.widow.full_name}</span>
                           <Badge variant="outline">كفالة شهرية</Badge>
                         </div>

@@ -289,9 +289,9 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
                   {...form.register('sort_order', { valueAsNumber: true })}
                   placeholder="0"
                   disabled
-                  className="bg-gray-100"
+                  className="bg-muted"
                 />
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-muted-foreground">
                   سيتم تعيين الترتيب 0 افتراضياً، استخدم زر "إعادة ترتيب" لتنظيم العناصر
                 </p>
               </div>
@@ -496,7 +496,7 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
                   }}
                 />
                 {(!form.watch('field_id') || form.watch('field_id') === 0) && (
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     اختر المجال أولاً لتتمكن من اختيار التخصص
                   </p>
                 )}
