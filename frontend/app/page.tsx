@@ -91,7 +91,7 @@ const PROGRAMS = [
 const IMPACT = [
   { value: 142, label: "أسرة مكفولة", suffix: "" },
   { value: 361, label: "يتيم ويتيمة", suffix: "" },
-  { value: 24, label: "سنة من العطاء", suffix: "" },
+  { value: 15, label: "سنة من العطاء", suffix: "" },
   { value: 96, label: "نسبة التمدرس", suffix: "%" },
 ]
 
