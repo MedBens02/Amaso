@@ -32,7 +32,7 @@ class KafalaChamilaSeeder extends Seeder
                 'expenses' => ['مصاريف إدارية', 'أدوات ومستلزمات مكتبية', 'اتصالات وإنترنت'],
             ],
             [
-                'key' => 'maouna', 'label' => 'معونة', 'percentage' => 50, 'sort_order' => 2,
+                'key' => 'maouna', 'label' => 'مؤونة', 'percentage' => 50, 'sort_order' => 2,
                 'expenses' => ['سلة غذائية', 'مساعدة نقدية شهرية', 'كسوة وملابس', 'مساعدة في الإيجار', 'فواتير الماء والكهرباء'],
             ],
             [

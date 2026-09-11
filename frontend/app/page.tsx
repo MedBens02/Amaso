@@ -51,7 +51,7 @@ const NAV = [
 const PROGRAMS = [
   {
     icon: ShoppingBasket,
-    title: "المعونة الشهرية",
+    title: "المؤونة الشهرية",
     body: "سلة غذائية ولوازم أساسية تصل الأسرة كل شهر، تُسجَّل باسمها وتُتابَع أولاً بأول.",
     tint: "from-teal-500 to-emerald-600",
   },
@@ -256,7 +256,7 @@ export default function HomePage() {
 
             <Reveal delay={160}>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-600 dark:text-slate-300">
-                نرافق الأرامل وأبناءهنّ في كفالة اليتيم: معونة شهرية، ومقعد في المدرسة،
+                نرافق الأرامل وأبناءهنّ في كفالة اليتيم: مؤونة شهرية، ومقعد في المدرسة،
                 وعلاج عند الحاجة، ومشروع يجعل الأسرة تستغني يوماً ما. كل درهم مُسجَّل، وكل كفيل يعرف أين ذهب.
               </p>
             </Reveal>
