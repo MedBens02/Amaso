@@ -13,6 +13,17 @@ import { EditWidowDialog } from "./edit-widow-dialog"
 import { WidowCardPrintDialog } from "./print-widow-pdf"
 import { ArchiveWidowDialog } from "./archive-widow-dialog"
 
+/**
+ * The two reasons the archive dialog offers, in the words it offers them.
+ * Stored as the English key, so the archived list has to translate it back -
+ * it was showing nothing at all, which made "why did this family leave"
+ * unanswerable without opening the record in the database.
+ */
+const LEAVING_REASONS: Record<string, { label: string; variant: "secondary" | "outline" }> = {
+  graduated: { label: "تخرج", variant: "secondary" },
+  removed: { label: "إزالة", variant: "outline" },
+}
+
 interface Widow {
   id: number
   first_name: string
@@ -30,6 +41,9 @@ interface Widow {
   education_level?: string
   disability_flag: boolean
   disability_type?: string
+  leaving_date?: string | null
+  leaving_reason?: string | null
+  leaving_details?: string | null
   created_at: string
   updated_at: string
   orphans?: Array<{
@@ -67,6 +81,43 @@ interface WidowsTableProps {
   archived?: boolean
 }
 
+
+/**
+ * Why a family left, in the width of a table cell.
+ *
+ * The date and reason fit; the free-text note rarely does, so it is shown
+ * truncated with the whole of it on hover - and in full on the family's card,
+ * which is where somebody reading an archived file ends up anyway.
+ */
+function LeavingCell({ widow }: { widow: Widow }) {
+  const reason = widow.leaving_reason ? LEAVING_REASONS[widow.leaving_reason] : undefined
+
+  if (!widow.leaving_date && !reason && !widow.leaving_details) {
+    return <span className="text-muted-foreground">غير مسجل</span>
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        {reason ? (
+          <Badge variant={reason.variant}>{reason.label}</Badge>
+        ) : widow.leaving_reason ? (
+          <Badge variant="outline">{widow.leaving_reason}</Badge>
+        ) : null}
+        {widow.leaving_date && (
+          <span dir="ltr" className="inline-block text-xs tabular-nums text-muted-foreground">
+            {widow.leaving_date.split("-").reverse().join("/")}
+          </span>
+        )}
+      </div>
+      {widow.leaving_details && (
+        <p className="max-w-[220px] truncate text-xs text-muted-foreground" title={widow.leaving_details}>
+          {widow.leaving_details}
+        </p>
+      )}
+    </div>
+  )
+}
 
 export function WidowsTable({ 
   searchTerm, 
@@ -291,16 +342,22 @@ export function WidowsTable({
               </TableHead>
               <TableHead className="text-right">عدد الأيتام</TableHead>
               <TableHead className="text-right">الهاتف</TableHead>
-              <TableHead className="text-right">
-                <Button
-                  variant="ghost"
-                  onClick={() => handleSort('education_level')}
-                  className="h-auto p-0 font-medium hover:bg-transparent"
-                >
-                  <span className="ml-2">الحالة التعليمية</span>
-                  {getSortIcon('education_level')}
-                </Button>
-              </TableHead>
+              {archived ? (
+                // What an archived file is actually consulted for. The
+                // education level is still on the record, and on the card.
+                <TableHead className="text-right">المغادرة</TableHead>
+              ) : (
+                <TableHead className="text-right">
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleSort('education_level')}
+                    className="h-auto p-0 font-medium hover:bg-transparent"
+                  >
+                    <span className="ml-2">الحالة التعليمية</span>
+                    {getSortIcon('education_level')}
+                  </Button>
+                </TableHead>
+              )}
               <TableHead className="w-[70px] text-center">الإجراءات</TableHead>
             </TableRow>
           </TableHeader>
@@ -363,7 +420,9 @@ export function WidowsTable({
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    {widow.education_level ? (
+                    {archived ? (
+                      <LeavingCell widow={widow} />
+                    ) : widow.education_level ? (
                       <Badge variant="outline">{widow.education_level}</Badge>
                     ) : (
                       <span className="text-muted-foreground">غير محدد</span>
