@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\BusinessRuleException;
 use App\Models\BankAccount;
 use App\Models\BankAccountTransaction;
+use App\Models\FiscalYear;
 use App\Models\Transfer;
 use Illuminate\Support\Facades\DB;
 
@@ -25,6 +26,8 @@ class TransferService
             if ($locked->status === 'Approved') {
                 throw new BusinessRuleException('التحويل معتمد مسبقاً', 400);
             }
+
+            FiscalYear::assertOpen($locked->fiscal_year_id, 'اعتماد تحويل');
 
             // Lock both accounts in a stable order so two transfers moving
             // money in opposite directions cannot deadlock each other.

@@ -6,6 +6,8 @@ use App\Models\AcademicYear;
 use App\Models\BankAccount;
 use App\Models\BeneficiaryGroup;
 use App\Models\Donor;
+use App\Models\Expense;
+use App\Models\ExpenseBeneficiary;
 use App\Models\Illness;
 use App\Models\Income;
 use App\Models\IncomeCategory;
@@ -150,8 +152,10 @@ class DemoDataSeeder extends Seeder
     private function seedBankAccounts(): array
     {
         return [
-            BankAccount::create(['label' => 'الحساب الرئيسي', 'bank_name' => 'بنك التجارة', 'account_number' => 'MA-1001', 'balance' => 50000]),
-            BankAccount::create(['label' => 'حساب الكفالات', 'bank_name' => 'بنك الوفاء', 'account_number' => 'MA-1002', 'balance' => 20000]),
+            // opening_balance mirrors balance: nothing has moved yet, and the
+            // books check opening + ledger against the balance.
+            BankAccount::create(['label' => 'الحساب الرئيسي', 'bank_name' => 'بنك التجارة', 'account_number' => 'MA-1001', 'balance' => 50000, 'opening_balance' => 50000]),
+            BankAccount::create(['label' => 'حساب الكفالات', 'bank_name' => 'بنك الوفاء', 'account_number' => 'MA-1002', 'balance' => 20000, 'opening_balance' => 20000]),
         ];
     }
 
@@ -515,6 +519,13 @@ class DemoDataSeeder extends Seeder
                     // first grade so nobody regresses into kindergarten.
                     $yearsBack = $lastYearIndex - $yearOffset;
                     $yearPosition = max(2, $position - $yearsBack);
+
+                    // 14 and 16 are "graduated from secondary" and "graduated
+                    // from university" - endings, not years of study. A seeded
+                    // student sitting on one would be enrolled in a year that
+                    // does not exist, so they are placed at university (15)
+                    // instead, which is where a graduate of 14 actually goes.
+                    $yearPosition = in_array($yearPosition, [14, 16], true) ? 15 : $yearPosition;
                     $levelId = $educationLevelIds[$yearPosition] ?? $orphan->education_level_id;
 
                     $school = $this->schoolForLevel($yearPosition, $index, [
@@ -525,11 +536,29 @@ class DemoDataSeeder extends Seeder
                     ]);
                     $isUniversity = $school->type === School::TYPE_UNIVERSITY;
 
-                    // Faculties mark out of 100 and schools out of 20. Both are
-                    // seeded so the rankings exercise the normalisation that lets
-                    // the two compare - a 78/100 has to place between an 18/20
-                    // and a 14/20, not above both.
-                    $scale = $isUniversity ? 100 : 20;
+                    // Faculties mark out of 100 and schools out of 20 - though
+                    // plenty of Moroccan faculties mark out of 20 too, so some
+                    // of the seeded ones do. Both ceilings appear on purpose:
+                    // the rankings have to exercise the normalisation that lets
+                    // them compare, where a 78/100 places between an 18/20 and
+                    // a 14/20 rather than above both.
+                    $scale = $isUniversity && ($index + $yearOffset) % 2 === 0 ? 100 : 20;
+
+                    // Which year of which course, for the students the level
+                    // ladder's single "جامعي" rung cannot describe on its own.
+                    $courses = ['licence', 'licence', 'licence', 'technician', 'master'];
+                    $course = $isUniversity ? $courses[$index % count($courses)] : null;
+                    // Spread across the course rather than everyone in the same
+                    // year, and never past the course's own length.
+                    $courseYear = $isUniversity
+                        ? 1 + (($index + $yearOffset) % OrphanEnrollment::HIGHER_EDUCATION_PHASES[$course]['years'])
+                        : null;
+
+                    // Tutoring is the help the association pays for on top of
+                    // schooling. Roughly a third of the roll gets it, weighted
+                    // to the exam years where it actually tends to be given.
+                    $examYear = in_array($yearPosition, [10, 13], true);
+                    $hasTutoring = $examYear || $index % 3 === 0;
 
                     // A few of the current year's students are left ungraded,
                     // which is the ordinary mid-year state and the case the
@@ -549,10 +578,19 @@ class DemoDataSeeder extends Seeder
                             'education_level_id' => $levelId,
                             'school_id' => $school->id,
                             'specialty' => $isUniversity ? ['علوم الحياة والأرض', 'الإعلاميات', 'الاقتصاد'][$index % 3] : null,
+                            'higher_education_phase' => $course,
+                            'higher_education_year' => $courseYear,
                             'status' => $isCurrent ? $statuses[$index % count($statuses)] : 'passed',
                             'grade_scale' => $scale,
                             'first_semester_grade' => $graded ? $mark() : null,
                             'second_semester_grade' => $secondSemester ? $mark() : null,
+                            'has_tutoring' => $hasTutoring,
+                            'tutoring_subjects' => $hasTutoring
+                                ? ['الرياضيات', 'الفيزياء والكيمياء', 'اللغة الفرنسية', 'الرياضيات، الفيزياء'][$index % 4]
+                                : null,
+                            'tutoring_provider' => $hasTutoring
+                                ? ['الجمعية', 'أستاذ متطوع', 'مركز الدعم المدرسي'][$index % 3]
+                                : null,
                         ]
                     );
                 }
@@ -565,7 +603,9 @@ class DemoDataSeeder extends Seeder
     /**
      * Which school a student at this level attends. Positions follow the
      * reference ordering: 2-7 are the primary grades, 8-10 lower secondary,
-     * 11-13 upper secondary, and anything past that is higher education.
+     * 11-13 upper secondary, and anything past that is higher education. The
+     * caller has already moved the two graduation markers off the ladder, so
+     * nothing reaching here is an ending rather than a year of study.
      *
      * @param  array<string, array<int, School>>  $schools
      */
@@ -589,6 +629,14 @@ class DemoDataSeeder extends Seeder
      * deliberately plain - the elaborate paths (kafala chamila batches, bank
      * transfers, approval workflow) all run against the active year, where
      * someone demonstrating the app will actually be looking.
+     *
+     * These rows are written as already-approved rather than pushed through
+     * the approval services, because that is what they are: the books of
+     * years that are closed. Replaying the workflow would move today's bank
+     * balances by amounts that were banked and spent years ago - and those
+     * years' net is already inside the accounts' opening balances. It is also
+     * the rule the app now enforces on anybody else: you cannot approve into
+     * a closed year.
      *
      * @param  array<int, array{id: int, year: int, active: bool}>  $fiscalYears
      */
@@ -622,18 +670,29 @@ class DemoDataSeeder extends Seeder
                 // balances, and those belong to the year on screen.
                 $paymentMethod = $month % 4 === 0 ? 'Cheque' : 'Cash';
 
-                $this->incomes->approve(Income::create([
+                $amount = $round([500, 1200, 300, 2000, 850, 1500][($month + $yearsBack) % 6] * $scale);
+
+                Income::create([
                     'fiscal_year_id' => $fiscalYear['id'],
                     'budget_id' => $generalBudgetId,
                     'income_category_id' => $donationCategory->id,
                     'donor_id' => $donor->id,
                     'income_date' => $date,
-                    'amount' => $round([500, 1200, 300, 2000, 850, 1500][($month + $yearsBack) % 6] * $scale),
+                    'amount' => $amount,
                     'payment_method' => $paymentMethod,
                     'receipt_number' => sprintf('RC-%d-%02d', $fiscalYear['year'], $month),
-                    'status' => 'Draft',
+                    'status' => 'Approved',
+                    // Banked in its own year, so the closed year holds no
+                    // approved cash sitting outside an account.
+                    'transferred_at' => $date,
                     'created_by' => 1,
-                ]));
+                    'approved_by' => 1,
+                    'approved_at' => $date,
+                ]);
+
+                // The donor card shows lifetime giving, which the approval
+                // path would normally have kept up to date.
+                Donor::whereKey($donor->id)->increment('total_given', $amount);
             }
 
             foreach (range(1, 10 - $yearsBack) as $n) {
@@ -641,19 +700,30 @@ class DemoDataSeeder extends Seeder
                 $beneficiaryId = $beneficiaryByWidowId[$widow->id] ?? null;
                 $amount = $round([400, 900, 650, 1100][($n + $yearsBack) % 4] * $scale);
 
-                $expense = $this->expenses->create([
+                $expenseDate = sprintf('%d-%02d-%02d', $fiscalYear['year'], ($n * 5 + $yearsBack) % 12 + 1, rand(3, 27));
+
+                $expense = Expense::create([
                     'fiscal_year_id' => $fiscalYear['id'],
                     'budget_id' => $generalBudgetId,
                     'expense_category_id' => $expenseCategories[($n + $yearsBack) % $expenseCategories->count()]->id,
-                    'expense_date' => sprintf('%d-%02d-%02d', $fiscalYear['year'], ($n * 5 + $yearsBack) % 12 + 1, rand(3, 27)),
+                    'expense_date' => $expenseDate,
                     'amount' => $amount,
                     'payment_method' => $n % 3 === 0 ? 'Cheque' : 'Cash',
                     'receipt_number' => sprintf('EX-%d-%02d', $fiscalYear['year'], $n),
                     'unrelated_to_benef' => $beneficiaryId === null,
-                    'beneficiaries' => $beneficiaryId ? [['beneficiary_id' => $beneficiaryId, 'amount' => $amount]] : [],
+                    'status' => 'Approved',
+                    'created_by' => 1,
+                    'approved_by' => 1,
+                    'approved_at' => $expenseDate,
                 ]);
 
-                $this->expenses->approve($expense);
+                if ($beneficiaryId) {
+                    ExpenseBeneficiary::create([
+                        'expense_id' => $expense->id,
+                        'beneficiary_id' => $beneficiaryId,
+                        'amount' => $amount,
+                    ]);
+                }
             }
         }
     }
@@ -831,7 +901,11 @@ class DemoDataSeeder extends Seeder
             ]);
 
             if ($month <= $monthsElapsed - 2) {
-                $this->expenses->approve($expense);
+                // The account the money came out of. Approving without one
+                // used to be accepted and deduct from nothing, which is
+                // exactly the drift the approval rule now refuses - so the
+                // demo data has to name an account like real entry does.
+                $this->expenses->approve($expense, $bankAccounts[$month % count($bankAccounts)]->id);
             }
         }
 

@@ -1,7 +1,6 @@
 "use client"
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,6 +13,7 @@ import {
 import { PrintWidowPDF } from "./print-widow-pdf"
 import { KafalaFamilyBalance } from "./kafala-family-balance"
 import { cn } from "@/lib/utils"
+import { maritalStatusArabic } from "@/lib/export-utils"
 
 interface Widow {
   id: number
@@ -153,13 +153,19 @@ interface ViewWidowDialogProps {
 }
 
 /**
- * A labelled value: caption above, value beneath, both starting at the same
- * edge.
+ * A labelled value: caption above, value flush beneath it.
  *
- * Every field went through <Label>, which renders an inline <label>. Next to
- * a block <p> that stacked, but next to an inline <Badge> the two shared a
- * line - so text fields and badge fields disagreed about their own layout on
- * the same screen. Routing them all through here settles it.
+ * Two separate things used to break the column. Every field went through
+ * <Label>, which renders an inline <label>: beside a block <p> that stacked,
+ * but beside an inline <Badge> the two shared a line, so text fields and badge
+ * fields disagreed about their own layout on the same screen. And wherever a
+ * value carried an icon, the icon claimed the start edge and pushed the text
+ * inward - so the values, the part actually worth reading, sat in a ragged
+ * column while the icon-less ones sat flush under their labels.
+ *
+ * The icon now rides with the caption, where it marks the field instead of
+ * displacing its value, and every value starts at the same edge. One straight
+ * column of values per grid column, which is what makes a card scannable.
  */
 function Field({
   label,
@@ -173,13 +179,29 @@ function Field({
   className?: string
 }) {
   return (
-    <div className={cn("space-y-1", className)}>
-      <div className="text-sm font-medium text-muted-foreground">{label}</div>
-      <div className="flex min-h-6 items-center gap-2 font-medium">
-        {icon}
-        {children}
+    <div className={cn("min-w-0 space-y-1", className)}>
+      <div className="flex items-start gap-1.5 text-sm font-medium text-muted-foreground">
+        {/* Sized here rather than at the call sites, so every caption row lines
+            up whatever icon it was handed. */}
+        {icon ? <span className="mt-[3px] shrink-0 [&>svg]:h-3.5 [&>svg]:w-3.5">{icon}</span> : null}
+        <span className="min-w-0">{label}</span>
       </div>
+      <div className="flex min-h-6 flex-wrap items-center gap-x-2 gap-y-1 font-medium">{children}</div>
     </div>
+  )
+}
+
+/**
+ * A left-to-right run - a phone number, a national ID, an email - kept out of
+ * the bidi algorithm's hands. inline-block so it still starts at the RTL edge
+ * rather than being pushed to the physical left by its own direction.
+ */
+function Ltr({ value, className }: { value?: string | null; className?: string }) {
+  if (!value) return <span className="text-muted-foreground">غير محدد</span>
+  return (
+    <span dir="ltr" className={cn("inline-block", className)}>
+      {value}
+    </span>
   )
 }
 
@@ -233,9 +255,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden">
-        {/* pr-12 keeps the row clear of the close button, which the dialog
-            pins to the physical right regardless of direction. */}
-        <DialogHeader className="pr-12">
+        <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <Users className="h-5 w-5 shrink-0" />
             <span className="truncate">تفاصيل الأرملة - {widow.full_name}</span>
@@ -264,102 +284,68 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">الاسم الكامل</Label>
-                      <p className="text-lg font-semibold">{widow.full_name}</p>
-                    </div>
-                    <div>
-                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">رقم البطاقة الوطنية</Label>
-                      <p className="flex items-center gap-2">
-                        <IdCard className="h-4 w-4 text-muted-foreground" />
-                        {widow.national_id}
-                      </p>
-                    </div>
-                  </div>
+                  <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
+                    <Field label="الاسم الكامل" className="sm:col-span-2">
+                      <span className="text-lg font-semibold">{widow.full_name}</span>
+                    </Field>
+                    <Field label="رقم البطاقة الوطنية" icon={<IdCard />} className="sm:col-span-2">
+                      <Ltr value={widow.national_id} className="tabular-nums" />
+                    </Field>
 
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">العمر</Label>
-                      <p className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        {Math.floor(widow.age)} سنة
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">الحالة الاجتماعية</Label>
-                      <Badge variant="outline">{widow.marital_status}</Badge>
-                    </div>
-                    <div>
-                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">صلة القرابة بالأيتام</Label>
+                    <Field label="العمر" icon={<Calendar />}>{Math.floor(widow.age)} سنة</Field>
+                    <Field label="الحالة الاجتماعية">
+                      {/* The column stores the English enum; the card is Arabic. */}
+                      <Badge variant="outline">
+                        {maritalStatusArabic[widow.marital_status] || widow.marital_status || "غير محدد"}
+                      </Badge>
+                    </Field>
+                    <Field label="صلة القرابة بالأيتام">
                       <Badge variant="outline">{(widow as any).family_liaison || "أم"}</Badge>
-                    </div>
-                    <div>
-                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">المستوى التعليمي</Label>
+                    </Field>
+                    <Field label="المستوى التعليمي">
                       {widow.education_level ? (
                         <Badge variant="secondary">{widow.education_level}</Badge>
                       ) : (
                         <span className="text-muted-foreground">غير محدد</span>
                       )}
-                    </div>
-                  </div>
+                    </Field>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">رقم الهاتف</Label>
-                      <p className="flex items-center gap-2">
-                        <Phone className="h-4 w-4 text-muted-foreground" />
-                        {widow.phone || "غير محدد"}
-                      </p>
-                      {((widow as any).extra_phones || []).map((extra: any) => (
-                        <p key={extra.id} className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                          <Phone className="h-3.5 w-3.5" />
-                          {extra.phone}
-                        </p>
-                      ))}
-                    </div>
-                    <div>
-                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">البريد الإلكتروني</Label>
-                      <p className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        {widow.email || "غير محدد"}
-                      </p>
-                    </div>
-                  </div>
+                    <Field label="رقم الهاتف" icon={<Phone />} className="sm:col-span-2">
+                      <div className="space-y-0.5">
+                        <div>
+                          <Ltr value={widow.phone} className="tabular-nums" />
+                        </div>
+                        {((widow as any).extra_phones || []).map((extra: any) => (
+                          <div key={extra.id} className="text-sm text-muted-foreground">
+                            <Ltr value={extra.phone} className="tabular-nums" />
+                          </div>
+                        ))}
+                      </div>
+                    </Field>
+                    <Field label="البريد الإلكتروني" icon={<Mail />} className="sm:col-span-2">
+                      <Ltr value={widow.email} className="break-all" />
+                    </Field>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">العنوان</Label>
-                      <p className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        {widow.address || "غير محدد"}
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">الحي</Label>
-                      <p>{widow.neighborhood || "غير محدد"}</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="block mb-1 text-sm font-medium text-muted-foreground">الإعاقة</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      {widow.disability_flag ? (
-                        <Badge variant="destructive">
-                          {widow.disability_type || "إعاقة"}
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">لا توجد</Badge>
-                      )}
-                    </div>
+                    <Field label="العنوان" icon={<MapPin />} className="sm:col-span-2">
+                      {widow.address || <span className="text-muted-foreground">غير محدد</span>}
+                    </Field>
+                    <Field label="الحي" icon={<MapPin />}>
+                      {widow.neighborhood || <span className="text-muted-foreground">غير محدد</span>}
+                    </Field>
+                    <Field label="تاريخ الانتساب" icon={<Calendar />}>
+                      <DateText value={widow.admission_date} />
+                    </Field>
                   </div>
 
                   <Separator />
-                  
-                  <div>
-                    <Label className="block mb-1 text-sm font-medium text-muted-foreground">تاريخ الانتساب</Label>
-                    <p><DateText value={widow.admission_date} /></p>
-                  </div>
+
+                  <Field label="الإعاقة" icon={<Activity />}>
+                    {widow.disability_flag ? (
+                      <Badge variant="destructive">{widow.disability_type || "إعاقة"}</Badge>
+                    ) : (
+                      <Badge variant="secondary">لا توجد</Badge>
+                    )}
+                  </Field>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -375,59 +361,49 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                       معلومات السكن
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div>
-                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">نوع السكن</Label>
-                      <p className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-muted-foreground" />
-                        {widow.widow_social?.housing_type?.label || "غير محدد"}
-                      </p>
+                  <CardContent className="space-y-5">
+                    <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
+                      <Field label="نوع السكن" icon={<Building2 />}>
+                        {widow.widow_social?.housing_type?.label || (
+                          <span className="text-muted-foreground">غير محدد</span>
+                        )}
+                      </Field>
+                      <Field label="حالة السكن" icon={<Home />}>
+                        <Badge variant="outline">
+                          {widow.widow_social?.housing_status === 'owned' ? 'ملك' :
+                           widow.widow_social?.housing_status === 'rented' ? 'إيجار' :
+                           widow.widow_social?.housing_status === 'free' ? 'مجاني' : 'غير محدد'}
+                        </Badge>
+                      </Field>
                     </div>
-                    <div>
-                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">حالة السكن</Label>
-                      <Badge variant="outline">
-                        {widow.widow_social?.housing_status === 'owned' ? 'ملك' : 
-                         widow.widow_social?.housing_status === 'rented' ? 'إيجار' : 
-                         widow.widow_social?.housing_status === 'free' ? 'مجاني' : 'غير محدد'}
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <Label className="block mb-1 text-sm font-medium text-muted-foreground">المياه</Label>
-                        <div className="flex items-center gap-1">
-                          <Droplets className="h-4 w-4 text-blue-500" />
-                          <Badge variant={widow.widow_social?.has_water ? "secondary" : "destructive"}>
-                            {widow.widow_social?.has_water ? "متوفر" : "غير متوفر"}
-                          </Badge>
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="block mb-1 text-sm font-medium text-muted-foreground">الكهرباء</Label>
-                        <div className="flex items-center gap-1">
-                          <Zap className="h-4 w-4 text-yellow-500" />
-                          <Badge variant={widow.widow_social?.has_electricity ? "secondary" : "destructive"}>
-                            {widow.widow_social?.has_electricity ? "متوفر" : "غير متوفر"}
-                          </Badge>
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="block mb-1 text-sm font-medium text-muted-foreground">الأثاث</Label>
-                        <div className="flex items-center gap-1">
-                          <Sofa className="h-4 w-4 text-brown-500" />
-                          <div className="flex">
-                            {Array.from({length: 5}, (_, i) => (
-                              <Star 
-                                key={i} 
-                                className={`h-4 w-4 ${
-                                  i < (widow.widow_social?.has_furniture || 0) 
-                                    ? 'fill-yellow-400 text-yellow-400' 
-                                    : 'text-gray-300'
-                                }`} 
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
+                    <div className="grid grid-cols-3 gap-x-4 gap-y-5">
+                      <Field label="المياه" icon={<Droplets className="text-blue-500" />}>
+                        <Badge variant={widow.widow_social?.has_water ? "secondary" : "destructive"}>
+                          {widow.widow_social?.has_water ? "متوفر" : "غير متوفر"}
+                        </Badge>
+                      </Field>
+                      <Field label="الكهرباء" icon={<Zap className="text-yellow-500" />}>
+                        <Badge variant={widow.widow_social?.has_electricity ? "secondary" : "destructive"}>
+                          {widow.widow_social?.has_electricity ? "متوفر" : "غير متوفر"}
+                        </Badge>
+                      </Field>
+                      {/* text-brown-500 is not a Tailwind colour, so the sofa was
+                          drawing in the inherited text colour. */}
+                      <Field label="الأثاث" icon={<Sofa className="text-amber-700 dark:text-amber-500" />}>
+                        <span className="flex" title={`${widow.widow_social?.has_furniture || 0} من 5`}>
+                          {Array.from({ length: 5 }, (_, i) => (
+                            <Star
+                              key={i}
+                              className={cn(
+                                "h-4 w-4",
+                                i < (widow.widow_social?.has_furniture || 0)
+                                  ? "fill-yellow-400 text-yellow-400"
+                                  : "text-muted-foreground/30",
+                              )}
+                            />
+                          ))}
+                        </span>
+                      </Field>
                     </div>
                   </CardContent>
                 </Card>
@@ -440,28 +416,25 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                       الحالة الاجتماعية
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div>
-                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">الوضع الاجتماعي</Label>
+                  <CardContent className="space-y-5">
+                    <Field label="الوضع الاجتماعي" icon={<Users />}>
                       <Badge variant="outline">
                         {widow.widow_files?.social_situation === 'widow' ? 'أرملة' :
                          widow.widow_files?.social_situation === 'divorced' ? 'مطلقة' :
                          widow.widow_files?.social_situation === 'single' ? 'عزباء' :
                          widow.widow_files?.social_situation === 'remarried' ? 'متزوجة مرة أخرى' : 'غير محدد'}
                       </Badge>
-                    </div>
-                    <div>
-                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">الأمراض المزمنة</Label>
+                    </Field>
+                    <Field label="الأمراض المزمنة" icon={<Activity />}>
                       <Badge variant={widow.widow_files?.has_chronic_disease ? "destructive" : "secondary"}>
                         {widow.widow_files?.has_chronic_disease ? "يوجد" : "لا يوجد"}
                       </Badge>
-                    </div>
-                    <div>
-                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">المؤونة</Label>
+                    </Field>
+                    <Field label="المؤونة" icon={<HandHeart />}>
                       <Badge variant={widow.widow_files?.has_maouna ? "secondary" : "outline"}>
                         {widow.widow_files?.has_maouna ? "نشطة" : "غير نشطة"}
                       </Badge>
-                    </div>
+                    </Field>
                   </CardContent>
                 </Card>
               </div>
@@ -486,25 +459,21 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                               <h4 className="font-medium text-lg">
                                 {orphan.first_name} {orphan.last_name}
                               </h4>
-                              <div className="grid grid-cols-3 gap-4 text-sm">
-                                <div>
-                                  <Label className="block mb-1 text-muted-foreground">العمر</Label>
-                                  <p>{Math.floor(orphan.age)} سنة</p>
-                                </div>
-                                <div>
-                                  <Label className="block mb-1 text-muted-foreground">الجنس</Label>
-                                  <p>{orphan.gender === 'male' ? 'ذكر' : 'أنثى'}</p>
-                                </div>
-                                <div>
-                                  <Label className="block mb-1 text-muted-foreground">المستوى التعليمي</Label>
-                                  <p>{orphan.education_level || 'غير محدد'}</p>
-                                </div>
+                              <div className="grid grid-cols-3 gap-x-4 gap-y-3 text-sm">
+                                <Field label="العمر" icon={<Calendar />}>{Math.floor(orphan.age)} سنة</Field>
+                                <Field label="الجنس" icon={<Users />}>
+                                  {orphan.gender === 'male' ? 'ذكر' : 'أنثى'}
+                                </Field>
+                                <Field label="المستوى التعليمي" icon={<GraduationCap />}>
+                                  {orphan.education_level || (
+                                    <span className="text-muted-foreground">غير محدد</span>
+                                  )}
+                                </Field>
                               </div>
                               {orphan.health_status && (
-                                <div>
-                                  <Label className="block mb-1 text-muted-foreground text-sm">الحالة الصحية</Label>
-                                  <p className="text-sm">{orphan.health_status}</p>
-                                </div>
+                                <Field label="الحالة الصحية" icon={<Activity />} className="text-sm">
+                                  {orphan.health_status}
+                                </Field>
                               )}
                             </div>
                             <Badge variant="outline">
@@ -544,30 +513,22 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                                   "غير محدد"
                                 }
                               </h4>
-                              <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                                 {sponsorship.kafil?.phone && (
-                                  <div>
-                                    <Label className="block mb-1 text-muted-foreground">رقم الهاتف</Label>
-                                    <p className="flex items-center gap-1">
-                                      <Phone className="h-3 w-3" />
-                                      {sponsorship.kafil.phone}
-                                    </p>
-                                  </div>
+                                  <Field label="رقم الهاتف" icon={<Phone />}>
+                                    <Ltr value={sponsorship.kafil.phone} className="tabular-nums" />
+                                  </Field>
                                 )}
                                 {sponsorship.kafil?.monthly_pledge && (
-                                  <div>
-                                    <Label className="block mb-1 text-muted-foreground">التعهد الشهري</Label>
-                                    <p><Money value={sponsorship.kafil.monthly_pledge} /></p>
-                                  </div>
+                                  <Field label="التعهد الشهري" icon={<DollarSign />}>
+                                    <Money value={sponsorship.kafil.monthly_pledge} />
+                                  </Field>
                                 )}
                               </div>
                               {sponsorship.kafil?.donor && (
-                                <div>
-                                  <Label className="block mb-1 text-muted-foreground text-sm">المتبرع الأساسي</Label>
-                                  <p className="text-sm">
-                                    {sponsorship.kafil.donor.first_name} {sponsorship.kafil.donor.last_name}
-                                  </p>
-                                </div>
+                                <Field label="المتبرع الأساسي" icon={<HandHeart />} className="text-sm">
+                                  {sponsorship.kafil.donor.first_name} {sponsorship.kafil.donor.last_name}
+                                </Field>
                               )}
                             </div>
                             <div className="text-right">
@@ -720,7 +681,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                                 <div className="space-y-1">
                                   {maouna.partner?.field && (
                                     <div className="flex items-center gap-2">
-                                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">المجال:</Label>
+                                      <span className="text-sm font-medium text-muted-foreground">المجال:</span>
                                       <Badge variant="outline" className="text-xs">
                                         {maouna.partner.field.label}
                                       </Badge>
@@ -728,7 +689,7 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
                                   )}
                                   {maouna.partner?.subfield && (
                                     <div className="flex items-center gap-2">
-                                      <Label className="block mb-1 text-sm font-medium text-muted-foreground">التخصص:</Label>
+                                      <span className="text-sm font-medium text-muted-foreground">التخصص:</span>
                                       <Badge variant="secondary" className="text-xs">
                                         {maouna.partner.subfield.label}
                                       </Badge>

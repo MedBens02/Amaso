@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\OrphanEnrollment;
+use App\Models\OrphansEducationLevel;
+use App\Models\School;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +26,12 @@ class EnrollmentController extends Controller
             ->when($request->filled('school_id'), fn ($q) => $q->where('school_id', $request->school_id))
             ->when($request->filled('education_level_id'), fn ($q) => $q->where('education_level_id', $request->education_level_id))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
+            // "1"/"0" rather than a boolean: it arrives as a query string.
+            ->when($request->filled('has_tutoring'), fn ($q) => $q->where('has_tutoring', $request->boolean('has_tutoring')))
+            ->when($request->filled('school_type'), fn ($q) => $q->whereHas(
+                'school',
+                fn ($school) => $school->where('type', $request->school_type),
+            ))
             ->when($request->search, function ($q, $search) {
                 $q->whereHas('orphan', function ($orphan) use ($search) {
                     $orphan->where('first_name', 'like', "%{$search}%")
@@ -41,6 +49,15 @@ class EnrollmentController extends Controller
                 'last_page' => $enrollments->lastPage(),
                 'per_page' => $enrollments->perPage(),
                 'total' => $enrollments->total(),
+                // Sent with the list the screen already fetches, so the course
+                // labels do not have to be kept in step by hand on the client.
+                'higher_education_phases' => collect(OrphanEnrollment::HIGHER_EDUCATION_PHASES)
+                    ->map(fn ($phase, $key) => [
+                        'value' => $key,
+                        'label' => $phase['label'],
+                        'years' => $phase['years'],
+                    ])
+                    ->values(),
             ],
         ]);
     }
@@ -49,17 +66,13 @@ class EnrollmentController extends Controller
     {
         $validated = $this->validateEnrollment($request);
 
-        $exists = OrphanEnrollment::where('orphan_id', $validated['orphan_id'])
-            ->where('academic_year_id', $validated['academic_year_id'])
-            ->exists();
-
-        if ($exists) {
+        if ($this->alreadyEnrolled($validated['orphan_id'], $validated['academic_year_id'])) {
             return response()->json([
                 'message' => 'هذا اليتيم مسجل مسبقاً في هذه السنة الدراسية',
             ], 422);
         }
 
-        $enrollment = OrphanEnrollment::create($validated);
+        $enrollment = OrphanEnrollment::create($this->withCourseConsistency($validated));
         $enrollment->load(self::RELATIONS);
 
         return response()->json([
@@ -71,15 +84,28 @@ class EnrollmentController extends Controller
     public function update(Request $request, OrphanEnrollment $enrollment): JsonResponse
     {
         $validated = $request->validate([
-            'education_level_id' => ['nullable', 'integer', 'exists:orphans_education_level,id'],
-            'school_id' => ['nullable', 'integer', 'exists:schools,id'],
-            'specialty' => ['nullable', 'string', 'max:150'],
-            'status' => ['sometimes', Rule::in(['enrolled', 'passed', 'failed', 'left'])],
-            'notes' => ['nullable', 'string', 'max:500'],
+            // The year is editable: a record entered against the wrong one
+            // used to be fixable only by deleting it and losing its marks.
+            'academic_year_id' => ['sometimes', 'integer', 'exists:academic_years,id'],
+            'status' => ['sometimes', Rule::in([
+                OrphanEnrollment::STATUS_ENROLLED,
+                OrphanEnrollment::STATUS_PASSED,
+                OrphanEnrollment::STATUS_FAILED,
+                OrphanEnrollment::STATUS_LEFT,
+            ])],
+            ...$this->placementRules(),
             ...$this->gradeRules($request, $enrollment),
-        ], $this->gradeMessages());
+        ], $this->messages());
 
-        $enrollment->update($validated);
+        $targetYear = $validated['academic_year_id'] ?? $enrollment->academic_year_id;
+
+        if ($targetYear !== $enrollment->academic_year_id && $this->alreadyEnrolled($enrollment->orphan_id, $targetYear, $enrollment->id)) {
+            return response()->json([
+                'message' => 'هذا التلميذ مسجل مسبقاً في السنة الدراسية المختارة',
+            ], 422);
+        }
+
+        $enrollment->update($this->withCourseConsistency($validated, $enrollment));
         $enrollment->load(self::RELATIONS);
 
         return response()->json([
@@ -179,14 +205,85 @@ class EnrollmentController extends Controller
         ];
     }
 
-    private function gradeMessages(): array
+    /** Where the student is studying, and what help they get while doing it. */
+    private function placementRules(): array
+    {
+        return [
+            'education_level_id' => ['nullable', 'integer', 'exists:orphans_education_level,id'],
+            'school_id' => ['nullable', 'integer', 'exists:schools,id'],
+            'specialty' => ['nullable', 'string', 'max:150'],
+            'higher_education_phase' => ['nullable', Rule::in(array_keys(OrphanEnrollment::HIGHER_EDUCATION_PHASES))],
+            // Eight is past a doctorate and well past a repeated licence year;
+            // anything beyond it is a typo rather than a student.
+            'higher_education_year' => ['nullable', 'integer', 'min:1', 'max:8'],
+            'has_tutoring' => ['sometimes', 'boolean'],
+            'tutoring_subjects' => ['nullable', 'string', 'max:255'],
+            'tutoring_provider' => ['nullable', 'string', 'max:150'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ];
+    }
+
+    private function messages(): array
     {
         return [
             'first_semester_grade.max' => 'نقطة الأسدس الأول تتجاوز السلم المعتمد',
             'second_semester_grade.max' => 'نقطة الأسدس الثاني تتجاوز السلم المعتمد',
             'first_semester_grade.min' => 'النقطة لا يمكن أن تكون سالبة',
             'second_semester_grade.min' => 'النقطة لا يمكن أن تكون سالبة',
+            'higher_education_phase.in' => 'سلك التعليم العالي غير معروف',
+            'higher_education_year.min' => 'سنة التعليم العالي تبدأ من 1',
+            'higher_education_year.max' => 'سنة التعليم العالي لا يمكن أن تتجاوز 8',
+            'academic_year_id.exists' => 'السنة الدراسية غير موجودة',
         ];
+    }
+
+    /** One enrollment per student per year is the whole point of the table. */
+    private function alreadyEnrolled(int $orphanId, int $academicYearId, ?int $ignoreId = null): bool
+    {
+        return OrphanEnrollment::where('orphan_id', $orphanId)
+            ->where('academic_year_id', $academicYearId)
+            ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
+            ->exists();
+    }
+
+    /**
+     * Keep the course fields and the placement telling the same story.
+     *
+     * A record that is not in higher education has no business carrying a
+     * licence year - it would show up on the card as a university the student
+     * has left, or never reached. And a record that *is* in higher education
+     * with no year set is a first year; storing that beats rendering a blank
+     * where a year belongs.
+     *
+     * Resolved from whatever the request did not send, so a partial update -
+     * the status buttons send only a status - cannot change the answer by
+     * omission.
+     */
+    private function withCourseConsistency(array $attributes, ?OrphanEnrollment $existing = null): array
+    {
+        $resolve = fn (string $key, $fallback) => array_key_exists($key, $attributes) ? $attributes[$key] : $fallback;
+
+        $phase = $resolve('higher_education_phase', $existing?->higher_education_phase);
+        $schoolId = $resolve('school_id', $existing?->school_id);
+        $levelId = $resolve('education_level_id', $existing?->education_level_id);
+
+        $isHigherEducation = $phase !== null
+            || ($schoolId && School::whereKey($schoolId)->value('type') === School::TYPE_UNIVERSITY)
+            || ($levelId && str_contains(
+                (string) OrphansEducationLevel::whereKey($levelId)->value('name_ar'),
+                'جامع',
+            ));
+
+        if (!$isHigherEducation) {
+            $attributes['higher_education_phase'] = null;
+            $attributes['higher_education_year'] = null;
+
+            return $attributes;
+        }
+
+        $attributes['higher_education_year'] = $resolve('higher_education_year', $existing?->higher_education_year) ?: 1;
+
+        return $attributes;
     }
 
     private function validateEnrollment(Request $request): array
@@ -194,16 +291,13 @@ class EnrollmentController extends Controller
         return $request->validate([
             'orphan_id' => ['required', 'integer', 'exists:orphans,id'],
             'academic_year_id' => ['required', 'integer', 'exists:academic_years,id'],
-            'education_level_id' => ['nullable', 'integer', 'exists:orphans_education_level,id'],
-            'school_id' => ['nullable', 'integer', 'exists:schools,id'],
-            'specialty' => ['nullable', 'string', 'max:150'],
-            'notes' => ['nullable', 'string', 'max:500'],
+            ...$this->placementRules(),
             ...$this->gradeRules($request),
         ], [
             'orphan_id.required' => 'اليتيم مطلوب',
             'orphan_id.exists' => 'اليتيم غير موجود',
             'academic_year_id.required' => 'السنة الدراسية مطلوبة',
-            ...$this->gradeMessages(),
+            ...$this->messages(),
         ]);
     }
 }

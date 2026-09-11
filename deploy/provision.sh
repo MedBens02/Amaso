@@ -163,6 +163,30 @@ POOL
 touch /var/log/php-fpm-amaso.log
 chown "$APP_USER:$APP_USER" /var/log/php-fpm-amaso.log
 
+# ---------------------------------------------------------------------------
+# opcache
+#
+# Laravel reads and compiles a little over five hundred PHP files to answer
+# one request. opcache keeps the compiled form in memory so that happens
+# once per worker rather than once per request - the difference between a
+# request that costs tens of milliseconds and one that costs hundreds.
+#
+# validate_timestamps=0 is the part that only makes sense in production: it
+# stops PHP stat()ing all five hundred files on every request to ask whether
+# any changed. Nothing changes them except deploy.sh, which reloads PHP-FPM
+# and so clears the cache anyway. Never set this on a development machine -
+# edits would appear to have no effect.
+# ---------------------------------------------------------------------------
+cat > "/etc/php/${PHP_VERSION}/fpm/conf.d/99-amaso-opcache.ini" <<'OPCACHE'
+opcache.enable=1
+opcache.memory_consumption=192
+opcache.interned_strings_buffer=16
+opcache.max_accelerated_files=20000
+opcache.validate_timestamps=0
+opcache.save_comments=1
+OPCACHE
+ok "opcache tuned for production"
+
 systemctl enable "php${PHP_VERSION}-fpm" >/dev/null 2>&1 || true
 systemctl restart "php${PHP_VERSION}-fpm"
 ok "PHP-FPM pool 'amaso' listening on /run/php/php-fpm-amaso.sock"

@@ -15,11 +15,16 @@ class BankAccount extends Model
         'bank_name',
         'account_number',
         'balance',
+        // What the account was already carrying when it was entered into the
+        // system. opening_balance + sum(ledger) == balance, always; without it
+        // there is no way to tell a real drift from the missing starting point.
+        'opening_balance',
         'notes',
     ];
 
     protected $casts = [
         'balance' => 'decimal:2',
+        'opening_balance' => 'decimal:2',
     ];
 
     public function incomes(): HasMany

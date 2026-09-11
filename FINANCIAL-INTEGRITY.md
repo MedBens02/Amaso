@@ -304,3 +304,76 @@ form requests — they can be tested by hitting the endpoints concurrently (two 
 Phase A items are exactly the ones to cover first (double-approve, insufficient funds,
 closed-year posting, split rounding). The migrations added in this branch make that
 possible: the suite can now run on SQLite in-memory.
+
+---
+
+## Where this stands (2026-09-11)
+
+Everything below was verified by running it, not by reading the code. Two
+harnesses live in `backend/`:
+
+| Script | What it does | Needs |
+|--------|--------------|-------|
+| `php money-audit.php` | Drives the whole money lifecycle through HTTP — create, approve, deposit, transfer, close the year, try to post into it afterwards — for Cash, Cheque and BankWire, and checks the balances and the ledger after every step. 117 checks. | the API on :8000 |
+| `php money-concurrency.php` | Fires the same approval at one row from two servers at once. 14 checks. | a second `artisan serve` on :8001 |
+
+Both refuse to run against a database that does not look like demo data,
+because they write real rows.
+
+The second one needs two servers for a reason worth remembering: `php artisan
+serve` is single-threaded, so a second request to the same process is queued
+behind the first and the row locks are never actually exercised. Every
+"concurrency test" that hits one `artisan serve` proves nothing.
+
+### Closed in this pass
+
+- **#1 concurrent approval** — confirmed fixed under genuine concurrency:
+  income, expense, transfer and cash deposit each move money exactly once when
+  approved twice simultaneously; the loser gets 400/403.
+- **#2 atomic balance write and funds check** — confirmed; an expense larger
+  than the account holds is refused and stays a draft.
+- **#3 posting into a closed year** — the store requests already blocked
+  *creating* a row. They did not block **approving** one, which is what
+  actually moves money: a draft outlives the close, and approving it credited
+  a year whose carryover had already been copied forward. `FiscalYear::assertOpen()`
+  now guards income approval, cash deposit, expense approval and transfer approval.
+- **#5a cash box** — closing already required approved cash to be deposited.
+  The other half was worse and had been missed: **an expense approved without a
+  bank account moved nothing at all**, while still counting as approved in every
+  report. The demo seeder was doing it six times. Approval now requires the
+  account the money came out of, at the API and in the expenses screen.
+- **#6 ledger and reconciliation** — the ledger table existed and was being
+  written, but nothing read it back, and `opening + ledger == balance` could
+  not hold because the balance an account was already carrying had no
+  representation. `bank_accounts.opening_balance` stores it (backfilled from
+  what the recorded movements do not explain), `GET /bank-accounts/{id}/statement`
+  reads the whole thing back with a reconciliation block, and the transfers
+  screen opens it from each account card. Both harnesses assert the invariant
+  after every run.
+- **#8 `donors.total_given`** — maintained on approval.
+- **#10 duplicate deposit endpoint** — gone; only `POST incomes/{id}/transfer-to-bank`
+  remains. The donor-or-kafil rule and the beneficiary-sum rule are in place.
+
+### Also found and fixed
+
+- Closing an **already-closed** year was accepted: it overwrote a carryover the
+  next year had already been opened with and flipped the active flag onto a year
+  closed long ago.
+- The carryover total was read **before** the bank accounts were locked, so an
+  approval landing in between carried forward a number that was never true.
+- A **zero-amount** income or transfer was accepted (`min:0`).
+- A newly created income came back from the API with **no status field** — it
+  was left to the column default, which Eloquent does not read back.
+
+### Still open
+
+- **#5b a real cash-on-hand account.** Approval now insists every expense names
+  an account, which is honest but assumes cash is drawn from a bank. If the
+  association genuinely holds a float, the clean answer is a `bank_accounts`
+  row for it ("الصندوق") rather than a new concept — no schema change needed,
+  just the row and the habit of choosing it.
+- **#6.3 void / unapprove.** A wrong approval still has no reversal path; it can
+  only be corrected in the database by hand. The ledger is append-only and the
+  statement reads it back, so reversal entries would now have somewhere to go
+  and somewhere to be seen.
+- **#9 pledged vs. actually paid** per sponsor.

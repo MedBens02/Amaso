@@ -8,6 +8,7 @@ use App\Models\BankAccountTransaction;
 use App\Models\BeneficiaryGroup;
 use App\Models\Expense;
 use App\Models\ExpenseBeneficiary;
+use App\Models\FiscalYear;
 use Illuminate\Support\Facades\DB;
 
 class ExpenseService
@@ -64,8 +65,8 @@ class ExpenseService
     }
 
     /**
-     * Approve a draft expense and deduct the amount from the linked bank
-     * account, if any.
+     * Approve a draft expense and deduct the amount from the account it was
+     * paid from.
      *
      * A cash expense often has no bank_account_id yet - the association
      * still has to say which account the cash came out of, and that choice
@@ -73,6 +74,13 @@ class ExpenseService
      * recorded. $bankAccountId carries that choice; it is only applied when
      * the expense doesn't already have one, so it can never override an
      * account chosen earlier (a cheque or wire's own account, for example).
+     *
+     * An account is required. This used to fall through: an expense with no
+     * account was approved, counted in every report, and moved no money at
+     * all - so the bank balances, and with them the fiscal year's carryover,
+     * drifted from reality by the whole of the association's cash spending.
+     * If cash is genuinely held outside the banks, it belongs in an account
+     * of its own ("الصندوق"), not nowhere.
      *
      * Both rows are locked for the duration: the expense so two concurrent
      * approvals cannot both pass the Draft guard and deduct twice, and the
@@ -89,28 +97,35 @@ class ExpenseService
                 throw new BusinessRuleException('المصروف معتمد مسبقاً', 400);
             }
 
+            FiscalYear::assertOpen($locked->fiscal_year_id, 'اعتماد مصروف');
+
             if ($bankAccountId && !$locked->bank_account_id) {
                 $locked->bank_account_id = $bankAccountId;
             }
 
-            if ($locked->bank_account_id) {
-                $account = BankAccount::whereKey($locked->bank_account_id)->lockForUpdate()->firstOrFail();
-
-                if ((float) $account->balance < (float) $locked->amount) {
-                    throw new BusinessRuleException(
-                        "الرصيد في حساب \"{$account->label}\" غير كافٍ لاعتماد هذا المصروف. الرصيد الحالي: {$account->balance}",
-                        422
-                    );
-                }
-
-                $this->ledger->record(
-                    $account,
-                    -(float) $locked->amount,
-                    BankAccountTransaction::SOURCE_EXPENSE,
-                    $locked->id,
-                    'اعتماد مصروف',
+            if (!$locked->bank_account_id) {
+                throw new BusinessRuleException(
+                    'حدد الحساب الذي صُرف منه هذا المبلغ قبل الاعتماد، وإلا لن يُخصم من أي رصيد.',
+                    422
                 );
             }
+
+            $account = BankAccount::whereKey($locked->bank_account_id)->lockForUpdate()->firstOrFail();
+
+            if ((float) $account->balance < (float) $locked->amount) {
+                throw new BusinessRuleException(
+                    "الرصيد في حساب \"{$account->label}\" غير كافٍ لاعتماد هذا المصروف. الرصيد الحالي: {$account->balance}",
+                    422
+                );
+            }
+
+            $this->ledger->record(
+                $account,
+                -(float) $locked->amount,
+                BankAccountTransaction::SOURCE_EXPENSE,
+                $locked->id,
+                'اعتماد مصروف',
+            );
 
             $locked->update([
                 'status' => 'Approved',

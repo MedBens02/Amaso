@@ -33,11 +33,21 @@ class FiscalYearClosingService
                     return $this->errorResponse('السنة المالية غير موجودة');
                 }
 
-                // Step 2: Get current cash from the service
-                $currentCash = $this->cashService->getCurrentCash();
-                
-                // Lock bank accounts for consistency during the transaction
+                // Closing an already-closed year would overwrite a carryover
+                // the following year has already been opened with, and flip
+                // the active flag onto a year that was closed long ago.
+                if (!$lockedFiscalYear->is_active) {
+                    return $this->errorResponse(
+                        'السنة المالية ' . $lockedFiscalYear->year . ' مغلقة مسبقاً.'
+                    );
+                }
+
+                // Lock the accounts *before* reading their total: the carryover
+                // is that total, and an approval landing between the read and
+                // the lock would carry a number forward that was never true.
                 BankAccount::lockForUpdate()->get();
+
+                $currentCash = $this->cashService->getCurrentCash();
 
                 // Step 3: Verify all incomes are approved
                 $unapprovedIncomes = Income::where('fiscal_year_id', $fiscalYear->id)

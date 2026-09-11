@@ -262,19 +262,18 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
    * still showed them as drafts on the next refresh, and no bank balance
    * ever moved.
    *
-   * A cash expense with no bank account can't be bulk-approved silently -
-   * that would either skip the ledger deduction the single-row dialog
-   * exists to collect, or force a choice on every row without asking. It
-   * gets excluded here and reported separately instead.
+   * An expense with no account named can't be bulk-approved: the API refuses
+   * it outright now, because approving one used to deduct from nothing at
+   * all. Cash is the usual case but not the only one - a cheque can be
+   * entered without an account too - so the test is simply whether the row
+   * says where the money came from. Those rows are excluded here and
+   * reported separately, to be confirmed one at a time where the dialog can
+   * ask which account.
    */
   const confirmValidation = async () => {
     const targets = expenses.filter((expense) => selectedIds.has(expense.id))
-    const needsBankAccount = targets.filter(
-      (expense) => expense.payment_method === 'Cash' && !expense.bank_account_id
-    )
-    const readyToApprove = targets.filter(
-      (expense) => !(expense.payment_method === 'Cash' && !expense.bank_account_id)
-    )
+    const needsBankAccount = targets.filter((expense) => !expense.bank_account_id)
+    const readyToApprove = targets.filter((expense) => expense.bank_account_id)
 
     const results = await Promise.allSettled(
       readyToApprove.map((expense) => api.approveExpense(expense.id))
@@ -299,7 +298,7 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
     if (needsBankAccount.length > 0) {
       toast({
         title: "مصروفات تحتاج حساباً بنكياً",
-        description: `${needsBankAccount.length} مصروف نقدي بلا حساب بنكي - أكّده فردياً لاختيار الحساب`,
+        description: `${needsBankAccount.length} مصروف بلا حساب محدد - أكّده فردياً لاختيار الحساب الذي صُرف منه`,
       })
     }
 
@@ -381,13 +380,14 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
   const handleApproveExpense = async (expense: any) => {
     if (approvingId !== null) return // an approval is already in flight
 
-    if (expense.payment_method === 'Cash' && !expense.bank_account_id) {
-      // For cash expenses without bank account, show bank account selection
+    if (!expense.bank_account_id) {
+      // Whatever the payment method, the approval has to name the account the
+      // money came out of - the API refuses it otherwise, and rightly: an
+      // approval that deducts from nothing leaves the books short.
       setPendingApprovalExpense(expense)
       await loadBankAccounts()
       setShowBankAccountDialog(true)
     } else {
-      // Direct approval for expenses with bank accounts
       await performApproval(expense.id, expense.bank_account_id)
     }
   }
@@ -676,7 +676,7 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
           <AlertDialogHeader>
             <AlertDialogTitle>اختيار حساب بنكي</AlertDialogTitle>
             <AlertDialogDescription>
-              هذا المصروف نقدي، يرجى اختيار الحساب البنكي الذي سيتم خصم المبلغ منه
+              لم يُحدد حساب لهذا المصروف. اختر الحساب الذي صُرف منه المبلغ ليُخصم منه عند الاعتماد.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-3">

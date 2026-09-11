@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\V1\BankAccountController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DonorController;
 use App\Http\Controllers\Api\V1\WidowController;
@@ -160,11 +161,10 @@ Route::prefix('v1')->group(function () {
         ->parameters(['enrollments' => 'enrollment']);
 
     // Lookup data endpoints
-    Route::get('bank-accounts', function () {
-        return response()->json([
-            'data' => \App\Models\BankAccount::orderBy('label')->get(),
-        ]);
-    });
+    Route::get('bank-accounts', [BankAccountController::class, 'index']);
+    // The ledger has always been written; this is what reads it back, so a
+    // balance can be traced and checked against the bank's own statement.
+    Route::get('bank-accounts/{bankAccount}/statement', [BankAccountController::class, 'statement']);
 
     Route::get('budgets', function () {
         return response()->json([

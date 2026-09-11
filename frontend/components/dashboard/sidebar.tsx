@@ -27,7 +27,6 @@ import {
   Calculator,
   UserCog,
   Loader2,
-  LayoutDashboard,
 } from "lucide-react"
 import { isCurrentUserAdmin } from "@/lib/roles"
 import { logout } from "@/lib/auth"
@@ -38,13 +37,6 @@ const navigation = [
     name: "الرئيسية",
     href: "/dashboard",
     icon: Home,
-  },
-  // A second take on the main dashboard, kept alongside the first so the two
-  // can be compared side by side before one of them is settled on.
-  {
-    name: "الرئيسية ٢",
-    href: "/dashboard/dashboard2",
-    icon: LayoutDashboard,
   },
   {
     name: "الأرامل",

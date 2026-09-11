@@ -53,6 +53,11 @@ class IncomeController extends Controller
     {
         $income = Income::create([
             ...$request->validated(),
+            // Set here rather than left to the column default, which Eloquent
+            // does not read back - the response was going out with no status
+            // at all, so the client could not tell a new income from an
+            // approved one.
+            'status' => 'Draft',
             'created_by' => auth()->id() ?? 1,
         ]);
 

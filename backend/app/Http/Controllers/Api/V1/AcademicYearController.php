@@ -52,9 +52,21 @@ class AcademicYearController extends Controller
     {
         $result = $this->education->rollover();
 
+        $message = "تم إغلاق السنة الدراسية {$result['closed']} وفتح {$result['opened']}. "
+            . "تمت ترقية {$result['promoted']} تلميذاً وإعادة تسجيل {$result['repeated']}.";
+
+        // The counts alone hide the students the rollover deliberately would
+        // not decide for - which are exactly the ones needing attention now.
+        if ($result['needs_placement'] !== []) {
+            $message .= ' ' . count($result['needs_placement']) . ' تلميذ(ة) أنهى مرحلته ويحتاج إلى توجيه.';
+        }
+
+        if ($result['needs_school'] !== []) {
+            $message .= ' ' . count($result['needs_school']) . ' تلميذ(ة) انتقل إلى سلك جديد ويحتاج إلى تحديد المؤسسة.';
+        }
+
         return response()->json([
-            'message' => "تم إغلاق السنة الدراسية {$result['closed']} وفتح {$result['opened']}. "
-                . "تمت ترقية {$result['promoted']} تلميذاً وإعادة تسجيل {$result['repeated']}.",
+            'message' => $message,
             'data' => $result,
         ]);
     }
