@@ -72,6 +72,25 @@ if errorlevel 1 (
     echo.
 )
 
+REM Sans opcache, PHP relit et recompile environ 500 fichiers a chaque
+REM requete. C'est la difference entre une page qui repond en 50 ms et une
+REM qui met une demi-seconde - de loin le reglage le plus important ici.
+php -r "exit(ini_get('opcache.enable') ? 0 : 1);" >nul 2>&1
+if errorlevel 1 (
+    echo   [!] opcache desactive - l'application sera NETTEMENT plus lente.
+    echo       Dans php.ini, decommentez et reglez :
+    echo         zend_extension=opcache
+    echo         opcache.enable=1
+    echo         opcache.enable_cli=1
+    echo         opcache.memory_consumption=192
+    echo         opcache.max_accelerated_files=20000
+    echo       Puis redemarrez Apache dans XAMPP.
+    echo.
+    echo       Pensez aussi a exclure ce dossier de l'analyse antivirus :
+    echo       Securite Windows ^> Protection contre les virus ^> Exclusions
+    echo.
+)
+
 echo.
 
 REM ---------------------------------------------------------------

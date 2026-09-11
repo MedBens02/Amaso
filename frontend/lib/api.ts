@@ -26,6 +26,59 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Reference data - budgets, categories, partners, fiscal years, education
+ * levels - is read constantly and changes almost never: only when an admin
+ * edits it on the references screen. Every filter panel and every form
+ * dialog was re-fetching it on mount, so opening the expense form and its
+ * filter panel together fired four requests for lists that had not changed
+ * since the page loaded.
+ *
+ * The entry holds the in-flight promise rather than the resolved value, so
+ * callers that mount at the same moment share one request instead of racing
+ * each other to make the same one.
+ */
+const REFERENCE_TTL_MS = 5 * 60 * 1000
+
+const referenceCache = new Map<string, { at: number; promise: Promise<any> }>()
+
+/**
+ * Endpoints that serve reference lists. Matched against the request URL
+ * rather than hooked onto the ApiClient methods, because most of these are
+ * read through a bare fetch() at the call site and never touch the client
+ * at all - caching at the fetch layer is the only place that catches every
+ * caller.
+ */
+const REFERENCE_ENDPOINTS =
+  /\/api\/v1\/(budgets|income-categories|expense-categories|fiscal-years|academic-years|orphans-education-levels|widows-reference-data|references\/[a-z-]+)(\?|$)/
+
+function cachedReferenceFetch(key: string, load: () => Promise<Response>): Promise<Response> {
+  const hit = referenceCache.get(key)
+  const entry =
+    hit && Date.now() - hit.at < REFERENCE_TTL_MS
+      ? hit
+      : (() => {
+          // A rejected promise must not be cached, or one dropped connection
+          // would keep failing for everyone until the TTL expired.
+          const promise = load().catch((error) => {
+            referenceCache.delete(key)
+            throw error
+          })
+          const fresh = { at: Date.now(), promise }
+          referenceCache.set(key, fresh)
+          return fresh
+        })()
+
+  // Every caller gets its own clone: a Response body can only be read once,
+  // so handing out the cached one directly would work exactly twice.
+  return entry.promise.then((response: Response) => response.clone())
+}
+
+/** Drops the cached reference lists; the next read re-fetches them. */
+export function clearReferenceCache(): void {
+  referenceCache.clear()
+}
+
 const TOKEN_STORAGE_KEY = 'amaso_token'
 const USER_STORAGE_KEY = 'user'
 
@@ -58,6 +111,7 @@ class ApiClient {
   /** Clears the token and cached user, in memory and in storage. */
   clearSession() {
     this.token = null
+    clearReferenceCache()
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(TOKEN_STORAGE_KEY)
       window.localStorage.removeItem(USER_STORAGE_KEY)
@@ -545,13 +599,21 @@ class ApiClient {
     return this.request<any>(`/reports/annual${queryString}`)
   }
 
+  /**
+   * Income and expense totals for a window, aggregated by the database,
+   * with breakdowns by budget, category and payment method.
+   *
+   * Prefer this over fetching rows to add up in the browser: the response
+   * is the same size whether it covers ten transactions or ten thousand.
+   */
+  async getFinancialReport(params?: { from?: string; to?: string }) {
+    const queryString = params ? '?' + new URLSearchParams(params).toString() : ''
+    return this.request<any>(`/reports/financial${queryString}`)
+  }
+
   /** Families whose sponsorship falls short of the monthly target. */
   async getSponsorshipGaps() {
     return this.request<any>('/reports/sponsorship-gaps')
-  }
-
-  async getKafils() {
-    return this.request<any[]>('/kafils')
   }
 
   async getBudgets() {
@@ -1120,11 +1182,32 @@ if (typeof window !== 'undefined' && !(window as any).__amasoFetchPatched) {
       init = { ...init, headers }
     }
 
+    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()
+
+    // Serve reference lists from the session cache. These are read on the
+    // mount of nearly every filter panel and form dialog and change only
+    // when an admin edits them, so re-fetching them per mount was paying a
+    // full request - on a machine where a request costs half a second of
+    // framework boot, repeatedly - for a list that had not moved.
+    if (isApiRequest && method === 'GET' && REFERENCE_ENDPOINTS.test(url)) {
+      return cachedReferenceFetch(url, () => originalFetch(input, init))
+    }
+
     const response = await originalFetch(input, init)
 
     if (isApiRequest && response.status === 401 && !url.includes('/auth/login')) {
       api.clearSession()
       window.location.href = '/login'
+    }
+
+    // Any successful write can have changed a cached reference list. The
+    // references screens save through raw fetch() rather than ApiClient, so
+    // this patch is the one place that sees every write however it was made.
+    // Clearing all of them on any write is deliberately blunt: writes are
+    // rare next to reads, and the cost of being wrong here is stale options
+    // in a dropdown, which is worse than one extra request.
+    if (isApiRequest && response.ok && method !== 'GET' && method !== 'HEAD') {
+      clearReferenceCache()
     }
 
     return response
