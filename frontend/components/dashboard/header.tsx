@@ -108,7 +108,7 @@ export function Header({ user }: HeaderProps) {
                   router.push("/dashboard/profile")
                 }}
               >
-                <User className="mr-2 h-4 w-4" />
+                <User className="h-4 w-4" />
                 <span>الملف الشخصي</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -128,7 +128,7 @@ export function Header({ user }: HeaderProps) {
                 {signingOut ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <LogOut className="mr-2 h-4 w-4" />
+                  <LogOut className="h-4 w-4" />
                 )}
                 <span>{signingOut ? "جاري تسجيل الخروج..." : "تسجيل الخروج"}</span>
               </DropdownMenuItem>

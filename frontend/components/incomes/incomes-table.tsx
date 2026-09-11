@@ -719,28 +719,28 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
                           onClick={() => handleValidateIncome(income.id)}
                           disabled={income.status === "Approved"}
                         >
-                          <CheckCircle className="mr-2 h-4 w-4" />
+                          <CheckCircle className="h-4 w-4" />
                           تأكيد
                         </DropdownMenuItem>
                         {needsTransfer(income) && (
                           <DropdownMenuItem onClick={() => handleTransferIncome(income.id)}>
-                            <ArrowRightLeft className="mr-2 h-4 w-4" />
+                            <ArrowRightLeft className="h-4 w-4" />
                             تحويل للبنك
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem onClick={() => handleDuplicateIncome(income)}>
-                          <Copy className="mr-2 h-4 w-4" />
+                          <Copy className="h-4 w-4" />
                           نسخ
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleViewIncome(income)}>
-                          <Eye className="mr-2 h-4 w-4" />
+                          <Eye className="h-4 w-4" />
                           عرض التفاصيل
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                           disabled={income.status === "Approved"}
                           onClick={() => handleEditIncome(income)}
                         >
-                          <Edit className="mr-2 h-4 w-4" />
+                          <Edit className="h-4 w-4" />
                           تعديل
                         </DropdownMenuItem>
                         <DropdownMenuItem 
@@ -748,7 +748,7 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
                           disabled={income.status === "Approved"}
                           onClick={() => handleDeleteIncome(income.id)}
                         >
-                          <Trash2 className="mr-2 h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                           حذف
                         </DropdownMenuItem>
                       </DropdownMenuContent>

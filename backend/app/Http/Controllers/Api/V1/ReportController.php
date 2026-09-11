@@ -40,6 +40,7 @@ class ReportController extends Controller
             'from.date' => 'تاريخ البداية غير صحيح',
             'to.date' => 'تاريخ النهاية غير صحيح',
             'to.after_or_equal' => 'تاريخ النهاية يجب أن يكون بعد تاريخ البداية',
+            'admission_to.after_or_equal' => 'تاريخ نهاية الانتساب يجب أن يكون بعد تاريخ البداية',
         ]);
 
         [$from, $to] = $this->resolvePeriod($validated);
@@ -610,11 +611,24 @@ class ReportController extends Controller
             'fiscal_year_id' => ['nullable', 'integer', 'exists:fiscal_years,id'],
             'neighborhood' => ['nullable', 'string', 'max:120'],
             'disability_flag' => ['nullable', 'boolean'],
+            // The widows report's own selectors. They were being sent by the
+            // dialog and silently ignored here, which is why filtering it
+            // appeared to do nothing.
+            'education_level' => ['nullable', 'string', 'max:120'],
+            'has_kafil' => ['nullable', 'boolean'],
+            'min_age' => ['nullable', 'integer', 'min:0', 'max:120'],
+            // gte, so an inverted range is refused rather than quietly
+            // returning nothing and looking like there is no such family.
+            'max_age' => ['nullable', 'integer', 'min:0', 'max:120', 'gte:min_age'],
+            'admission_from' => ['nullable', 'date'],
+            'admission_to' => ['nullable', 'date', 'after_or_equal:admission_from'],
             'target' => ['nullable', 'numeric', 'min:0'],
             'status' => ['nullable', 'in:Draft,Approved,Rejected'],
             'budget_id' => ['nullable', 'integer', 'exists:budgets,id'],
         ], [
             'to.after_or_equal' => 'تاريخ النهاية يجب أن يكون بعد تاريخ البداية',
+            'admission_to.after_or_equal' => 'تاريخ نهاية الانتساب يجب أن يكون بعد تاريخ البداية',
+            'max_age.gte' => 'أكبر عمر يجب أن يكون أكبر من أصغر عمر أو مساوياً له',
         ]);
     }
 

@@ -4,7 +4,8 @@ import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Edit, Trash2, Phone, Mail, Loader2, Users, ChevronUp, ChevronDown, ChevronsUpDown, Printer, Archive, ArchiveRestore, FileText } from "lucide-react"
+import { Eye, Edit, Phone, Loader2, Users, ChevronUp, ChevronDown, ChevronsUpDown, Printer, Archive, ArchiveRestore, FileText } from "lucide-react"
+import { RowActions } from "@/components/ui/row-actions"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
 import { ViewWidowDialog } from "./view-widow-dialog"
@@ -300,23 +301,13 @@ export function WidowsTable({
                   {getSortIcon('education_level')}
                 </Button>
               </TableHead>
-              <TableHead className="text-right">
-                <Button
-                  variant="ghost"
-                  onClick={() => handleSort('disability_flag')}
-                  className="h-auto p-0 font-medium hover:bg-transparent"
-                >
-                  <span className="ml-2">الإعاقة</span>
-                  {getSortIcon('disability_flag')}
-                </Button>
-              </TableHead>
-              <TableHead className="text-center w-[180px] min-w-[180px]">الإجراءات</TableHead>
+              <TableHead className="w-[70px] text-center">الإجراءات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {widows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
+                <TableCell colSpan={7} className="text-center py-8">
                   <div className="text-muted-foreground">
                     لا توجد بيانات أرامل
                     {searchTerm && (
@@ -329,7 +320,21 @@ export function WidowsTable({
               </TableRow>
             ) : (
               widows.map((widow) => (
-                <TableRow key={widow.id}>
+                // Opening a family is what this table is mostly for, so the
+                // row does it. The actions menu stops its own clicks.
+                <TableRow
+                  key={widow.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleView(widow)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault()
+                      handleView(widow)
+                    }
+                  }}
+                  className="cursor-pointer"
+                >
                   <TableCell className="font-medium text-right">
                     {widow.full_name}
                     <br />
@@ -364,77 +369,28 @@ export function WidowsTable({
                       <span className="text-muted-foreground">غير محدد</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
-                    {widow.disability_flag ? (
-                      <Badge variant="destructive">
-                        {widow.disability_type || "إعاقة"}
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">لا توجد</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center w-[180px] min-w-[180px]">
-                    <div className="flex items-center justify-center gap-1 px-1 whitespace-nowrap">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="h-7 w-7 p-0 flex-shrink-0" 
-                        onClick={() => handleView(widow)}
-                        title="عرض التفاصيل"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
-                      {!archived && (
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="h-7 w-7 p-0 flex-shrink-0" 
-                          onClick={() => handleEdit(widow)}
-                          title="تحرير البيانات"
-                        >
-                          <Edit className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="h-7 w-7 p-0 flex-shrink-0 hover:bg-blue-50 hover:text-blue-600"
-                        onClick={() => handlePrint(widow)}
-                        title="طباعة بطاقة الأرملة"
-                      >
-                        <Printer className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 w-7 p-0 flex-shrink-0 hover:bg-teal-50 hover:text-teal-700"
-                        onClick={() => handleFamilyReport(widow)}
-                        title="التقرير المالي للأسرة"
-                      >
-                        <FileText className="h-3.5 w-3.5" />
-                      </Button>
-                      {archived ? (
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="h-7 w-7 p-0 flex-shrink-0 hover:bg-green-50 hover:text-green-600"
-                          onClick={() => handleRestore(widow.id, widow.full_name)}
-                          title="استعادة الملف"
-                        >
-                          <ArchiveRestore className="h-3.5 w-3.5" />
-                        </Button>
-                      ) : (
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="h-7 w-7 p-0 flex-shrink-0 hover:bg-destructive hover:text-destructive-foreground"
-                          onClick={() => setArchiveTarget({ id: widow.id, name: widow.full_name })}
-                          title="أرشفة الملف (بدل الحذف)"
-                        >
-                          <Archive className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </div>
+                  <TableCell className="w-[70px] text-center">
+                    <RowActions
+                      actions={[
+                        { label: "عرض التفاصيل", icon: Eye, onSelect: () => handleView(widow) },
+                        { label: "تحرير البيانات", icon: Edit, onSelect: () => handleEdit(widow), hidden: archived },
+                        { label: "طباعة بطاقة الأرملة", icon: Printer, onSelect: () => handlePrint(widow) },
+                        { label: "التقرير المالي للأسرة", icon: FileText, onSelect: () => handleFamilyReport(widow) },
+                        {
+                          label: "استعادة الملف",
+                          icon: ArchiveRestore,
+                          onSelect: () => handleRestore(widow.id, widow.full_name),
+                          hidden: !archived,
+                        },
+                        {
+                          label: "أرشفة الملف",
+                          icon: Archive,
+                          onSelect: () => setArchiveTarget({ id: widow.id, name: widow.full_name }),
+                          hidden: archived,
+                          destructive: true,
+                        },
+                      ]}
+                    />
                   </TableCell>
                 </TableRow>
               ))

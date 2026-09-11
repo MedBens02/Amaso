@@ -28,9 +28,26 @@ class ReportAggregateService
     /** Families and children: headcount, coverage and composition. */
     public function widows(array $filters = []): array
     {
+        // Age is stored as a birth date, so an age *range* inverts into a date
+        // range: "at least 30" means born on or before today minus 30 years.
+        $bornOnOrBefore = isset($filters['min_age'])
+            ? now()->subYears((int) $filters['min_age'])->endOfDay()
+            : null;
+        $bornAfter = isset($filters['max_age'])
+            ? now()->subYears((int) $filters['max_age'] + 1)->endOfDay()
+            : null;
+
         $widows = Widow::query()
             ->when(!empty($filters['neighborhood']), fn ($q) => $q->where('neighborhood', $filters['neighborhood']))
-            ->when(isset($filters['disability_flag']), fn ($q) => $q->where('disability_flag', (bool) $filters['disability_flag']));
+            ->when(isset($filters['disability_flag']), fn ($q) => $q->where('disability_flag', (bool) $filters['disability_flag']))
+            ->when(!empty($filters['education_level']), fn ($q) => $q->where('education_level', $filters['education_level']))
+            ->when($bornOnOrBefore, fn ($q) => $q->whereDate('birth_date', '<=', $bornOnOrBefore))
+            ->when($bornAfter, fn ($q) => $q->whereDate('birth_date', '>', $bornAfter))
+            ->when(!empty($filters['admission_from']), fn ($q) => $q->whereDate('admission_date', '>=', $filters['admission_from']))
+            ->when(!empty($filters['admission_to']), fn ($q) => $q->whereDate('admission_date', '<=', $filters['admission_to']))
+            ->when(isset($filters['has_kafil']), fn ($q) => $filters['has_kafil']
+                ? $q->whereHas('sponsorships')
+                : $q->whereDoesntHave('sponsorships'));
 
         $totalWidows = (clone $widows)->count();
         $widowIds = (clone $widows)->pluck('id');

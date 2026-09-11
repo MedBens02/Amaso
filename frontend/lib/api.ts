@@ -642,6 +642,24 @@ class ApiClient {
     return this.request<any>(`/reports/financial${queryString}`)
   }
 
+  /**
+   * The widows-and-orphans report, aggregated by the database.
+   *
+   * The same call the PDF and the spreadsheet are built from - which is the
+   * point. The dialog used to fetch a thousand widow rows and add them up in
+   * the browser while the exports used this, so the totals on screen and the
+   * totals in the file could disagree, and neither honoured most of the
+   * filters the dialog was offering.
+   */
+  async getWidowsReport(filters?: Record<string, any>) {
+    const params = new URLSearchParams()
+    Object.entries(filters || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') params.set(key, String(value))
+    })
+    const query = params.toString()
+    return this.request<any>(`/reports/widows${query ? `?${query}` : ''}`)
+  }
+
   /** Families whose sponsorship falls short of the monthly target. */
   async getSponsorshipGaps() {
     return this.request<any>('/reports/sponsorship-gaps')

@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Eye, Edit, Trash2, ArrowRight, CheckCircle, Clock } from "lucide-react"
+import { RowActions } from "@/components/ui/row-actions"
 import { format } from "date-fns"
 import { ar } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
@@ -227,7 +228,7 @@ export function TransfersTable({ filters, onBalanceUpdate }: TransfersTableProps
               <TableHead className="text-right">المبلغ</TableHead>
               <TableHead className="text-right">الحالة</TableHead>
               <TableHead className="text-right">ملاحظات</TableHead>
-              <TableHead className="text-center">الإجراءات</TableHead>
+              <TableHead className="w-[110px] text-center">الإجراءات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -265,47 +266,34 @@ export function TransfersTable({ filters, onBalanceUpdate }: TransfersTableProps
                   <TableCell className="text-sm text-muted-foreground text-right max-w-48 truncate">
                     {transfer.remarks || '-'}
                   </TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex gap-2 justify-center">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        title="عرض التفاصيل"
-                        onClick={() => handleViewClick(transfer)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {transfer.status === 'Draft' && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          title="اعتماد التحويل"
-                          onClick={() => handleApproveClick(transfer)}
-                          className="text-green-600 hover:text-green-700"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        title="تعديل" 
-                        disabled={transfer.status === 'Approved'}
-                        onClick={() => handleEditClick(transfer)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        title="حذف"
-                        className="text-red-600"
-                        disabled={transfer.status === 'Approved'}
-                        onClick={() => handleDeleteTransfer(transfer.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                  <TableCell className="w-[110px] text-center">
+                    <RowActions
+                      actions={[
+                        // Approving is the one thing a draft is waiting for,
+                        // so it keeps a button of its own while it applies.
+                        {
+                          label: "اعتماد التحويل",
+                          icon: CheckCircle,
+                          onSelect: () => handleApproveClick(transfer),
+                          hidden: transfer.status !== 'Draft',
+                          primary: true,
+                        },
+                        { label: "عرض التفاصيل", icon: Eye, onSelect: () => handleViewClick(transfer) },
+                        {
+                          label: "تعديل",
+                          icon: Edit,
+                          onSelect: () => handleEditClick(transfer),
+                          disabled: transfer.status === 'Approved',
+                        },
+                        {
+                          label: "حذف",
+                          icon: Trash2,
+                          onSelect: () => handleDeleteTransfer(transfer.id),
+                          disabled: transfer.status === 'Approved',
+                          destructive: true,
+                        },
+                      ]}
+                    />
                   </TableCell>
                 </TableRow>
               ))

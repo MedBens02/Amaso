@@ -202,6 +202,15 @@ class WidowController extends Controller
                 'income_categories' => \App\Models\WidowIncomeCategory::all(['id', 'name']),
                 'expense_categories' => \App\Models\WidowExpenseCategory::all(['id', 'name']),
                 'partners' => \App\Models\Partner::with(['field', 'subfield'])->get(['id', 'name', 'field_id', 'subfield_id']),
+                // Drawn from the families themselves rather than a fixed list:
+                // both columns are free text, so the only values worth
+                // offering as a filter are the ones that will match something.
+                'neighborhoods' => Widow::query()
+                    ->whereNotNull('neighborhood')->where('neighborhood', '!=', '')
+                    ->distinct()->orderBy('neighborhood')->pluck('neighborhood'),
+                'education_levels' => Widow::query()
+                    ->whereNotNull('education_level')->where('education_level', '!=', '')
+                    ->distinct()->orderBy('education_level')->pluck('education_level'),
             ],
         ]);
     }
