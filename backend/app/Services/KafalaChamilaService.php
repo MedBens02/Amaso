@@ -8,6 +8,7 @@ use App\Models\KafalaChamilaSplit;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Collection as BaseCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * A "kafala chamila" (comprehensive sponsorship) payment is recorded as one
@@ -23,6 +24,11 @@ class KafalaChamilaService
     {
         return DB::transaction(function () use ($shared, $splits) {
             $rules = KafalaChamilaSplit::whereIn('id', array_column($splits, 'split_id'))->get()->keyBy('id');
+
+            // One payment, however many budget lines it lands in. The list
+            // screen groups on this; without it seven rows of one sponsorship
+            // are indistinguishable from seven unrelated donations.
+            $batchId = (string) Str::ulid();
 
             $created = new Collection();
 
@@ -40,6 +46,7 @@ class KafalaChamilaService
                     'budget_id' => $rule->budget_id,
                     'income_category_id' => $rule->income_category_id,
                     'amount' => $amount,
+                    'kafala_batch_id' => $batchId,
                     'status' => 'Draft',
                     'created_by' => auth()->id() ?? 1,
                 ]));

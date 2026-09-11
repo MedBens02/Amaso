@@ -344,11 +344,13 @@ class ApiClient {
     search?: string
     per_page?: number
     page?: number
+    is_kafil?: boolean
   }) {
     const searchParams = new URLSearchParams()
     if (params?.search) searchParams.set('search', params.search)
     if (params?.per_page) searchParams.set('per_page', params.per_page.toString())
     if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.is_kafil !== undefined) searchParams.set('is_kafil', params.is_kafil ? '1' : '0')
     
     const query = searchParams.toString()
     return this.request<any[]>(`/donors${query ? `?${query}` : ''}`)
