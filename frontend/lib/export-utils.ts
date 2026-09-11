@@ -321,6 +321,9 @@ export const maritalStatusArabic: Record<string, string> = {
   'Widowed': 'أرملة',
   'Divorced': 'مطلقة',
   'Single': 'عازبة',
+  // In the column's enum but not offered by the forms, so it only turns up on
+  // rows edited outside the app.
+  'Remarried': 'متزوجة مرة أخرى',
   // Legacy rows imported before the values were normalised.
   'Widow': 'أرملة',
   'Married': 'متزوجة'

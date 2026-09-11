@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Cairo } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { DirectionProvider } from "@/components/direction-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { RadixPointerEventsGuard } from "@/components/radix-pointer-events-guard"
 // Side-effect only: installs the fetch() auth patch (see lib/api.ts) before
@@ -35,11 +36,13 @@ export default function RootLayout({
           disableTransitionOnChange
           storageKey="amaso-theme"
         >
-          {children}
-          {/* Global toast outlet - without it every toast() in the app is invisible */}
-          <Toaster />
-          {/* Releases the body pointer-events lock Radix can leave behind */}
-          <RadixPointerEventsGuard />
+          <DirectionProvider>
+            {children}
+            {/* Global toast outlet - without it every toast() in the app is invisible */}
+            <Toaster />
+            {/* Releases the body pointer-events lock Radix can leave behind */}
+            <RadixPointerEventsGuard />
+          </DirectionProvider>
         </ThemeProvider>
       </body>
     </html>

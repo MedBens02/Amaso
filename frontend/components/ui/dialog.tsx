@@ -59,7 +59,14 @@ const DialogHeader = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col space-y-1.5 text-center sm:text-left",
+      // text-start, not text-left: the stock shadcn header aligns to the
+      // physical left, which in an Arabic app drops the description on the
+      // opposite side of the screen from the title it belongs to.
+      //
+      // pr-12 clears the close button, which is pinned to the physical right
+      // whatever the direction - without it every RTL dialog title runs under
+      // the X.
+      "flex flex-col space-y-1.5 pr-12 text-center sm:text-start",
       className
     )}
     {...props}
