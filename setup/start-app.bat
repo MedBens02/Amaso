@@ -67,7 +67,7 @@ echo [1/2] Demarrage du backend Laravel...
 start "Amaso Backend" /min /d "%BACKEND%" cmd /c "php artisan serve --host=127.0.0.1 --port=8000"
 
 echo [2/2] Demarrage du frontend Next.js...
-start "Amaso Frontend" /min /d "%FRONTEND%" cmd /c "npm run dev"
+start "Amaso Frontend" /min /d "%FRONTEND%" cmd /c "npm run start"
 echo.
 
 REM ---------------------------------------------------------------
