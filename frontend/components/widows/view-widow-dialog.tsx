@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator"
 import { 
   Phone, Mail, MapPin, Users, Heart, GraduationCap, Calendar, IdCard, 
   Home, DollarSign, HandHeart, Briefcase, Activity, FileText,
-  Star, Building2, Droplets, Zap, Sofa, ShoppingCart, TrendingUp, TrendingDown, Printer
+  Star, Building2, Droplets, Zap, Sofa, ShoppingCart, TrendingUp, TrendingDown, Printer, Archive
 } from "lucide-react"
 import { PrintWidowPDF } from "./print-widow-pdf"
 import { KafalaFamilyBalance } from "./kafala-family-balance"
@@ -29,6 +29,10 @@ interface Widow {
   birth_date: string
   age: number
   marital_status: string
+  // Set when the family leaves the association (see the archive flow).
+  leaving_date?: string | null
+  leaving_reason?: string | null
+  leaving_details?: string | null
   education_level?: string
   disability_flag: boolean
   disability_type?: string
@@ -205,6 +209,12 @@ function Ltr({ value, className }: { value?: string | null; className?: string }
   )
 }
 
+/** The archive dialog stores an English key; the card reads Arabic. */
+const LEAVING_REASON_LABELS: Record<string, string> = {
+  graduated: "تخرج — أنهى الأبناء دراستهم",
+  removed: "إزالة — مغادرة أو انقطاع",
+}
+
 /** Amounts arrive from the API as decimal strings, so `+` concatenates. */
 function toAmount(value: unknown): number {
   const parsed = typeof value === "number" ? value : Number.parseFloat(String(value ?? ""))
@@ -263,6 +273,33 @@ export function ViewWidowDialog({ widow, open, onOpenChange }: ViewWidowDialogPr
           </DialogTitle>
         </DialogHeader>
         
+        {/* An archived family is read *because* it is archived, so why and
+            when comes before the tabs rather than inside one of them. The
+            note is shown whole here: the archived list can only truncate it. */}
+        {(widow.leaving_date || widow.leaving_reason || widow.leaving_details) && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/40">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-medium text-amber-900 dark:text-amber-300">
+              <span className="flex items-center gap-1.5">
+                <Archive className="h-4 w-4 shrink-0" />
+                ملف مؤرشف
+              </span>
+              {widow.leaving_reason && (
+                <span>
+                  السبب: {LEAVING_REASON_LABELS[widow.leaving_reason] ?? widow.leaving_reason}
+                </span>
+              )}
+              {widow.leaving_date && (
+                <span className="flex items-center gap-1.5">
+                  تاريخ المغادرة: <DateText value={widow.leaving_date} />
+                </span>
+              )}
+            </div>
+            {widow.leaving_details && (
+              <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{widow.leaving_details}</p>
+            )}
+          </div>
+        )}
+
         <Tabs defaultValue="personal" className="w-full h-full">
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="personal">المعلومات الشخصية</TabsTrigger>

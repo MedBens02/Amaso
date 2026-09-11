@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
+import { RowActions } from "@/components/ui/row-actions"
 import { Badge } from "@/components/ui/badge"
 import { Eye, Edit, Trash2, Phone, Mail, Loader2 } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -170,7 +171,7 @@ export function DonorsTable({ searchTerm, isKafilFilter, refreshTrigger }: Donor
               <TableHead className="text-right">كفيل</TableHead>
               <TableHead className="text-right">إجمالي التبرعات</TableHead>
               <TableHead className="text-right">التعهد الشهري</TableHead>
-              <TableHead className="text-center">الإجراءات</TableHead>
+              <TableHead className="w-[70px] text-center">الإجراءات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -227,23 +228,19 @@ export function DonorsTable({ searchTerm, isKafilFilter, refreshTrigger }: Donor
                       <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleView(donor)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleEdit(donor)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="h-8 w-8 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                        onClick={() => handleDelete(donor.id, `${donor.first_name} ${donor.last_name}`)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                  <TableCell className="w-[70px] text-center">
+                    <RowActions
+                      actions={[
+                        { label: "عرض التفاصيل", icon: Eye, onSelect: () => handleView(donor) },
+                        { label: "تعديل", icon: Edit, onSelect: () => handleEdit(donor) },
+                        {
+                          label: "حذف",
+                          icon: Trash2,
+                          onSelect: () => handleDelete(donor.id, `${donor.first_name} ${donor.last_name}`),
+                          destructive: true,
+                        },
+                      ]}
+                    />
                   </TableCell>
                 </TableRow>
               ))

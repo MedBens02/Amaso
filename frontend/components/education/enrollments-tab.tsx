@@ -8,8 +8,10 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { GraduationCap, Plus, Loader2, Search, Check, X, DoorOpen, Trash2, Save, Pencil, BookOpen } from "lucide-react"
+import { GraduationCap, Plus, Loader2, Search, Trash2, Save, Pencil, BookOpen } from "lucide-react"
+import { RowActions } from "@/components/ui/row-actions"
 import api from "@/lib/api"
+import { cn } from "@/lib/utils"
 import { EnrollmentDialog, type Phase } from "./enrollment-dialog"
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
@@ -19,8 +21,8 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   left: { label: "غادر", className: "bg-gray-200 text-foreground" },
 }
 
-/** The two ceilings Moroccan institutions mark on. */
-const GRADE_SCALES = [20, 100]
+/** The ceilings Moroccan institutions mark on. */
+const GRADE_SCALES = [10, 20, 100]
 
 type GradeDraft = { s1: string; s2: string; scale: string }
 
@@ -286,20 +288,18 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
                 <TableHead className="text-right">التلميذ</TableHead>
                 <TableHead className="text-right">رمز مسار</TableHead>
                 <TableHead className="text-right">المستوى</TableHead>
-                <TableHead className="text-right">المؤسسة</TableHead>
-                <TableHead className="text-right">التخصص</TableHead>
-                <TableHead className="text-right">الدعم</TableHead>
-                <TableHead className="text-center w-[90px]">الأسدس 1</TableHead>
-                <TableHead className="text-center w-[90px]">الأسدس 2</TableHead>
-                <TableHead className="text-center w-[110px]">المعدل</TableHead>
+                <TableHead className="text-right">المؤسسة والتخصص</TableHead>
+                <TableHead className="w-[76px] text-center">الأسدس 1</TableHead>
+                <TableHead className="w-[76px] text-center">الأسدس 2</TableHead>
+                <TableHead className="w-[96px] text-center">المعدل</TableHead>
                 <TableHead className="text-right">النتيجة</TableHead>
-                <TableHead className="text-center">الإجراءات</TableHead>
+                <TableHead className="w-[60px] text-center">الإجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {enrollments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                     لا توجد تسجيلات لهذه السنة الدراسية.
                   </TableCell>
                 </TableRow>
@@ -312,7 +312,24 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
                   return (
                     <TableRow key={enrollment.id}>
                       <TableCell className="font-medium">
-                        {enrollment.orphan ? `${enrollment.orphan.first_name} ${enrollment.orphan.last_name}` : "—"}
+                        <span className="flex items-center gap-1.5">
+                          {enrollment.orphan ? `${enrollment.orphan.first_name} ${enrollment.orphan.last_name}` : "—"}
+                          {/* A whole column for tutoring cost more width than
+                              the subjects it could actually fit - truncated to
+                              three letters it said nothing. The mark travels
+                              with the student's name instead, and the detail
+                              is on hover; the toolbar filter is unchanged. */}
+                          {enrollment.has_tutoring && (
+                            <span
+                              className="shrink-0 text-teal-600 dark:text-teal-400"
+                              title={["دعم دراسي", enrollment.tutoring_subjects, enrollment.tutoring_provider]
+                                .filter(Boolean)
+                                .join(" — ")}
+                            >
+                              <BookOpen className="h-3.5 w-3.5" aria-label="يتلقى دعماً دراسياً" />
+                            </span>
+                          )}
+                        </span>
                       </TableCell>
                       <TableCell>{enrollment.orphan?.masar_code || "—"}</TableCell>
                       <TableCell>
@@ -330,20 +347,8 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
                             <Badge className="bg-green-600 hover:bg-green-600 text-[10px]">AMASO</Badge>
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell>{enrollment.specialty || "—"}</TableCell>
-                      <TableCell>
-                        {enrollment.has_tutoring ? (
-                          <Badge
-                            variant="secondary"
-                            className="gap-1"
-                            title={[enrollment.tutoring_subjects, enrollment.tutoring_provider].filter(Boolean).join(" — ") || undefined}
-                          >
-                            <BookOpen className="h-3 w-3" />
-                            {enrollment.tutoring_subjects || "دعم"}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
+                        {enrollment.specialty && (
+                          <div className="text-xs text-muted-foreground">{enrollment.specialty}</div>
                         )}
                       </TableCell>
                       <TableCell className="text-center">
@@ -397,26 +402,35 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={status.className + " hover:" + status.className}>{status.label}</Badge>
+                        {/* Marking a result was three unlabelled icons in the
+                            actions strip, a third of the table's width away
+                            from the badge showing what the result currently
+                            was. It is one control now, where the answer is. */}
+                        <Select value={enrollment.status} onValueChange={(value) => setStatus(enrollment, value)}>
+                          <SelectTrigger className={cn("h-7 w-[92px] border-0 px-2 text-xs font-medium", status.className)}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(STATUS_LABELS).map(([value, item]) => (
+                              <SelectItem key={value} value={value} className="text-xs">
+                                {item.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => openEdit(enrollment)} title="تعديل التسجيل">
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-7 w-7 p-0 hover:bg-green-50 hover:text-green-600" onClick={() => setStatus(enrollment, "passed")} title="ناجح">
-                            <Check className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600" onClick={() => setStatus(enrollment, "failed")} title="راسب">
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setStatus(enrollment, "left")} title="غادر">
-                            <DoorOpen className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-7 w-7 p-0 hover:bg-destructive hover:text-destructive-foreground" onClick={() => handleDelete(enrollment)} title="حذف التسجيل">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
+                      <TableCell className="w-[60px] text-center">
+                        <RowActions
+                          actions={[
+                            { label: "تعديل التسجيل", icon: Pencil, onSelect: () => openEdit(enrollment) },
+                            {
+                              label: "حذف التسجيل",
+                              icon: Trash2,
+                              onSelect: () => handleDelete(enrollment),
+                              destructive: true,
+                            },
+                          ]}
+                        />
                       </TableCell>
                     </TableRow>
                   )

@@ -172,11 +172,11 @@ export function BeneficiaryGroupsTable({ searchTerm, onViewGroup, onEditGroup }:
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => onViewGroup(group)}>
-                          <Eye className="mr-2 h-4 w-4" />
+                          <Eye className="h-4 w-4" />
                           عرض التفاصيل
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onEditGroup(group)}>
-                          <Edit className="mr-2 h-4 w-4" />
+                          <Edit className="h-4 w-4" />
                           تعديل المجموعة
                         </DropdownMenuItem>
                         <DropdownMenuItem 
@@ -186,7 +186,7 @@ export function BeneficiaryGroupsTable({ searchTerm, onViewGroup, onEditGroup }:
                             setShowDeleteDialog(true)
                           }}
                         >
-                          <Trash2 className="mr-2 h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                           حذف
                         </DropdownMenuItem>
                       </DropdownMenuContent>

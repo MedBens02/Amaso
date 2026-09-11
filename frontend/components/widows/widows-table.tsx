@@ -4,13 +4,25 @@ import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Edit, Trash2, Phone, Mail, Loader2, Users, ChevronUp, ChevronDown, ChevronsUpDown, Printer, Archive, ArchiveRestore, FileText } from "lucide-react"
+import { Eye, Edit, Phone, Loader2, Users, ChevronUp, ChevronDown, ChevronsUpDown, Printer, Archive, ArchiveRestore, FileText } from "lucide-react"
+import { RowActions } from "@/components/ui/row-actions"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
 import { ViewWidowDialog } from "./view-widow-dialog"
 import { EditWidowDialog } from "./edit-widow-dialog"
 import { WidowCardPrintDialog } from "./print-widow-pdf"
 import { ArchiveWidowDialog } from "./archive-widow-dialog"
+
+/**
+ * The two reasons the archive dialog offers, in the words it offers them.
+ * Stored as the English key, so the archived list has to translate it back -
+ * it was showing nothing at all, which made "why did this family leave"
+ * unanswerable without opening the record in the database.
+ */
+const LEAVING_REASONS: Record<string, { label: string; variant: "secondary" | "outline" }> = {
+  graduated: { label: "تخرج", variant: "secondary" },
+  removed: { label: "إزالة", variant: "outline" },
+}
 
 interface Widow {
   id: number
@@ -29,6 +41,9 @@ interface Widow {
   education_level?: string
   disability_flag: boolean
   disability_type?: string
+  leaving_date?: string | null
+  leaving_reason?: string | null
+  leaving_details?: string | null
   created_at: string
   updated_at: string
   orphans?: Array<{
@@ -66,6 +81,43 @@ interface WidowsTableProps {
   archived?: boolean
 }
 
+
+/**
+ * Why a family left, in the width of a table cell.
+ *
+ * The date and reason fit; the free-text note rarely does, so it is shown
+ * truncated with the whole of it on hover - and in full on the family's card,
+ * which is where somebody reading an archived file ends up anyway.
+ */
+function LeavingCell({ widow }: { widow: Widow }) {
+  const reason = widow.leaving_reason ? LEAVING_REASONS[widow.leaving_reason] : undefined
+
+  if (!widow.leaving_date && !reason && !widow.leaving_details) {
+    return <span className="text-muted-foreground">غير مسجل</span>
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        {reason ? (
+          <Badge variant={reason.variant}>{reason.label}</Badge>
+        ) : widow.leaving_reason ? (
+          <Badge variant="outline">{widow.leaving_reason}</Badge>
+        ) : null}
+        {widow.leaving_date && (
+          <span dir="ltr" className="inline-block text-xs tabular-nums text-muted-foreground">
+            {widow.leaving_date.split("-").reverse().join("/")}
+          </span>
+        )}
+      </div>
+      {widow.leaving_details && (
+        <p className="max-w-[220px] truncate text-xs text-muted-foreground" title={widow.leaving_details}>
+          {widow.leaving_details}
+        </p>
+      )}
+    </div>
+  )
+}
 
 export function WidowsTable({ 
   searchTerm, 
@@ -290,33 +342,29 @@ export function WidowsTable({
               </TableHead>
               <TableHead className="text-right">عدد الأيتام</TableHead>
               <TableHead className="text-right">الهاتف</TableHead>
-              <TableHead className="text-right">
-                <Button
-                  variant="ghost"
-                  onClick={() => handleSort('education_level')}
-                  className="h-auto p-0 font-medium hover:bg-transparent"
-                >
-                  <span className="ml-2">الحالة التعليمية</span>
-                  {getSortIcon('education_level')}
-                </Button>
-              </TableHead>
-              <TableHead className="text-right">
-                <Button
-                  variant="ghost"
-                  onClick={() => handleSort('disability_flag')}
-                  className="h-auto p-0 font-medium hover:bg-transparent"
-                >
-                  <span className="ml-2">الإعاقة</span>
-                  {getSortIcon('disability_flag')}
-                </Button>
-              </TableHead>
-              <TableHead className="text-center w-[180px] min-w-[180px]">الإجراءات</TableHead>
+              {archived ? (
+                // What an archived file is actually consulted for. The
+                // education level is still on the record, and on the card.
+                <TableHead className="text-right">المغادرة</TableHead>
+              ) : (
+                <TableHead className="text-right">
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleSort('education_level')}
+                    className="h-auto p-0 font-medium hover:bg-transparent"
+                  >
+                    <span className="ml-2">الحالة التعليمية</span>
+                    {getSortIcon('education_level')}
+                  </Button>
+                </TableHead>
+              )}
+              <TableHead className="w-[70px] text-center">الإجراءات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {widows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
+                <TableCell colSpan={7} className="text-center py-8">
                   <div className="text-muted-foreground">
                     لا توجد بيانات أرامل
                     {searchTerm && (
@@ -329,7 +377,21 @@ export function WidowsTable({
               </TableRow>
             ) : (
               widows.map((widow) => (
-                <TableRow key={widow.id}>
+                // Opening a family is what this table is mostly for, so the
+                // row does it. The actions menu stops its own clicks.
+                <TableRow
+                  key={widow.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleView(widow)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault()
+                      handleView(widow)
+                    }
+                  }}
+                  className="cursor-pointer"
+                >
                   <TableCell className="font-medium text-right">
                     {widow.full_name}
                     <br />
@@ -358,83 +420,36 @@ export function WidowsTable({
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    {widow.education_level ? (
+                    {archived ? (
+                      <LeavingCell widow={widow} />
+                    ) : widow.education_level ? (
                       <Badge variant="outline">{widow.education_level}</Badge>
                     ) : (
                       <span className="text-muted-foreground">غير محدد</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
-                    {widow.disability_flag ? (
-                      <Badge variant="destructive">
-                        {widow.disability_type || "إعاقة"}
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">لا توجد</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center w-[180px] min-w-[180px]">
-                    <div className="flex items-center justify-center gap-1 px-1 whitespace-nowrap">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="h-7 w-7 p-0 flex-shrink-0" 
-                        onClick={() => handleView(widow)}
-                        title="عرض التفاصيل"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
-                      {!archived && (
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="h-7 w-7 p-0 flex-shrink-0" 
-                          onClick={() => handleEdit(widow)}
-                          title="تحرير البيانات"
-                        >
-                          <Edit className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="h-7 w-7 p-0 flex-shrink-0 hover:bg-blue-50 hover:text-blue-600"
-                        onClick={() => handlePrint(widow)}
-                        title="طباعة بطاقة الأرملة"
-                      >
-                        <Printer className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 w-7 p-0 flex-shrink-0 hover:bg-teal-50 hover:text-teal-700"
-                        onClick={() => handleFamilyReport(widow)}
-                        title="التقرير المالي للأسرة"
-                      >
-                        <FileText className="h-3.5 w-3.5" />
-                      </Button>
-                      {archived ? (
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="h-7 w-7 p-0 flex-shrink-0 hover:bg-green-50 hover:text-green-600"
-                          onClick={() => handleRestore(widow.id, widow.full_name)}
-                          title="استعادة الملف"
-                        >
-                          <ArchiveRestore className="h-3.5 w-3.5" />
-                        </Button>
-                      ) : (
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="h-7 w-7 p-0 flex-shrink-0 hover:bg-destructive hover:text-destructive-foreground"
-                          onClick={() => setArchiveTarget({ id: widow.id, name: widow.full_name })}
-                          title="أرشفة الملف (بدل الحذف)"
-                        >
-                          <Archive className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </div>
+                  <TableCell className="w-[70px] text-center">
+                    <RowActions
+                      actions={[
+                        { label: "عرض التفاصيل", icon: Eye, onSelect: () => handleView(widow) },
+                        { label: "تحرير البيانات", icon: Edit, onSelect: () => handleEdit(widow), hidden: archived },
+                        { label: "طباعة بطاقة الأرملة", icon: Printer, onSelect: () => handlePrint(widow) },
+                        { label: "التقرير المالي للأسرة", icon: FileText, onSelect: () => handleFamilyReport(widow) },
+                        {
+                          label: "استعادة الملف",
+                          icon: ArchiveRestore,
+                          onSelect: () => handleRestore(widow.id, widow.full_name),
+                          hidden: !archived,
+                        },
+                        {
+                          label: "أرشفة الملف",
+                          icon: Archive,
+                          onSelect: () => setArchiveTarget({ id: widow.id, name: widow.full_name }),
+                          hidden: archived,
+                          destructive: true,
+                        },
+                      ]}
+                    />
                   </TableCell>
                 </TableRow>
               ))

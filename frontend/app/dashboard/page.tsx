@@ -205,7 +205,7 @@ export default function DashboardPage() {
                 <Button asChild size="sm" variant="outline">
                   <Link href="/dashboard/incomes">
                     {WHOLE.format(pending.incomes)} إيراد
-                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    <ArrowLeft className="h-4 w-4" />
                   </Link>
                 </Button>
               )}
@@ -213,7 +213,7 @@ export default function DashboardPage() {
                 <Button asChild size="sm" variant="outline">
                   <Link href="/dashboard/expenses">
                     {WHOLE.format(pending.expenses)} مصروف
-                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    <ArrowLeft className="h-4 w-4" />
                   </Link>
                 </Button>
               )}
@@ -468,7 +468,7 @@ export default function DashboardPage() {
                 <Button asChild variant="ghost" size="sm" className="w-full">
                   <Link href="/dashboard/reports">
                     عرض القائمة الكاملة ({WHOLE.format(gaps.totals.families_with_gap)})
-                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    <ArrowLeft className="h-4 w-4" />
                   </Link>
                 </Button>
               </>

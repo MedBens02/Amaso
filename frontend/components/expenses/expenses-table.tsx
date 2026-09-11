@@ -530,22 +530,22 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
                           onClick={() => handleApproveExpense(expense)}
                           disabled={expense.status === "Approved" || approvingId === expense.id}
                         >
-                          <CheckCircle className="mr-2 h-4 w-4" />
+                          <CheckCircle className="h-4 w-4" />
                           تأكيد
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDuplicateExpense(expense)}>
-                          <Copy className="mr-2 h-4 w-4" />
+                          <Copy className="h-4 w-4" />
                           نسخ
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleShowBeneficiaries(expense.id)}>
-                          <Eye className="mr-2 h-4 w-4" />
+                          <Eye className="h-4 w-4" />
                           عرض التفاصيل
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                           onClick={() => handleEditExpense(expense)}
                           disabled={expense.status === "Approved"}
                         >
-                          <Edit className="mr-2 h-4 w-4" />
+                          <Edit className="h-4 w-4" />
                           تعديل
                         </DropdownMenuItem>
                         <DropdownMenuItem 
@@ -556,7 +556,7 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
                           }}
                           disabled={expense.status === "Approved"}
                         >
-                          <Trash2 className="mr-2 h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                           حذف
                         </DropdownMenuItem>
                       </DropdownMenuContent>

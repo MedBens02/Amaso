@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
+import { RowActions } from "@/components/ui/row-actions"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -142,7 +143,7 @@ export function SchoolsTab() {
                 <TableHead className="text-right">القطاع</TableHead>
                 <TableHead className="text-right">شراكة AMASO</TableHead>
                 <TableHead className="text-right">التسجيلات</TableHead>
-                <TableHead className="text-center">الإجراءات</TableHead>
+                <TableHead className="w-[70px] text-center">الإجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -170,15 +171,13 @@ export function SchoolsTab() {
                       )}
                     </TableCell>
                     <TableCell>{school.enrollments_count ?? 0}</TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => openDialog(school)} title="تعديل">
-                          <Edit className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button size="sm" variant="outline" className="h-7 w-7 p-0 hover:bg-destructive hover:text-destructive-foreground" onClick={() => handleDelete(school)} title="حذف">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
+                    <TableCell className="w-[70px] text-center">
+                      <RowActions
+                        actions={[
+                          { label: "تعديل", icon: Edit, onSelect: () => openDialog(school) },
+                          { label: "حذف", icon: Trash2, onSelect: () => handleDelete(school), destructive: true },
+                        ]}
+                      />
                     </TableCell>
                   </TableRow>
                 ))

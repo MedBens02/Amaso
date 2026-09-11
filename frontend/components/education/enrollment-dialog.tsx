@@ -18,7 +18,7 @@ import api from "@/lib/api"
 export type Phase = { value: string; label: string; years: number }
 
 /** The marking ceilings actually used in Morocco; anything else is a typo. */
-const GRADE_SCALES = [20, 100]
+const GRADE_SCALES = [10, 20, 100]
 
 const NONE = "0"
 

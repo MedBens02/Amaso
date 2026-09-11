@@ -171,7 +171,9 @@ export function ReportFilters({
                   type="number"
                   value={values[minField] || ''}
                   onChange={(e) => handleValueChange(minField, e.target.value)}
-                  placeholder="0"
+                  // No "0" placeholder: an empty range means "no limit", and
+                  // a greyed-out zero reads as a value that is already set.
+                  placeholder=""
                 />
               </div>
               <div className="space-y-1">
@@ -180,7 +182,7 @@ export function ReportFilters({
                   type="number"
                   value={values[maxField] || ''}
                   onChange={(e) => handleValueChange(maxField, e.target.value)}
-                  placeholder="0"
+                  placeholder=""
                 />
               </div>
             </div>
