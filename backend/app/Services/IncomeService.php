@@ -6,6 +6,7 @@ use App\Exceptions\BusinessRuleException;
 use App\Models\BankAccount;
 use App\Models\BankAccountTransaction;
 use App\Models\Donor;
+use App\Models\FiscalYear;
 use App\Models\Income;
 use Illuminate\Support\Facades\DB;
 
@@ -33,6 +34,8 @@ class IncomeService
             if ($locked->status === 'Approved') {
                 throw new BusinessRuleException('الإيراد معتمد مسبقاً', 400);
             }
+
+            FiscalYear::assertOpen($locked->fiscal_year_id, 'اعتماد إيراد');
 
             $locked->update([
                 'status' => 'Approved',
@@ -84,6 +87,11 @@ class IncomeService
             if ($locked->transferred_at) {
                 throw new BusinessRuleException('هذا الإيراد محول مسبقاً', 403);
             }
+
+            // A deposit credits a bank account, which is what the carryover is
+            // computed from - so it belongs in an open year like any other
+            // movement.
+            FiscalYear::assertOpen($locked->fiscal_year_id, 'تحويل إيراد إلى البنك');
 
             $bankAccount = BankAccount::whereKey($bankAccountId)->lockForUpdate()->firstOrFail();
 

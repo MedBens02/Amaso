@@ -27,7 +27,9 @@ class StoreIncomeRequest extends FormRequest
             // Family this payment is designated for (intent only - see Income::widow).
             'widow_id' => ['nullable', 'exists:widows,id'],
             'income_date' => ['required', 'date'],
-            'amount' => ['required', 'numeric', 'min:0'],
+            // min:0 let a zero-amount income through: a row in the books,
+            // in every report and every donor total, worth nothing.
+            'amount' => ['required', 'numeric', 'min:0.01'],
             'payment_method' => ['required', 'in:Cash,Cheque,BankWire'],
             'cheque_number' => ['nullable', 'string', 'max:60'],
             'receipt_number' => ['nullable', 'string', 'max:60'],

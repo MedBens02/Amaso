@@ -22,7 +22,9 @@ class StoreTransferRequest extends FormRequest
             'transfer_date' => ['required', 'date'],
             'from_account_id' => ['required', 'exists:bank_accounts,id'],
             'to_account_id' => ['required', 'exists:bank_accounts,id', 'different:from_account_id'],
-            'amount' => ['required', 'numeric', 'min:0'],
+            // A zero transfer moves nothing and writes two ledger rows
+            // saying so.
+            'amount' => ['required', 'numeric', 'min:0.01'],
             'remarks' => ['nullable', 'string', 'max:1000'],
         ];
     }
