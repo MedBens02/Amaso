@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Area, AreaChart } from "recharts"
 import { TrendingUp, TrendingDown, DollarSign } from "lucide-react"
+import api from "@/lib/api"
 
 interface MonthlyData {
   month: string
@@ -22,58 +23,47 @@ export function MonthlyCharts() {
     fetchMonthlyData()
   }, [])
 
+  /**
+   * Six months of totals, in one request.
+   *
+   * This used to ask for every approved income and expense of each month
+   * separately - twelve requests, each capped at a thousand rows - and add
+   * the amounts up in the browser. /reports/annual returns the same monthly
+   * series already totalled by the database, and accepts the window, so the
+   * six months are one call whose cost does not grow with the number of
+   * records behind them.
+   */
   const fetchMonthlyData = async () => {
     try {
       setLoading(true)
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
-      
-      // Get the last 6 months of data
-      const months = []
-      const currentDate = new Date()
-      
-      for (let i = 5; i >= 0; i--) {
-        const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1)
-        const startDate = new Date(date.getFullYear(), date.getMonth(), 1)
-        const endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0)
-        
-        months.push({
-          month: date.toLocaleDateString('ar-MA', { month: 'long', year: 'numeric' }),
-          monthShort: date.toLocaleDateString('ar-MA', { month: 'short' }),
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0],
-        })
-      }
 
-      const monthlyResults = await Promise.all(
-        months.map(async (monthInfo) => {
-          try {
-            const [incomesRes, expensesRes] = await Promise.all([
-              fetch(`${baseUrl}/incomes?per_page=1000&from_date=${monthInfo.startDate}&to_date=${monthInfo.endDate}&status=Approved`).then(r => r.json()),
-              fetch(`${baseUrl}/expenses?per_page=1000&from_date=${monthInfo.startDate}&to_date=${monthInfo.endDate}&status=Approved`).then(r => r.json()),
-            ])
+      const now = new Date()
+      const first = new Date(now.getFullYear(), now.getMonth() - 5, 1)
+      const last = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      const iso = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 
-            const totalIncomes = incomesRes.data?.reduce((sum: number, income: any) => sum + parseFloat(income.amount), 0) || 0
-            const totalExpenses = expensesRes.data?.reduce((sum: number, expense: any) => sum + parseFloat(expense.amount), 0) || 0
+      const response = await api.getAnnualReport({ from: iso(first), to: iso(last) })
+      const series: Array<{ label: string; income: number; expense: number; balance: number }> =
+        response.data?.monthly ?? []
 
-            return {
-              month: monthInfo.month,
-              monthShort: monthInfo.monthShort,
-              incomes: totalIncomes,
-              expenses: totalExpenses,
-              net: totalIncomes - totalExpenses,
-            }
-          } catch (error) {
-            console.error(`Error fetching data for ${monthInfo.month}:`, error)
-            return {
-              month: monthInfo.month,
-              monthShort: monthInfo.monthShort,
-              incomes: 0,
-              expenses: 0,
-              net: 0,
-            }
-          }
-        })
-      )
+      // A month with no movement is absent from the series; the chart still
+      // needs its column, so build the six months and fill from what came back.
+      const byLabel = new Map(series.map((month) => [month.label, month]))
+
+      const monthlyResults = Array.from({ length: 6 }, (_, index) => {
+        const date = new Date(now.getFullYear(), now.getMonth() - 5 + index, 1)
+        const label = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+        const found = byLabel.get(label)
+
+        return {
+          month: date.toLocaleDateString("ar-MA", { month: "long", year: "numeric" }),
+          monthShort: date.toLocaleDateString("ar-MA", { month: "short" }),
+          incomes: found?.income ?? 0,
+          expenses: found?.expense ?? 0,
+          net: found?.balance ?? 0,
+        }
+      })
 
       setMonthlyData(monthlyResults)
     } catch (error) {

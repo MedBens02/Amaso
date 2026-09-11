@@ -7,6 +7,7 @@ import { RecentExpenses } from "@/components/dashboard/recent-expenses"
 import { MonthlyCharts } from "@/components/dashboard/monthly-charts"
 import { QuickActions } from "@/components/dashboard/quick-actions"
 import { Button } from "@/components/ui/button"
+import api from "@/lib/api"
 
 interface DashboardStats {
   widowsCount: number
@@ -38,50 +39,59 @@ export default function DashboardPage() {
     fetchDashboardStats()
   }, [])
 
+  /**
+   * The figures behind the cards.
+   *
+   * This used to make eight requests, four of them asking for up to a
+   * thousand income or expense rows purely so the browser could add the
+   * amounts up - once for this month and once for last month. The totals
+   * come from the database now: /reports/financial returns them for any
+   * window, so two small calls replace the four bulk ones, and the counts
+   * come from the paginator's `meta.total` rather than from any rows.
+   *
+   * Note for anyone tempted to "just lower per_page here": these calls were
+   * never paging through data to display it, they were summing it. Capping
+   * them at twenty rows would not have made the dashboard faster so much as
+   * quietly wrong.
+   */
   const fetchDashboardStats = async () => {
     try {
       setLoading(true)
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
-      
-      // Calculate date ranges
+
       const now = new Date()
-      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-      const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-      const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0) // Last day of previous month
-      
-      // Fetch counts and financial data with parallel requests
-      const [widowsRes, orphansRes, kafilsRes, bankAccountsRes, currentIncomesRes, currentExpensesRes, previousIncomesRes, previousExpensesRes] = await Promise.all([
-        fetch(`${baseUrl}/widows?per_page=1`).then(r => r.json()),
-        fetch(`${baseUrl}/orphans?per_page=1`).then(r => r.json()),
-        fetch(`${baseUrl}/kafils?per_page=1`).then(r => r.json()),
-        fetch(`${baseUrl}/bank-accounts`).then(r => r.json()),
-        // Current month's incomes
-        fetch(`${baseUrl}/incomes?per_page=1000&from_date=${currentMonthStart.toISOString().split('T')[0]}&to_date=${now.toISOString().split('T')[0]}&status=Approved`).then(r => r.json()),
-        // Current month's expenses  
-        fetch(`${baseUrl}/expenses?per_page=1000&from_date=${currentMonthStart.toISOString().split('T')[0]}&to_date=${now.toISOString().split('T')[0]}&status=Approved`).then(r => r.json()),
-        // Previous month's incomes
-        fetch(`${baseUrl}/incomes?per_page=1000&from_date=${previousMonthStart.toISOString().split('T')[0]}&to_date=${previousMonthEnd.toISOString().split('T')[0]}&status=Approved`).then(r => r.json()),
-        // Previous month's expenses
-        fetch(`${baseUrl}/expenses?per_page=1000&from_date=${previousMonthStart.toISOString().split('T')[0]}&to_date=${previousMonthEnd.toISOString().split('T')[0]}&status=Approved`).then(r => r.json()),
+      const iso = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+
+      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
+
+      const [widowsRes, orphansRes, kafilsRes, accountsRes, thisMonth, lastMonth] = await Promise.all([
+        // per_page=1 because only meta.total is wanted - the row itself is
+        // just the smallest payload the paginator will return.
+        api.getWidows({ per_page: 1 }),
+        api.getOrphans({ per_page: 1 }),
+        api.getKafils({ per_page: 1 }),
+        api.getBankAccounts(),
+        api.getFinancialReport({ from: iso(thisMonthStart), to: iso(now) }),
+        api.getFinancialReport({ from: iso(lastMonthStart), to: iso(lastMonthEnd) }),
       ])
 
-      // Calculate totals
-      const currentCashBalance = bankAccountsRes.data?.reduce((sum: number, account: any) => sum + parseFloat(account.balance), 0) || 0
-      const monthlyIncomes = currentIncomesRes.data?.reduce((sum: number, income: any) => sum + parseFloat(income.amount), 0) || 0
-      const monthlyExpenses = currentExpensesRes.data?.reduce((sum: number, expense: any) => sum + parseFloat(expense.amount), 0) || 0
-      const previousMonthIncomes = previousIncomesRes.data?.reduce((sum: number, income: any) => sum + parseFloat(income.amount), 0) || 0
-      const previousMonthExpenses = previousExpensesRes.data?.reduce((sum: number, expense: any) => sum + parseFloat(expense.amount), 0) || 0
+      const currentCashBalance = (accountsRes.data ?? []).reduce(
+        (sum: number, account: any) => sum + parseFloat(account.balance ?? 0),
+        0,
+      )
 
       setDashboardStats({
-        widowsCount: widowsRes.meta?.total || 0,
-        orphansCount: orphansRes.meta?.total || 0,
-        kafilsCount: kafilsRes.meta?.total || 0,
-        monthlyIncomes,
-        monthlyExpenses,
+        widowsCount: (widowsRes as any).meta?.total || 0,
+        orphansCount: (orphansRes as any).meta?.total || 0,
+        kafilsCount: (kafilsRes as any).meta?.total || 0,
+        monthlyIncomes: thisMonth.data?.totals?.income || 0,
+        monthlyExpenses: thisMonth.data?.totals?.expense || 0,
         currentCashBalance,
-        previousMonthIncomes,
-        previousMonthExpenses,
-        previousCashBalance: currentCashBalance, // We'll use current as approximation
+        previousMonthIncomes: lastMonth.data?.totals?.income || 0,
+        previousMonthExpenses: lastMonth.data?.totals?.expense || 0,
+        previousCashBalance: currentCashBalance,
       })
     } catch (error) {
       console.error('Error fetching dashboard stats:', error)

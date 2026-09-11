@@ -37,6 +37,54 @@ renvoie une erreur.
 
 `install.bat` vérifie ce point et vous prévient si l'extension manque.
 
+### Activer opcache — le réglage qui change tout
+
+C'est, de loin, le réglage qui pèse le plus sur la vitesse de l'application.
+
+Sans opcache, PHP relit et recompile **environ 500 fichiers, soit 5,6 Mo de
+code source, à chaque requête**. Le résultat est une demi-seconde perdue
+avant même que la moindre requête SQL ne parte — ce qui explique qu'une page
+qui affiche deux lignes mette autant de temps qu'un rapport annuel complet.
+
+1. Panneau XAMPP → **Config** en face d'Apache → **PHP (php.ini)**
+2. Vérifiez que la ligne `zend_extension=opcache` n'est pas commentée
+3. Réglez :
+
+```ini
+opcache.enable=1
+opcache.enable_cli=1
+opcache.memory_consumption=192
+opcache.max_accelerated_files=20000
+opcache.validate_timestamps=1
+```
+
+4. Enregistrez et **redémarrez Apache**
+
+### Exclure le dossier de l'antivirus
+
+L'analyse en temps réel de Windows inspecte chacune de ces centaines de
+lectures de fichiers. Exclure le projet divise généralement par deux le temps
+restant.
+
+**Sécurité Windows** → *Protection contre les virus et menaces* → *Gérer les
+paramètres* → *Exclusions* → ajouter :
+
+- le dossier du projet (`...\Amaso`)
+- le dossier PHP (`C:\xampp\php`)
+
+### Mesurer
+
+Pour voir où part le temps sur votre machine :
+
+```
+cd backend
+php perf-probe.php
+```
+
+Il sépare le coût du framework de celui des requêtes SQL. Si « framework »
+est bien plus grand que « queries », le problème est opcache ou l'antivirus,
+pas la base de données.
+
 ---
 
 ## 2. Installation
