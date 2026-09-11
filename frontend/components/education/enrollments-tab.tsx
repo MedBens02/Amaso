@@ -6,14 +6,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
-import { GraduationCap, Plus, Loader2, Search, Check, X, DoorOpen, Trash2, Save } from "lucide-react"
+import { GraduationCap, Plus, Loader2, Search, Check, X, DoorOpen, Trash2, Save, Pencil, BookOpen } from "lucide-react"
 import api from "@/lib/api"
+import { EnrollmentDialog, type Phase } from "./enrollment-dialog"
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   enrolled: { label: "مسجل", className: "bg-blue-100 dark:bg-blue-950/50 text-blue-800 dark:text-blue-400" },
@@ -22,34 +19,40 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   left: { label: "غادر", className: "bg-gray-200 text-foreground" },
 }
 
+/** The two ceilings Moroccan institutions mark on. */
+const GRADE_SCALES = [20, 100]
+
+type GradeDraft = { s1: string; s2: string; scale: string }
+
+const draftOf = (row: any): GradeDraft => ({
+  s1: row.first_semester_grade == null ? "" : String(Number(row.first_semester_grade)),
+  s2: row.second_semester_grade == null ? "" : String(Number(row.second_semester_grade)),
+  scale: String(Number(row.grade_scale) || 20),
+})
+
 export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
   const [enrollments, setEnrollments] = useState<any[]>([])
   const [years, setYears] = useState<any[]>([])
   const [schools, setSchools] = useState<any[]>([])
   const [levels, setLevels] = useState<any[]>([])
   const [orphans, setOrphans] = useState<any[]>([])
+  const [phases, setPhases] = useState<Phase[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [yearFilter, setYearFilter] = useState<string>("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [addOpen, setAddOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [tutoringFilter, setTutoringFilter] = useState<string>("all")
+  const [dialogOpen, setDialogOpen] = useState(false)
+  // null in the dialog means "register a student" rather than "edit this one".
+  const [editing, setEditing] = useState<any | null>(null)
   const { toast } = useToast()
 
   // Grades are entered a class at a time from a report-card list, so the
   // marks are edited inline and saved in one request rather than one dialog
-  // per student.
-  const [gradeDrafts, setGradeDrafts] = useState<Record<number, { s1: string; s2: string }>>({})
+  // per student. The scale rides along: a registrar keying in a faculty's
+  // marks out of 20 needs to say so on the same row, not in a second screen.
+  const [gradeDrafts, setGradeDrafts] = useState<Record<number, GradeDraft>>({})
   const [savingGrades, setSavingGrades] = useState(false)
-
-  // add-enrollment form state
-  const [orphanId, setOrphanId] = useState<string>("")
-  const [levelId, setLevelId] = useState<string>("0")
-  const [schoolId, setSchoolId] = useState<string>("0")
-  const [specialty, setSpecialty] = useState("")
-
-  const selectedLevel = levels.find((l) => l.id.toString() === levelId)
-  const isUniversityLevel = selectedLevel?.name_ar?.includes("جامع") || false
 
   const fetchLookups = async () => {
     try {
@@ -84,22 +87,17 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
       const response = await api.getEnrollments({
         academic_year_id: yearFilter ? parseInt(yearFilter) : undefined,
         status: statusFilter !== "all" ? statusFilter : undefined,
+        has_tutoring: tutoringFilter === "all" ? undefined : tutoringFilter === "yes" ? 1 : 0,
         search: search || undefined,
         per_page: 50,
       })
       const rows = response.data || []
       setEnrollments(rows)
-      setGradeDrafts(
-        Object.fromEntries(
-          rows.map((row: any) => [
-            row.id,
-            {
-              s1: row.first_semester_grade == null ? "" : String(Number(row.first_semester_grade)),
-              s2: row.second_semester_grade == null ? "" : String(Number(row.second_semester_grade)),
-            },
-          ]),
-        ),
-      )
+      // The course list travels with the page the screen already asks for,
+      // so it never falls out of step with the server's own vocabulary.
+      const meta = response.meta as any
+      if (meta?.higher_education_phases) setPhases(meta.higher_education_phases)
+      setGradeDrafts(Object.fromEntries(rows.map((row: any) => [row.id, draftOf(row)])))
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message || "فشل في تحميل التسجيلات", variant: "destructive" })
     } finally {
@@ -113,7 +111,7 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
 
   useEffect(() => {
     fetchEnrollments()
-  }, [search, yearFilter, statusFilter, refreshKey])
+  }, [search, yearFilter, statusFilter, tutoringFilter, refreshKey])
 
   const setStatus = async (enrollment: any, status: string) => {
     try {
@@ -134,10 +132,10 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
     }
   }
 
-  const editGrade = (enrollmentId: number, semester: "s1" | "s2", value: string) => {
+  const editDraft = (enrollmentId: number, field: keyof GradeDraft, value: string) => {
     setGradeDrafts((drafts) => ({
       ...drafts,
-      [enrollmentId]: { ...(drafts[enrollmentId] || { s1: "", s2: "" }), [semester]: value },
+      [enrollmentId]: { ...(drafts[enrollmentId] || { s1: "", s2: "", scale: "20" }), [field]: value },
     }))
   }
 
@@ -159,16 +157,14 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
       .filter((enrollment) => {
         const draft = gradeDrafts[enrollment.id]
         if (!draft) return false
-        const original = {
-          s1: enrollment.first_semester_grade == null ? "" : String(Number(enrollment.first_semester_grade)),
-          s2: enrollment.second_semester_grade == null ? "" : String(Number(enrollment.second_semester_grade)),
-        }
-        return draft.s1 !== original.s1 || draft.s2 !== original.s2
+        const original = draftOf(enrollment)
+        return draft.s1 !== original.s1 || draft.s2 !== original.s2 || draft.scale !== original.scale
       })
       .map((enrollment) => ({
         enrollment_id: enrollment.id,
         first_semester_grade: gradeDrafts[enrollment.id].s1 === "" ? null : Number(gradeDrafts[enrollment.id].s1),
         second_semester_grade: gradeDrafts[enrollment.id].s2 === "" ? null : Number(gradeDrafts[enrollment.id].s2),
+        grade_scale: Number(gradeDrafts[enrollment.id].scale) || 20,
       }))
 
   const handleSaveGrades = async () => {
@@ -200,34 +196,17 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
     }
   }
 
-  const handleAdd = async () => {
-    if (!orphanId || !yearFilter) {
-      toast({ title: "خطأ", description: "اختر اليتيم والسنة الدراسية", variant: "destructive" })
-      return
-    }
-
-    setIsSubmitting(true)
-    try {
-      const response = await api.createEnrollment({
-        orphan_id: parseInt(orphanId),
-        academic_year_id: parseInt(yearFilter),
-        education_level_id: levelId !== "0" ? parseInt(levelId) : null,
-        school_id: schoolId !== "0" ? parseInt(schoolId) : null,
-        specialty: isUniversityLevel && specialty ? specialty : null,
-      })
-      toast({ title: "تم التسجيل", description: response.message })
-      setAddOpen(false)
-      setOrphanId("")
-      setLevelId("0")
-      setSchoolId("0")
-      setSpecialty("")
-      fetchEnrollments()
-    } catch (error: any) {
-      toast({ title: "خطأ", description: error.message || "فشل في إضافة التسجيل", variant: "destructive" })
-    } finally {
-      setIsSubmitting(false)
-    }
+  const openAdd = () => {
+    setEditing(null)
+    setDialogOpen(true)
   }
+
+  const openEdit = (enrollment: any) => {
+    setEditing(enrollment)
+    setDialogOpen(true)
+  }
+
+  const tutoringCount = enrollments.filter((e) => e.has_tutoring).length
 
   return (
     <Card>
@@ -236,13 +215,18 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
           <CardTitle className="flex items-center gap-2">
             <GraduationCap className="h-5 w-5" />
             تسجيلات التلاميذ
+            {!loading && enrollments.length > 0 && (
+              <span className="text-sm font-normal text-muted-foreground">
+                ({enrollments.length}{tutoringCount > 0 ? ` — ${tutoringCount} بدعم دراسي` : ""})
+              </span>
+            )}
           </CardTitle>
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={handleSaveGrades} disabled={savingGrades}>
               {savingGrades ? <Loader2 className="h-4 w-4 ml-2 animate-spin" /> : <Save className="h-4 w-4 ml-2" />}
               حفظ النقط
             </Button>
-            <Button size="sm" onClick={() => setAddOpen(true)}>
+            <Button size="sm" onClick={openAdd}>
               <Plus className="h-4 w-4 ml-2" />
               تسجيل تلميذ
             </Button>
@@ -277,6 +261,16 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
               <SelectItem value="left">غادر</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={tutoringFilter} onValueChange={setTutoringFilter}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="الدعم الدراسي" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">الجميع</SelectItem>
+              <SelectItem value="yes">بدعم دراسي</SelectItem>
+              <SelectItem value="no">بدون دعم</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </CardHeader>
       <CardContent>
@@ -294,9 +288,10 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
                 <TableHead className="text-right">المستوى</TableHead>
                 <TableHead className="text-right">المؤسسة</TableHead>
                 <TableHead className="text-right">التخصص</TableHead>
+                <TableHead className="text-right">الدعم</TableHead>
                 <TableHead className="text-center w-[90px]">الأسدس 1</TableHead>
                 <TableHead className="text-center w-[90px]">الأسدس 2</TableHead>
-                <TableHead className="text-center w-[80px]">المعدل</TableHead>
+                <TableHead className="text-center w-[110px]">المعدل</TableHead>
                 <TableHead className="text-right">النتيجة</TableHead>
                 <TableHead className="text-center">الإجراءات</TableHead>
               </TableRow>
@@ -304,7 +299,7 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
             <TableBody>
               {enrollments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
                     لا توجد تسجيلات لهذه السنة الدراسية.
                   </TableCell>
                 </TableRow>
@@ -313,14 +308,21 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
                   const status = STATUS_LABELS[enrollment.status] || STATUS_LABELS.enrolled
                   const draft = gradeDrafts[enrollment.id]
                   const average = draftAverage(enrollment)
-                  const scale = Number(enrollment.grade_scale) || 20
+                  const scale = Number(draft?.scale) || 20
                   return (
                     <TableRow key={enrollment.id}>
                       <TableCell className="font-medium">
                         {enrollment.orphan ? `${enrollment.orphan.first_name} ${enrollment.orphan.last_name}` : "—"}
                       </TableCell>
                       <TableCell>{enrollment.orphan?.masar_code || "—"}</TableCell>
-                      <TableCell>{enrollment.education_level?.name_ar || "—"}</TableCell>
+                      <TableCell>
+                        <div>{enrollment.education_level?.name_ar || "—"}</div>
+                        {/* Which year of which course, for the students the
+                            ladder's single "جامعي" rung cannot describe. */}
+                        {enrollment.higher_education_label && (
+                          <div className="text-xs text-muted-foreground">{enrollment.higher_education_label}</div>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           {enrollment.school?.name || "—"}
@@ -330,6 +332,20 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
                         </div>
                       </TableCell>
                       <TableCell>{enrollment.specialty || "—"}</TableCell>
+                      <TableCell>
+                        {enrollment.has_tutoring ? (
+                          <Badge
+                            variant="secondary"
+                            className="gap-1"
+                            title={[enrollment.tutoring_subjects, enrollment.tutoring_provider].filter(Boolean).join(" — ") || undefined}
+                          >
+                            <BookOpen className="h-3 w-3" />
+                            {enrollment.tutoring_subjects || "دعم"}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-center">
                         <Input
                           type="number"
@@ -337,7 +353,7 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
                           min="0"
                           max={scale}
                           value={draft?.s1 ?? ""}
-                          onChange={(e) => editGrade(enrollment.id, "s1", e.target.value)}
+                          onChange={(e) => editDraft(enrollment.id, "s1", e.target.value)}
                           className="h-8 text-center px-1"
                           placeholder="—"
                         />
@@ -349,26 +365,45 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
                           min="0"
                           max={scale}
                           value={draft?.s2 ?? ""}
-                          onChange={(e) => editGrade(enrollment.id, "s2", e.target.value)}
+                          onChange={(e) => editDraft(enrollment.id, "s2", e.target.value)}
                           className="h-8 text-center px-1"
                           placeholder="—"
                         />
                       </TableCell>
                       <TableCell className="text-center">
-                        {average === null ? (
-                          <span className="text-muted-foreground">—</span>
-                        ) : (
-                          <span className={`font-semibold ${average >= scale / 2 ? "text-green-700 dark:text-green-400" : "text-red-600"}`}>
-                            {average.toFixed(2)}
-                          </span>
-                        )}
-                        <span className="text-[10px] text-muted-foreground block">/{scale}</span>
+                        <div className="flex flex-col items-center gap-1">
+                          {average === null ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            <span className={`font-semibold ${average >= scale / 2 ? "text-green-700 dark:text-green-400" : "text-red-600"}`}>
+                              {average.toFixed(2)}
+                            </span>
+                          )}
+                          {/* The ceiling is a property of the institution's
+                              marking, not of the app - a faculty marking out
+                              of 20 is as common as one marking out of 100. */}
+                          <Select value={draft?.scale ?? "20"} onValueChange={(value) => editDraft(enrollment.id, "scale", value)}>
+                            <SelectTrigger className="h-6 w-[70px] px-2 text-[11px] text-muted-foreground">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {GRADE_SCALES.map((value) => (
+                                <SelectItem key={value} value={String(value)} className="text-xs">
+                                  من {value}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge className={status.className + " hover:" + status.className}>{status.label}</Badge>
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1">
+                          <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => openEdit(enrollment)} title="تعديل التسجيل">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
                           <Button size="sm" variant="outline" className="h-7 w-7 p-0 hover:bg-green-50 hover:text-green-600" onClick={() => setStatus(enrollment, "passed")} title="ناجح">
                             <Check className="h-3.5 w-3.5" />
                           </Button>
@@ -392,87 +427,18 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
         )}
       </CardContent>
 
-      {/* Add enrollment dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="sm:max-w-[520px]">
-          <DialogHeader>
-            <DialogTitle>تسجيل تلميذ في السنة الدراسية</DialogTitle>
-            <DialogDescription>
-              يسجَّل التلميذ في السنة الدراسية المحددة في الفلتر أعلاه
-              ({years.find((y) => y.id.toString() === yearFilter)?.label || "—"})
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>التلميذ *</Label>
-              <Select value={orphanId} onValueChange={setOrphanId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر اليتيم" />
-                </SelectTrigger>
-                <SelectContent>
-                  {orphans.map((orphan) => (
-                    <SelectItem key={orphan.id} value={orphan.id.toString()}>
-                      {orphan.full_name} {orphan.widow_name ? `(${orphan.widow_name})` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>المستوى الدراسي</Label>
-              <Select value={levelId} onValueChange={setLevelId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر المستوى" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">غير محدد</SelectItem>
-                  {levels.map((level) => (
-                    <SelectItem key={level.id} value={level.id.toString()}>
-                      {level.name_ar}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>المؤسسة</Label>
-              <Select value={schoolId} onValueChange={setSchoolId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر المؤسسة" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">غير محددة</SelectItem>
-                  {schools
-                    .filter((s) => (isUniversityLevel ? s.type === "university" : true))
-                    .map((school) => (
-                      <SelectItem key={school.id} value={school.id.toString()}>
-                        {school.name} {school.type === "university" ? "(جامعة)" : ""}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {isUniversityLevel && (
-              <div className="space-y-2">
-                <Label>التخصص الجامعي</Label>
-                <Input value={specialty} onChange={(e) => setSpecialty(e.target.value)} placeholder="مثال: الحقوق، الطب، الإعلاميات..." />
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>إلغاء</Button>
-            <Button type="button" onClick={handleAdd} disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
-              تسجيل
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EnrollmentDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        enrollment={editing}
+        orphans={orphans}
+        years={years}
+        levels={levels}
+        schools={schools}
+        phases={phases}
+        defaultYearId={yearFilter}
+        onSaved={fetchEnrollments}
+      />
     </Card>
   )
 }

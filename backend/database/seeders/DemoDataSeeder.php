@@ -515,6 +515,13 @@ class DemoDataSeeder extends Seeder
                     // first grade so nobody regresses into kindergarten.
                     $yearsBack = $lastYearIndex - $yearOffset;
                     $yearPosition = max(2, $position - $yearsBack);
+
+                    // 14 and 16 are "graduated from secondary" and "graduated
+                    // from university" - endings, not years of study. A seeded
+                    // student sitting on one would be enrolled in a year that
+                    // does not exist, so they are placed at university (15)
+                    // instead, which is where a graduate of 14 actually goes.
+                    $yearPosition = in_array($yearPosition, [14, 16], true) ? 15 : $yearPosition;
                     $levelId = $educationLevelIds[$yearPosition] ?? $orphan->education_level_id;
 
                     $school = $this->schoolForLevel($yearPosition, $index, [
@@ -525,11 +532,29 @@ class DemoDataSeeder extends Seeder
                     ]);
                     $isUniversity = $school->type === School::TYPE_UNIVERSITY;
 
-                    // Faculties mark out of 100 and schools out of 20. Both are
-                    // seeded so the rankings exercise the normalisation that lets
-                    // the two compare - a 78/100 has to place between an 18/20
-                    // and a 14/20, not above both.
-                    $scale = $isUniversity ? 100 : 20;
+                    // Faculties mark out of 100 and schools out of 20 - though
+                    // plenty of Moroccan faculties mark out of 20 too, so some
+                    // of the seeded ones do. Both ceilings appear on purpose:
+                    // the rankings have to exercise the normalisation that lets
+                    // them compare, where a 78/100 places between an 18/20 and
+                    // a 14/20 rather than above both.
+                    $scale = $isUniversity && ($index + $yearOffset) % 2 === 0 ? 100 : 20;
+
+                    // Which year of which course, for the students the level
+                    // ladder's single "جامعي" rung cannot describe on its own.
+                    $courses = ['licence', 'licence', 'licence', 'technician', 'master'];
+                    $course = $isUniversity ? $courses[$index % count($courses)] : null;
+                    // Spread across the course rather than everyone in the same
+                    // year, and never past the course's own length.
+                    $courseYear = $isUniversity
+                        ? 1 + (($index + $yearOffset) % OrphanEnrollment::HIGHER_EDUCATION_PHASES[$course]['years'])
+                        : null;
+
+                    // Tutoring is the help the association pays for on top of
+                    // schooling. Roughly a third of the roll gets it, weighted
+                    // to the exam years where it actually tends to be given.
+                    $examYear = in_array($yearPosition, [10, 13], true);
+                    $hasTutoring = $examYear || $index % 3 === 0;
 
                     // A few of the current year's students are left ungraded,
                     // which is the ordinary mid-year state and the case the
@@ -549,10 +574,19 @@ class DemoDataSeeder extends Seeder
                             'education_level_id' => $levelId,
                             'school_id' => $school->id,
                             'specialty' => $isUniversity ? ['علوم الحياة والأرض', 'الإعلاميات', 'الاقتصاد'][$index % 3] : null,
+                            'higher_education_phase' => $course,
+                            'higher_education_year' => $courseYear,
                             'status' => $isCurrent ? $statuses[$index % count($statuses)] : 'passed',
                             'grade_scale' => $scale,
                             'first_semester_grade' => $graded ? $mark() : null,
                             'second_semester_grade' => $secondSemester ? $mark() : null,
+                            'has_tutoring' => $hasTutoring,
+                            'tutoring_subjects' => $hasTutoring
+                                ? ['الرياضيات', 'الفيزياء والكيمياء', 'اللغة الفرنسية', 'الرياضيات، الفيزياء'][$index % 4]
+                                : null,
+                            'tutoring_provider' => $hasTutoring
+                                ? ['الجمعية', 'أستاذ متطوع', 'مركز الدعم المدرسي'][$index % 3]
+                                : null,
                         ]
                     );
                 }
@@ -565,7 +599,9 @@ class DemoDataSeeder extends Seeder
     /**
      * Which school a student at this level attends. Positions follow the
      * reference ordering: 2-7 are the primary grades, 8-10 lower secondary,
-     * 11-13 upper secondary, and anything past that is higher education.
+     * 11-13 upper secondary, and anything past that is higher education. The
+     * caller has already moved the two graduation markers off the ladder, so
+     * nothing reaching here is an ending rather than a year of study.
      *
      * @param  array<string, array<int, School>>  $schools
      */

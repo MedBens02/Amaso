@@ -12,6 +12,37 @@ interface ApiResponse<T> {
   errors?: Record<string, string[]>
 }
 
+/** The Moroccan higher-education courses an enrollment can sit in. */
+export type HigherEducationPhase =
+  | 'preparatory'
+  | 'technician'
+  | 'licence'
+  | 'master'
+  | 'doctorate'
+  | 'other'
+
+/**
+ * Everything about where a student is studying and what help they get there.
+ *
+ * Shared by create and update so the two cannot drift: the placement is the
+ * same set of facts whether it is being recorded for the first time or
+ * corrected afterwards.
+ */
+export interface EnrollmentInput {
+  education_level_id?: number | null
+  school_id?: number | null
+  specialty?: string | null
+  higher_education_phase?: HigherEducationPhase | null
+  higher_education_year?: number | null
+  has_tutoring?: boolean
+  tutoring_subjects?: string | null
+  tutoring_provider?: string | null
+  notes?: string | null
+  first_semester_grade?: number | null
+  second_semester_grade?: number | null
+  grade_scale?: number | null
+}
+
 export class ApiError extends Error {
   status: number
   errors?: Record<string, string[]>
@@ -826,6 +857,8 @@ class ApiClient {
     academic_year_id?: number
     school_id?: number
     education_level_id?: number
+    school_type?: 'school' | 'university'
+    has_tutoring?: 0 | 1
     status?: string
     search?: string
     page?: number
@@ -839,27 +872,16 @@ class ApiClient {
     return this.request<any[]>(`/enrollments${query ? `?${query}` : ''}`)
   }
 
-  async createEnrollment(data: {
-    orphan_id: number
-    academic_year_id: number
-    education_level_id?: number | null
-    school_id?: number | null
-    specialty?: string | null
-    notes?: string | null
-  }) {
+  async createEnrollment(data: EnrollmentInput & { orphan_id: number; academic_year_id: number }) {
     return this.request<any>('/enrollments', { method: 'POST', body: JSON.stringify(data) })
   }
 
-  async updateEnrollment(id: number, data: {
-    education_level_id?: number | null
-    school_id?: number | null
-    specialty?: string | null
-    status?: string
-    notes?: string | null
-    first_semester_grade?: number | null
-    second_semester_grade?: number | null
-    grade_scale?: number | null
-  }) {
+  /**
+   * Everything about an enrollment is editable after the fact, the academic
+   * year included - a record filed against the wrong year used to be fixable
+   * only by deleting it, which threw away its marks with it.
+   */
+  async updateEnrollment(id: number, data: EnrollmentInput & { academic_year_id?: number; status?: string }) {
     return this.request<any>(`/enrollments/${id}`, { method: 'PUT', body: JSON.stringify(data) })
   }
 
