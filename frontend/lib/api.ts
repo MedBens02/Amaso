@@ -841,6 +841,24 @@ class ApiClient {
     return this.request<any>(`/schools/${id}`, { method: 'DELETE' })
   }
 
+  /**
+   * Every movement on one account, plus whether they add up to its balance.
+   * The ledger has always been written; this is what reads it back.
+   */
+  async getBankAccountStatement(accountId: number, params?: {
+    from?: string
+    to?: string
+    source_type?: string
+    per_page?: number
+  }) {
+    const searchParams = new URLSearchParams()
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') searchParams.set(key, String(value))
+    })
+    const query = searchParams.toString()
+    return this.request<any>(`/bank-accounts/${accountId}/statement${query ? `?${query}` : ''}`)
+  }
+
   async getAcademicYears() {
     return this.request<any[]>('/academic-years')
   }

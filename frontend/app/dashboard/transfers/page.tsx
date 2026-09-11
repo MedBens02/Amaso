@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Search, ArrowLeftRight, Banknote, Filter, Calendar, DollarSign } from "lucide-react"
 import { TransfersTable } from "@/components/transfers/transfers-table"
 import { NewTransferDialog } from "@/components/forms/NewTransferForm"
+import { BankAccountStatement } from "@/components/transfers/bank-account-statement"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
@@ -36,6 +37,8 @@ interface FilterState {
 export default function TransfersPage() {
   const [showNewDialog, setShowNewDialog] = useState(false)
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
+  // null closes the statement dialog; an id opens it on that account.
+  const [statementAccountId, setStatementAccountId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
   const { toast } = useToast()
@@ -149,10 +152,24 @@ export default function TransfersPage() {
         </Button>
       </div>
 
-      {/* Real Account Balances */}
+      {/* Real Account Balances - each one opens its statement, so a balance
+          can be traced to the movements behind it instead of being a number
+          with no story. */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {bankAccounts.map((account, index) => (
-          <Card key={account.id}>
+          <Card
+            key={account.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => setStatementAccountId(account.id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault()
+                setStatementAccountId(account.id)
+              }
+            }}
+            className="cursor-pointer transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium truncate">{account.label}</CardTitle>
               <Banknote className={`h-4 w-4 ${
@@ -169,10 +186,19 @@ export default function TransfersPage() {
               </div>
               <p className="text-xs text-muted-foreground">{account.bank_name}</p>
               <p className="text-xs text-muted-foreground">{account.account_number}</p>
+              <p className="mt-2 text-xs text-primary">عرض كشف الحساب</p>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      <BankAccountStatement
+        accountId={statementAccountId}
+        open={statementAccountId !== null}
+        onOpenChange={(open) => {
+          if (!open) setStatementAccountId(null)
+        }}
+      />
 
       {/* Advanced Filters */}
       <Card>
