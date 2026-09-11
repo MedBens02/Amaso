@@ -33,7 +33,10 @@ const SEMESTER_LABELS: Record<string, string> = {
   average: "معدل السنة",
 }
 
-const pct = (value: number | null) => (value === null || value === undefined ? "—" : `${value.toFixed(1)}%`)
+// Number() first: percentages can arrive from the API as decimal strings,
+// and "12.5".toFixed is not a function.
+const pct = (value: number | string | null) =>
+  value === null || value === undefined || !Number.isFinite(Number(value)) ? "—" : `${Number(value).toFixed(1)}%`
 const mark = (value: number | null, scale: number) =>
   value === null || value === undefined ? "—" : `${Number(value).toFixed(2)} / ${scale}`
 

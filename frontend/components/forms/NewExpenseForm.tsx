@@ -966,7 +966,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                                 className={cn(
                                   "relative p-4 rounded-xl border-2 transition-all duration-200 hover:shadow-md",
                                   isSelected 
-                                    ? "border-blue-400 bg-gradient-to-l from-blue-50 to-blue-100 shadow-lg" 
+                                    ? "border-blue-400 bg-blue-50 shadow-lg dark:border-blue-600 dark:bg-blue-950/40"
                                     : "border-border hover:border-primary/40 bg-card"
                                 )}
                               >
@@ -1046,7 +1046,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
 
                       {/* Selected Beneficiaries Summary */}
                       {beneficiaryFields.length > 0 && (
-                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200 dark:border-blue-900">
+                        <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-6 dark:border-blue-900 dark:bg-blue-950/30">
                           <div className="flex items-center space-x-2 space-x-reverse mb-4">
                             <Users className="h-5 w-5 text-blue-600" />
                             <h4 className="font-semibold text-blue-900 dark:text-blue-400">ملخص المستفيدين المحددين</h4>

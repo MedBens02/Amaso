@@ -1,5 +1,7 @@
 "use client"
 
+import { toNumber } from "@/lib/utils"
+
 import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -640,9 +642,9 @@ export default function AccountingReferencesPage() {
 
   const kafalaChamilaTotals = useMemo(
     () => ({
-      income: kafalaChamilaBalances.reduce((sum, b) => sum + b.total_income, 0),
-      expense: kafalaChamilaBalances.reduce((sum, b) => sum + b.total_expense, 0),
-      remaining: kafalaChamilaBalances.reduce((sum, b) => sum + b.remaining, 0),
+      income: kafalaChamilaBalances.reduce((sum, b) => sum + toNumber(b.total_income), 0),
+      expense: kafalaChamilaBalances.reduce((sum, b) => sum + toNumber(b.total_expense), 0),
+      remaining: kafalaChamilaBalances.reduce((sum, b) => sum + toNumber(b.remaining), 0),
     }),
     [kafalaChamilaBalances],
   )

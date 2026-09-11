@@ -5,6 +5,7 @@ import { ReportDialog, ExportFormat, StatisticItem } from "../report-dialog"
 import { ReportFilters, FilterOption, useReportFilters } from "../report-filters"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
+import { toNumber } from "@/lib/utils"
 import { exportDataToCSV, formatDateForExport, formatCurrency, printHeader, PRINT_HEADER_STYLES } from "@/lib/export-utils"
 
 interface Donor {
@@ -103,29 +104,26 @@ export function DonorsReportDialog({ open, onOpenChange }: DonorsReportDialogPro
     const kafils = donorsData.filter(d => d.is_kafil)
     const totalKafils = kafils.length
 
-    // Total donations
-    const totalDonations = donorsData.reduce((sum, donor) => {
-      return sum + (donor.total_given || 0)
-    }, 0)
+    // toNumber, not `|| 0`: these arrive from the API as decimal *strings*,
+    // so a bare + concatenates them into "0500.001400.00..." and every
+    // average computed from the result is NaN.
+    const totalDonations = donorsData.reduce((sum, donor) => sum + toNumber(donor.total_given), 0)
 
     // Average donation per donor
     const avgDonation = totalDonors > 0 ? totalDonations / totalDonors : 0
 
-    // Total monthly pledges
-    const totalPledges = kafils.reduce((sum, donor) => {
-      return sum + (donor.kafil?.monthly_pledge || 0)
-    }, 0)
+    const totalPledges = kafils.reduce((sum, donor) => sum + toNumber(donor.kafil?.monthly_pledge), 0)
 
     // Average utilization
     const avgUtilization = totalKafils > 0
-      ? kafils.reduce((sum, donor) => sum + (donor.kafil?.sponsorship_utilization || 0), 0) / totalKafils
+      ? kafils.reduce((sum, donor) => sum + toNumber(donor.kafil?.sponsorship_utilization), 0) / totalKafils
       : 0
 
     // Kafils at 100% utilization
-    const kafilsAt100 = kafils.filter(d => (d.kafil?.sponsorship_utilization || 0) >= 100).length
+    const kafilsAt100 = kafils.filter(d => toNumber(d.kafil?.sponsorship_utilization) >= 100).length
 
     // Kafils under 50% utilization
-    const kafilsUnder50 = kafils.filter(d => (d.kafil?.sponsorship_utilization || 0) < 50).length
+    const kafilsUnder50 = kafils.filter(d => toNumber(d.kafil?.sponsorship_utilization) < 50).length
 
     setStatistics([
       { label: 'إجمالي المتبرعين', value: totalDonors, format: 'number' },

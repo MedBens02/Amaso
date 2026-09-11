@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { RefreshCw } from "lucide-react"
-import { splitByWeights } from "@/lib/utils"
+import { splitByWeights, toNumber } from "@/lib/utils"
 import api from "@/lib/api"
 
 export interface KafalaChamilaSplitValue {
@@ -65,7 +65,7 @@ export function KafalaChamilaSplitEditor({ totalAmount, value, onChange }: Kafal
     onChange(rules.map((rule, i) => ({ split_id: rule.id, amount: amounts[i] })))
   }
 
-  const recordedTotal = value.reduce((sum, s) => sum + (s.amount || 0), 0)
+  const recordedTotal = value.reduce((sum, s) => sum + toNumber(s.amount), 0)
   const isMismatched = Math.abs(recordedTotal - (totalAmount || 0)) > 0.01
 
   if (loading) {

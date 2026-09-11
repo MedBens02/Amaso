@@ -6,6 +6,7 @@ use App\Exceptions\BusinessRuleException;
 use App\Models\AcademicYear;
 use App\Models\Beneficiary;
 use App\Models\Illness;
+use App\Models\KafilSponsorship;
 use App\Models\Orphan;
 use App\Models\OrphanEnrollment;
 use App\Models\Skill;
@@ -141,10 +142,63 @@ class WidowService
                 $this->createMaounaEntries($widow, $validated['maouna'] ?? []);
             }
 
-            // Kafil sponsorships are managed through the sponsorships API.
+            if (array_key_exists('kafils', $validated)) {
+                $this->syncSponsorships($widow, $validated['kafils'] ?? []);
+            }
 
             return $widow;
         });
+    }
+
+    /**
+     * Make the family's sponsorships match what the form sent.
+     *
+     * The update request has always validated a `kafils` array and the form
+     * has always sent one, but nothing here read it - the comment said
+     * sponsorships were managed through their own endpoint. So editing a
+     * family's sponsor returned a cheerful 200 and changed nothing, which is
+     * worse than refusing: the screen said it had worked.
+     *
+     * A sync rather than an insert: the form shows the family's whole set of
+     * sponsors, so a row it no longer lists has been removed, and an amount
+     * it sends for an existing pair is a correction to that pair. Rows are
+     * matched on the kafil, which is the only identity the form carries.
+     *
+     * @param  array<int, array{kafil_id: string|int, amount: numeric}>  $kafils
+     */
+    private function syncSponsorships(Widow $widow, array $kafils): void
+    {
+        $wanted = collect($kafils)
+            ->filter(fn ($row) => !empty($row['kafil_id']))
+            ->mapWithKeys(fn ($row) => [(int) $row['kafil_id'] => (float) $row['amount']]);
+
+        $existing = KafilSponsorship::where('widow_id', $widow->id)->get()->keyBy('kafil_id');
+
+        foreach ($existing as $kafilId => $sponsorship) {
+            if (!$wanted->has($kafilId)) {
+                $sponsorship->delete();
+            }
+        }
+
+        foreach ($wanted as $kafilId => $amount) {
+            $sponsorship = $existing->get($kafilId);
+
+            if ($sponsorship) {
+                // Only write when it actually changed, so an untouched form
+                // does not bump every row's updated_at.
+                if ((float) $sponsorship->amount !== $amount) {
+                    $sponsorship->update(['amount' => $amount]);
+                }
+
+                continue;
+            }
+
+            KafilSponsorship::create([
+                'widow_id' => $widow->id,
+                'kafil_id' => $kafilId,
+                'amount' => $amount,
+            ]);
+        }
     }
 
     /**
