@@ -169,8 +169,13 @@ ok "Configuration, routes and views cached"
 # Restart
 # ---------------------------------------------------------------------------
 log "Restarting the services"
+# This reload is not housekeeping: provision.sh sets
+# opcache.validate_timestamps=0, so PHP never checks whether the source
+# changed. The graceful reload replaces the workers, and with them the
+# compiled code they were holding. Skip it and the server keeps serving the
+# previous release from memory.
 php_fpm_unit="$(systemctl list-units --type=service --plain --no-legend 'php*-fpm.service' | awk '{print $1}' | head -1)"
-[[ -n "$php_fpm_unit" ]] && systemctl reload "$php_fpm_unit" && ok "$php_fpm_unit reloaded"
+[[ -n "$php_fpm_unit" ]] && systemctl reload "$php_fpm_unit" && ok "$php_fpm_unit reloaded (new code picked up)"
 
 nginx -t >/dev/null 2>&1 || die "The nginx configuration is invalid - run 'nginx -t' to see why"
 systemctl reload nginx
