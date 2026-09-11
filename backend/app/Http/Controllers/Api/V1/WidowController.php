@@ -15,7 +15,9 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 class WidowController extends Controller
 {
     private const DETAIL_RELATIONS = [
-        'orphans',
+        // The current year's enrollment, not the orphan's own (unused,
+        // legacy) education_level_id - see Orphan::currentEducationLabel().
+        'orphans.currentEnrollment.educationLevel',
         'phones',
         'widowFiles',
         'widowSocial.housingType',
@@ -34,13 +36,16 @@ class WidowController extends Controller
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = Widow::query()->with(['orphans']);
+        $query = Widow::query()->with(['orphans.currentEnrollment.educationLevel']);
 
         if ($request->filled('search')) {
             $search = $request->get('search');
             $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
                     ->orWhere('last_name', 'like', "%{$search}%")
+                    // Typing a full name is the normal case, and neither
+                    // column alone contains it.
+                    ->orWhereRaw("CONCAT(first_name, ' ', last_name) like ?", ["%{$search}%"])
                     ->orWhere('national_id', 'like', "%{$search}%")
                     ->orWhere('phone', 'like', "%{$search}%");
             });
@@ -130,7 +135,6 @@ class WidowController extends Controller
     {
         $widow->load([
             ...self::DETAIL_RELATIONS,
-            'orphans.educationLevel',
             'orphans.currentEnrollment.school',
             'sponsorships.kafil.donor',
         ]);

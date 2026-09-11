@@ -157,10 +157,12 @@ class BeneficiaryGroupController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->whereHas('widow', function ($widow) use ($search) {
                     $widow->where('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%");
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhereRaw("CONCAT(first_name, ' ', last_name) like ?", ["%{$search}%"]);
                 })->orWhereHas('orphan', function ($orphan) use ($search) {
                     $orphan->where('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%");
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhereRaw("CONCAT(first_name, ' ', last_name) like ?", ["%{$search}%"]);
                 });
             });
         }

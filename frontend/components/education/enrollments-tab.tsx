@@ -37,7 +37,6 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
   const [years, setYears] = useState<any[]>([])
   const [schools, setSchools] = useState<any[]>([])
   const [levels, setLevels] = useState<any[]>([])
-  const [orphans, setOrphans] = useState<any[]>([])
   const [phases, setPhases] = useState<Phase[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -63,23 +62,18 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
 
   const fetchLookups = async () => {
     try {
-      const [yearsRes, schoolsRes, levelsRes, orphansRes] = await Promise.all([
+      const [yearsRes, schoolsRes, levelsRes] = await Promise.all([
         api.getAcademicYears(),
         api.getSchools(),
         api.getOrphansEducationLevels(),
-        api.getOrphans({ per_page: 100 }),
       ])
       setYears(yearsRes.data || [])
       setSchools(schoolsRes.data || [])
       setLevels(levelsRes.data || [])
-      // orphans endpoint groups by widow - flatten for the picker
-      const flat: any[] = []
-      for (const group of orphansRes.data || []) {
-        for (const orphan of group.orphans || []) {
-          flat.push({ ...orphan, widow_name: group.widow?.full_name })
-        }
-      }
-      setOrphans(flat)
+      // The student picker searches the orphans endpoint itself now rather
+      // than filtering a list fetched once here - a fixed page of 100 was
+      // silently unreachable past the 100th orphan, in a real roster of
+      // several hundred.
 
       const current = (yearsRes.data || []).find((y: any) => y.is_current)
       if (current && !yearFilter) setYearFilter(current.id.toString())
@@ -486,7 +480,6 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         enrollment={editing}
-        orphans={orphans}
         years={years}
         levels={levels}
         schools={schools}

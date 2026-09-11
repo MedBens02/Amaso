@@ -2,7 +2,7 @@
 
 import { toNumber } from "@/lib/utils"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -11,10 +11,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { User, Phone, Mail, MapPin, HandCoins, Search, Plus, Trash2 } from "lucide-react"
 import api from "@/lib/api"
+import { AsyncSelectRS, type AsyncOption } from "@/components/common/AsyncSelectRS"
 
 const kafilSchema = z.object({
   firstName: z.string().min(1, "الاسم الأول مطلوب"),
@@ -52,9 +52,6 @@ interface Widow {
 
 export function AddKafilSheet({ open, onOpenChange, onSuccess }: AddKafilSheetProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [donors, setDonors] = useState<Donor[]>([])
-  const [widows, setWidows] = useState<Widow[]>([])
-  const [widowSearch, setWidowSearch] = useState("")
   const [sponsoredWidows, setSponsoredWidows] = useState<Array<{ widowId: string; amount: number }>>([{ widowId: "", amount: 0 }])
   const { toast } = useToast()
 
@@ -71,45 +68,22 @@ export function AddKafilSheet({ open, onOpenChange, onSuccess }: AddKafilSheetPr
     },
   })
 
-
-  useEffect(() => {
-    if (open) {
-      fetchDonors()
-      fetchWidows()
-    }
-  }, [open])
-
-  const fetchDonors = async () => {
-    try {
-      const response = await api.getDonors()
-      setDonors(response.data)
-    } catch (error: any) {
-      toast({
-        title: "خطأ في تحميل المتبرعين",
-        description: error.message || "فشل في تحميل قائمة المتبرعين",
-        variant: "destructive",
-      })
-    }
+  /**
+   * Both lists can run past a couple hundred rows in real use - donors as
+   * the association grows, widows already do (142 in the real roster this
+   * was built against). A plain Select capped what a name could be found
+   * in, and the search box someone tried to add inside its popup never
+   * actually took keystrokes - Radix's own listbox owns them. This searches
+   * the server instead of a page fetched once when the sheet opened.
+   */
+  const loadDonorOptions = async (query: string): Promise<AsyncOption<Donor>[]> => {
+    const response = await api.getDonors({ search: query || undefined, per_page: 50 })
+    return response.data.map((donor: Donor) => ({ value: String(donor.id), label: donor.full_name, data: donor }))
   }
 
-  const fetchWidows = async (search?: string) => {
-    try {
-      const response = await api.getWidows({ search })
-      setWidows(response.data)
-    } catch (error: any) {
-      toast({
-        title: "خطأ في تحميل الأرامل",
-        description: error.message || "فشل في تحميل قائمة الأرامل",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleWidowSearch = (search: string) => {
-    setWidowSearch(search)
-    if (search.length >= 2 || search.length === 0) {
-      fetchWidows(search)
-    }
+  const loadWidowOptions = async (query: string): Promise<AsyncOption<Widow>[]> => {
+    const response = await api.getWidows({ search: query || undefined, per_page: 50 })
+    return response.data.map((widow: Widow) => ({ value: String(widow.id), label: widow.full_name, data: widow }))
   }
 
   const addSponsoredWidow = () => {
@@ -172,7 +146,6 @@ export function AddKafilSheet({ open, onOpenChange, onSuccess }: AddKafilSheetPr
       })
 
       form.reset()
-      setWidowSearch("")
       setSponsoredWidows([{ widowId: "", amount: 0 }])
       onOpenChange(false)
       onSuccess?.()
@@ -260,18 +233,12 @@ export function AddKafilSheet({ open, onOpenChange, onSuccess }: AddKafilSheetPr
                   name="donorId"
                   control={form.control}
                   render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="اختر المتبرع" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {donors.map((donor) => (
-                          <SelectItem key={donor.id} value={donor.id.toString()}>
-                            {donor.full_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <AsyncSelectRS
+                      loadOptions={loadDonorOptions}
+                      value={field.value || undefined}
+                      onChange={(value) => field.onChange(value ?? "")}
+                      placeholder="اكتب اسم المتبرع للبحث..."
+                    />
                   )}
                 />
                 {form.formState.errors.donorId && (
@@ -325,46 +292,28 @@ export function AddKafilSheet({ open, onOpenChange, onSuccess }: AddKafilSheetPr
               <div className="space-y-3">
                 {sponsoredWidows.map((sponsorship, index) => (
                   <div key={index} className="flex items-center gap-2 p-3 border rounded-lg">
-                    <Select
-                      value={sponsorship.widowId}
-                      onValueChange={(value) => updateSponsoredWidow(index, "widowId", value)}
-                    >
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="اختر الأرملة" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <div className="p-2">
-                          <Input
-                            placeholder="البحث في أسماء الأرامل..."
-                            value={widowSearch}
-                            onChange={(e) => handleWidowSearch(e.target.value)}
-                            className="mb-2"
-                          />
+                    <AsyncSelectRS
+                      className="flex-1"
+                      loadOptions={loadWidowOptions}
+                      value={sponsorship.widowId || undefined}
+                      onChange={(value) => updateSponsoredWidow(index, "widowId", value ?? "")}
+                      placeholder="اكتب اسم الأرملة للبحث..."
+                      formatOptionLabel={(option: AsyncOption<Widow>) => (
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium">{option.label}</span>
+                          {option.data?.national_id && (
+                            <span className="text-sm text-muted-foreground">
+                              رقم البطاقة الوطنية: {option.data.national_id}
+                            </span>
+                          )}
+                          {option.data?.neighborhood && (
+                            <span className="text-sm text-muted-foreground">
+                              الحي: {option.data.neighborhood}
+                            </span>
+                          )}
                         </div>
-                        {widows.map((widow) => (
-                          <SelectItem key={widow.id} value={widow.id.toString()}>
-                            <div className="flex flex-col items-start">
-                              <span className="font-medium">{widow.full_name}</span>
-                              {widow.national_id && (
-                                <span className="text-sm text-muted-foreground">
-                                  رقم البطاقة الوطنية: {widow.national_id}
-                                </span>
-                              )}
-                              {widow.neighborhood && (
-                                <span className="text-sm text-muted-foreground">
-                                  الحي: {widow.neighborhood}
-                                </span>
-                              )}
-                            </div>
-                          </SelectItem>
-                        ))}
-                        {widows.length === 0 && (
-                          <div className="p-2 text-sm text-muted-foreground text-center">
-                            لا توجد أرامل متاحة
-                          </div>
-                        )}
-                      </SelectContent>
-                    </Select>
+                      )}
+                    />
                     <Input
                       type="number"
                       placeholder="المبلغ"

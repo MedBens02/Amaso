@@ -36,6 +36,7 @@ class EnrollmentController extends Controller
                 $q->whereHas('orphan', function ($orphan) use ($search) {
                     $orphan->where('first_name', 'like', "%{$search}%")
                         ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhereRaw("CONCAT(first_name, ' ', last_name) like ?", ["%{$search}%"])
                         ->orWhere('masar_code', 'like', "%{$search}%");
                 });
             })

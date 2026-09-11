@@ -390,7 +390,12 @@ class WidowService
             'last_name' => $child['last_name'],
             'birth_date' => $child['birth_date'],
             'gender' => $child['gender'],
-            'education_level_id' => $child['education_level_id'] ?? null,
+            // Not education_level_id: that column is a leftover from before
+            // the enrollment system, and writing it here is what made it
+            // drift out of step with syncCurrentEnrollment() below the
+            // moment anyone worked from the education page instead. The
+            // level the form captures goes only to the enrollment now - see
+            // Orphan::currentEducationLabel().
             'health_status' => $child['health_status'] ?? null,
             'phone' => $child['phone'] ?? null,
             'cin' => $child['cin'] ?? null,

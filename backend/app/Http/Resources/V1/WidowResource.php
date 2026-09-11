@@ -54,6 +54,13 @@ class WidowResource extends JsonResource
                         'age' => $orphan->birth_date ? $orphan->birth_date->diffInYears(now()) : null,
                         'gender' => $orphan->gender,
                         'education_level_id' => $orphan->education_level_id,
+                        // The current year's enrollment, not the static
+                        // column above - see Orphan::currentEducationLabel().
+                        // Null when the child has no enrollment this year
+                        // (never registered, or removed on the education
+                        // page), which the card shows as "not specified"
+                        // rather than a stale level from a past one.
+                        'education_level' => $orphan->currentEducationLabel(),
                         'health_status' => $orphan->health_status,
                         'phone' => $orphan->phone,
                         'cin' => $orphan->cin,
