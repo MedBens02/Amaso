@@ -829,26 +829,12 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                 </div>
               </div>
 
+              {/* الحالة الاجتماعية was dropped from the form: the column
+                  is required by the API and keeps its "Widowed" default, but
+                  asking for it added a field whose answer is the same for
+                  effectively every family the association registers. It is
+                  still shown on the family's card. */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="maritalStatus">الحالة الاجتماعية</Label>
-                  <Controller
-                    name="maritalStatus"
-                    control={form.control}
-                    render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="اختر الحالة الاجتماعية" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Widowed">أرملة</SelectItem>
-                          <SelectItem value="Divorced">مطلقة</SelectItem>
-                          <SelectItem value="Single">عزباء</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </div>
                 <div className="space-y-2">
                   <Label htmlFor="educationLevel">المستوى التعليمي</Label>
                   <Controller

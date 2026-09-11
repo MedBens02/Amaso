@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import ReactSelect from "react-select"
+import { reactSelectProps, reactSelectStyles } from "@/lib/react-select-theme"
 import {
   Dialog,
   DialogContent,
@@ -261,6 +262,20 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
     }
   }, [form.watch('income_type'), budgets, incomeCategories, form])
 
+  /**
+   * The family a sponsorship is for.
+   *
+   * The API returns the family nested (`sponsorship.widow.id`) and does not
+   * send a flat `widow_id`. Three places read `sponsorship.widow_id` anyway,
+   * so every one of them got `undefined`: the <SelectItem> keys collided
+   * (React's duplicate-key warning), its values were empty so Radix would not
+   * let any option be picked, and saving then failed the "choose a family"
+   * check that nothing could satisfy. The flat form is still accepted in case
+   * the endpoint ever sends it.
+   */
+  const sponsoredWidowId = (sponsorship: any): string =>
+    (sponsorship?.widow?.id ?? sponsorship?.widow_id)?.toString() ?? ""
+
   // The kafala amount for a family is whatever was agreed on that family's
   // kafil record, which is not always 800 - so once the family is chosen the
   // agreed amount drives the split rather than the generic default.
@@ -271,7 +286,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
     const sponsorships = selectedKafilSponsorship?.sponsorships
     if (!widowId || !sponsorships) return
 
-    const sponsorship = sponsorships.find((sp: any) => sp.widow_id?.toString() === widowId)
+    const sponsorship = sponsorships.find((sp: any) => sponsoredWidowId(sp) === widowId)
     const agreed = parseFloat(sponsorship?.amount || 0)
 
     if (agreed > 0) {
@@ -298,7 +313,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
       }
 
       // With a single sponsored family there's nothing to choose - designate it.
-      form.setValue('widow_id', kafil.sponsorships.length === 1 ? kafil.sponsorships[0].widow_id?.toString() ?? '' : '')
+      form.setValue('widow_id', kafil.sponsorships.length === 1 ? sponsoredWidowId(kafil.sponsorships[0]) : '')
     } else {
       setSelectedKafilSponsorship(null)
       form.setValue('widow_id', '')
@@ -476,22 +491,6 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
   }
 
   // React Select custom styles
-  const selectStyles = {
-    control: (base: any) => ({
-      ...base,
-      minHeight: "40px",
-      border: "1px solid hsl(var(--border))",
-      borderRadius: "calc(var(--radius) - 2px)",
-      "&:hover": {
-        border: "1px solid hsl(var(--border))",
-      },
-    }),
-    menu: (base: any) => ({
-      ...base,
-      zIndex: 9999,
-    }),
-  }
-
   return (
     <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -583,7 +582,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                       null}
                     onChange={(option: any) => field.onChange(option?.value || "")}
                     placeholder={incomeType === 'kafala' ? "كفالة شاملة (محدد تلقائياً)" : "اختر الميزانية..."}
-                    styles={selectStyles}
+                    {...reactSelectProps}
                     isClearable={incomeType !== 'kafala'}
                     isSearchable={incomeType !== 'kafala'}
                     isDisabled={incomeType === 'kafala'}
@@ -608,7 +607,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                     value={categoryOptions.find(option => option.value === field.value) || null}
                     onChange={(option: any) => field.onChange(option?.value || "")}
                     placeholder={incomeType === 'kafala' ? "كفالة شاملة (محدد تلقائياً)" : "اختر فئة الإيراد..."}
-                    styles={selectStyles}
+                    {...reactSelectProps}
                     isClearable={incomeType !== 'kafala'}
                     isSearchable={incomeType !== 'kafala'}
                     isRtl
@@ -645,7 +644,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                             null}
                           onChange={(option: any) => field.onChange(option?.value || "")}
                           placeholder="ابحث عن المتبرع..."
-                          styles={selectStyles}
+                          {...reactSelectProps}
                           isClearable
                           isSearchable
                           isRtl
@@ -704,26 +703,29 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                         handleKafilChange(option?.kafil)
                       }}
                       placeholder="ابحث عن الكفيل..."
+                      {...reactSelectProps}
+                      // The kafil labels are long, so this one is set a size -
+                      // built on top of the themed rules rather than replacing
+                      // them, which is how it used to lose its colours.
                       styles={{
-                        ...selectStyles,
-                        option: (provided: any, state: any) => ({
-                          ...provided,
+                        ...reactSelectStyles,
+                        option: (base: any, state: any) => ({
+                          ...reactSelectStyles.option!(base, state),
                           fontSize: '14px',
-                          padding: '8px 12px'
+                          padding: '8px 12px',
                         }),
-                        singleValue: (provided: any) => ({
-                          ...provided,
-                          fontSize: '14px'
-                        })
+                        singleValue: (base: any, state: any) => ({
+                          ...reactSelectStyles.singleValue!(base, state),
+                          fontSize: '14px',
+                        }),
                       }}
                       isClearable
                       isSearchable
-                      isRtl
                     />
                   )}
                 />
                 {selectedKafilSponsorship && (
-                  <div className="p-4 bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 dark:border-blue-900 rounded-lg">
+                  <div className="rounded-lg border border-blue-200 bg-blue-50/70 p-4 dark:border-blue-900 dark:bg-blue-950/30">
                     <div className="mb-3">
                       <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-400 flex items-center gap-2">
                         <HandCoins className="h-5 w-5" />
@@ -794,11 +796,19 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                             <SelectValue placeholder={incomeType === 'kafala_chamila' ? 'اختر الأسرة المستفيدة' : 'اختر الأسرة المستفيدة (اختياري)'} />
                           </SelectTrigger>
                           <SelectContent>
-                            {selectedKafilSponsorship.sponsorships.map((sponsorship: any) => (
-                              <SelectItem key={sponsorship.widow_id} value={sponsorship.widow_id?.toString()}>
-                                {sponsorship.widow?.first_name} {sponsorship.widow?.last_name}
-                              </SelectItem>
-                            ))}
+                            {selectedKafilSponsorship.sponsorships
+                              // A sponsorship with no resolvable family cannot
+                              // be offered: Radix refuses an empty value, and
+                              // an option nobody can pick is worse than none.
+                              .filter((sponsorship: any) => sponsoredWidowId(sponsorship))
+                              .map((sponsorship: any) => (
+                                <SelectItem
+                                  key={sponsoredWidowId(sponsorship)}
+                                  value={sponsoredWidowId(sponsorship)}
+                                >
+                                  {sponsorship.widow?.first_name} {sponsorship.widow?.last_name}
+                                </SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                       )}
@@ -922,7 +932,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                       null}
                     onChange={(option: any) => field.onChange(option?.value || "")}
                     placeholder="اختر الحساب البنكي..."
-                    styles={selectStyles}
+                    {...reactSelectProps}
                     isClearable
                     isSearchable
                     isRtl

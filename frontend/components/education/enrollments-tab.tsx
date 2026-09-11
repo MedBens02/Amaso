@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -55,6 +55,11 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
   // marks out of 20 needs to say so on the same row, not in a second screen.
   const [gradeDrafts, setGradeDrafts] = useState<Record<number, GradeDraft>>({})
   const [savingGrades, setSavingGrades] = useState(false)
+  // What the server last sent for each row. Without it there is no way to
+  // tell a mark the user typed from one that simply arrived, so every reload
+  // overwrote unsaved work - marking one student as passed threw away the
+  // whole column somebody had been keying in.
+  const serverGrades = useRef<Record<number, GradeDraft>>({})
 
   const fetchLookups = async () => {
     try {
@@ -99,7 +104,24 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
       // so it never falls out of step with the server's own vocabulary.
       const meta = response.meta as any
       if (meta?.higher_education_phases) setPhases(meta.higher_education_phases)
-      setGradeDrafts(Object.fromEntries(rows.map((row: any) => [row.id, draftOf(row)])))
+      // Reloading keeps whatever is still unsaved. A row the user has not
+      // touched takes the server's value; a row they have takes theirs.
+      const fresh: Record<number, GradeDraft> = Object.fromEntries(
+        rows.map((row: any) => [row.id, draftOf(row)]),
+      )
+      setGradeDrafts((previous) => {
+        const merged: Record<number, GradeDraft> = {}
+        for (const row of rows) {
+          const before = serverGrades.current[row.id]
+          const current = previous[row.id]
+          const edited =
+            before && current &&
+            (current.s1 !== before.s1 || current.s2 !== before.s2 || current.scale !== before.scale)
+          merged[row.id] = edited ? current : fresh[row.id]
+        }
+        return merged
+      })
+      serverGrades.current = fresh
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message || "فشل في تحميل التسجيلات", variant: "destructive" })
     } finally {
@@ -117,8 +139,19 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
 
   const setStatus = async (enrollment: any, status: string) => {
     try {
-      await api.updateEnrollment(enrollment.id, { status })
-      fetchEnrollments()
+      const response = await api.updateEnrollment(enrollment.id, { status })
+      const updated = (response.data as any) ?? { ...enrollment, status }
+
+      // Patch the one row. Reloading the table for a single dropdown was what
+      // discarded unsaved marks, and it is a whole round trip for a change
+      // the server has already confirmed.
+      setEnrollments((rows) =>
+        rows
+          .map((row) => (row.id === enrollment.id ? { ...row, ...updated } : row))
+          // Under a status filter the row may no longer belong on screen.
+          .filter((row) => statusFilter === "all" || row.status === statusFilter),
+      )
+      serverGrades.current[enrollment.id] = draftOf(updated)
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message || "فشل في تحديث النتيجة", variant: "destructive" })
     }
@@ -209,6 +242,7 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
   }
 
   const tutoringCount = enrollments.filter((e) => e.has_tutoring).length
+  const pendingGrades = changedGrades().length
 
   return (
     <Card>
@@ -224,9 +258,16 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
             )}
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={handleSaveGrades} disabled={savingGrades}>
+            {/* The count is the reminder: marks live in the row until saved,
+                and there was nothing on screen saying so. */}
+            <Button
+              size="sm"
+              variant={pendingGrades > 0 ? "default" : "outline"}
+              onClick={handleSaveGrades}
+              disabled={savingGrades || pendingGrades === 0}
+            >
               {savingGrades ? <Loader2 className="h-4 w-4 ml-2 animate-spin" /> : <Save className="h-4 w-4 ml-2" />}
-              حفظ النقط
+              {pendingGrades > 0 ? `حفظ النقط (${pendingGrades})` : "حفظ النقط"}
             </Button>
             <Button size="sm" onClick={openAdd}>
               <Plus className="h-4 w-4 ml-2" />

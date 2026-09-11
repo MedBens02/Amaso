@@ -21,6 +21,7 @@ interface Orphan {
   birth_date: string
   education_level: string
   health_status: string
+  phone?: string | null
   created_at: string
   updated_at: string
 }
@@ -221,6 +222,7 @@ export function OrphansTable({ searchTerm, filters = {} }: OrphansTableProps) {
                           <TableHead className="text-right">اسم اليتيم</TableHead>
                           <TableHead className="text-right">العمر</TableHead>
                           <TableHead className="text-right">الجنس</TableHead>
+                          <TableHead className="text-right">الهاتف</TableHead>
                           <TableHead className="text-right">المستوى التعليمي</TableHead>
                           <TableHead className="text-right">الحالة الصحية</TableHead>
                           <TableHead className="text-center">الإجراءات</TableHead>
@@ -239,6 +241,27 @@ export function OrphansTable({ searchTerm, filters = {} }: OrphansTableProps) {
                               <Badge variant={orphan.gender === 'male' ? 'default' : 'secondary'}>
                                 {orphan.gender === 'male' ? 'ذكر' : 'أنثى'}
                               </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {/* Older orphans have their own number; the
+                                  younger ones are reached through the mother,
+                                  so an empty cell here is normal rather than
+                                  missing data. */}
+                              {orphan.phone ? (
+                                <span className="flex items-center justify-end gap-2">
+                                  <a
+                                    href={`tel:${orphan.phone}`}
+                                    dir="ltr"
+                                    className="inline-block tabular-nums hover:underline"
+                                    onClick={(event) => event.stopPropagation()}
+                                  >
+                                    {orphan.phone}
+                                  </a>
+                                  <Phone className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
                             </TableCell>
                             <TableCell className="text-right">
                               {orphan.education_level || 'غير محدد'}

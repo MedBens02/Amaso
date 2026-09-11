@@ -18,6 +18,8 @@ interface Orphan {
   birth_date: string
   education_level: string
   health_status: string
+  // The orphan's own number, separate from the mother's below.
+  phone?: string | null
   created_at: string
   updated_at: string
   widow: {
@@ -110,6 +112,23 @@ export function ViewOrphanDialog({ orphan, open, onOpenChange }: ViewOrphanDialo
                     </div>
                   </div>
                 )}
+
+                {/* The orphan's own number, which the card only ever showed
+                    for the mother - so an older orphan reachable directly
+                    looked as though they had no contact at all. */}
+                <div className="space-y-2">
+                  <div className="text-sm text-muted-foreground">هاتف اليتيم</div>
+                  <div className="font-medium flex items-center gap-2">
+                    <Phone className="h-4 w-4" />
+                    {orphan.phone ? (
+                      <a href={`tel:${orphan.phone}`} dir="ltr" className="inline-block tabular-nums hover:underline">
+                        {orphan.phone}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">غير محدد</span>
+                    )}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

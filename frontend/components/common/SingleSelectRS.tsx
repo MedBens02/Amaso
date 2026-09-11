@@ -2,6 +2,7 @@
 
 import React from 'react'
 import Select, { ActionMeta } from 'react-select'
+import { reactSelectStyles } from '@/lib/react-select-theme'
 import CreatableSelect from 'react-select/creatable'
 
 export interface Option {
@@ -50,63 +51,20 @@ export function SingleSelectRS({
     newValue: Option | null,
     actionMeta: ActionMeta<Option>
   ) => {
-    console.log('SingleSelectRS change:', { newValue, actionMeta })
     onChange(newValue ? newValue.value : null)
   }
 
-  const customStyles = {
-    control: (provided: any, state: any) => ({
-      ...provided,
-      minHeight: '40px',
-      border: '1px solid hsl(var(--border))',
-      borderRadius: '6px',
-      backgroundColor: 'hsl(var(--background))',
-      '&:hover': {
-        borderColor: 'hsl(var(--border))',
-      },
-      boxShadow: state.isFocused ? '0 0 0 2px hsl(var(--ring))' : 'none',
-    }),
-    menu: (provided: any) => ({
-      ...provided,
-      zIndex: 99999,
-      backgroundColor: 'hsl(var(--background))',
-      border: '1px solid hsl(var(--border))',
-      borderRadius: '6px',
-      position: 'relative',
-    }),
-    menuPortal: (provided: any) => ({
-      ...provided,
-      zIndex: 99999,
-      position: 'fixed',
-    }),
-    option: (provided: any, state: any) => ({
-      ...provided,
-      backgroundColor: state.isSelected 
-        ? 'hsl(var(--primary))' 
-        : state.isFocused 
-        ? 'hsl(var(--accent))'
-        : 'transparent',
-      color: state.isSelected 
-        ? 'hsl(var(--primary-foreground))' 
-        : 'hsl(var(--foreground))',
-      '&:hover': {
-        backgroundColor: 'hsl(var(--accent))',
-        color: 'hsl(var(--accent-foreground))',
-      },
-    }),
-    placeholder: (provided: any) => ({
-      ...provided,
-      color: 'hsl(var(--muted-foreground))',
-    }),
-    input: (provided: any) => ({
-      ...provided,
-      color: 'hsl(var(--foreground))',
-    }),
-    singleValue: (provided: any) => ({
-      ...provided,
-      color: 'hsl(var(--foreground))',
-    }),
-  }
+  /**
+   * The shared theme, plus the few rules this control needs on top.
+   *
+   * The local copy that used to live here set `position: 'relative'` on the
+   * menu. react-select portals the menu to <body> and positions it absolutely
+   * against the control; forcing it relative broke that, and with it the
+   * list's own max-height - which is why long lists (income sources, skills,
+   * sponsors) appeared to stop partway down with no way to scroll. The shared
+   * theme leaves the positioning to the library and caps the list instead.
+   */
+  const customStyles = { ...reactSelectStyles }
 
   const SelectComponent = isCreatable ? CreatableSelect : Select
 
@@ -131,16 +89,12 @@ export function SingleSelectRS({
         formatCreateLabel={(inputValue) => `إنشاء "${inputValue}"`}
         // Prevent form submission when Enter is pressed but allow react-select to handle creation
         onInputKeyDown={(event) => {
-          console.log('Input key down:', event.key)
           if (event.key === 'Enter') {
             event.stopPropagation()
           }
         }}
-        // Debug creatable behavior
         onCreateOption={(inputValue) => {
-          console.log('onCreateOption called with:', inputValue)
           const newValue = `__new_option_${inputValue}`
-          console.log('Creating new option with value:', newValue)
           onChange(newValue)
         }}
         components={{

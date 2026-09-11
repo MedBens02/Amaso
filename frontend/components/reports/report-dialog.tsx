@@ -46,18 +46,34 @@ export interface ReportDialogProps {
 }
 
 /**
- * Formats a statistic value based on its format type
+ * Formats a statistic value based on its format type.
+ *
+ * Two things this has to survive, because both have happened. A statistic
+ * declared `currency` used to be printed verbatim if it arrived as a string,
+ * so the donors report showed its total as "0500.001400.001160.00" - a sum
+ * that had concatenated decimal strings from the API rather than adding them.
+ * And a value that is NaN (a string divided by a count) rendered as
+ * "NaN د.م".
+ *
+ * A declared format is now honoured whatever type turns up, and a value that
+ * is not a real number prints as a dash. The concatenation itself is fixed at
+ * the source with toNumber(); this is the net that stops the next one
+ * reaching the screen looking like data.
  */
 function formatStatValue(value: string | number, format?: string): string {
-  if (typeof value === 'string') return value
+  if (!format) return String(value ?? '')
+
+  const numeric = typeof value === 'number' ? value : Number.parseFloat(String(value ?? ''))
+
+  if (!Number.isFinite(numeric)) return '—'
 
   switch (format) {
     case 'number':
-      return value.toLocaleString('ar-MA')
+      return numeric.toLocaleString('ar-MA')
     case 'currency':
-      return `${value.toFixed(2)} د.م`
+      return `${numeric.toFixed(2)} د.م`
     case 'percentage':
-      return `${value.toFixed(1)}%`
+      return `${numeric.toFixed(1)}%`
     default:
       return String(value)
   }

@@ -7,6 +7,7 @@ import { Plus, Calendar, Lock, Unlock, TrendingUp, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { StartNewFiscalYearDialog } from "@/components/forms/StartNewFiscalYearForm"
 import { CloseFiscalYearDialog } from "@/components/forms/CloseFiscalYearDialog"
+import { FiscalYearDetailsDialog } from "@/components/fiscal-years/fiscal-year-details-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { isCurrentUserAdmin } from "@/lib/roles"
 
@@ -51,6 +52,7 @@ export default function FiscalYearsPage() {
   const [closingSummaries, setClosingSummaries] = useState<{[key: number]: ClosingSummary}>({})
   const [showCloseDialog, setShowCloseDialog] = useState(false)
   const [selectedYearForClosing, setSelectedYearForClosing] = useState<FiscalYear | null>(null)
+  const [detailsYear, setDetailsYear] = useState<FiscalYear | null>(null)
   const { toast } = useToast()
 
   // Fetch fiscal years from API
@@ -262,7 +264,12 @@ export default function FiscalYearsPage() {
 
 
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 bg-transparent">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 bg-transparent"
+                  onClick={() => setDetailsYear(year)}
+                >
                   <TrendingUp className="h-4 w-4 ml-1" />
                   عرض التفاصيل
                 </Button>
@@ -290,6 +297,15 @@ export default function FiscalYearsPage() {
         fiscalYear={selectedYearForClosing}
         onSuccess={handleCloseSuccess}
       />
+    <FiscalYearDetailsDialog
+        open={detailsYear !== null}
+        onOpenChange={(open) => {
+          if (!open) setDetailsYear(null)
+        }}
+        year={detailsYear}
+        summary={detailsYear ? closingSummaries[detailsYear.id] : undefined}
+      />
+
     </div>
   )
 }

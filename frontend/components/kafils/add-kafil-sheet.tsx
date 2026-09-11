@@ -1,5 +1,7 @@
 "use client"
 
+import { toNumber } from "@/lib/utils"
+
 import { useState, useEffect } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -125,7 +127,7 @@ export function AddKafilSheet({ open, onOpenChange, onSuccess }: AddKafilSheetPr
   }
 
   const monthlyPledge = form.watch("monthlyPledge")
-  const totalSponsorships = sponsoredWidows.reduce((sum, s) => sum + (s.amount || 0), 0)
+  const totalSponsorships = sponsoredWidows.reduce((sum, s) => sum + toNumber(s.amount), 0)
   const remainingAmount = monthlyPledge - totalSponsorships
 
   const onSubmit = async (data: KafilFormData) => {
