@@ -67,6 +67,7 @@ export function DonorsTable({ searchTerm, isKafilFilter, refreshTrigger }: Donor
         search: searchTerm || undefined,
         per_page: itemsPerPage,
         page: currentPage,
+        is_kafil: isKafilFilter ?? undefined,
       })
 
       setDonors(response.data)
@@ -87,13 +88,13 @@ export function DonorsTable({ searchTerm, isKafilFilter, refreshTrigger }: Donor
 
   useEffect(() => {
     fetchDonors()
-  }, [currentPage, searchTerm, refreshTrigger])
+  }, [currentPage, searchTerm, isKafilFilter, refreshTrigger])
 
   useEffect(() => {
     if (currentPage !== 1) {
       setCurrentPage(1)
     }
-  }, [searchTerm])
+  }, [searchTerm, isKafilFilter])
 
   const handleView = (donor: Donor) => {
     setSelectedDonor(donor)
@@ -138,11 +139,11 @@ export function DonorsTable({ searchTerm, isKafilFilter, refreshTrigger }: Donor
     }
   }
 
-  // Filter donors client-side for Kafil filter if needed
-  const filteredDonors = donors.filter((donor) => {
-    if (isKafilFilter === null) return true
-    return donor.is_kafil === isKafilFilter
-  })
+  // The sponsors filter runs in the query now. Applied here instead, it
+  // hid rows from the page the server had already chosen and counted:
+  // ticking "sponsors only" left three rows on page 1, none on page 2, and
+  // a pager still counting every donor in the table.
+  const filteredDonors = donors
 
   if (loading) {
     return (

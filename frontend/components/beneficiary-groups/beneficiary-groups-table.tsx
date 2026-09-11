@@ -34,13 +34,17 @@ export function BeneficiaryGroupsTable({ searchTerm, onViewGroup, onEditGroup }:
 
   useEffect(() => {
     fetchGroups()
-  }, [])
+  }, [searchTerm])
 
   const fetchGroups = async () => {
     setLoading(true)
     try {
       const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
-      const response = await fetch(`${baseUrl}/beneficiary-groups`)
+      // Searching in the browser only ever saw the first page the endpoint
+      // returned, so a group past it could not be found at all.
+      const params = new URLSearchParams({ per_page: '100' })
+      if (searchTerm.trim()) params.append('search', searchTerm.trim())
+      const response = await fetch(`${baseUrl}/beneficiary-groups?${params.toString()}`)
       
       if (!response.ok) {
         throw new Error('Failed to fetch beneficiary groups')
@@ -60,16 +64,7 @@ export function BeneficiaryGroupsTable({ searchTerm, onViewGroup, onEditGroup }:
     }
   }
 
-  // Client-side filtering for search
-  const filteredData = groupsData.filter((group) => {
-    if (!searchTerm.trim()) return true
-    
-    const searchLower = searchTerm.toLowerCase()
-    return (
-      group.name.toLowerCase().includes(searchLower) ||
-      (group.description && group.description.toLowerCase().includes(searchLower))
-    )
-  })
+  const filteredData = groupsData
 
   const handleDeleteGroup = async (id: number) => {
     try {

@@ -17,6 +17,7 @@ class Income extends Model
         'donor_id',
         'kafil_id',
         'widow_id',
+        'kafala_batch_id',
         'income_date',
         'amount',
         'payment_method',
