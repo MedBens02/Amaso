@@ -6,6 +6,22 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * A number, whatever the API sent.
+ *
+ * MySQL DECIMAL columns come back from Laravel as *strings* - "500.00", not
+ * 500 - so `sum + donor.total_given` concatenates instead of adding. The
+ * donors report showed its total as "0500.001400.001160.00" for exactly this
+ * reason, and its average as NaN, because a string divided by a count is not
+ * a number. Anything that adds up a value from the API has to go through
+ * here first.
+ */
+export function toNumber(value: unknown): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0
+  const parsed = Number.parseFloat(String(value ?? ""))
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+/**
  * Split `total` across `weights` (e.g. percentages) into clean 2-decimal
  * amounts that sum to `total` exactly. Each weight is floored to the cent,
  * then the leftover cents are handed out one by one to the parts with the

@@ -90,7 +90,7 @@ export function KafalaCoveragePanel({ budgetId, allocations }: KafalaCoveragePan
   })
 
   return (
-    <div className="rounded-xl border border-teal-200 dark:border-teal-900 bg-teal-50/60 p-4 space-y-3">
+    <div className="space-y-3 rounded-xl border border-teal-200 bg-teal-50/60 p-4 dark:border-teal-900 dark:bg-teal-950/30">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <HandCoins className="h-5 w-5 text-teal-700 dark:text-teal-400" />

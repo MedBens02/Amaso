@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import ReactSelect from "react-select"
+import { reactSelectProps } from "@/lib/react-select-theme"
 import {
   Dialog,
   DialogContent,
@@ -133,7 +134,7 @@ export function KafilStatementDialog({ open, onOpenChange }: KafilStatementDialo
                 placeholder="ابحث عن الكفيل..."
                 isClearable
                 isSearchable
-                isRtl
+                {...reactSelectProps}
               />
             </div>
 

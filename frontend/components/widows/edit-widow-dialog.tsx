@@ -673,25 +673,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="maritalStatus">الحالة الاجتماعية</Label>
-                    <Controller
-                      name="maritalStatus"
-                      control={form.control}
-                      render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="اختر الحالة الاجتماعية" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Widowed">أرملة</SelectItem>
-                            <SelectItem value="Divorced">مطلقة</SelectItem>
-                            <SelectItem value="Single">عزباء</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                  </div>
+                  {/* الحالة الاجتماعية removed - see add-widow-dialog. */}
                   <div className="space-y-2">
                     <Label htmlFor="educationLevel">المستوى التعليمي</Label>
                     <Controller
