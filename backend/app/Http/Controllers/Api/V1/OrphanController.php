@@ -14,17 +14,22 @@ class OrphanController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Orphan::query()->with(['widow', 'educationLevel']);
+        $query = Orphan::query()->with(['widow', 'currentEnrollment.educationLevel']);
 
-        // Search functionality
+        // Search functionality - first name, last name, or both together.
+        // Without the concatenated check, typing a child's full name (the
+        // natural thing to type) matched neither column alone and returned
+        // nothing, in the picker this list also feeds.
         if ($request->filled('search')) {
             $search = $request->get('search');
             $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
                   ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhereRaw("CONCAT(first_name, ' ', last_name) like ?", ["%{$search}%"])
                   ->orWhereHas('widow', function ($widowQuery) use ($search) {
                       $widowQuery->where('first_name', 'like', "%{$search}%")
-                                 ->orWhere('last_name', 'like', "%{$search}%");
+                                 ->orWhere('last_name', 'like', "%{$search}%")
+                                 ->orWhereRaw("CONCAT(first_name, ' ', last_name) like ?", ["%{$search}%"]);
                   });
             });
         }
@@ -34,9 +39,10 @@ class OrphanController extends Controller
             $query->where('gender', $request->get('gender'));
         }
 
-        // Filter by education level
+        // Filter by education level - the current enrollment's, matching
+        // what the level column now displays (see currentEducationLabel()).
         if ($request->filled('education_level')) {
-            $query->whereHas('educationLevel', function($q) use ($request) {
+            $query->whereHas('currentEnrollment.educationLevel', function($q) use ($request) {
                 $q->where('name_ar', 'like', '%' . $request->get('education_level') . '%');
             });
         }
@@ -94,7 +100,7 @@ class OrphanController extends Controller
                         'age' => $age,
                         'gender' => $orphan->gender,
                         'birth_date' => $orphan->birth_date,
-                        'education_level' => $orphan->educationLevel ? $orphan->educationLevel->name_ar : 'غير محدد',
+                        'education_level' => $orphan->currentEducationLabel() ?? 'غير محدد',
                         'health_status' => $orphan->health_status,
                         'phone' => $orphan->phone,
                         'cin' => $orphan->cin,
@@ -130,7 +136,7 @@ class OrphanController extends Controller
      */
     public function show(Orphan $orphan): JsonResponse
     {
-        $orphan->load(['widow', 'educationLevel']);
+        $orphan->load(['widow', 'currentEnrollment.educationLevel']);
         
         $birthDate = $orphan->birth_date ? \Carbon\Carbon::parse($orphan->birth_date) : null;
         $age = $birthDate ? $birthDate->age : null;
@@ -143,7 +149,7 @@ class OrphanController extends Controller
             'age' => $age,
             'gender' => $orphan->gender,
             'birth_date' => $orphan->birth_date,
-            'education_level' => $orphan->educationLevel ? $orphan->educationLevel->name_ar : 'غير محدد',
+            'education_level' => $orphan->currentEducationLabel() ?? 'غير محدد',
             'health_status' => $orphan->health_status,
             'phone' => $orphan->phone,
             'cin' => $orphan->cin,

@@ -14,6 +14,8 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, GraduationCap } from "lucide-react"
 import api from "@/lib/api"
+import { AsyncSelectRS, type AsyncOption } from "@/components/common/AsyncSelectRS"
+import { SingleSelectRS } from "@/components/common/SingleSelectRS"
 
 export type Phase = { value: string; label: string; years: number }
 
@@ -38,7 +40,6 @@ type Props = {
   onOpenChange: (open: boolean) => void
   /** null opens the dialog in "register a student" mode. */
   enrollment: any | null
-  orphans: any[]
   years: any[]
   levels: any[]
   schools: any[]
@@ -56,7 +57,7 @@ type Props = {
  * could not then edit.
  */
 export function EnrollmentDialog({
-  open, onOpenChange, enrollment, orphans, years, levels, schools, phases, defaultYearId, onSaved,
+  open, onOpenChange, enrollment, years, levels, schools, phases, defaultYearId, onSaved,
 }: Props) {
   const { toast } = useToast()
   const [saving, setSaving] = useState(false)
@@ -104,6 +105,32 @@ export function EnrollmentDialog({
   // Once a student is in higher education the school list is the wrong list:
   // offering them last year's secondary school is how records end up wrong.
   const institutions = schools.filter((s) => (higher ? s.type === "university" : s.type !== "university"))
+  const institutionOptions = institutions.map((item) => ({
+    value: String(item.id),
+    label: `${item.name}${item.is_amaso_linked ? " — شريكة" : ""}`,
+  }))
+  const levelOptions = levels.map((item) => ({ value: String(item.id), label: item.name_ar }))
+
+  /**
+   * A roster of hundreds cannot be handed to the browser in one page and
+   * filtered client-side - the plain Select this replaced fetched at most
+   * 100 and had no way to search the rest anyway, so a family past the
+   * hundredth orphan was simply not reachable here. This searches the same
+   * endpoint the orphans page does.
+   */
+  const loadOrphanOptions = async (query: string): Promise<AsyncOption[]> => {
+    const response = await api.getOrphans({ search: query || undefined, per_page: 50 })
+    const options: AsyncOption[] = []
+    for (const group of response.data || []) {
+      for (const orphan of group.orphans || []) {
+        options.push({
+          value: String(orphan.id),
+          label: `${orphan.full_name}${group.widow?.full_name ? ` (${group.widow.full_name})` : ""}`,
+        })
+      }
+    }
+    return options
+  }
 
   const handleSave = async () => {
     if (!editing && !orphanId) {
@@ -178,18 +205,12 @@ export function EnrollmentDialog({
             {!editing && (
               <div className="space-y-2">
                 <Label>التلميذ *</Label>
-                <Select value={orphanId} onValueChange={setOrphanId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="اختر اليتيم" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {orphans.map((orphan) => (
-                      <SelectItem key={orphan.id} value={String(orphan.id)}>
-                        {orphan.full_name} {orphan.widow_name ? `(${orphan.widow_name})` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <AsyncSelectRS
+                  loadOptions={loadOrphanOptions}
+                  value={orphanId || undefined}
+                  onChange={(value) => setOrphanId(value ?? "")}
+                  placeholder="اكتب اسم اليتيم للبحث..."
+                />
               </div>
             )}
 
@@ -211,37 +232,22 @@ export function EnrollmentDialog({
 
             <div className="space-y-2">
               <Label>المستوى الدراسي</Label>
-              <Select value={levelId} onValueChange={setLevelId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر المستوى" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>غير محدد</SelectItem>
-                  {levels.map((item) => (
-                    <SelectItem key={item.id} value={String(item.id)}>
-                      {item.name_ar}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SingleSelectRS
+                options={levelOptions}
+                value={levelId === NONE ? undefined : levelId}
+                onChange={(value) => setLevelId(value ?? NONE)}
+                placeholder="اختر المستوى"
+              />
             </div>
 
             <div className="space-y-2">
               <Label>{higher ? "مؤسسة التعليم العالي" : "المؤسسة"}</Label>
-              <Select value={schoolId} onValueChange={setSchoolId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر المؤسسة" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>غير محددة</SelectItem>
-                  {institutions.map((item) => (
-                    <SelectItem key={item.id} value={String(item.id)}>
-                      {item.name}
-                      {item.is_amaso_linked ? " — شريكة" : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SingleSelectRS
+                options={institutionOptions}
+                value={schoolId === NONE ? undefined : schoolId}
+                onChange={(value) => setSchoolId(value ?? NONE)}
+                placeholder="اختر المؤسسة"
+              />
             </div>
 
             <div className="space-y-2">
