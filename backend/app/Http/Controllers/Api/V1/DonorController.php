@@ -19,11 +19,18 @@ class DonorController extends Controller
     public function index(Request $request): JsonResponse
     {
         $donors = Donor::with(['kafil.sponsorships.widow'])
+            // Grouped, or the ORs escape every filter beside them: with a
+            // bare chain, "name matches OR ... OR email matches AND is_kafil"
+            // binds the AND tightest and returns every matching name whether
+            // it is a sponsor or not.
             ->when($request->search, function ($query, $search) {
-                return $query->where('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                return $query->where(function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhereRaw("CONCAT(first_name, ' ', last_name) like ?", ["%{$search}%"]);
+                });
             })
             ->when($request->is_kafil !== null, function ($query) use ($request) {
                 return $query->where('is_kafil', $request->boolean('is_kafil'));

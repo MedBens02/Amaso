@@ -9,6 +9,7 @@ use App\Models\Income;
 use App\Services\IncomeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class IncomeController extends Controller
 {
@@ -35,18 +36,106 @@ class IncomeController extends Controller
             ->when($request->budget_id, fn ($query, $budgetId) => $query->where('budget_id', $budgetId))
             ->when($request->min_amount, fn ($query, $minAmount) => $query->where('amount', '>=', $minAmount))
             ->when($request->max_amount, fn ($query, $maxAmount) => $query->where('amount', '<=', $maxAmount))
-            ->orderBy('income_date', 'desc')
-            ->paginate($request->per_page ?? 15);
+            // The list screen used to filter the search term in the browser,
+            // over whichever page it happened to be holding. Searching a
+            // sponsor's name then showed one result on page 1, six on page 2
+            // and none on page 3, with the pager still counting every income
+            // in the table. The search has to run where the pagination runs.
+            ->when($request->search, function ($query, $search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('remarks', 'like', "%{$search}%")
+                        ->orWhere('receipt_number', 'like', "%{$search}%")
+                        ->orWhere('cheque_number', 'like', "%{$search}%")
+                        ->orWhereHas('budget', fn ($budget) => $budget->where('label', 'like', "%{$search}%"))
+                        ->orWhereHas('incomeCategory', fn ($category) => $category->where('label', 'like', "%{$search}%"))
+                        ->orWhereHas('donor', fn ($donor) => $donor
+                            ->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhereRaw("CONCAT(first_name, ' ', last_name) like ?", ["%{$search}%"]))
+                        ->orWhereHas('kafil', fn ($kafil) => $kafil
+                            ->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhereRaw("CONCAT(first_name, ' ', last_name) like ?", ["%{$search}%"]))
+                        ->orWhereHas('widow', fn ($widow) => $widow
+                            ->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhereRaw("CONCAT(first_name, ' ', last_name) like ?", ["%{$search}%"]));
+                });
+            })
+            ->orderBy('income_date', 'desc');
 
-        return response()->json([
-            'data' => $incomes->items(),
+        return response()->json($this->paginateByBatch($incomes, (int) ($request->per_page ?? 15), (int) ($request->page ?? 1)));
+    }
+
+    /**
+     * A page of *payments*, not of rows.
+     *
+     * A kafala chamila payment is stored as one income per budget line -
+     * seven rows for one 800 DH sponsorship - and the list has to show it as
+     * the one thing it was. Paginating over rows would leave a batch split
+     * across a page boundary, so the page is taken over groups instead: a
+     * batch counts once, an ordinary income counts once, and every row of a
+     * selected batch comes back whole.
+     *
+     * The pager then counts what is actually on screen. It used to count
+     * every income in the table while the screen showed something else
+     * entirely, which is the same disagreement that made searching look
+     * broken.
+     */
+    private function paginateByBatch($query, int $perPage, int $page): array
+    {
+        $perPage = max(1, min($perPage, 100));
+        $page = max(1, $page);
+
+        // Standalone incomes are their own group; batch rows share theirs.
+        $groupKey = "COALESCE(incomes.kafala_batch_id, CONCAT('income:', incomes.id))";
+
+        $groups = (clone $query)
+            ->toBase()
+            ->select(DB::raw("{$groupKey} as group_key"))
+            ->selectRaw('MAX(incomes.income_date) as latest_date')
+            ->selectRaw('MAX(incomes.id) as latest_id')
+            ->groupBy(DB::raw($groupKey))
+            ->orderByDesc('latest_date')
+            ->orderByDesc('latest_id');
+
+        $total = (clone $groups)->getCountForPagination();
+
+        $keys = $groups->forPage($page, $perPage)->get()->pluck('group_key')->all();
+
+        // Where each group sits on this page, so the rows can be put back in
+        // that order without searching the key list once per comparison.
+        $position = array_flip($keys);
+
+        $rows = $keys === []
+            ? collect()
+            : (clone $query)
+                ->whereRaw("{$groupKey} in (" . implode(',', array_fill(0, count($keys), '?')) . ')', $keys)
+                ->get()
+                // Same order as the page of groups, with each batch's own rows
+                // kept together and in a stable order underneath. One padded
+                // key rather than a list of them: Collection::sortBy reads an
+                // array of callbacks as comparators, not as key extractors,
+                // which silently shuffles the rows instead of ordering them.
+                ->sortBy(fn ($row) => sprintf(
+                    '%06d:%012d',
+                    $position[$row->kafala_batch_id ?? 'income:' . $row->id] ?? count($keys),
+                    $row->id,
+                ))
+                ->values();
+
+        return [
+            'data' => $rows->all(),
             'meta' => [
-                'current_page' => $incomes->currentPage(),
-                'last_page' => $incomes->lastPage(),
-                'per_page' => $incomes->perPage(),
-                'total' => $incomes->total(),
+                'current_page' => $page,
+                'last_page' => max(1, (int) ceil($total / $perPage)),
+                'per_page' => $perPage,
+                // Payments, which is what the page shows and what the pager
+                // has to count.
+                'total' => $total,
+                'total_rows' => $rows->count(),
             ],
-        ]);
+        ];
     }
 
     public function store(StoreIncomeRequest $request): JsonResponse
