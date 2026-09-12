@@ -519,13 +519,15 @@ export default function HomePage() {
           {/* CONTACT DETAILS — replace with the association's real ones */}
           <div className="mx-auto mt-12 grid max-w-4xl gap-5 sm:grid-cols-3">
             {[
-              { icon: Phone, label: "الهاتف", value: "05 00 00 00 00", href: "tel:+2120500000000" },
-              { icon: Mail, label: "البريد الإلكتروني", value: "contact@amaso.ma", href: "mailto:contact@amaso.ma" },
-              { icon: MapPin, label: "العنوان", value: "المغرب", href: undefined },
+              { icon: Phone, label: "الهاتف", value: "05 37 85 00 80", href: "tel:+212537850080" },
+              { icon: Mail, label: "البريد الإلكتروني", value: "kafalatyatimsala@gmail.com", href: "mailto:kafalatyatimsala@gmail.com" },
+              { icon: MapPin, label: "العنوان", value: "70 rue Mouzambik, rostane Tabriquet, 11000 Salé", target: "_blank", href: "https://maps.app.goo.gl/A8J7SER9r7vHvcDm7" }, 
             ].map((item) => (
               <Reveal key={item.label}>
                 <a
                   href={item.href}
+                  target={item.target}
+                  rel={item.target ? "noopener noreferrer" : undefined}
                   className="flex h-full flex-col items-center gap-3 rounded-3xl border border-slate-200 bg-slate-50/60 p-8 text-center transition-all hover:-translate-y-1 hover:border-teal-300 hover:shadow-lg dark:border-slate-700 dark:bg-slate-800/40"
                 >
                   <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-400">
