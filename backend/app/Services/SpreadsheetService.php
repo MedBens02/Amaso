@@ -136,7 +136,17 @@ class SpreadsheetService
         $sheet->setCellValue('A2', $title);
         $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12)->getColor()->setRGB(self::INK);
 
-        $captions = array_values(array_filter([$subtitle, ...array_values($meta)]));
+        // The settings screen promises the address, phone and email will
+        // show up on reports; this was the one export that never carried
+        // them past the association's name.
+        $org = OrganizationSettings::all();
+        $contact = implode(' · ', array_filter([
+            $org['address'] ?? null,
+            $org['phone'] ?? null,
+            $org['email'] ?? null,
+        ])) ?: null;
+
+        $captions = array_values(array_filter([$contact, $subtitle, ...array_values($meta)]));
         $line = 3;
         foreach ($captions as $caption) {
             $sheet->mergeCells("A{$line}:{$lastColumn}{$line}");
