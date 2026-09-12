@@ -44,13 +44,24 @@ class PdfService
      * Every report carries the association's name and mark. The logo is read
      * off disk rather than linked, so generation never depends on the PDF
      * being able to reach a URL.
+     *
+     * The settings screen tells whoever edits the address, phone and email
+     * that they will show up on printed reports; until this line existed
+     * that was untrue for every report in the app, because nothing past the
+     * name was ever handed to a template to print.
      */
     private function withBranding(array $data): array
     {
         $logoPath = config('organization.logo_path');
+        $org = OrganizationSettings::all();
 
         return $data + [
-            'organization' => OrganizationSettings::name(),
+            'organization' => $org['name'] ?? '',
+            'contact' => implode(' · ', array_filter([
+                $org['address'] ?? null,
+                $org['phone'] ?? null,
+                $org['email'] ?? null,
+            ])) ?: null,
             'logo' => is_readable($logoPath)
                 ? 'data:' . (mime_content_type($logoPath) ?: 'image/png') . ';base64,'
                     . base64_encode(file_get_contents($logoPath))

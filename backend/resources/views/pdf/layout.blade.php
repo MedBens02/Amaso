@@ -49,6 +49,10 @@
             font-size: 7.5pt;
             color: #9ca3af;
         }
+        .doc-footer .contact {
+            font-size: 6.5pt;
+            color: #9ca3af;
+        }
 
         /* ---------- meta strip ---------- */
         .meta {
@@ -194,8 +198,13 @@
 <htmlpagefooter name="footer">
     <table class="doc-footer" width="100%">
         <tr>
-            <td>{{ $organization }}</td>
-            <td style="text-align: left;">صفحة {PAGENO} من {nbpg}</td>
+            <td>
+                {{ $organization }}
+                @isset($contact)
+                    <div class="contact">{{ $contact }}</div>
+                @endisset
+            </td>
+            <td style="text-align: left; vertical-align: top;">صفحة {PAGENO} من {nbpg}</td>
         </tr>
     </table>
 </htmlpagefooter>
