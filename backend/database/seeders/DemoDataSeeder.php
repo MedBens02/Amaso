@@ -28,6 +28,7 @@ use App\Services\IncomeService;
 use App\Services\KafalaChamilaService;
 use App\Services\TransferService;
 use App\Services\WidowService;
+use App\Support\AuditLogger;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -62,6 +63,11 @@ class DemoDataSeeder extends Seeder
 
     public function run(): void
     {
+        // Nobody performed any of this, and thousands of invented rows in
+        // the activity log would bury whatever the association actually did
+        // on a demo install.
+        AuditLogger::disable();
+
         // Three fiscal years and three academic years, so the year-over-year
         // reports, the academic-year filter and the "all periods" exports
         // have more than one period to actually compare.
