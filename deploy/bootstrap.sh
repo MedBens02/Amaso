@@ -64,7 +64,13 @@ started="$(date +%s)"
 
 printf '\n%s  AMASO - full install%s\n' "$C_STEP" "$C_OFF"
 printf '    repository  %s\n' "$REPO"
-printf '    branch      %s\n' "${BRANCH:-<the repository's default>}"
+# No apostrophe in this default, and none in any other. A single quote
+# inside ${var:-default} opens a quoted run even within double quotes, and
+# bash then reads past the end of the line looking for its partner. It found
+# one further down the file, so `bash -n` reported the script as valid while
+# the tokens after it were silently wrong - and the failure surfaced at
+# runtime, inside the next command substitution, pointing at the wrong line.
+printf '    branch      %s\n' "${BRANCH:-the repository default}"
 printf '    domain      %s\n' "${DOMAIN:-<none - the site will answer on its IP>}"
 printf '    data        %s\n' "$( (( SEED_DEMO )) && echo 'INVENTED DEMO DATA' || echo 'empty - ready for real records')"
 printf '    machine     %s MB RAM, %s MB swap, %s MB free on /\n\n' \
