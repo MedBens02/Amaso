@@ -8,6 +8,18 @@ Three ways to run this, depending on what you need.
 | **Test it on the association's PC** | [`setup/README.md`](setup/README.md) *(français)* | ~10 min |
 | **Put it on a server** they can reach from anywhere | [`deploy/README.md`](deploy/README.md) | ~20 min |
 
+Putting it on a server is one command on a fresh Ubuntu 24.04 VM:
+
+```bash
+git clone https://github.com/MedBens02/Amaso.git /opt/amaso-installer
+cd /opt/amaso-installer/deploy
+sudo bash bootstrap.sh --domain amaso.exemple.ma --email admin@exemple.ma
+```
+
+Server, database, application, nightly backups and an HTTPS certificate.
+See [`deploy/README.md`](deploy/README.md) for what it does and what to do
+when it does not.
+
 The stack is Next.js 15 (frontend), Laravel 12 (API) and MySQL/MariaDB.
 Arabic throughout, RTL layout.
 
@@ -152,7 +164,7 @@ Amaso/
 │   ├── components/                     shadcn/ui + the app's own
 │   └── lib/api.ts                      the API client
 ├── setup/          Windows scripts and guide  (français)
-├── deploy/         VM provisioning, deployment, backups
+├── deploy/         VM install (bootstrap.sh), deployment, backups, status
 └── amaso.sql       demo database
 ```
 

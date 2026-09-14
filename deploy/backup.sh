@@ -18,17 +18,22 @@
 
 set -euo pipefail
 
+HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+# shellcheck source=common.sh
+source "$HERE/common.sh"
+
 DB_NAME="${DB_NAME:-amaso}"
 DB_USER="${DB_USER:-amaso}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/amaso}"
 KEEP="${KEEP:-30}"
 PASS_FILE="/root/.amaso-db-password"
 
-ok()   { printf '    \033[0;32m[ok]\033[0m %s\n' "$*"; }
-warn() { printf '    \033[0;33m[!]\033[0m %s\n' "$*"; }
-die()  { printf '\n\033[0;31m[x] %s\033[0m\n\n' "$*" >&2; exit 1; }
+# common.sh drops the colour codes when stdout is not a terminal, which
+# matters here more than anywhere else: this runs nightly from cron into
+# /var/log/amaso-backup.log, and escape sequences in a log file make it
+# unreadable in exactly the situation you would be reading it.
 
-[[ $EUID -eq 0 ]] || die "Run this as root."
+need_root
 [[ -f "$PASS_FILE" ]] || die "$PASS_FILE is missing - re-run provision.sh"
 DB_PASS="$(cat "$PASS_FILE")"
 
@@ -78,8 +83,8 @@ CRONEOF
     [[ -n "$FILE" ]] || die "Usage: sudo bash backup.sh --restore /var/backups/amaso/<file>.sql.gz"
     [[ -f "$FILE" ]] || die "$FILE not found."
 
-    printf '\n\033[0;33m  This replaces every row in "%s" with the contents of\n' "$DB_NAME"
-    printf '  %s. Anything entered since that backup is lost.\033[0m\n\n' "$FILE"
+    printf '\n%s  This replaces every row in "%s" with the contents of\n' "$C_WARN" "$DB_NAME"
+    printf '  %s. Anything entered since that backup is lost.%s\n\n' "$FILE" "$C_OFF"
     read -r -p "  Type the database name to confirm: " answer
     [[ "$answer" == "$DB_NAME" ]] || die "Not confirmed - nothing was changed."
 
