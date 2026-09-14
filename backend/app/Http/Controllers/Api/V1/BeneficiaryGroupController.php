@@ -111,7 +111,7 @@ class BeneficiaryGroupController extends Controller
     public function getMembers(BeneficiaryGroup $beneficiaryGroup): JsonResponse
     {
         $members = $beneficiaryGroup->beneficiaries()
-            ->with(['widow', 'orphan'])
+            ->with(['widow', 'orphan.widow'])
             ->get();
 
         return response()->json(['data' => $members]);
@@ -147,7 +147,12 @@ class BeneficiaryGroupController extends Controller
      */
     public function getBeneficiaries(Request $request): JsonResponse
     {
-        $query = Beneficiary::with(['widow', 'orphan']);
+        // orphan.widow comes along so each orphan row carries the family it
+        // belongs to. The selection panels show the mother's name next to
+        // every orphan, and they used to get it by holding a copy of the
+        // whole widow list in the browser and looking the id up in it -
+        // which only ever worked while every widow fitted in one page.
+        $query = Beneficiary::with(['widow', 'orphan.widow']);
 
         if (in_array($request->type, ['Widow', 'Orphan'])) {
             $query->where('type', $request->type);

@@ -327,12 +327,16 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
         ])
 
         const apiData: LookupData = {
-          neighborhoods: [
-            { id: "zahra", name: "حي الزهراء" },
-            { id: "noor", name: "حي النور" },
-            { id: "salam", name: "حي السلام" },
-            { id: "amal", name: "حي الأمل" },
-          ],
+          // The neighbourhoods already on file, read from the same endpoint
+          // the rest of this form reads. These used to be four names written
+          // into this file, which meant a neighbourhood added through the
+          // form's own "write a new one" box was saved, appeared in the
+          // referential, and then could never be picked for the next family -
+          // while one of the four hardcoded names belonged to no family at all.
+          neighborhoods: (widowsRefData?.data?.neighborhoods || []).map((name: string) => ({
+            id: name,
+            name,
+          })),
           housingTypes: (widowsRefData?.data?.housing_types || []).map((item: any) => ({
             id: item.id.toString(),
             name: item.label
@@ -373,12 +377,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
         console.error("Error loading lookup data:", error)
         // Fallback to empty data
         setLookupData({
-          neighborhoods: [
-            { id: "zahra", name: "حي الزهراء" },
-            { id: "noor", name: "حي النور" },
-            { id: "salam", name: "حي السلام" },
-            { id: "amal", name: "حي الأمل" },
-          ],
+          neighborhoods: [],
           housingTypes: [],
           incomeCategories: [],
           expenseCategories: [],

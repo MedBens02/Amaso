@@ -48,7 +48,15 @@ export const reactSelectStyles: StylesConfig<any, any, any> = {
   // The menu is portalled to <body>, so it cannot be clipped by a dialog that
   // scrolls its own content - which is what made long lists (income sources,
   // skills, sponsors) look like they simply stopped partway down.
-  menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+  // pointerEvents matters as much as the z-index here. A Radix dialog puts
+  // `pointer-events: none` on <body> while it is open, so that only what is
+  // inside the dialog can be clicked. This menu is portalled to <body> - it
+  // is outside that subtree - so it inherited the block: the list rendered
+  // on top of everything and then quietly refused the mouse, passing clicks
+  // through to whatever sat behind it. Keyboard selection still worked,
+  // because focus never left the control inside the dialog, which is what
+  // made it look like a scrolling bug rather than a dead menu.
+  menuPortal: (base) => ({ ...base, zIndex: 99999, pointerEvents: "auto" }),
   menuList: (base) => ({
     ...base,
     maxHeight: "260px",

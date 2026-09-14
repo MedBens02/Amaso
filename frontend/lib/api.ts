@@ -612,8 +612,22 @@ class ApiClient {
     return this.request<any[]>(`/beneficiary-groups/${groupId}/members`)
   }
 
-  async getBeneficiaries() {
-    return this.request<any[]>('/beneficiaries')
+  /**
+   * Widows and orphans, for the selection panels.
+   *
+   * The filters are passed to the server rather than applied to the result:
+   * the endpoint pages, so filtering here would only ever search the first
+   * page - the same trap the incomes search was in, where a name present in
+   * the database simply did not come up.
+   */
+  async getBeneficiaries(params?: { search?: string; type?: 'Widow' | 'Orphan'; per_page?: number }) {
+    const query = new URLSearchParams()
+    if (params?.search) query.set('search', params.search)
+    if (params?.type) query.set('type', params.type)
+    if (params?.per_page) query.set('per_page', String(params.per_page))
+
+    const suffix = query.toString()
+    return this.request<any[]>(`/beneficiaries${suffix ? `?${suffix}` : ''}`)
   }
 
   async getPartners() {

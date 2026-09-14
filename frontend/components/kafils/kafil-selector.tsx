@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import AsyncSelect from "react-select/async"
 import { Badge } from "@/components/ui/badge"
+import { reactSelectStyles } from "@/lib/react-select-theme"
 import api from "@/lib/api"
 
 interface Kafil {
@@ -73,58 +74,21 @@ export function KafilSelector({ value, onValueChange, placeholder = "اختر ا
 
   const selectedOption = defaultOptions.find(option => option.value === value)
 
+  /**
+   * The shared theme, with the one thing this control genuinely needs on
+   * top: roomier options, because a kafil's line carries their pledge and
+   * sponsorship count under the name.
+   *
+   * This used to be a full hand-written copy of the theme, which had
+   * drifted: it set `position: relative` on the menu (breaking the portal's
+   * own positioning and its max-height) and left `pointerEvents` off the
+   * portal, so inside a dialog the list ignored the mouse entirely.
+   */
   const customStyles = {
-    control: (provided: any, state: any) => ({
-      ...provided,
-      minHeight: '40px',
-      border: '1px solid hsl(var(--border))',
-      borderRadius: '6px',
-      backgroundColor: 'hsl(var(--background))',
-      '&:hover': {
-        borderColor: 'hsl(var(--border))',
-      },
-      boxShadow: state.isFocused ? '0 0 0 2px hsl(var(--ring))' : 'none',
-    }),
-    menu: (provided: any) => ({
-      ...provided,
-      zIndex: 99999,
-      backgroundColor: 'hsl(var(--background))',
-      border: '1px solid hsl(var(--border))',
-      borderRadius: '6px',
-      position: 'relative',
-    }),
-    menuPortal: (provided: any) => ({
-      ...provided,
-      zIndex: 99999,
-      position: 'fixed',
-    }),
-    option: (provided: any, state: any) => ({
-      ...provided,
-      backgroundColor: state.isSelected 
-        ? 'hsl(var(--primary))' 
-        : state.isFocused 
-        ? 'hsl(var(--accent))'
-        : 'transparent',
-      color: state.isSelected 
-        ? 'hsl(var(--primary-foreground))' 
-        : 'hsl(var(--foreground))',
+    ...reactSelectStyles,
+    option: (base: any, state: any) => ({
+      ...reactSelectStyles.option!(base, state),
       padding: '12px',
-      '&:hover': {
-        backgroundColor: 'hsl(var(--accent))',
-        color: 'hsl(var(--accent-foreground))',
-      },
-    }),
-    singleValue: (provided: any) => ({
-      ...provided,
-      color: 'hsl(var(--foreground))',
-    }),
-    placeholder: (provided: any) => ({
-      ...provided,
-      color: 'hsl(var(--muted-foreground))',
-    }),
-    input: (provided: any) => ({
-      ...provided,
-      color: 'hsl(var(--foreground))',
     }),
   }
 
@@ -151,7 +115,10 @@ export function KafilSelector({ value, onValueChange, placeholder = "اختر ا
 
   return (
     <div>
-      <AsyncSelect
+      {/* The generics are pinned: with only the styles object to infer from,
+          TypeScript widens onChange's argument to "one option or many" and
+          reading .value off it stops compiling. */}
+      <AsyncSelect<KafilOption, false>
         cacheOptions
         defaultOptions={defaultOptions}
         loadOptions={loadOptions}

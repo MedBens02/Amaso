@@ -16,12 +16,13 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
-import { Plus, Trash2, Users, DollarSign, FileText, CreditCard } from "lucide-react"
+import { Plus, Trash2, Users, UsersRound, DollarSign, FileText, CreditCard, Split } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { toDateInputValue, fromDateInputValue } from "@/lib/date-utils"
 import { KafalaCoveragePanel } from "@/components/forms/KafalaCoveragePanel"
 import { buildCategoryOptions } from "@/lib/categories"
+import { SingleSelectRS } from "@/components/common/SingleSelectRS"
 
 // Form validation schema
 const expenseSchema = z.object({
@@ -41,7 +42,10 @@ const expenseSchema = z.object({
   beneficiaries: z.array(z.object({
     beneficiary_id: z.number(),
     amount: z.number().min(0),
-    notes: z.string().optional()
+    notes: z.string().optional(),
+    // The saved group this person was picked from, if any. Kept on the row
+    // so the expense records where its list of people came from.
+    group_id: z.number().nullable().optional(),
   })).optional()
 }).refine((data) => {
   // Payment method specific validations
@@ -118,6 +122,14 @@ interface Beneficiary {
     education_level?: {
       name_ar: string
     }
+    // Eager-loaded alongside the orphan, so the mother's name is on the
+    // record rather than looked up in a separate list.
+    widow?: {
+      id: number
+      full_name?: string
+      first_name?: string
+      last_name?: string
+    }
   }
   widow?: {
     id: number
@@ -128,6 +140,14 @@ interface Beneficiary {
   }
 }
 
+
+interface BeneficiaryGroup {
+  id: number
+  label: string
+  name?: string
+  description?: string | null
+  members_count?: number
+}
 
 interface NewExpenseFormProps {
   open: boolean
@@ -175,9 +195,20 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([])
   const [familyByBeneficiary, setFamilyByBeneficiary] = useState<Record<number, { widowId: number; widowName: string }>>({})
-  const [widows, setWidows] = useState<Beneficiary[]>([])
   const [activeFiscalYear, setActiveFiscalYear] = useState<any>(null)
-  
+
+  // Everyone currently on the expense, keyed by id. The search results are
+  // replaced on every new search, so this is what lets the selected list stay
+  // on screen - and be edited - after searching for somebody else, or after
+  // pulling in a whole group nobody searched for.
+  const [selectedBeneficiaries, setSelectedBeneficiaries] = useState<Record<number, Beneficiary>>({})
+
+  // Beneficiary groups - the saved lists of people who receive the same
+  // recurring expense together.
+  const [beneficiaryGroups, setBeneficiaryGroups] = useState<BeneficiaryGroup[]>([])
+  const [selectedGroupId, setSelectedGroupId] = useState<string>("")
+  const [groupLoading, setGroupLoading] = useState(false)
+
   // Beneficiary search
   const [beneficiarySearchTerm, setBeneficiarySearchTerm] = useState("")
   const [beneficiaryTypeFilter, setBeneficiaryTypeFilter] = useState<'all' | 'Widow' | 'Orphan'>('all')
@@ -238,6 +269,9 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       setBeneficiarySearchTerm("")
       setBeneficiaryTypeFilter('all')
       setBeneficiaries([])
+      setSelectedBeneficiaries({})
+      setFamilyByBeneficiary({})
+      setSelectedGroupId("")
       setActiveTab("basic")
       
       // Force cleanup of any remaining UI elements
@@ -301,6 +335,52 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       if (initialData.expense_date && typeof initialData.expense_date === 'string') {
         defaultValues.expense_date = new Date(initialData.expense_date)
       }
+
+      // An expense being edited or duplicated arrives with its saved
+      // beneficiary rows: the stored pivot records, each carrying the
+      // beneficiary itself. They are reduced to the four fields the form
+      // works in - amount included, which the API sends as the string
+      // "1050.00" and the schema requires as a number - and the people are
+      // put back into the selected list so the rows show names rather than
+      // bare ids.
+      const savedRows: any[] = Array.isArray((initialData as any).beneficiaries)
+        ? (initialData as any).beneficiaries
+        : []
+
+      if (savedRows.length > 0) {
+        defaultValues.beneficiaries = savedRows.map(row => ({
+          beneficiary_id: Number(row.beneficiary_id ?? row.id),
+          amount: Number(row.amount) || 0,
+          notes: row.notes ?? "",
+          group_id: row.group_id != null ? Number(row.group_id) : null,
+        }))
+
+        const records: Record<number, Beneficiary> = {}
+        const families: Record<number, { widowId: number; widowName: string }> = {}
+
+        savedRows.forEach(row => {
+          const beneficiary: Beneficiary | undefined = row.beneficiary
+          if (!beneficiary) return
+
+          records[beneficiary.id] = beneficiary
+
+          const widowId = beneficiary.type === 'Widow' ? beneficiary.widow?.id : beneficiary.orphan?.widow_id
+          if (!widowId) return
+
+          families[beneficiary.id] = {
+            widowId,
+            widowName: beneficiary.type === 'Widow'
+              ? (beneficiary.widow?.full_name || beneficiary.full_name || '')
+              : (findMotherName(beneficiary) || 'غير محدد'),
+          }
+        })
+
+        setSelectedBeneficiaries(records)
+        setFamilyByBeneficiary(families)
+      } else {
+        setSelectedBeneficiaries({})
+        setFamilyByBeneficiary({})
+      }
     }
 
     console.log('Resetting form with values:', defaultValues)
@@ -313,12 +393,15 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
     setLoading(true)
     try {
       // Try to load real data from API
-      const [budgetsRes, categoriesRes, partnersRes, bankAccountsRes, fiscalYearRes] = await Promise.all([
+      const [budgetsRes, categoriesRes, partnersRes, bankAccountsRes, fiscalYearRes, groupsRes] = await Promise.all([
         api.getBudgets(),
         api.getExpenseCategories(),
         api.getPartners(),
         api.getBankAccounts(),
-        api.getActiveFiscalYear()
+        api.getActiveFiscalYear(),
+        // Groups are small and there is no searching to do over them, so the
+        // whole list is fetched once and offered as a dropdown.
+        api.getBeneficiaryGroups().catch(() => ({ data: [] as any[] })),
       ])
       
       // Use real data from API
@@ -329,16 +412,8 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       setBankAccounts(bankAccountsRes.data || [])
       setBeneficiaries([]) // Start with empty - user must search
       setActiveFiscalYear(fiscalYearRes || null)
-      
-      // Load widows data for orphan mother names
-      try {
-        const widowsRes = await api.getBeneficiaries()
-        const widowsData = widowsRes.data?.filter((b: any) => b.type === 'Widow') || []
-        setWidows(widowsData)
-      } catch (error) {
-        console.error('Error loading widows data:', error)
-      }
-      
+      setBeneficiaryGroups((groupsRes as any)?.data || [])
+
       if (fiscalYearRes && !initialData?.fiscal_year_id) {
         form.setValue("fiscal_year_id", fiscalYearRes.id)
       }
@@ -411,33 +486,17 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
     
     setBeneficiarySearchLoading(true)
     try {
-      const params: any = {}
-      if (beneficiarySearchTerm.trim()) {
-        params.search = beneficiarySearchTerm.trim()
-      }
-      if (beneficiaryTypeFilter !== 'all') {
-        params.type = beneficiaryTypeFilter
-      }
-      
-      const response = await api.getBeneficiaries()
-      
-      // Filter results based on search criteria
-      let filteredBeneficiaries = response.data || []
-      
-      if (beneficiarySearchTerm.trim()) {
-        const searchLower = beneficiarySearchTerm.toLowerCase()
-        filteredBeneficiaries = filteredBeneficiaries.filter((b: any) => 
-          (b.full_name && b.full_name.toLowerCase().includes(searchLower)) ||
-          (b.first_name && b.first_name.toLowerCase().includes(searchLower)) ||
-          (b.last_name && b.last_name.toLowerCase().includes(searchLower))
-        )
-      }
-      
-      if (beneficiaryTypeFilter !== 'all') {
-        filteredBeneficiaries = filteredBeneficiaries.filter((b: any) => b.type === beneficiaryTypeFilter)
-      }
-      
-      setBeneficiaries(filteredBeneficiaries.slice(0, 50)) // Limit to 50 results
+      // The name and the type go to the server. They used to be applied here
+      // to whatever the first page happened to contain, so searching for
+      // somebody who sorted past the first hundred beneficiaries returned
+      // nothing at all and looked like they were not registered.
+      const response = await api.getBeneficiaries({
+        search: beneficiarySearchTerm.trim() || undefined,
+        type: beneficiaryTypeFilter === 'all' ? undefined : beneficiaryTypeFilter,
+        per_page: 50,
+      })
+
+      setBeneficiaries(response.data || [])
     } catch (error) {
       console.error('Error searching beneficiaries:', error)
       toast({
@@ -450,15 +509,30 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
     }
   }, [beneficiarySearchTerm, beneficiaryTypeFilter, toast])
   
-  // Search when filter changes
+  /**
+   * Search as you type, once you have stopped.
+   *
+   * The panel used to run a search on every render of the callback, which
+   * meant one request per keystroke as soon as a type filter was on; and
+   * with no filter on, typing did nothing at all until the button was
+   * pressed. Both are replaced by a single debounced search that fires
+   * 300ms after the last key, for a name of at least two letters or for a
+   * type filter on its own. The بحث button still works and now just skips
+   * the wait.
+   */
   useEffect(() => {
-    if (beneficiaryTypeFilter !== 'all') {
-      searchBeneficiaries()
-    } else {
-      // Clear beneficiaries when switching to 'all' to force user to search
+    const term = beneficiarySearchTerm.trim()
+    const hasTerm = term.length >= 2
+    const hasFilter = beneficiaryTypeFilter !== 'all'
+
+    if (!hasTerm && !hasFilter) {
       setBeneficiaries([])
+      return
     }
-  }, [beneficiaryTypeFilter, searchBeneficiaries])
+
+    const timer = setTimeout(() => { searchBeneficiaries() }, 300)
+    return () => clearTimeout(timer)
+  }, [beneficiarySearchTerm, beneficiaryTypeFilter, searchBeneficiaries])
   
   
 
@@ -474,11 +548,17 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
     return age
   }
 
+  // The mother travels with the orphan now (the endpoint eager-loads her),
+  // rather than being looked up in a separate copy of the widow list held in
+  // the browser - which was only ever complete while every widow fitted in
+  // one page of results.
   const findMotherName = (orphan: Beneficiary) => {
-    if (orphan.type !== 'Orphan' || !orphan.orphan?.widow_id) return null
-    
-    const mother = widows.find(w => w.widow?.id === orphan.orphan?.widow_id)
-    return mother?.widow?.full_name || mother?.full_name || 'غير محدد'
+    if (orphan.type !== 'Orphan') return null
+
+    const mother = orphan.orphan?.widow
+    if (!mother) return 'غير محدد'
+
+    return mother.full_name || `${mother.first_name ?? ''} ${mother.last_name ?? ''}`.trim() || 'غير محدد'
   }
 
   // Memoized set for tracking beneficiary selections
@@ -515,10 +595,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
   // Which family each selected beneficiary belongs to, recorded at selection
   // time: the search results are replaced on every new search, so the mapping
   // would otherwise be lost for beneficiaries selected in an earlier search.
-  const rememberFamily = (beneficiaryId: number) => {
-    const beneficiary = beneficiaries.find(b => b.id === beneficiaryId)
-    if (!beneficiary) return
-
+  const rememberFamily = (beneficiary: Beneficiary) => {
     const widowId = beneficiary.type === 'Widow' ? beneficiary.widow?.id : beneficiary.orphan?.widow_id
     if (!widowId) return
 
@@ -526,30 +603,133 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       ? (beneficiary.widow?.full_name || beneficiary.full_name || `${beneficiary.first_name} ${beneficiary.last_name}`)
       : (findMotherName(beneficiary) || 'غير محدد')
 
-    setFamilyByBeneficiary(prev => ({ ...prev, [beneficiaryId]: { widowId, widowName } }))
+    setFamilyByBeneficiary(prev => ({ ...prev, [beneficiary.id]: { widowId, widowName } }))
+  }
+
+  /** The name to show for a beneficiary, wherever the record came from. */
+  const displayName = (beneficiary: Beneficiary) =>
+    beneficiary.full_name || `${beneficiary.first_name ?? ''} ${beneficiary.last_name ?? ''}`.trim()
+
+  /**
+   * Put one beneficiary on the expense.
+   *
+   * The record itself is kept, not just the id: the selected list has to keep
+   * showing a name and an amount box for somebody the current search results
+   * no longer contain.
+   */
+  const selectBeneficiary = (beneficiary: Beneficiary, groupId?: number) => {
+    if (selectedBeneficiaryIds.has(beneficiary.id)) return
+
+    rememberFamily(beneficiary)
+    setSelectedBeneficiaries(prev => ({ ...prev, [beneficiary.id]: beneficiary }))
+
+    addBeneficiary({
+      beneficiary_id: beneficiary.id,
+      amount: 0,
+      notes: "",
+      group_id: groupId ?? null,
+    })
+  }
+
+  const deselectBeneficiary = (beneficiaryId: number) => {
+    const index = beneficiaryFields.findIndex(field => field.beneficiary_id === beneficiaryId)
+    if (index !== -1) {
+      removeBeneficiary(index)
+    }
+
+    setSelectedBeneficiaries(prev => {
+      const next = { ...prev }
+      delete next[beneficiaryId]
+      return next
+    })
   }
 
   // Handle beneficiary selection
   const handleBeneficiarySelect = (beneficiaryId: number, checked: boolean) => {
     if (checked) {
-      // Check if already selected
-      if (selectedBeneficiaryIds.has(beneficiaryId)) return
-
-      rememberFamily(beneficiaryId)
-
-      // Add to form with default amount
-      addBeneficiary({
-        beneficiary_id: beneficiaryId,
-        amount: 0,
-        notes: ""
-      })
+      const beneficiary = beneficiaries.find(b => b.id === beneficiaryId)
+      if (beneficiary) selectBeneficiary(beneficiary)
     } else {
-      // Remove from form
-      const index = beneficiaryFields.findIndex(field => field.beneficiary_id === beneficiaryId)
-      if (index !== -1) {
-        removeBeneficiary(index)
-      }
+      deselectBeneficiary(beneficiaryId)
     }
+  }
+
+  /**
+   * Add everybody in a saved group to the expense.
+   *
+   * This is what the groups are for: the same families receive the same
+   * recurring expense month after month, and ticking them off one by one is
+   * the work the group was created to avoid. Members already on the expense
+   * are left alone rather than added twice, so pulling in two overlapping
+   * groups does the sensible thing.
+   */
+  const addGroupMembers = async () => {
+    if (!selectedGroupId) return
+
+    setGroupLoading(true)
+    try {
+      const response = await api.getBeneficiaryGroupMembers(Number(selectedGroupId))
+      const members: Beneficiary[] = (response.data as any) || []
+
+      const seen = new Set<number>()
+      const fresh = members.filter(member => {
+        if (selectedBeneficiaryIds.has(member.id) || seen.has(member.id)) return false
+        seen.add(member.id)
+        return true
+      })
+
+      fresh.forEach(member => selectBeneficiary(member, Number(selectedGroupId)))
+
+      const group = beneficiaryGroups.find(g => String(g.id) === selectedGroupId)
+      const skipped = members.length - fresh.length
+
+      if (members.length === 0) {
+        toast({
+          title: "المجموعة فارغة",
+          description: `لا يوجد أعضاء في «${group?.label ?? ''}»`,
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "تمت إضافة أعضاء المجموعة",
+          description: `${fresh.length} مستفيد من «${group?.label ?? ''}»`
+            + (skipped > 0 ? ` (${skipped} كانوا مضافين من قبل)` : ''),
+        })
+      }
+    } catch (error) {
+      console.error('Error loading group members:', error)
+      toast({
+        title: "خطأ",
+        description: "تعذر تحميل أعضاء المجموعة",
+        variant: "destructive",
+      })
+    } finally {
+      setGroupLoading(false)
+    }
+  }
+
+  /**
+   * Split the expense evenly over everybody selected.
+   *
+   * The server requires the per-beneficiary amounts to add up to the expense
+   * exactly, so the division is done in centimes and the remainder goes to
+   * the first row: twenty families sharing 1000 د.م get 50.00 each, and an
+   * amount that does not divide cleanly still totals to the penny instead of
+   * leaving a rounding gap that blocks the save.
+   */
+  const distributeEqually = () => {
+    const count = beneficiaryFields.length
+    const total = Math.round((parseFloat(String(totalAmount)) || 0) * 100)
+
+    if (count === 0 || total <= 0) return
+
+    const share = Math.floor(total / count)
+    const remainder = total - share * count
+
+    beneficiaryFields.forEach((field, index) => {
+      const centimes = index === 0 ? share + remainder : share
+      form.setValue(`beneficiaries.${index}.amount`, centimes / 100, { shouldValidate: true })
+    })
   }
   
   // Handle form submission
@@ -893,6 +1073,52 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
+                      {/* Beneficiary groups - the saved lists of people who
+                          receive the same recurring expense together. Picking
+                          one adds all of its members at once, which is the
+                          whole reason the groups exist. */}
+                      <div className="rounded-xl border border-border bg-muted/40 p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <UsersRound className="h-4 w-4 text-primary" />
+                          <h4 className="font-semibold text-sm">إضافة مجموعة مستفيدين</h4>
+                        </div>
+                        {beneficiaryGroups.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">
+                            لا توجد مجموعات مستفيدين بعد. يمكن إنشاؤها من صفحة «مجموعات المستفيدين» لتسهيل تسجيل المصاريف المتكررة.
+                          </p>
+                        ) : (
+                          <>
+                          <div className="flex flex-col gap-2 sm:flex-row">
+                            <div className="flex-1">
+                              <SingleSelectRS
+                                options={beneficiaryGroups.map(group => ({
+                                  label: `${group.label}${group.members_count ? ` (${group.members_count} مستفيد)` : ''}`,
+                                  value: String(group.id),
+                                }))}
+                                value={selectedGroupId}
+                                onChange={(value) => setSelectedGroupId(value || "")}
+                                placeholder="اختر مجموعة..."
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={addGroupMembers}
+                              disabled={!selectedGroupId || groupLoading}
+                            >
+                              <Plus className="h-4 w-4 ml-1" />
+                              {groupLoading ? "جاري الإضافة..." : "إضافة الأعضاء"}
+                            </Button>
+                          </div>
+                          {selectedGroupId && (
+                            <p className="text-xs text-muted-foreground">
+                              {beneficiaryGroups.find(g => String(g.id) === selectedGroupId)?.description || ''}
+                            </p>
+                          )}
+                          </>
+                        )}
+                      </div>
+
                       {/* Search Section */}
                       <div className="space-y-3">
                         <div className="flex gap-2">
@@ -1020,24 +1246,123 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                                     )}
                                   </div>
                                   
+                                  {/* The amount is edited in the selected
+                                      list below, which is the one place that
+                                      shows every chosen beneficiary. A second
+                                      box for the same figure here would only
+                                      appear while the person happened to be
+                                      in the current search results. */}
                                   {isSelected && (
-                                    <div className="flex items-center space-x-3 space-x-reverse bg-card rounded-lg p-3 shadow-sm border mr-4">
-                                      <Label className="text-sm font-medium text-foreground">:المبلغ</Label>
-                                      <Input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        className="w-28 text-center font-semibold"
-                                        placeholder="0.00"
-                                        {...form.register(`beneficiaries.${beneficiaryFields.findIndex(f => f.beneficiary_id === beneficiary.id)}.amount`, { valueAsNumber: true })}
-                                      />
-                                      <span className="text-sm font-medium text-muted-foreground">DH</span>
-                                    </div>
+                                    <Badge variant="secondary" className="mr-4 shrink-0">مضاف</Badge>
                                   )}
                                 </div>
                               </div>
                             )
                           })}
+                        </div>
+                      )}
+
+                      {/* Everybody on this expense.
+                          The amount boxes used to live inside the search
+                          results, which meant that searching for somebody
+                          else hid the rows already chosen - they stayed
+                          selected and counted towards the total, with no way
+                          left to see or edit them. A group of twenty would
+                          have been unusable for the same reason. */}
+                      {beneficiaryFields.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <h4 className="font-semibold text-sm flex items-center gap-2">
+                              <Users className="h-4 w-4 text-primary" />
+                              المستفيدون المختارون ({beneficiaryFields.length})
+                            </h4>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={distributeEqually}
+                              disabled={!totalAmount || Number(totalAmount) <= 0}
+                              title="توزيع مبلغ المصروف بالتساوي على المستفيدين المختارين"
+                            >
+                              <Split className="h-4 w-4 ml-1" />
+                              توزيع بالتساوي
+                            </Button>
+                          </div>
+
+                          <div className="space-y-2 max-h-72 overflow-y-auto rounded-xl border border-border p-2">
+                            {beneficiaryFields.map((field, index) => {
+                              const beneficiary = selectedBeneficiaries[field.beneficiary_id]
+                              const family = familyByBeneficiary[field.beneficiary_id]
+                              const isOrphan = beneficiary?.type === 'Orphan'
+
+                              return (
+                                <div
+                                  key={field.id}
+                                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3"
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                                      onClick={() => deselectBeneficiary(field.beneficiary_id)}
+                                      aria-label="إزالة المستفيد"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium truncate">
+                                          {beneficiary ? displayName(beneficiary) : `مستفيد #${field.beneficiary_id}`}
+                                        </span>
+                                        {beneficiary && (
+                                          <Badge variant={isOrphan ? 'outline' : 'secondary'} className="text-xs shrink-0">
+                                            {isOrphan ? 'يتيم' : 'أرملة'}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      {isOrphan && family?.widowName && (
+                                        <p className="text-xs text-muted-foreground truncate">
+                                          الأم: {family.widowName}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      className="w-28 text-center font-semibold"
+                                      placeholder="0.00"
+                                      {...form.register(`beneficiaries.${index}.amount`, { valueAsNumber: true })}
+                                    />
+                                    <span className="text-sm font-medium text-muted-foreground">DH</span>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+
+                          {/* The server rejects a mismatch, so the gap is
+                              named here rather than discovered on save. */}
+                          {(() => {
+                            const allocated = (watchedBeneficiaries || []).reduce(
+                              (sum: number, row: any) => sum + (Number(row?.amount) || 0), 0,
+                            )
+                            const gap = (Number(totalAmount) || 0) - allocated
+                            if (Math.abs(gap) <= 0.01) return null
+
+                            return (
+                              <p className="text-sm text-destructive">
+                                {gap > 0
+                                  ? `متبقي ${gap.toFixed(2)} DH غير موزع على المستفيدين`
+                                  : `الموزع يتجاوز مبلغ المصروف بـ ${Math.abs(gap).toFixed(2)} DH`}
+                              </p>
+                            )
+                          })()}
                         </div>
                       )}
 
