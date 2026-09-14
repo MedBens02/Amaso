@@ -140,19 +140,59 @@ log "Installing packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 
+# Which PHP this release actually offers, asked of apt rather than guessed
+# from the version number.
+#
+# The version number was guessed here once - "24.* or 25.* has a new enough
+# PHP, anything else needs the ondrej PPA" - and Ubuntu 26.04 then matched
+# neither, so the script reached for a PPA that has no packages built for it
+# yet and stopped on "does not have a Release file". The release that needs
+# the PPA is the one whose own PHP is too old, which apt can be asked
+# directly.
+php_versions_available() {
+    apt-cache -q search --names-only '^php8\.[0-9]+-fpm$' 2>/dev/null \
+        | awk '{print $1}' | sed 's/^php//; s/-fpm$//' | sort -V -u
+}
+
+pick_php() {
+    local available
+    available="$(php_versions_available)"
+    # Newest first among the versions Laravel 12 is known good on.
+    local v
+    for v in 8.4 8.3 8.2; do
+        grep -qx -- "$v" <<< "$available" && { printf '%s' "$v"; return 0; }
+    done
+    # Otherwise whatever newest 8.x this release has, and say so.
+    printf '%s' "$(tail -1 <<< "$available")"
+}
+
 if [[ -z "$PHP_VERSION" ]]; then
-    case "$os_version" in
-        24.*|25.*) PHP_VERSION="8.3" ;;
-        *)
-            warn "Ubuntu ${os_version:-unknown} ships PHP 8.1 or older; adding the ondrej/php PPA"
-            apt-get install -y -qq software-properties-common
-            add-apt-repository -y ppa:ondrej/php >/dev/null
-            apt-get update -qq
-            PHP_VERSION="8.3"
-            ;;
-    esac
+    PHP_VERSION="$(pick_php)"
+
+    if [[ -z "$PHP_VERSION" ]]; then
+        warn "This release ships no PHP 8.2 or newer; adding the ondrej/php PPA"
+        apt-get install -y -qq software-properties-common
+        if add-apt-repository -y ppa:ondrej/php >/dev/null 2>&1 && apt-get update -qq 2>/dev/null; then
+            PHP_VERSION="$(pick_php)"
+        else
+            # The PPA lags new Ubuntu releases by months. Say which release
+            # it has no packages for, rather than leaving an apt error to be
+            # interpreted.
+            add-apt-repository -r -y ppa:ondrej/php >/dev/null 2>&1 || true
+            apt-get update -qq 2>/dev/null || true
+            die "The ondrej/php PPA has no packages for ${os_name} ${os_version} yet, and this release ships no PHP 8.2+ of its own.
+    Use Ubuntu 24.04 LTS for this server, or set the version by hand:
+        sudo PHP_VERSION=8.3 bash provision.sh"
+        fi
+    fi
+
+    [[ -n "$PHP_VERSION" ]] || die "Could not find a usable PHP 8.x in the configured repositories."
 fi
-ok "Targeting PHP ${PHP_VERSION}"
+
+case "$PHP_VERSION" in
+    8.2|8.3|8.4) ok "Targeting PHP ${PHP_VERSION}" ;;
+    *) warn "Targeting PHP ${PHP_VERSION} - newer than this application has been run against" ;;
+esac
 
 # gd is not optional: without it every .xlsx export fails at runtime.
 apt-get install -y -qq \
