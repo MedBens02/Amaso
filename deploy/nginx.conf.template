@@ -14,6 +14,16 @@ server {
     charset utf-8;
     client_max_body_size 8M;
 
+    # Whatever restrict-access.sh has been told to enforce - a shared
+    # password, an address allowlist, or nothing at all. It sits at server
+    # level so it covers the login page, the API and the static files
+    # together; there is no point gating the page and leaving /api open.
+    #
+    # The wildcard matters: a plain include of a file that does not exist
+    # stops nginx from starting, and on a fresh install this snippet has
+    # never been written. A wildcard that matches nothing is not an error.
+    include /etc/nginx/snippets/amaso-gate-site*.conf;
+
     # Arabic content compresses very well; these pages are mostly text.
     gzip on;
     gzip_vary on;
@@ -41,6 +51,16 @@ server {
     # matches, so a later `location ~ \.php$` cannot steal the request.
     # -----------------------------------------------------------------
     location ^~ /api {
+        # Whether the gate above applies to the API too. It cannot, when the
+        # gate is a password: HTTP carries one Authorization header, the
+        # browser fills it with the gate's Basic credentials, and the
+        # application overwrites it with its own Bearer token - at which
+        # point nginx sees an invalid Basic credential and answers 401,
+        # which the app reads as an expired session and bounces to /login.
+        # An address allowlist has no such conflict and does apply here.
+        # Either way Laravel still demands a token of its own.
+        include /etc/nginx/snippets/amaso-gate-api*.conf;
+
         include fastcgi_params;
         fastcgi_pass unix:/run/php/php-fpm-amaso.sock;
 
@@ -95,6 +115,16 @@ server {
     # previous build's script tags after a deploy.
     location = /index.html {
         add_header Cache-Control "no-cache";
+    }
+
+    # Let's Encrypt has to be able to prove ownership even when the gate
+    # above is closed, or the certificate cannot be issued - and, three
+    # months later, cannot be renewed, quietly, on a server nobody watches.
+    # ^~ so this wins over the dotfile rule below.
+    location ^~ /.well-known/acme-challenge/ {
+        auth_basic off;
+        allow all;
+        root __APP_DIR__/frontend/out;
     }
 
     # Dotfiles, except the ACME challenge directory certbot writes into.
