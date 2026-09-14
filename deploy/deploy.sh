@@ -408,22 +408,20 @@ else
 fi
 
 nginx -t >/dev/null 2>&1 || die "The nginx configuration is invalid - run 'nginx -t' to see why"
-systemctl reload nginx
-ok "nginx reloaded"
+if systemctl reload nginx 2>/dev/null; then
+    ok "nginx reloaded"
+else
+    # The configuration has already been checked, so this is worth saying
+    # rather than dying over - and dying here would take the address the
+    # site is on, printed below, with it.
+    warn "Could not reload nginx - run: sudo systemctl reload nginx"
+fi
 
 # ---------------------------------------------------------------------------
 # Check that it actually answers
 # ---------------------------------------------------------------------------
 log "Verifying"
 sleep 2
-
-# curl prints "000" itself when it cannot connect and also exits non-zero,
-# so a `|| echo 000` fallback would report "000000".
-http_code() {
-    local code
-    code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$1" 2>/dev/null)" || true
-    printf '%s' "${code:-000}"
-}
 
 page_status="$(http_code http://127.0.0.1/)"
 api_status="$(http_code http://127.0.0.1/api/v1/widows)"

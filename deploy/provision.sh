@@ -459,7 +459,8 @@ OPCACHE
 ok "opcache tuned for production"
 
 systemctl enable "php${PHP_VERSION}-fpm" >/dev/null 2>&1 || true
-systemctl restart "php${PHP_VERSION}-fpm"
+systemctl restart "php${PHP_VERSION}-fpm" \
+    || die "php${PHP_VERSION}-fpm would not start - check 'systemctl status php${PHP_VERSION}-fpm' and /var/log/php-fpm-amaso.log"
 ok "PHP-FPM pool 'amaso' listening on /run/php/php-fpm-amaso.sock"
 
 # ---------------------------------------------------------------------------

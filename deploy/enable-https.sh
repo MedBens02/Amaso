@@ -46,7 +46,7 @@ need_root
 log "Checking DNS for $DOMAIN"
 
 server_ip="$(public_ip)"
-domain_ip="$(getent hosts "$DOMAIN" | awk '{print $1}' | head -1)"
+domain_ip="$(resolve_host "$DOMAIN")"
 
 if [[ -z "$domain_ip" ]]; then
     die "$DOMAIN does not resolve. Add an A record pointing at $server_ip and wait for it to propagate."
@@ -67,7 +67,7 @@ fi
 # the apex down with it - so it is checked rather than assumed.
 DOMAINS=("$DOMAIN")
 if (( WANT_WWW )) && [[ "$DOMAIN" != www.* ]]; then
-    www_ip="$(getent hosts "www.$DOMAIN" | awk '{print $1}' | head -1)"
+    www_ip="$(resolve_host "www.$DOMAIN")"
     if [[ -n "$www_ip" ]]; then
         DOMAINS+=("www.$DOMAIN")
         ok "www.$DOMAIN resolves too - including it on the certificate"
@@ -91,7 +91,7 @@ ok "certbot installed"
 log "Setting the server name"
 sed -i "s|^\(\s*\)server_name .*;|\1server_name ${DOMAINS[*]};|" /etc/nginx/sites-available/amaso
 nginx -t >/dev/null 2>&1 || die "The nginx configuration is invalid - run 'nginx -t'"
-systemctl reload nginx
+systemctl reload nginx || die "nginx would not reload - check 'systemctl status nginx'"
 ok "nginx now answers for ${DOMAINS[*]}"
 
 # ---------------------------------------------------------------------------
@@ -128,7 +128,8 @@ if ! grep -q "Strict-Transport-Security" /etc/nginx/sites-available/amaso; then
     fi
 fi
 
-systemctl reload nginx
+systemctl reload nginx 2>/dev/null \
+    || warn "Could not reload nginx - the certificate applies after: sudo systemctl reload nginx"
 
 # ---------------------------------------------------------------------------
 # Tell the application its own address
