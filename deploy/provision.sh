@@ -138,26 +138,79 @@ fi
 log "Installing packages"
 
 export DEBIAN_FRONTEND=noninteractive
+
+# Composer, run as root in a terminal, asks "Do you want to continue as
+# root/super user [yes]?" and waits. Every call to it in this script is
+# inside $( ), which captures that question instead of printing it - so the
+# install appears to hang, with no prompt on screen and nothing to suggest
+# the shell is waiting for an answer. This is that answer, given up front.
+export COMPOSER_ALLOW_SUPERUSER=1
+
 apt-get update -qq
 
+# Which PHP this release actually offers, asked of apt rather than guessed
+# from the version number.
+#
+# The version number was guessed here once - "24.* or 25.* has a new enough
+# PHP, anything else needs the ondrej PPA" - and Ubuntu 26.04 then matched
+# neither, so the script reached for a PPA that has no packages built for it
+# yet and stopped on "does not have a Release file". The release that needs
+# the PPA is the one whose own PHP is too old, which apt can be asked
+# directly.
+php_versions_available() {
+    apt-cache -q search --names-only '^php8\.[0-9]+-fpm$' 2>/dev/null \
+        | awk '{print $1}' | sed 's/^php//; s/-fpm$//' | sort -V -u
+}
+
+pick_php() {
+    local available
+    available="$(php_versions_available)"
+    # Newest first among the versions Laravel 12 is known good on.
+    local v
+    for v in 8.4 8.3 8.2; do
+        grep -qx -- "$v" <<< "$available" && { printf '%s' "$v"; return 0; }
+    done
+    # Otherwise whatever newest 8.x this release has, and say so.
+    printf '%s' "$(tail -1 <<< "$available")"
+}
+
 if [[ -z "$PHP_VERSION" ]]; then
-    case "$os_version" in
-        24.*|25.*) PHP_VERSION="8.3" ;;
-        *)
-            warn "Ubuntu ${os_version:-unknown} ships PHP 8.1 or older; adding the ondrej/php PPA"
-            apt-get install -y -qq software-properties-common
-            add-apt-repository -y ppa:ondrej/php >/dev/null
-            apt-get update -qq
-            PHP_VERSION="8.3"
-            ;;
-    esac
+    PHP_VERSION="$(pick_php)"
+
+    if [[ -z "$PHP_VERSION" ]]; then
+        warn "This release ships no PHP 8.2 or newer; adding the ondrej/php PPA"
+        apt-get install -y -qq software-properties-common
+        if add-apt-repository -y ppa:ondrej/php >/dev/null 2>&1 && apt-get update -qq 2>/dev/null; then
+            PHP_VERSION="$(pick_php)"
+        else
+            # The PPA lags new Ubuntu releases by months. Say which release
+            # it has no packages for, rather than leaving an apt error to be
+            # interpreted.
+            add-apt-repository -r -y ppa:ondrej/php >/dev/null 2>&1 || true
+            apt-get update -qq 2>/dev/null || true
+            die "The ondrej/php PPA has no packages for ${os_name} ${os_version} yet, and this release ships no PHP 8.2+ of its own.
+    Use Ubuntu 24.04 LTS for this server, or set the version by hand:
+        sudo PHP_VERSION=8.3 bash provision.sh"
+        fi
+    fi
+
+    [[ -n "$PHP_VERSION" ]] || die "Could not find a usable PHP 8.x in the configured repositories."
 fi
-ok "Targeting PHP ${PHP_VERSION}"
+
+case "$PHP_VERSION" in
+    8.2|8.3|8.4) ok "Targeting PHP ${PHP_VERSION}" ;;
+    *) warn "Targeting PHP ${PHP_VERSION} - newer than this application has been run against" ;;
+esac
 
 # gd is not optional: without it every .xlsx export fails at runtime.
+# -cli is not optional either, and was previously left to chance: php-fpm
+# does not depend on it, so it arrived only because some other extension
+# happened to pull it in. Every artisan command in deploy.sh needs it, and
+# so does Composer.
 apt-get install -y -qq \
     nginx mariadb-server curl git unzip rsync ca-certificates \
     "php${PHP_VERSION}-fpm" \
+    "php${PHP_VERSION}-cli" \
     "php${PHP_VERSION}-mysql" \
     "php${PHP_VERSION}-mbstring" \
     "php${PHP_VERSION}-xml" \
@@ -177,11 +230,31 @@ ok "Node $(node -v)"
 
 if ! command -v composer >/dev/null; then
     log "Installing Composer"
-    curl -fsSL https://getcomposer.org/installer -o /tmp/composer-setup.php
-    php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer --quiet
+
+    # Timeouts, because curl's default is to wait indefinitely and this step
+    # prints nothing while it runs - a hang here is indistinguishable from
+    # work in progress, and the install appears to have stopped dead at
+    # "Installing Composer" with no way to tell why.
+    if curl -fsSL --connect-timeout 15 --max-time 120 --retry 2 --retry-delay 3 \
+            https://getcomposer.org/installer -o /tmp/composer-setup.php \
+       && php /tmp/composer-setup.php \
+            --install-dir=/usr/local/bin --filename=composer --quiet
+    then
+        ok "Composer installed from getcomposer.org"
+    else
+        # Ubuntu carries Composer too. It may be a few point releases behind
+        # getcomposer.org, which matters far less than the install finishing.
+        warn "getcomposer.org did not answer in time - using Ubuntu's composer package instead"
+        apt-get install -y -qq composer \
+            || die "Could not install Composer from getcomposer.org or from apt. Check outbound HTTPS from this machine."
+    fi
     rm -f /tmp/composer-setup.php
 fi
-ok "Composer $(composer --version --no-ansi 2>/dev/null | head -1)"
+
+# Bounded, so that even a Composer that decides to ask something new cannot
+# stop the install with an invisible prompt.
+composer_version="$(timeout 30 composer --version --no-ansi --no-interaction 2>/dev/null | head -1)"
+ok "${composer_version:-Composer present (version check timed out)}"
 
 # ---------------------------------------------------------------------------
 # Unattended security updates and SSH brute-force protection
@@ -229,7 +302,20 @@ if ! id "$APP_USER" >/dev/null 2>&1; then
 fi
 mkdir -p "$APP_DIR"
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
-ok "$APP_USER owns $APP_DIR"
+
+# nginx runs as www-data and has to walk into this directory to reach the
+# built frontend underneath it. Ubuntu 24.04's adduser creates a system
+# user's home as 0750, which locks www-data out entirely: every page
+# answers 403 and the error log fills with "Permission denied" on stat(),
+# while the API - which goes to PHP-FPM as the application user, not
+# through the filesystem - keeps working. That split is what makes it
+# confusing to diagnose.
+#
+# This tree is a web root; the two things in it that are actually secret,
+# backend/.env and backend/storage, are protected as files rather than by
+# closing the directory above them.
+chmod 755 "$APP_DIR"
+ok "$APP_USER owns $APP_DIR (755, so nginx can reach the web root)"
 
 # ---------------------------------------------------------------------------
 # Database
@@ -256,7 +342,7 @@ if [[ -f /root/.amaso-db-password ]]; then
     DB_PASS="$(cat /root/.amaso-db-password)"
     ok "Reusing the database password from /root/.amaso-db-password"
 else
-    DB_PASS="$(head -c 24 /dev/urandom | base64 | tr -d '/+=' | head -c 24)"
+    DB_PASS="$(random_string 24 'A-Za-z0-9')"
     printf '%s' "$DB_PASS" > /root/.amaso-db-password
     chmod 600 /root/.amaso-db-password
     ok "Generated a database password, saved to /root/.amaso-db-password"
@@ -373,7 +459,8 @@ OPCACHE
 ok "opcache tuned for production"
 
 systemctl enable "php${PHP_VERSION}-fpm" >/dev/null 2>&1 || true
-systemctl restart "php${PHP_VERSION}-fpm"
+systemctl restart "php${PHP_VERSION}-fpm" \
+    || die "php${PHP_VERSION}-fpm would not start - check 'systemctl status php${PHP_VERSION}-fpm' and /var/log/php-fpm-amaso.log"
 ok "PHP-FPM pool 'amaso' listening on /run/php/php-fpm-amaso.sock"
 
 # ---------------------------------------------------------------------------

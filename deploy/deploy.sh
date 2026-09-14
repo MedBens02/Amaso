@@ -17,8 +17,45 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+
+# ---------------------------------------------------------------------------
+# Run from a copy, outside the directory this script is about to rewrite
+#
+# The documented way to deploy an update is to run this file out of the
+# checkout it updates - and `git reset --hard` replaces it whenever a release
+# has changed it. Bash does not load a script into memory: it reads a block,
+# runs it, then seeks back to the offset it had reached. Reading a file that
+# has been replaced underneath gives whatever now sits at that offset, and a
+# shorter file simply ends there.
+#
+# The observable result is the worst kind: the script stops part way through
+# and exits 0. The new code is checked out, nothing is built, migrated or
+# reloaded, and the deploy reports success. Verified - a self-rewriting
+# script stops at the rewrite and claims to have finished.
+#
+# So the first thing it does is copy itself somewhere git will not touch and
+# hand over to that copy.
+# ---------------------------------------------------------------------------
+if [[ "${AMASO_REEXEC:-}" != "1" ]]; then
+    AMASO_REEXEC_DIR="$(mktemp -d -t amaso-deploy-XXXXXX)"
+    cp "$HERE"/*.sh "$AMASO_REEXEC_DIR"/ 2>/dev/null \
+        || { rm -rf "$AMASO_REEXEC_DIR"; printf 'Could not copy the deploy scripts to a temporary directory.\n' >&2; exit 1; }
+    export AMASO_REEXEC=1 AMASO_REEXEC_DIR
+    exec bash "$AMASO_REEXEC_DIR/deploy.sh" "$@"
+fi
+
 # shellcheck source=common.sh
 source "$HERE/common.sh"
+
+# One EXIT handler for everything this run leaves behind - the copy above,
+# and the MySQL credentials file created further down. A second `trap ... EXIT`
+# would replace this one rather than add to it.
+cleanup() {
+    [[ -n "${cnf:-}" ]] && rm -f "$cnf"
+    [[ -n "${AMASO_REEXEC_DIR:-}" ]] && rm -rf "$AMASO_REEXEC_DIR"
+    return 0
+}
+trap cleanup EXIT
 
 APP_USER="${APP_USER:-amaso}"
 APP_DIR="${APP_DIR:-/var/www/amaso}"
@@ -145,10 +182,9 @@ if [[ ! -f "$env_file" ]]; then
     # run inline instead, which is slower but visible.
     set_env "$env_file" QUEUE_CONNECTION sync
 
-    as_app php "$APP_DIR/backend/artisan" key:generate --force --quiet
     chown "$APP_USER:$APP_USER" "$env_file"
     chmod 600 "$env_file"
-    ok "backend/.env written, application key generated"
+    ok "backend/.env written"
 else
     ok "backend/.env already present - left untouched"
 fi
@@ -166,10 +202,76 @@ ok "Database credentials present in backend/.env"
 # PHP dependencies
 # ---------------------------------------------------------------------------
 log "Installing PHP dependencies"
-as_app composer install \
-    --working-dir="$APP_DIR/backend" \
-    --no-dev --optimize-autoloader --no-interaction --quiet
-ok "vendor/ up to date"
+
+# A GitHub token, when one is offered, raises the download limit from the
+# anonymous allowance to a per-account one:
+#   sudo env GITHUB_TOKEN=ghp_... bash deploy.sh
+if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    as_app composer config --global --no-interaction \
+        github-oauth.github.com "$GITHUB_TOKEN" >/dev/null 2>&1 \
+        && ok "Using the supplied GitHub token for downloads"
+fi
+
+# Composer fetches most packages as zips from codeload.github.com, which
+# rate-limits by IP. On a cloud host that IP is shared with everyone else in
+# the range, so a 429 here is common, unrelated to this project, and clears
+# on its own. Three attempts, then git clones instead of zip downloads -
+# a different endpoint with a different limit, slower but usually through.
+composer_install() {
+    as_app composer install \
+        --working-dir="$APP_DIR/backend" \
+        --no-dev --optimize-autoloader --no-interaction --quiet "$@"
+}
+
+if composer_install; then
+    ok "vendor/ up to date"
+else
+    for wait in 20 45; do
+        warn "Composer failed - waiting ${wait}s and trying again (GitHub rate limits by IP)"
+        sleep "$wait"
+        if composer_install; then
+            ok "vendor/ up to date"
+            break
+        fi
+    done
+
+    if [[ ! -f "$APP_DIR/backend/vendor/autoload.php" ]]; then
+        warn "Still failing - retrying with --prefer-source (git clones rather than zip downloads)"
+        composer_install --prefer-source || die "$(cat <<'MSG'
+Composer could not install the dependencies.
+
+    If the errors above say HTTP 429, GitHub is rate-limiting this server's
+    address. It clears on its own; either wait and run this script again, or
+    give it a token, which lifts the limit immediately:
+
+        https://github.com/settings/tokens   (no scopes needed)
+        sudo env GITHUB_TOKEN=ghp_... bash deploy.sh
+MSG
+)"
+        ok "vendor/ up to date (from source)"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# Application key
+#
+# After composer, not before. artisan is a PHP script whose first act is to
+# require vendor/autoload.php, so on a first install - where the clone has
+# no vendor/ yet - generating the key as part of writing .env died with
+# "Failed opening required '.../vendor/autoload.php'" before a single
+# dependency had been fetched.
+#
+# Keyed off the value rather than off having just written the file, so the
+# .env left behind by that failure - present, but with an empty APP_KEY -
+# gets a key on the next run instead of being skipped as "already present".
+# ---------------------------------------------------------------------------
+if [[ -z "$(get_env "$env_file" APP_KEY)" ]]; then
+    as_app php "$APP_DIR/backend/artisan" key:generate --force --quiet
+    [[ -n "$(get_env "$env_file" APP_KEY)" ]] || die "key:generate did not write an APP_KEY into backend/.env"
+    ok "Application key generated"
+else
+    ok "Application key already set"
+fi
 
 # Laravel writes compiled views and cached config into these at runtime;
 # they carry only a .gitignore in the repository.
@@ -181,7 +283,13 @@ as_app mkdir -p \
     "$APP_DIR/backend/bootstrap/cache"
 chown -R "$APP_USER:$APP_USER" "$APP_DIR/backend/storage" "$APP_DIR/backend/bootstrap/cache"
 chmod -R u+rwX "$APP_DIR/backend/storage" "$APP_DIR/backend/bootstrap/cache"
-ok "Runtime directories in place"
+
+# The directory above these is 755 so nginx can reach the frontend, which
+# would otherwise leave the application log readable by anyone with an
+# account on the box. PHP-FPM runs as the application user, so nothing else
+# needs to read them.
+chmod -R go-rwx "$APP_DIR/backend/storage" "$APP_DIR/backend/bootstrap/cache"
+ok "Runtime directories in place, logs kept private"
 
 # ---------------------------------------------------------------------------
 # Database
@@ -197,7 +305,6 @@ ok "Schema up to date"
 # artisan: a broken .env would make an artisan check fail in a way that
 # looks like "no users" and reseed a populated database.
 cnf="$(mktemp)"; chmod 600 "$cnf"
-trap 'rm -f "$cnf"' EXIT
 cat > "$cnf" <<CNF
 [client]
 user=$(get_env "$env_file" DB_USERNAME)
@@ -337,8 +444,14 @@ else
 fi
 
 nginx -t >/dev/null 2>&1 || die "The nginx configuration is invalid - run 'nginx -t' to see why"
-systemctl reload nginx
-ok "nginx reloaded"
+if systemctl reload nginx 2>/dev/null; then
+    ok "nginx reloaded"
+else
+    # The configuration has already been checked, so this is worth saying
+    # rather than dying over - and dying here would take the address the
+    # site is on, printed below, with it.
+    warn "Could not reload nginx - run: sudo systemctl reload nginx"
+fi
 
 # ---------------------------------------------------------------------------
 # Check that it actually answers
@@ -346,21 +459,18 @@ ok "nginx reloaded"
 log "Verifying"
 sleep 2
 
-# curl prints "000" itself when it cannot connect and also exits non-zero,
-# so a `|| echo 000` fallback would report "000000".
-http_code() {
-    local code
-    code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$1" 2>/dev/null)" || true
-    printf '%s' "${code:-000}"
-}
-
 page_status="$(http_code http://127.0.0.1/)"
 api_status="$(http_code http://127.0.0.1/api/v1/widows)"
 
 # 401 is the right answer for the API: it means Laravel handled the request
 # and asked for a token. A 200 there would mean the route is unprotected.
-[[ "$page_status" == "200" ]] && ok "Frontend answers (HTTP $page_status)" \
-                             || warn "Frontend returned HTTP $page_status - see /var/log/nginx/amaso-error.log"
+if [[ "$page_status" == "200" ]]; then
+    ok "Frontend answers (HTTP $page_status)"
+elif [[ "$page_status" == "403" ]]; then
+    warn "Frontend returned 403 - nginx cannot read ${APP_DIR}. Try: sudo chmod 755 ${APP_DIR}"
+else
+    warn "Frontend returned HTTP $page_status - see /var/log/nginx/amaso-error.log"
+fi
 [[ "$api_status" == "401" ]] && ok "API answers and requires authentication (HTTP $api_status)" \
                             || warn "API returned HTTP $api_status - expected 401; see /var/log/php-fpm-amaso.log"
 

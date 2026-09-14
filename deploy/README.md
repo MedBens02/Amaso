@@ -13,18 +13,25 @@ For running it on a single Windows machine instead, see
 Create an Ubuntu 24.04 VM, point your domain's A record at its IP, then:
 
 ```bash
-ssh root@<server-ip>
+ssh ubuntu@<server-ip>          # root@ on providers that allow it
 
-apt update && apt install -y git
-git clone https://github.com/MedBens02/Amaso.git /opt/amaso-installer
+sudo apt update && sudo apt install -y git
+sudo git clone https://github.com/MedBens02/Amaso.git /opt/amaso-installer
 cd /opt/amaso-installer/deploy
 
+sudo bash bootstrap.sh --check          # 15 seconds, changes nothing
 sudo bash bootstrap.sh --domain amaso.exemple.ma --email admin@exemple.ma
 ```
 
 That is the whole install: server packages, database, application, nightly
 backups and an HTTPS certificate. Ten to twenty minutes, mostly waiting for
 `apt` and the frontend build.
+
+**Run `--check` first.** It looks at the release, the disk, the memory,
+whether anything already holds port 80, and whether this machine can reach
+GitHub, Packagist, Composer, NodeSource and npm. Every one of those has
+stopped an install part way through at least once; fifteen seconds beforehand
+is a much better place to find out than ten minutes in.
 
 Leave off `--domain` and `--email` and it installs just the same, answering
 on the server's IP over plain HTTP; run `enable-https.sh` later when a
@@ -73,7 +80,7 @@ hostname to certificate.
 |---|---|
 | RAM | **2 GB comfortable. 1 GB works, but only with swap** — see below |
 | Disk | 15 GB |
-| OS | Ubuntu 24.04 (22.04 also works; the scripts add the PHP 8.3 PPA there) |
+| OS | **Ubuntu 24.04 LTS.** 22.04 works too (the scripts add the PHP 8.3 PPA) |
 
 **The memory figure is about the build, not about running the site.**
 Serving three to five people needs very little: nginx, a couple of PHP
@@ -88,6 +95,14 @@ through, and all you get is the word `Killed` and a missing
 reason instead of dying halfway. On a 1 GB box the build takes a few
 minutes longer and completes; the running site stays in RAM because
 `vm.swappiness` is set to 10.
+
+**Pick the LTS, and pick the plain image.** The scripts ask apt which PHP
+the release offers rather than assuming, so a newer Ubuntu will usually
+work - but 24.04 is the one this has actually been installed on end to end,
+and a release newer than the PHP ecosystem can be genuinely stuck: when
+26.04 was tried, neither the release nor the ondrej PPA had packages for it.
+Avoid images that ship their own control panel; they hold port 80 and fight
+nginx for it.
 
 ### On Hostinger specifically
 
@@ -260,6 +275,63 @@ address as the client IP rather than the real one.
 
 ---
 
+## Updating a running server
+
+```bash
+sudo bash /var/www/amaso/deploy/deploy.sh
+```
+
+That is the whole update. It fetches the branch the server is on, resets to
+it, reinstalls dependencies, applies any new migrations, rebuilds the
+frontend, rebuilds the caches and reloads nginx and PHP-FPM — then checks
+that the pages and the API answer before reporting success.
+
+**It does not touch your data.** `migrate --force` only adds structure; it
+never drops or rewrites rows. The demo seeder is not run unless `--demo` is
+passed, and it refuses to run into a database that already holds families.
+
+Take a backup first anyway — it costs a second:
+
+```bash
+sudo bash /var/www/amaso/deploy/backup.sh
+sudo bash /var/www/amaso/deploy/deploy.sh
+sudo bash /var/www/amaso/deploy/status.sh
+```
+
+The server follows its branch, so **merge before you deploy**. To move a
+server onto a different branch, name it once and it stays there:
+
+```bash
+sudo BRANCH=some-branch bash /var/www/amaso/deploy/deploy.sh
+```
+
+Expect two to five minutes, nearly all of it the frontend build. The site
+stays up throughout: nginx keeps serving the previous `frontend/out` until
+the new one is written, and the reload at the end is graceful.
+
+If it fails part way, run it again. Every step is safe to repeat.
+
+### If an update goes wrong
+
+The previous version is a commit away:
+
+```bash
+cd /var/www/amaso
+sudo -u amaso git log --oneline -5              # find the one that worked
+sudo BRANCH=<that-commit-or-branch> bash deploy/deploy.sh
+```
+
+A migration that has already run is not undone by checking out older code.
+If the schema moved and you need to go back, restore the backup you took
+before the update:
+
+```bash
+sudo bash /var/www/amaso/deploy/backup.sh --list
+sudo bash /var/www/amaso/deploy/backup.sh --restore /var/backups/amaso/<file>.sql.gz
+```
+
+---
+
 ## Day to day
 
 | | |
@@ -294,10 +366,19 @@ end up.
 
 ## When something is wrong
 
-| Symptom | Where to look |
+Every row below is something that actually happened during a real install,
+not a list of things that might.
+
+| Symptom | Cause and fix |
 |---|---|
-| Anything at all | `sudo bash /var/www/amaso/deploy/status.sh` first |
+| Anything at all | `sudo bash /var/www/amaso/deploy/status.sh` first — it names the failing part |
+| Pages 403, API works | nginx cannot traverse the app directory: `sudo chmod 755 /var/www/amaso`. Fixed in `provision.sh`; this is the one-line repair for a server built before it |
 | The deploy printed `Killed` during the build | Out of memory. `free -m` — if swap is 0, re-run `provision.sh` |
+| Stuck at `Installing Composer`, no output | An old copy of the scripts. Composer asks to continue as root and the question is invisible; press Enter, or re-clone the installer |
+| `429` during `composer install` | GitHub rate-limits downloads per IP and cloud IPs are shared. It retries and falls back on its own; to skip the wait: `sudo env GITHUB_TOKEN=ghp_... bash deploy.sh` |
+| `does not have a Release file` for ondrej/php | The release is newer than the PPA. Use Ubuntu 24.04, or `sudo PHP_VERSION=8.3 bash provision.sh` |
+| `vendor/autoload.php` not found during deploy | An old copy of the scripts — key generation ran before Composer. Re-clone the installer and run it again |
+| `enable-https.sh` exits with no message | An old copy. A domain that does not resolve used to end the script silently |
 | The site does not load at all | The provider's firewall, not the server's. Oracle Cloud and AWS block 80/443 at the subnet by default; Hostinger does not |
 | 502 Bad Gateway | PHP-FPM is down: `systemctl status php8.3-fpm`, then `/var/log/php-fpm-amaso.log` |
 | Pages load, every API call fails | `sudo tail -50 /var/www/amaso/backend/storage/logs/laravel.log` |
@@ -315,7 +396,7 @@ end up.
 
 | | |
 |---|---|
-| `bootstrap.sh` | **Start here** — the whole install in one command |
+| `bootstrap.sh` | **Start here** — `--check` to test the machine, then the whole install in one command |
 | `provision.sh` | One-time server preparation |
 | `deploy.sh` | Fetch, build and release — run for every update |
 | `enable-https.sh` | Domain and Let's Encrypt certificate |
@@ -355,6 +436,39 @@ Not done, and deliberately left to you:
 
 ---
 
+## How these scripts are tested, and what that missed
+
+Worth knowing, because it explains the shape of the troubleshooting table
+above.
+
+What is verified here, against real software: the nginx configuration is
+rendered and checked with `nginx -t`, including the path taken on a host
+without IPv6; the generated `.env` is read back with Laravel's own dotenv
+parser; `provision.sh`'s SQL runs against MariaDB 10.11 and the resulting
+credentials migrate and seed an empty database; `backup.sh` runs against a
+real database including retention and both restore paths; and the access
+gate was driven with a browser against the production build, which is how
+the Authorization-header conflict with `/api` was found.
+
+What that could not cover is a genuinely empty Ubuntu server. No container
+registry is reachable from where these were written, so the first real run
+was on the association's own VM - and it found ten faults that reading,
+`bash -n` and testing against an already-working machine had all passed
+over: a quote inside `${var:-default}` that made the parser rebalance
+tokens silently, a release-number guess, two commands with no timeout, a
+prompt hidden inside a command substitution, a step in the wrong order,
+GitHub's rate limit, a web root nginx could not enter, a pipeline killed by
+SIGPIPE, and a password printed after the step that could lose it.
+
+They are all fixed, and each fix is a comment in the script explaining what
+the failure looked like. The lesson worth carrying: `bash -n` parses, it
+does not expand - it cannot see a quoting fault that rebalances later in the
+file, a race against an endless pipe, or two steps in the wrong order. The
+`--check` mode exists because of this, and so does the habit of running the
+setup section of a script rather than only parsing it.
+
+---
+
 ## Why there is no Dockerfile
 
 The obvious question, and the answer is: it would add work without removing
@@ -381,13 +495,9 @@ the server without rebuilding anything.
 **And it could not have been tested.** The environment these scripts were
 written in cannot reach a container registry — the image pull is blocked at
 the proxy, which was confirmed rather than assumed. Shipping untested
-infrastructure to a project that has already been bitten repeatedly by
-untested environment assumptions would repeat the mistake rather than fix
-it. What could be tested here was: the nginx configuration was rendered and
-validated with `nginx -t`, the `.env` generation was run and the result
-parsed back with Laravel's own dotenv reader, the MariaDB statements were
-executed against MariaDB 10.11, and `backup.sh` was run against a real
-database including its retention and restore paths.
+infrastructure to a project already bitten repeatedly by untested
+environment assumptions would repeat the mistake rather than fix it. See the
+section above for what was tested and what it missed.
 
 If the day comes when this needs several instances, or a queue worker, or a
 second service, containers start to earn their keep. Today they would only

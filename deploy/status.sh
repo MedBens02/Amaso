@@ -87,15 +87,6 @@ fi
 # ---------------------------------------------------------------------------
 log "Answering"
 
-# curl prints "000" of its own accord when it cannot connect, and also
-# exits non-zero - so `|| echo 000` appended a second copy and the status
-# read "HTTP 000000". Default only when nothing came back at all.
-http_code() {
-    local code
-    code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$1" 2>/dev/null)" || true
-    printf '%s' "${code:-000}"
-}
-
 page="$(http_code http://127.0.0.1/)"
 api="$(http_code http://127.0.0.1/api/v1/widows)"
 

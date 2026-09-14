@@ -87,6 +87,31 @@ get_env() {
 }
 
 # ---------------------------------------------------------------------------
+# Random strings
+#
+#   random_string 14 'abc...XYZ23456789'
+#
+# Deliberately not the obvious `tr -dc SET </dev/urandom | head -c N`.
+# head closes the pipe the moment it has N bytes; tr, still reading a device
+# that never ends, is killed by SIGPIPE; `set -o pipefail` reports the
+# pipeline as failed; and `set -e` exits the script - with nothing printed,
+# because this runs before the first line of output. That is a guaranteed
+# failure rather than an occasional one, since tr can never finish first.
+#
+# Here the randomness is a fixed block, so every command in the pipeline
+# reaches its own end of input, and the filtering is done by bash.
+# ---------------------------------------------------------------------------
+random_string() {
+    local length="$1" allowed="$2" raw clean
+    raw="$(head -c 512 /dev/urandom | base64 | tr -d '\n')"
+    clean="${raw//[^$allowed]/}"
+    if (( ${#clean} < length )); then
+        die "random_string: only ${#clean} usable characters from 512 bytes; widen the allowed set"
+    fi
+    printf '%s' "${clean:0:length}"
+}
+
+# ---------------------------------------------------------------------------
 # Facts about the machine
 # ---------------------------------------------------------------------------
 
@@ -95,6 +120,32 @@ ram_mb() { awk '/^MemTotal:/ {print int($2/1024)}' /proc/meminfo; }
 
 # Configured swap in MB (0 when there is none).
 swap_mb() { awk '/^SwapTotal:/ {print int($2/1024)}' /proc/meminfo; }
+
+# The status code a URL answers with, or 000 if it could not be reached.
+#
+# Written once, here, because it had to be written correctly three times
+# otherwise - and was not. curl prints "000" of its own accord when it
+# cannot connect and also exits non-zero, so the obvious
+# `curl ... || echo 000` appends a second value and reports "000000"; with
+# -f it does the same to a real code and reports "400000". No -f, and the
+# default only fills in for genuinely empty output.
+http_code() {
+    local code
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time "${2:-12}" "$1" 2>/dev/null)" || true
+    printf '%s' "${code:-000}"
+}
+
+# The address a name resolves to here, or nothing at all.
+#
+# `getent hosts` exits 2 for a name that does not resolve. Under
+# `set -o pipefail` that failure comes out of the assignment, and `set -e`
+# then ends the script - so every branch written to handle "this domain does
+# not resolve yet" was unreachable, and the caller simply stopped without
+# explaining itself. That is the case these functions exist to report on, so
+# a failed lookup has to come back as an empty answer rather than an error.
+resolve_host() {
+    getent hosts "$1" 2>/dev/null | awk '{print $1}' | head -1 || true
+}
 
 # The address the outside world reaches this machine on. Falls back to the
 # first local address when there is no outbound access to ask.

@@ -17,6 +17,7 @@
 #   --branch <name>     which branch          (default: the repo's own default)
 #   --domain <name>     the site's hostname   (optional; enables HTTPS)
 #   --email  <address>  for Let's Encrypt     (required with --domain)
+#   --check             run the checks only, change nothing, and stop
 #   --demo              fill the database with invented test data
 #   --skip-provision    the server is already prepared
 #   --no-backup-cron    do not schedule the nightly backup
@@ -39,6 +40,7 @@ EMAIL=""
 SKIP_PROVISION=0
 BACKUP_CRON=1
 SEED_DEMO=0
+CHECK_ONLY=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -47,6 +49,7 @@ while [[ $# -gt 0 ]]; do
         --domain)         DOMAIN="${2:?--domain needs a hostname}"; shift 2 ;;
         --email)          EMAIL="${2:?--email needs an address}"; shift 2 ;;
         --demo)           SEED_DEMO=1; shift ;;
+        --check)          CHECK_ONLY=1; shift ;;
         --skip-provision) SKIP_PROVISION=1; shift ;;
         --no-backup-cron) BACKUP_CRON=0; shift ;;
         # Print the header comment and stop at the first line of code, so
@@ -59,6 +62,118 @@ done
 
 need_root
 [[ -z "$DOMAIN" || -n "$EMAIL" ]] || die "--domain needs --email as well (Let's Encrypt requires a contact address)."
+
+# ---------------------------------------------------------------------------
+# Preflight
+#
+# Everything below takes ten to twenty minutes, and most of what can go
+# wrong is knowable in fifteen seconds: a release with no PHP, a disk with
+# no room, another web server already on port 80, or an outbound connection
+# that cannot reach the places the install downloads from. Each of those has
+# stopped an install part way through at least once, which is a far worse
+# place to find out.
+#
+# Reachability is reported, not enforced - a mirror can be briefly down and
+# the retries further in will cope - except where nothing could possibly
+# work without it.
+# ---------------------------------------------------------------------------
+preflight() {
+    local fatal=0 warned=0
+
+    log "Checking this machine"
+
+    local os_name os_version
+    os_name="$(. /etc/os-release && echo "${ID:-unknown}")"
+    os_version="$(. /etc/os-release && echo "${VERSION_ID:-}")"
+    if [[ "$os_name" == "ubuntu" || "$os_name" == "debian" ]]; then
+        ok "${os_name} ${os_version}"
+    else
+        warn "${os_name} ${os_version} - not Ubuntu or Debian; nothing here is tested on it"
+        warned=1
+    fi
+
+    # A PHP the application can run on, from the release itself or the PPA.
+    local php_here
+    php_here="$(apt-cache -q search --names-only '^php8\.[0-9]+-fpm$' 2>/dev/null \
+        | awk '{print $1}' | sed 's/^php//; s/-fpm$//' | sort -V | tail -1)"
+    if [[ -n "$php_here" ]]; then
+        ok "PHP ${php_here} available from this release"
+    else
+        warn "No PHP 8.x in the configured repositories - the ondrej PPA will be tried"
+        warned=1
+    fi
+
+    local disk_free ram swap
+    disk_free="$(df -Pm / | awk 'NR==2 {print $4}')"
+    ram="$(ram_mb)"; swap="$(swap_mb)"
+
+    if (( disk_free >= 6000 )); then
+        ok "${disk_free} MB free on /"
+    else
+        printf '    %s[x]%s only %s MB free on / - about 6 GB is needed\n' "$C_ERR" "$C_OFF" "$disk_free"
+        fatal=1
+    fi
+
+    # The frontend build peaks near 1.4 GB; provision.sh adds swap to cover
+    # it, so this only has to be satisfiable, not already satisfied.
+    if (( ram + swap >= 2400 )); then
+        ok "${ram} MB RAM + ${swap} MB swap"
+    elif (( disk_free >= 6000 )); then
+        ok "${ram} MB RAM, ${swap} MB swap - swap will be added for the build"
+    else
+        printf '    %s[x]%s %s MB RAM and no room for swap - the frontend build needs about 1.4 GB\n' \
+            "$C_ERR" "$C_OFF" "$ram"
+        fatal=1
+    fi
+
+    # Anything already answering on 80 will fight nginx for it.
+    local on80
+    on80="$(ss -ltnH 'sport = :80' 2>/dev/null | awk '{print $NF}' | head -1 || true)"
+    if [[ -n "$on80" ]]; then
+        warn "Something is already listening on port 80 - a panel image (cPanel, CyberPanel) will conflict with nginx"
+        warned=1
+    else
+        ok "Port 80 is free"
+    fi
+
+    log "Checking what it can reach"
+
+    local url name
+    while read -r name url; do
+        [[ -z "$name" ]] && continue
+        local code
+        code="$(http_code "$url")"
+        if [[ "$code" =~ ^(200|301|302|403)$ ]]; then
+            ok "$name"
+        elif [[ "$code" == "429" ]]; then
+            warn "$name is rate-limiting this address (HTTP 429) - pass a GITHUB_TOKEN, or expect retries"
+            warned=1
+        else
+            warn "$name unreachable (HTTP $code)"
+            warned=1
+        fi
+    done <<'ENDPOINTS'
+github.com https://github.com
+codeload.github.com https://codeload.github.com
+repo.packagist.org https://repo.packagist.org/packages.json
+getcomposer.org https://getcomposer.org/installer
+deb.nodesource.com https://deb.nodesource.com/setup_20.x
+registry.npmjs.org https://registry.npmjs.org/
+ENDPOINTS
+
+    if (( fatal )); then
+        die "This machine cannot run the install as it stands - see the marked lines above."
+    fi
+    if (( warned )); then
+        warn "Continuing despite the warnings above; the install retries what it can."
+    fi
+}
+
+preflight
+if (( CHECK_ONLY )); then
+    printf '\n%s    Checks complete - nothing was changed.%s\n\n' "$C_GOOD" "$C_OFF"
+    exit 0
+fi
 
 started="$(date +%s)"
 
@@ -122,7 +237,7 @@ https_done=0
 if [[ -n "$DOMAIN" ]]; then
     printf '\n%s╺━ 4/4  Enabling HTTPS ━╸%s\n' "$C_STEP" "$C_OFF"
 
-    resolved="$(getent hosts "$DOMAIN" | awk '{print $1}' | head -1)"
+    resolved="$(resolve_host "$DOMAIN")"
     if [[ -z "$resolved" ]]; then
         warn "$DOMAIN does not resolve yet - skipping HTTPS."
         printf '        Point an A record at %s, wait for it, then run:\n' "$(public_ip)"
