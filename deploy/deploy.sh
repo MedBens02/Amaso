@@ -246,7 +246,13 @@ as_app mkdir -p \
     "$APP_DIR/backend/bootstrap/cache"
 chown -R "$APP_USER:$APP_USER" "$APP_DIR/backend/storage" "$APP_DIR/backend/bootstrap/cache"
 chmod -R u+rwX "$APP_DIR/backend/storage" "$APP_DIR/backend/bootstrap/cache"
-ok "Runtime directories in place"
+
+# The directory above these is 755 so nginx can reach the frontend, which
+# would otherwise leave the application log readable by anyone with an
+# account on the box. PHP-FPM runs as the application user, so nothing else
+# needs to read them.
+chmod -R go-rwx "$APP_DIR/backend/storage" "$APP_DIR/backend/bootstrap/cache"
+ok "Runtime directories in place, logs kept private"
 
 # ---------------------------------------------------------------------------
 # Database
@@ -424,8 +430,13 @@ api_status="$(http_code http://127.0.0.1/api/v1/widows)"
 
 # 401 is the right answer for the API: it means Laravel handled the request
 # and asked for a token. A 200 there would mean the route is unprotected.
-[[ "$page_status" == "200" ]] && ok "Frontend answers (HTTP $page_status)" \
-                             || warn "Frontend returned HTTP $page_status - see /var/log/nginx/amaso-error.log"
+if [[ "$page_status" == "200" ]]; then
+    ok "Frontend answers (HTTP $page_status)"
+elif [[ "$page_status" == "403" ]]; then
+    warn "Frontend returned 403 - nginx cannot read ${APP_DIR}. Try: sudo chmod 755 ${APP_DIR}"
+else
+    warn "Frontend returned HTTP $page_status - see /var/log/nginx/amaso-error.log"
+fi
 [[ "$api_status" == "401" ]] && ok "API answers and requires authentication (HTTP $api_status)" \
                             || warn "API returned HTTP $api_status - expected 401; see /var/log/php-fpm-amaso.log"
 

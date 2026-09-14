@@ -302,7 +302,20 @@ if ! id "$APP_USER" >/dev/null 2>&1; then
 fi
 mkdir -p "$APP_DIR"
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
-ok "$APP_USER owns $APP_DIR"
+
+# nginx runs as www-data and has to walk into this directory to reach the
+# built frontend underneath it. Ubuntu 24.04's adduser creates a system
+# user's home as 0750, which locks www-data out entirely: every page
+# answers 403 and the error log fills with "Permission denied" on stat(),
+# while the API - which goes to PHP-FPM as the application user, not
+# through the filesystem - keeps working. That split is what makes it
+# confusing to diagnose.
+#
+# This tree is a web root; the two things in it that are actually secret,
+# backend/.env and backend/storage, are protected as files rather than by
+# closing the directory above them.
+chmod 755 "$APP_DIR"
+ok "$APP_USER owns $APP_DIR (755, so nginx can reach the web root)"
 
 # ---------------------------------------------------------------------------
 # Database
