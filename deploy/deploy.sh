@@ -17,8 +17,45 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+
+# ---------------------------------------------------------------------------
+# Run from a copy, outside the directory this script is about to rewrite
+#
+# The documented way to deploy an update is to run this file out of the
+# checkout it updates - and `git reset --hard` replaces it whenever a release
+# has changed it. Bash does not load a script into memory: it reads a block,
+# runs it, then seeks back to the offset it had reached. Reading a file that
+# has been replaced underneath gives whatever now sits at that offset, and a
+# shorter file simply ends there.
+#
+# The observable result is the worst kind: the script stops part way through
+# and exits 0. The new code is checked out, nothing is built, migrated or
+# reloaded, and the deploy reports success. Verified - a self-rewriting
+# script stops at the rewrite and claims to have finished.
+#
+# So the first thing it does is copy itself somewhere git will not touch and
+# hand over to that copy.
+# ---------------------------------------------------------------------------
+if [[ "${AMASO_REEXEC:-}" != "1" ]]; then
+    AMASO_REEXEC_DIR="$(mktemp -d -t amaso-deploy-XXXXXX)"
+    cp "$HERE"/*.sh "$AMASO_REEXEC_DIR"/ 2>/dev/null \
+        || { rm -rf "$AMASO_REEXEC_DIR"; printf 'Could not copy the deploy scripts to a temporary directory.\n' >&2; exit 1; }
+    export AMASO_REEXEC=1 AMASO_REEXEC_DIR
+    exec bash "$AMASO_REEXEC_DIR/deploy.sh" "$@"
+fi
+
 # shellcheck source=common.sh
 source "$HERE/common.sh"
+
+# One EXIT handler for everything this run leaves behind - the copy above,
+# and the MySQL credentials file created further down. A second `trap ... EXIT`
+# would replace this one rather than add to it.
+cleanup() {
+    [[ -n "${cnf:-}" ]] && rm -f "$cnf"
+    [[ -n "${AMASO_REEXEC_DIR:-}" ]] && rm -rf "$AMASO_REEXEC_DIR"
+    return 0
+}
+trap cleanup EXIT
 
 APP_USER="${APP_USER:-amaso}"
 APP_DIR="${APP_DIR:-/var/www/amaso}"
@@ -268,7 +305,6 @@ ok "Schema up to date"
 # artisan: a broken .env would make an artisan check fail in a way that
 # looks like "no users" and reseed a populated database.
 cnf="$(mktemp)"; chmod 600 "$cnf"
-trap 'rm -f "$cnf"' EXIT
 cat > "$cnf" <<CNF
 [client]
 user=$(get_env "$env_file" DB_USERNAME)

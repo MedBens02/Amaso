@@ -275,6 +275,63 @@ address as the client IP rather than the real one.
 
 ---
 
+## Updating a running server
+
+```bash
+sudo bash /var/www/amaso/deploy/deploy.sh
+```
+
+That is the whole update. It fetches the branch the server is on, resets to
+it, reinstalls dependencies, applies any new migrations, rebuilds the
+frontend, rebuilds the caches and reloads nginx and PHP-FPM — then checks
+that the pages and the API answer before reporting success.
+
+**It does not touch your data.** `migrate --force` only adds structure; it
+never drops or rewrites rows. The demo seeder is not run unless `--demo` is
+passed, and it refuses to run into a database that already holds families.
+
+Take a backup first anyway — it costs a second:
+
+```bash
+sudo bash /var/www/amaso/deploy/backup.sh
+sudo bash /var/www/amaso/deploy/deploy.sh
+sudo bash /var/www/amaso/deploy/status.sh
+```
+
+The server follows its branch, so **merge before you deploy**. To move a
+server onto a different branch, name it once and it stays there:
+
+```bash
+sudo BRANCH=some-branch bash /var/www/amaso/deploy/deploy.sh
+```
+
+Expect two to five minutes, nearly all of it the frontend build. The site
+stays up throughout: nginx keeps serving the previous `frontend/out` until
+the new one is written, and the reload at the end is graceful.
+
+If it fails part way, run it again. Every step is safe to repeat.
+
+### If an update goes wrong
+
+The previous version is a commit away:
+
+```bash
+cd /var/www/amaso
+sudo -u amaso git log --oneline -5              # find the one that worked
+sudo BRANCH=<that-commit-or-branch> bash deploy/deploy.sh
+```
+
+A migration that has already run is not undone by checking out older code.
+If the schema moved and you need to go back, restore the backup you took
+before the update:
+
+```bash
+sudo bash /var/www/amaso/deploy/backup.sh --list
+sudo bash /var/www/amaso/deploy/backup.sh --restore /var/backups/amaso/<file>.sql.gz
+```
+
+---
+
 ## Day to day
 
 | | |
