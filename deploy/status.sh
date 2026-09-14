@@ -90,8 +90,27 @@ log "Answering"
 page="$(http_code http://127.0.0.1/)"
 api="$(http_code http://127.0.0.1/api/v1/widows)"
 
-[[ "$page" == "200" ]] && good "frontend" "HTTP $page" || bad "frontend" "HTTP $page  (/var/log/nginx/amaso-error.log)"
-# 401 means Laravel handled it and asked for a token, which is correct.
+# With restrict-access.sh in force, a request carrying no gate password is
+# supposed to be refused - and this check cannot carry one, because the file
+# holds only a hash. So 401 here is the gate working, not a fault, and
+# reporting it as a problem sends people to an error log to find nothing
+# wrong. What is behind the gate cannot be checked from here; the build and
+# the API below are what stand in for it.
+gate_is_up=0
+[[ -s /etc/nginx/snippets/amaso-gate-site.conf ]] && gate_is_up=1
+
+if [[ "$page" == "200" ]]; then
+    good "frontend" "HTTP 200"
+elif (( gate_is_up )) && [[ "$page" == "401" ]]; then
+    good "frontend" "HTTP 401 - the access gate refused an unauthenticated request, as it should"
+elif [[ "$page" == "403" ]]; then
+    bad "frontend" "HTTP 403 - nginx cannot read ${APP_DIR}. Try: sudo chmod 755 ${APP_DIR}"
+else
+    bad "frontend" "HTTP $page  (/var/log/nginx/amaso-error.log)"
+fi
+
+# The gate is lifted on /api - see the README - so this reaches Laravel
+# either way, and 401 means Laravel handled it and asked for a token.
 [[ "$api" == "401" ]] && good "API" "HTTP $api (authentication required)" \
                       || bad "API" "HTTP $api, expected 401  (/var/log/php-fpm-amaso.log)"
 
