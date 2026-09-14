@@ -588,6 +588,23 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
     return Array.from(byFamily.values())
   }, [beneficiaryFields, familyByBeneficiary, watchedBeneficiaries])
 
+  /**
+   * How much of the expense has been handed out so far.
+   *
+   * From useWatch, not from useFieldArray's `fields`. Those carry the value
+   * each row had when the array was last rebuilt - which happens on add and
+   * remove and at no other time - so a figure derived from them sits at the
+   * previous total while somebody types, and only catches up when a
+   * beneficiary is added or deleted. Computed once here because it was being
+   * worked out in two places, and only one of them was right.
+   */
+  const allocatedTotal = useMemo(
+    () => (watchedBeneficiaries || []).reduce(
+      (sum: number, row: any) => sum + (Number(row?.amount) || 0), 0,
+    ),
+    [watchedBeneficiaries],
+  )
+
   // Categories are independent of budgets - the full tree is always offered,
   // parents first with their children indented underneath.
   const categoryOptions = useMemo(() => buildCategoryOptions(expenseCategories), [expenseCategories])
@@ -1349,10 +1366,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                           {/* The server rejects a mismatch, so the gap is
                               named here rather than discovered on save. */}
                           {(() => {
-                            const allocated = (watchedBeneficiaries || []).reduce(
-                              (sum: number, row: any) => sum + (Number(row?.amount) || 0), 0,
-                            )
-                            const gap = (Number(totalAmount) || 0) - allocated
+                            const gap = (Number(totalAmount) || 0) - allocatedTotal
                             if (Math.abs(gap) <= 0.01) return null
 
                             return (
@@ -1383,7 +1397,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                             </div>
                             <div className="bg-card p-3 rounded-lg border border-green-100 dark:border-green-900">
                               <p className="text-2xl font-bold text-green-600">
-                                {beneficiaryFields.reduce((sum, field) => sum + (parseFloat(field.amount) || 0), 0).toFixed(0)}
+                                {allocatedTotal.toFixed(0)}
                               </p>
                               <p className="text-xs text-muted-foreground">DH موزع</p>
                             </div>
