@@ -94,6 +94,17 @@ server {
         access_log off;
     }
 
+    # Images, fonts and the favicon at the root of the export. Unlike
+    # /_next/static/ these keep the same name across builds, so they are
+    # cached for a week rather than a year - long enough that a phone does
+    # not refetch the logo on every visit, short enough that replacing it
+    # reaches people without anyone clearing a cache.
+    location ~* ^/[^/]+\.(png|jpg|jpeg|svg|ico|webp|woff2?)$ {
+        expires 7d;
+        add_header Cache-Control "public";
+        access_log off;
+    }
+
     # The export writes /dashboard/widows.html, not /dashboard/widows/,
     # so $uri.html is what makes a typed URL or a refresh on a deep link
     # work instead of returning 404.
