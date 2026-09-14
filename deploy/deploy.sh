@@ -165,10 +165,55 @@ ok "Database credentials present in backend/.env"
 # PHP dependencies
 # ---------------------------------------------------------------------------
 log "Installing PHP dependencies"
-as_app composer install \
-    --working-dir="$APP_DIR/backend" \
-    --no-dev --optimize-autoloader --no-interaction --quiet
-ok "vendor/ up to date"
+
+# A GitHub token, when one is offered, raises the download limit from the
+# anonymous allowance to a per-account one:
+#   sudo env GITHUB_TOKEN=ghp_... bash deploy.sh
+if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    as_app composer config --global --no-interaction \
+        github-oauth.github.com "$GITHUB_TOKEN" >/dev/null 2>&1 \
+        && ok "Using the supplied GitHub token for downloads"
+fi
+
+# Composer fetches most packages as zips from codeload.github.com, which
+# rate-limits by IP. On a cloud host that IP is shared with everyone else in
+# the range, so a 429 here is common, unrelated to this project, and clears
+# on its own. Three attempts, then git clones instead of zip downloads -
+# a different endpoint with a different limit, slower but usually through.
+composer_install() {
+    as_app composer install \
+        --working-dir="$APP_DIR/backend" \
+        --no-dev --optimize-autoloader --no-interaction --quiet "$@"
+}
+
+if composer_install; then
+    ok "vendor/ up to date"
+else
+    for wait in 20 45; do
+        warn "Composer failed - waiting ${wait}s and trying again (GitHub rate limits by IP)"
+        sleep "$wait"
+        if composer_install; then
+            ok "vendor/ up to date"
+            break
+        fi
+    done
+
+    if [[ ! -f "$APP_DIR/backend/vendor/autoload.php" ]]; then
+        warn "Still failing - retrying with --prefer-source (git clones rather than zip downloads)"
+        composer_install --prefer-source || die "$(cat <<'MSG'
+Composer could not install the dependencies.
+
+    If the errors above say HTTP 429, GitHub is rate-limiting this server's
+    address. It clears on its own; either wait and run this script again, or
+    give it a token, which lifts the limit immediately:
+
+        https://github.com/settings/tokens   (no scopes needed)
+        sudo env GITHUB_TOKEN=ghp_... bash deploy.sh
+MSG
+)"
+        ok "vendor/ up to date (from source)"
+    fi
+fi
 
 # ---------------------------------------------------------------------------
 # Application key
