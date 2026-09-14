@@ -167,6 +167,7 @@ class ExpenseService
             ExpenseBeneficiary::create([
                 'expense_id' => $expense->id,
                 'beneficiary_id' => $beneficiary['beneficiary_id'],
+                'group_id' => $beneficiary['group_id'] ?? null,
                 'amount' => $beneficiary['amount'],
                 'notes' => $beneficiary['notes'] ?? null,
             ]);

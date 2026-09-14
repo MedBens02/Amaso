@@ -36,6 +36,11 @@ class StoreExpenseRequest extends FormRequest
             'beneficiaries.*.beneficiary_id' => ['required_with:beneficiaries', 'exists:beneficiaries,id'],
             'beneficiaries.*.amount' => ['required_with:beneficiaries', 'numeric', 'min:0'],
             'beneficiaries.*.notes' => ['nullable', 'string'],
+            // Which saved group the row was picked from, when it was picked
+            // from one. Recorded so the expense still says where its list of
+            // people came from, even though each of them carries their own
+            // amount rather than an equal share of a group total.
+            'beneficiaries.*.group_id' => ['nullable', 'exists:beneficiary_groups,id'],
             'beneficiary_groups' => ['nullable', 'array'],
             'beneficiary_groups.*.group_id' => ['required_with:beneficiary_groups', 'exists:beneficiary_groups,id'],
             'beneficiary_groups.*.amount' => ['required_with:beneficiary_groups', 'numeric', 'min:0'],

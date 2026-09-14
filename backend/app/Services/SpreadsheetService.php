@@ -136,9 +136,16 @@ class SpreadsheetService
         $sheet->setCellValue('A2', $title);
         $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12)->getColor()->setRGB(self::INK);
 
+        $line = 3;
+
         // The settings screen promises the address, phone and email will
         // show up on reports; this was the one export that never carried
-        // them past the association's name.
+        // them past the association's name. Kept out of the caption loop
+        // below and given an explicit reading order, because it is the one
+        // line here that is not necessarily Arabic prose: a Latin-script
+        // address on a sheet set right-to-left is exactly the case where a
+        // trailing number can fold back past the phone and email that come
+        // after it in the same cell.
         $org = OrganizationSettings::all();
         $contact = implode(' · ', array_filter([
             $org['address'] ?? null,
@@ -146,8 +153,15 @@ class SpreadsheetService
             $org['email'] ?? null,
         ])) ?: null;
 
-        $captions = array_values(array_filter([$contact, $subtitle, ...array_values($meta)]));
-        $line = 3;
+        if ($contact !== null) {
+            $sheet->mergeCells("A{$line}:{$lastColumn}{$line}");
+            $sheet->setCellValue("A{$line}", $contact);
+            $sheet->getStyle("A{$line}")->getFont()->setSize(10)->getColor()->setRGB(self::MUTED);
+            $sheet->getStyle("A{$line}")->getAlignment()->setReadOrder(Alignment::READORDER_LTR);
+            $line++;
+        }
+
+        $captions = array_values(array_filter([$subtitle, ...array_values($meta)]));
         foreach ($captions as $caption) {
             $sheet->mergeCells("A{$line}:{$lastColumn}{$line}");
             $sheet->setCellValue("A{$line}", $caption);

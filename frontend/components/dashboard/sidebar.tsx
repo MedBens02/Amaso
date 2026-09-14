@@ -26,6 +26,7 @@ import {
   Database,
   Calculator,
   UserCog,
+  History,
   Loader2,
 } from "lucide-react"
 import { isCurrentUserAdmin } from "@/lib/roles"
@@ -113,6 +114,12 @@ const systemNavigation = [
     name: "إدارة الحسابات",
     href: "/dashboard/users",
     icon: UserCog,
+    adminOnly: true,
+  },
+  {
+    name: "سجل النشاط",
+    href: "/dashboard/audit-log",
+    icon: History,
     adminOnly: true,
   },
 ]

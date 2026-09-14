@@ -339,6 +339,38 @@ class ApiClient {
     return this.request<any>(`/users/${id}`, { method: 'DELETE' })
   }
 
+  // Activity log (admin only)
+  async getAuditLogs(params?: {
+    user_id?: number
+    action?: string
+    entity_type?: string
+    entity_id?: number
+    from_date?: string
+    to_date?: string
+    search?: string
+    page?: number
+    per_page?: number
+  }) {
+    const searchParams = new URLSearchParams()
+    if (params?.user_id) searchParams.set('user_id', params.user_id.toString())
+    if (params?.action) searchParams.set('action', params.action)
+    if (params?.entity_type) searchParams.set('entity_type', params.entity_type)
+    if (params?.entity_id) searchParams.set('entity_id', params.entity_id.toString())
+    if (params?.from_date) searchParams.set('from_date', params.from_date)
+    if (params?.to_date) searchParams.set('to_date', params.to_date)
+    if (params?.search) searchParams.set('search', params.search)
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.per_page) searchParams.set('per_page', params.per_page.toString())
+
+    const query = searchParams.toString()
+    return this.request<any[]>(`/audit-logs${query ? `?${query}` : ''}`)
+  }
+
+  /** The options the filter bar offers, narrowed to what the log actually holds. */
+  async getAuditLogFilters() {
+    return this.request<any>('/audit-logs/filters')
+  }
+
   // Donors API
   async getDonors(params?: {
     search?: string
@@ -580,8 +612,22 @@ class ApiClient {
     return this.request<any[]>(`/beneficiary-groups/${groupId}/members`)
   }
 
-  async getBeneficiaries() {
-    return this.request<any[]>('/beneficiaries')
+  /**
+   * Widows and orphans, for the selection panels.
+   *
+   * The filters are passed to the server rather than applied to the result:
+   * the endpoint pages, so filtering here would only ever search the first
+   * page - the same trap the incomes search was in, where a name present in
+   * the database simply did not come up.
+   */
+  async getBeneficiaries(params?: { search?: string; type?: 'Widow' | 'Orphan'; per_page?: number }) {
+    const query = new URLSearchParams()
+    if (params?.search) query.set('search', params.search)
+    if (params?.type) query.set('type', params.type)
+    if (params?.per_page) query.set('per_page', String(params.per_page))
+
+    const suffix = query.toString()
+    return this.request<any[]>(`/beneficiaries${suffix ? `?${suffix}` : ''}`)
   }
 
   async getPartners() {

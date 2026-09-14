@@ -19,6 +19,7 @@ use App\Models\WidowPhone;
 use App\Models\WidowSocial;
 use App\Models\WidowSocialExpense;
 use App\Models\WidowSocialIncome;
+use App\Support\AuditLogger;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -84,6 +85,11 @@ class WidowService
     public function update(Widow $widow, array $validated): Widow
     {
         return DB::transaction(function () use ($widow, $validated) {
+            // The sections below are replaced wholesale rather than edited
+            // row by row, which fires no model events - see
+            // AuditLogger::recordSections().
+            $sectionsBefore = $this->auditableSections($widow);
+
             $widow->update(
                 collect($validated)->only(self::PROFILE_FIELDS)->toArray()
             );
@@ -145,6 +151,8 @@ class WidowService
             if (array_key_exists('kafils', $validated)) {
                 $this->syncSponsorships($widow, $validated['kafils'] ?? []);
             }
+
+            AuditLogger::recordSections($widow, $sectionsBefore, $this->auditableSections($widow->fresh()));
 
             return $widow;
         });
@@ -259,6 +267,30 @@ class WidowService
 
             return $widow;
         });
+    }
+
+    /**
+     * The family file's list-shaped sections, flattened to comparable text.
+     *
+     * Read around a save so a change inside one of them can be recorded
+     * against the family - see AuditLogger::recordSections() for why the
+     * observer cannot see these on its own.
+     *
+     * @return array<string, array<int, string>>
+     */
+    private function auditableSections(Widow $widow): array
+    {
+        $money = fn ($row) => number_format((float) $row->amount, 2) . ' د.م';
+
+        return [
+            'أرقام الهاتف' => $widow->phones()->pluck('phone')->filter()->values()->all(),
+            'المداخيل الاجتماعية' => $widow->socialIncome()->get()->map($money)->all(),
+            'المصاريف الاجتماعية' => $widow->socialExpenses()->get()->map($money)->all(),
+            'المعونات' => $widow->maouna()->get()->map($money)->all(),
+            'المهارات' => $widow->skills()->pluck('label')->filter()->values()->all(),
+            'الأمراض' => $widow->illnesses()->pluck('label')->filter()->values()->all(),
+            'أنواع المساعدة' => $widow->aidTypes()->pluck('label')->filter()->values()->all(),
+        ];
     }
 
     private function socialAttributes(array $validated): array

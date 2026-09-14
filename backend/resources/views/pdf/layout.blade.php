@@ -52,6 +52,8 @@
         .doc-footer .contact {
             font-size: 6.5pt;
             color: #9ca3af;
+            direction: ltr;
+            unicode-bidi: embed;
         }
 
         /* ---------- meta strip ---------- */
@@ -201,7 +203,16 @@
             <td>
                 {{ $organization }}
                 @isset($contact)
-                    <div class="contact">{{ $contact }}</div>
+                    {{-- Explicit dir, not inherited from the page: the address is
+                         free text and can be Arabic or Latin script depending on
+                         who typed it, but the joined address/phone/email line is
+                         always meant to read address-then-phone-then-email in
+                         that order. Left to the page's own RTL default, a purely
+                         Latin-script address (a French street name, the normal
+                         case here) has no strong character of its own to anchor
+                         it, and a trailing number can fold back past the phone
+                         and email that come after it in the same string. --}}
+                    <div class="contact" dir="ltr">{{ $contact }}</div>
                 @endisset
             </td>
             <td style="text-align: left; vertical-align: top;">صفحة {PAGENO} من {nbpg}</td>

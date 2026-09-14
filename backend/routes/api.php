@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\BeneficiaryGroupController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\References;
 
 Route::get('/user', function (Request $request) {
@@ -63,6 +64,11 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('users', UserController::class);
         Route::patch('users/{user}/active', [UserController::class, 'setActive']);
         Route::post('users/{user}/password', [UserController::class, 'resetPassword']);
+
+        // The activity log. Read-only: there is no route that writes,
+        // edits or deletes a row, deliberately.
+        Route::get('audit-logs', [AuditLogController::class, 'index']);
+        Route::get('audit-logs/filters', [AuditLogController::class, 'filters']);
     });
 
     // Donors CRUD
