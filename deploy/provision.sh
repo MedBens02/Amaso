@@ -195,9 +195,14 @@ case "$PHP_VERSION" in
 esac
 
 # gd is not optional: without it every .xlsx export fails at runtime.
+# -cli is not optional either, and was previously left to chance: php-fpm
+# does not depend on it, so it arrived only because some other extension
+# happened to pull it in. Every artisan command in deploy.sh needs it, and
+# so does Composer.
 apt-get install -y -qq \
     nginx mariadb-server curl git unzip rsync ca-certificates \
     "php${PHP_VERSION}-fpm" \
+    "php${PHP_VERSION}-cli" \
     "php${PHP_VERSION}-mysql" \
     "php${PHP_VERSION}-mbstring" \
     "php${PHP_VERSION}-xml" \
@@ -217,8 +222,24 @@ ok "Node $(node -v)"
 
 if ! command -v composer >/dev/null; then
     log "Installing Composer"
-    curl -fsSL https://getcomposer.org/installer -o /tmp/composer-setup.php
-    php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer --quiet
+
+    # Timeouts, because curl's default is to wait indefinitely and this step
+    # prints nothing while it runs - a hang here is indistinguishable from
+    # work in progress, and the install appears to have stopped dead at
+    # "Installing Composer" with no way to tell why.
+    if curl -fsSL --connect-timeout 15 --max-time 120 --retry 2 --retry-delay 3 \
+            https://getcomposer.org/installer -o /tmp/composer-setup.php \
+       && php /tmp/composer-setup.php \
+            --install-dir=/usr/local/bin --filename=composer --quiet
+    then
+        ok "Composer installed from getcomposer.org"
+    else
+        # Ubuntu carries Composer too. It may be a few point releases behind
+        # getcomposer.org, which matters far less than the install finishing.
+        warn "getcomposer.org did not answer in time - using Ubuntu's composer package instead"
+        apt-get install -y -qq composer \
+            || die "Could not install Composer from getcomposer.org or from apt. Check outbound HTTPS from this machine."
+    fi
     rm -f /tmp/composer-setup.php
 fi
 ok "Composer $(composer --version --no-ansi 2>/dev/null | head -1)"
