@@ -17,8 +17,14 @@
 #   --branch <name>     which branch          (default: the repo's own default)
 #   --domain <name>     the site's hostname   (optional; enables HTTPS)
 #   --email  <address>  for Let's Encrypt     (required with --domain)
+#   --demo              fill the database with invented test data
 #   --skip-provision    the server is already prepared
 #   --no-backup-cron    do not schedule the nightly backup
+#
+# --demo is for a server the team is trying out, never for the real one. It
+# seeds invented families, money and school records so there is something to
+# click through, and it refuses to run into a database that already holds
+# families.
 
 set -euo pipefail
 
@@ -32,6 +38,7 @@ DOMAIN=""
 EMAIL=""
 SKIP_PROVISION=0
 BACKUP_CRON=1
+SEED_DEMO=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -39,6 +46,7 @@ while [[ $# -gt 0 ]]; do
         --branch)         BRANCH="${2:?--branch needs a name}"; shift 2 ;;
         --domain)         DOMAIN="${2:?--domain needs a hostname}"; shift 2 ;;
         --email)          EMAIL="${2:?--email needs an address}"; shift 2 ;;
+        --demo)           SEED_DEMO=1; shift ;;
         --skip-provision) SKIP_PROVISION=1; shift ;;
         --no-backup-cron) BACKUP_CRON=0; shift ;;
         # Print the header comment and stop at the first line of code, so
@@ -58,6 +66,7 @@ printf '\n%s  AMASO - full install%s\n' "$C_STEP" "$C_OFF"
 printf '    repository  %s\n' "$REPO"
 printf '    branch      %s\n' "${BRANCH:-<the repository's default>}"
 printf '    domain      %s\n' "${DOMAIN:-<none - the site will answer on its IP>}"
+printf '    data        %s\n' "$( (( SEED_DEMO )) && echo 'INVENTED DEMO DATA' || echo 'empty - ready for real records')"
 printf '    machine     %s MB RAM, %s MB swap, %s MB free on /\n\n' \
     "$(ram_mb)" "$(swap_mb)" "$(df -Pm / | awk 'NR==2 {print $4}')"
 
@@ -75,10 +84,14 @@ fi
 # 2. The application
 # ---------------------------------------------------------------------------
 printf '\n%s╺━ 2/4  Installing the application ━╸%s\n' "$C_STEP" "$C_OFF"
+deploy_args=()
+(( SEED_DEMO )) && deploy_args+=(--demo)
+deploy_args+=("$REPO")
+
 if [[ -n "$BRANCH" ]]; then
-    BRANCH="$BRANCH" bash "$HERE/deploy.sh" "$REPO"
+    BRANCH="$BRANCH" bash "$HERE/deploy.sh" "${deploy_args[@]}"
 else
-    bash "$HERE/deploy.sh" "$REPO"
+    bash "$HERE/deploy.sh" "${deploy_args[@]}"
 fi
 
 # ---------------------------------------------------------------------------
