@@ -157,6 +157,19 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+log "Who can reach it"
+
+gate="/etc/nginx/snippets/amaso-gate-site.conf"
+if [[ -s "$gate" ]]; then
+    what=()
+    grep -q 'auth_basic "' "$gate" && what+=("shared password")
+    grep -q '^allow ' "$gate" && what+=("allowlist of $(grep -c '^allow ' "$gate")")
+    good "gate" "${what[*]:-restricted}  (restrict-access.sh --status for detail)"
+else
+    meh "gate" "open - anyone who knows the address reaches the login page"
+fi
+
+# ---------------------------------------------------------------------------
 log "HTTPS"
 
 cert="$(find /etc/letsencrypt/live -name fullchain.pem 2>/dev/null | head -1)"

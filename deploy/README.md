@@ -200,6 +200,45 @@ rsync -avz root@<server-ip>:/var/backups/amaso/ ~/amaso-backups/
 
 ---
 
+## Keeping strangers out
+
+By default anyone who finds the address reaches the login page. On a server
+the team is trying out, or one you would rather nobody probed, put a gate in
+front of it:
+
+```bash
+# a shared password, generated and printed once
+sudo bash restrict-access.sh --password
+
+# or only these addresses - airtight, but they must be stable
+sudo bash restrict-access.sh --ip 41.248.10.20 --ip 196.65.4.7
+
+# or both: the office walks in, everyone else is asked for the password
+sudo bash restrict-access.sh --password --ip 41.248.10.20
+
+sudo bash restrict-access.sh --status
+sudo bash restrict-access.sh --off
+```
+
+Everyone gets a browser password prompt before they see anything. Let's
+Encrypt keeps working — the challenge path is exempted — and the pages carry
+`X-Robots-Tag: noindex` so the server never turns up in a search.
+
+**One thing worth knowing about the password option.** HTTP carries a single
+`Authorization` header, and both halves want it: the browser fills it with
+the gate's Basic credentials, and the application overwrites it with its own
+Bearer token. Gate `/api` with a password and every API call is rejected by
+nginx, which the application reads as an expired session — it bounces to the
+login page and stays there. So `restrict-access.sh` lifts the password gate
+on `/api` and leaves that path to Laravel's own token authentication, which
+returns 401 to anyone without a valid token.
+
+An address allowlist has no such conflict, so when that is the only gate it
+covers the API too. If the team's addresses are stable, `--ip` is the
+stronger choice.
+
+---
+
 ## DNS records
 
 Two records at your registrar, once:
@@ -226,6 +265,7 @@ address as the client IP rather than the real one.
 | | |
 |---|---|
 | Check everything | `sudo bash /var/www/amaso/deploy/status.sh` |
+| Gate the site | `sudo bash /var/www/amaso/deploy/restrict-access.sh --password` |
 | Deploy an update | `sudo bash /var/www/amaso/deploy/deploy.sh` |
 | Back up now | `sudo bash /var/www/amaso/deploy/backup.sh` |
 | List backups | `sudo bash /var/www/amaso/deploy/backup.sh --list` |
@@ -280,6 +320,7 @@ end up.
 | `deploy.sh` | Fetch, build and release — run for every update |
 | `enable-https.sh` | Domain and Let's Encrypt certificate |
 | `backup.sh` | Nightly dumps, listing and restore |
+| `restrict-access.sh` | A password or address gate in front of the whole site |
 | `status.sh` | What is running, what is broken, what needs attention |
 | `common.sh` | Shared helpers, sourced by the rest |
 | `nginx.conf.template` | The site configuration `provision.sh` fills in |
