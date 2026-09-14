@@ -87,6 +87,31 @@ get_env() {
 }
 
 # ---------------------------------------------------------------------------
+# Random strings
+#
+#   random_string 14 'abc...XYZ23456789'
+#
+# Deliberately not the obvious `tr -dc SET </dev/urandom | head -c N`.
+# head closes the pipe the moment it has N bytes; tr, still reading a device
+# that never ends, is killed by SIGPIPE; `set -o pipefail` reports the
+# pipeline as failed; and `set -e` exits the script - with nothing printed,
+# because this runs before the first line of output. That is a guaranteed
+# failure rather than an occasional one, since tr can never finish first.
+#
+# Here the randomness is a fixed block, so every command in the pipeline
+# reaches its own end of input, and the filtering is done by bash.
+# ---------------------------------------------------------------------------
+random_string() {
+    local length="$1" allowed="$2" raw clean
+    raw="$(head -c 512 /dev/urandom | base64 | tr -d '\n')"
+    clean="${raw//[^$allowed]/}"
+    if (( ${#clean} < length )); then
+        die "random_string: only ${#clean} usable characters from 512 bytes; widen the allowed set"
+    fi
+    printf '%s' "${clean:0:length}"
+}
+
+# ---------------------------------------------------------------------------
 # Facts about the machine
 # ---------------------------------------------------------------------------
 

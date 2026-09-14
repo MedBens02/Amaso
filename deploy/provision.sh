@@ -342,7 +342,7 @@ if [[ -f /root/.amaso-db-password ]]; then
     DB_PASS="$(cat /root/.amaso-db-password)"
     ok "Reusing the database password from /root/.amaso-db-password"
 else
-    DB_PASS="$(head -c 24 /dev/urandom | base64 | tr -d '/+=' | head -c 24)"
+    DB_PASS="$(random_string 24 'A-Za-z0-9')"
     printf '%s' "$DB_PASS" > /root/.amaso-db-password
     chmod 600 /root/.amaso-db-password
     ok "Generated a database password, saved to /root/.amaso-db-password"

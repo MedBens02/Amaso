@@ -124,14 +124,14 @@ fi
 if (( WANT_PASSWORD )); then
     if [[ -z "$PASSWORD" ]]; then
         # Readable over the phone: no look-alike characters.
-        PASSWORD="$(tr -dc 'abcdefghjkmnpqrstuvwxyzACDEFGHJKLMNPQRSTUVWXYZ23456789' </dev/urandom | head -c 14)"
+        PASSWORD="$(random_string 14 'abcdefghjkmnpqrstuvwxyzACDEFGHJKLMNPQRSTUVWXYZ23456789')"
         GENERATED=1
     else
         GENERATED=0
     fi
 
     # apr1 via openssl, so this does not need apache2-utils installed.
-    salt="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 8)"
+    salt="$(random_string 8 'A-Za-z0-9')"
     hash="$(openssl passwd -apr1 -salt "$salt" "$PASSWORD")"
     printf '%s:%s\n' "$USERNAME" "$hash" > "$HTPASSWD"
 
@@ -196,10 +196,18 @@ fi
 
 nginx -t >/dev/null 2>&1 || {
     : > "$SNIPPET"
+    : > "$API_SNIPPET"
     die "That configuration was rejected by nginx and has been undone - run 'nginx -t'"
 }
-systemctl reload nginx
 
+# ---------------------------------------------------------------------------
+# What was set, printed before nginx is touched.
+#
+# A generated password exists in readable form exactly once, here: the file
+# holds only its hash. Printing it after the reload meant that a reload
+# which failed for any reason - and `set -e` makes any failure fatal - took
+# the password with it, leaving a gate that was already written to disk and
+# a password nobody had seen. Order matters more than tidiness.
 # ---------------------------------------------------------------------------
 log "The gate is up"
 
@@ -219,10 +227,20 @@ fi
 
 cat <<'NOTE'
 
-    Everyone gets a browser password prompt before they see anything,
-    including the API and the static files. Once they answer it the
-    browser keeps sending it, so the application behaves normally.
+    Everyone gets a browser password prompt before they see anything.
+    The API is left to the application's own token authentication - see
+    deploy/README.md for why a password there breaks the login.
 
     To remove it later:   sudo bash restrict-access.sh --off
 
 NOTE
+
+# Last, and not fatal: the configuration is already written and has already
+# been checked. A reload that fails is worth reporting and worth retrying by
+# hand - it is not worth losing the password printed above.
+if systemctl reload nginx 2>/dev/null; then
+    ok "nginx reloaded - the gate is in force now"
+else
+    warn "Could not reload nginx automatically. The gate takes effect after:"
+    printf '        sudo systemctl reload nginx\n\n'
+fi
