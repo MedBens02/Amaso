@@ -145,10 +145,9 @@ if [[ ! -f "$env_file" ]]; then
     # run inline instead, which is slower but visible.
     set_env "$env_file" QUEUE_CONNECTION sync
 
-    as_app php "$APP_DIR/backend/artisan" key:generate --force --quiet
     chown "$APP_USER:$APP_USER" "$env_file"
     chmod 600 "$env_file"
-    ok "backend/.env written, application key generated"
+    ok "backend/.env written"
 else
     ok "backend/.env already present - left untouched"
 fi
@@ -170,6 +169,27 @@ as_app composer install \
     --working-dir="$APP_DIR/backend" \
     --no-dev --optimize-autoloader --no-interaction --quiet
 ok "vendor/ up to date"
+
+# ---------------------------------------------------------------------------
+# Application key
+#
+# After composer, not before. artisan is a PHP script whose first act is to
+# require vendor/autoload.php, so on a first install - where the clone has
+# no vendor/ yet - generating the key as part of writing .env died with
+# "Failed opening required '.../vendor/autoload.php'" before a single
+# dependency had been fetched.
+#
+# Keyed off the value rather than off having just written the file, so the
+# .env left behind by that failure - present, but with an empty APP_KEY -
+# gets a key on the next run instead of being skipped as "already present".
+# ---------------------------------------------------------------------------
+if [[ -z "$(get_env "$env_file" APP_KEY)" ]]; then
+    as_app php "$APP_DIR/backend/artisan" key:generate --force --quiet
+    [[ -n "$(get_env "$env_file" APP_KEY)" ]] || die "key:generate did not write an APP_KEY into backend/.env"
+    ok "Application key generated"
+else
+    ok "Application key already set"
+fi
 
 # Laravel writes compiled views and cached config into these at runtime;
 # they carry only a .gitignore in the repository.
