@@ -138,6 +138,14 @@ fi
 log "Installing packages"
 
 export DEBIAN_FRONTEND=noninteractive
+
+# Composer, run as root in a terminal, asks "Do you want to continue as
+# root/super user [yes]?" and waits. Every call to it in this script is
+# inside $( ), which captures that question instead of printing it - so the
+# install appears to hang, with no prompt on screen and nothing to suggest
+# the shell is waiting for an answer. This is that answer, given up front.
+export COMPOSER_ALLOW_SUPERUSER=1
+
 apt-get update -qq
 
 # Which PHP this release actually offers, asked of apt rather than guessed
@@ -242,7 +250,11 @@ if ! command -v composer >/dev/null; then
     fi
     rm -f /tmp/composer-setup.php
 fi
-ok "Composer $(composer --version --no-ansi 2>/dev/null | head -1)"
+
+# Bounded, so that even a Composer that decides to ask something new cannot
+# stop the install with an invisible prompt.
+composer_version="$(timeout 30 composer --version --no-ansi --no-interaction 2>/dev/null | head -1)"
+ok "${composer_version:-Composer present (version check timed out)}"
 
 # ---------------------------------------------------------------------------
 # Unattended security updates and SSH brute-force protection
