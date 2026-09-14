@@ -5,6 +5,7 @@
 #
 #   sudo bash deploy.sh                                   # update in place
 #   sudo bash deploy.sh https://github.com/you/Amaso.git  # first time
+#   sudo bash deploy.sh --demo <git-url>                  # first time, with demo data
 #
 # What it does, in order: fetch the code, install dependencies, build the
 # frontend, run the database migrations, clear and rebuild the caches,
@@ -24,7 +25,20 @@ APP_DIR="${APP_DIR:-/var/www/amaso}"
 DB_NAME="${DB_NAME:-amaso}"
 DB_USER="${DB_USER:-amaso}"
 BRANCH="${BRANCH:-}"
-REPO_URL="${1:-}"
+
+# Fill an empty database with the invented families, money and school
+# records so the application can be clicked through. Off unless asked for:
+# see the guard further down, and the warning it prints.
+SEED_DEMO=0
+REPO_URL=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --demo) SEED_DEMO=1; shift ;;
+        -*)     die "Unknown option '$1'. The only one is --demo." ;;
+        *)      REPO_URL="$1"; shift ;;
+    esac
+done
 
 # Measured peak for `next build` on this application, plus room for the
 # services already resident while it runs.
@@ -207,6 +221,35 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Demo data, only when asked for
+#
+# DemoDataSeeder invents families, orphans, donors, three fiscal years of
+# money and three academic years of school records. It is what makes a test
+# install worth clicking through, and it must never touch an install holding
+# real records.
+#
+# Two things guard that. It runs only with --demo, and only into a database
+# with no families at all - the seeder matches nothing before inserting, so
+# running it twice produces a second copy of every widow, and bootstrap.sh
+# advertises itself as safe to re-run.
+# ---------------------------------------------------------------------------
+if (( SEED_DEMO )); then
+    widow_count="$(mysql --defaults-extra-file="$cnf" -N -B \
+        -e "SELECT COUNT(*) FROM widows" "$DB_NAME" 2>/dev/null || echo "error")"
+
+    if [[ "$widow_count" == "0" ]]; then
+        log "Seeding demo data (--demo)"
+        as_app php "$APP_DIR/backend/artisan" db:seed --class=DemoDataSeeder --force
+        ok "Demo data seeded"
+    elif [[ "$widow_count" == "error" ]]; then
+        warn "Could not count the families - skipping the demo data"
+    else
+        warn "${widow_count} family record(s) already exist - NOT seeding demo data over them"
+        printf '        The demo seeder is not idempotent; a second run would duplicate everything.\n'
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # Frontend
 #
 # Built as a static export: nginx serves the files and proxies /api, so
@@ -323,3 +366,10 @@ api_status="$(http_code http://127.0.0.1/api/v1/widows)"
 
 app_url="$(get_env "$env_file" APP_URL)"
 printf '\n%s    Deployed. The application is at  %s%s\n\n' "$C_GOOD" "${app_url:-http://$(public_ip)}" "$C_OFF"
+
+# Somebody will eventually look at one of these servers and have to work out
+# which one it is. Say it here rather than leaving them to count the families.
+if (( SEED_DEMO )); then
+    printf '%s    This install carries invented demo data. Do not enter real records\n' "$C_WARN"
+    printf '    into it, and do not pass --demo when deploying the real one.%s\n\n' "$C_OFF"
+fi
