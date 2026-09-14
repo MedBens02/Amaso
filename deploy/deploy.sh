@@ -466,6 +466,10 @@ api_status="$(http_code http://127.0.0.1/api/v1/widows)"
 # and asked for a token. A 200 there would mean the route is unprotected.
 if [[ "$page_status" == "200" ]]; then
     ok "Frontend answers (HTTP $page_status)"
+elif [[ "$page_status" == "401" ]] && [[ -s /etc/nginx/snippets/amaso-gate-site.conf ]]; then
+    # restrict-access.sh is in force and this check has no password to give
+    # it - the gate holding is the correct answer, not a failed deploy.
+    ok "Frontend answers behind the access gate (HTTP 401, as expected)"
 elif [[ "$page_status" == "403" ]]; then
     warn "Frontend returned 403 - nginx cannot read ${APP_DIR}. Try: sudo chmod 755 ${APP_DIR}"
 else
