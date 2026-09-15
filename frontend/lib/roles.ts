@@ -3,6 +3,7 @@
  * Keep in sync if a role is added/renamed there.
  */
 export const ROLE_LABELS: Record<string, string> = {
+  superuser: "مستخدم أعلى",
   admin: "مدير النظام",
   accountant: "محاسب",
   social_worker: "أخصائي اجتماعي",
@@ -11,20 +12,6 @@ export const ROLE_LABELS: Record<string, string> = {
 export function getRoleLabel(role: string): string {
   return ROLE_LABELS[role] || role
 }
-
-export interface DemoAccount {
-  email: string
-  password: string
-  role: string
-  label: string
-}
-
-/** Shown as quick-fill options on the login page. */
-export const DEMO_ACCOUNTS: DemoAccount[] = [
-  { email: "admin@amaso.org", password: "password", role: "admin", label: ROLE_LABELS.admin },
-  { email: "accountant@amaso.org", password: "password", role: "accountant", label: ROLE_LABELS.accountant },
-  { email: "social@amaso.org", password: "password", role: "social_worker", label: ROLE_LABELS.social_worker },
-]
 
 /** The cached profile written by ApiClient.login / the dashboard layout's getMe() refresh. */
 export function getCurrentUser(): { id: number; name: string; email: string; role: string } | null {
@@ -37,6 +24,24 @@ export function getCurrentUser(): { id: number; name: string; email: string; rol
   }
 }
 
+/**
+ * Has admin powers - which a superuser does too.
+ *
+ * Mirrors User::isAdmin() on the backend. Every caller asks this to decide
+ * whether to show an admin-only control, so answering only for the literal
+ * role would hide the ordinary admin screens from the two highest accounts.
+ */
 export function isCurrentUserAdmin(): boolean {
-  return getCurrentUser()?.role === "admin"
+  const role = getCurrentUser()?.role
+  return role === "admin" || role === "superuser"
+}
+
+/**
+ * May manage accounts and read the activity log.
+ *
+ * Presentation only - the backend gates both on `role:superuser`, because
+ * hiding a menu entry does not stop anyone calling the endpoint.
+ */
+export function isCurrentUserSuperuser(): boolean {
+  return getCurrentUser()?.role === "superuser"
 }

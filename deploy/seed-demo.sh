@@ -164,7 +164,7 @@ reset)
     log "Done"
     show
     cat <<SUMMARY
-    Sign in as    admin@amaso.org  /  password     <- reset to the default
+    Sign in with  the account and password printed above while seeding
 
 SUMMARY
     ;;

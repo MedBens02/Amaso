@@ -111,7 +111,9 @@ cd frontend && npm run dev            # http://localhost:3000
 
 On Windows, `setup\start-app.bat` does both and opens the browser.
 
-Sign in at <http://localhost:3000> as `admin@amaso.org` / `password`.
+Sign in at <http://localhost:3000> with the account the seeder printed.
+If you imported `amaso.sql` instead, both accounts in it use
+`demo-only-password` — that file only; a seeded install invents its own.
 
 ---
 
@@ -137,9 +139,13 @@ Password `password` for all three. Present only with the demo data.
 
 | | |
 |---|---|
-| `admin@amaso.org` | Administrator — everything, including account management |
-| `accountant@amaso.org` | Accountant — income, expenses, reports |
-| `social@amaso.org` | Social worker — families, orphans, schooling |
+| `mohamed@amaso.site` | Superuser — everything, including accounts and the activity log |
+| `bouchra@amaso.site` | Superuser — the same |
+
+Three roles sit below: **admin** does everything a superuser can except
+manage accounts and read the activity log, **accountant** handles the money,
+and **social worker** the families. Make more accounts from
+إدارة الحسابات once you are signed in.
 
 **Change these before the application is used for anything real** (Settings
 → Account management).

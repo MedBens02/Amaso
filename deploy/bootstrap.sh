@@ -273,7 +273,7 @@ fi
 printf '\n%s  Installed in %d min %d sec.%s\n\n' "$C_GOOD" $(( elapsed / 60 )) $(( elapsed % 60 )) "$C_OFF"
 cat <<SUMMARY
     The application    ${url}
-    Sign in as         admin@amaso.org  /  password     <- change this now
+    Sign in as         the account printed above while seeding
     Server IP          ${ip}
 
     Check on it later with:

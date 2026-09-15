@@ -13,12 +13,24 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
+    /**
+     * A superuser is an admin who can also manage accounts and read the
+     * activity log. Those two are held back deliberately: one hands out
+     * everybody's access, and the other is the record of what everybody did,
+     * which is worth little if the people it watches can also read and be
+     * guided by it.
+     *
+     * Everything else - the money, the families, the fiscal year, the
+     * reference data - an admin can do.
+     */
+    public const ROLE_SUPERUSER = 'superuser';
     public const ROLE_ADMIN = 'admin';
     public const ROLE_ACCOUNTANT = 'accountant';
     public const ROLE_SOCIAL_WORKER = 'social_worker';
 
     /** Allowed values for `role`, used by validation and the seeder. */
     public const ROLES = [
+        self::ROLE_SUPERUSER,
         self::ROLE_ADMIN,
         self::ROLE_ACCOUNTANT,
         self::ROLE_SOCIAL_WORKER,
@@ -64,9 +76,24 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Has admin powers - which a superuser does too.
+     *
+     * Every existing caller asks this to decide whether somebody may close a
+     * fiscal year, edit the kafala percentages, change the organisation's
+     * details. A superuser is an admin with two extras, so they must pass
+     * every one of those, and answering only for the literal role would have
+     * locked the two highest accounts out of the ordinary admin screens.
+     */
     public function isAdmin(): bool
     {
-        return $this->role === self::ROLE_ADMIN;
+        return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_SUPERUSER], true);
+    }
+
+    /** May manage accounts and read the activity log. Nobody else may. */
+    public function isSuperuser(): bool
+    {
+        return $this->role === self::ROLE_SUPERUSER;
     }
 
     /**

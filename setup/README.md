@@ -147,9 +147,11 @@ Uniquement avec les données de démonstration. Mot de passe : `password`.
 
 | Adresse | Rôle |
 |---|---|
-| `admin@amaso.org` | Administrateur — accès complet, gestion des comptes |
-| `accountant@amaso.org` | Comptable — recettes, dépenses, rapports |
-| `social@amaso.org` | Assistant social — familles, orphelins, scolarité |
+| `mohamed@amaso.site` | Super-utilisateur — tout, y compris les comptes et le journal |
+| `bouchra@amaso.site` | Super-utilisateur — idem |
+
+Les rôles en dessous : **admin** (tout sauf la gestion des comptes et le
+journal d'activité), **comptable**, **assistant social**.
 
 **Changez ces mots de passe avant tout usage réel** : Paramètres →
 Gestion des comptes.
