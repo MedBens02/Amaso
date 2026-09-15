@@ -152,7 +152,8 @@ interface BeneficiaryGroup {
 interface NewExpenseFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess?: () => void
+  /** The expense that was just created, for callers that need to reference it. */
+  onSuccess?: (expense?: any) => void
   initialData?: Partial<ExpenseFormData>
 }
 
@@ -777,7 +778,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
         description: "تم حفظ المصروف في قاعدة البيانات"
       })
       handleOpenChange(false)
-      onSuccess?.()
+      onSuccess?.((response as any)?.data ?? response)
     } catch (error: any) {
       console.error('Error creating expense:', error)
       console.error('Error details:', error.errors)

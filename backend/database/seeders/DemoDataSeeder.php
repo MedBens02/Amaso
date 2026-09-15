@@ -15,6 +15,7 @@ use App\Models\Kafil;
 use App\Models\KafalaChamilaSplit;
 use App\Models\KafilSponsorship;
 use App\Models\OrphanEnrollment;
+use App\Models\TransportSupport;
 use App\Models\Partner;
 use App\Models\PartnerField;
 use App\Models\PartnerSubfield;
@@ -22,7 +23,9 @@ use App\Models\School;
 use App\Models\Skill;
 use App\Models\Budget;
 use App\Models\Transfer;
+use App\Models\TransportMonth;
 use App\Models\Widow;
+use Illuminate\Support\Carbon;
 use App\Services\ExpenseService;
 use App\Services\IncomeService;
 use App\Services\KafalaChamilaService;
@@ -80,6 +83,7 @@ class DemoDataSeeder extends Seeder
         [$widows, $sponsorlessWidow] = $this->seedWidows($partners);
         [$donors, $kafils] = $this->seedDonorsAndKafils($widows);
         $this->seedSchoolsAndEnrollments($widows, $academicYears);
+        $this->seedTransport($academicYears);
         $this->seedIncomes($fiscalYearId, $donors, $kafils, $bankAccounts);
         $this->seedExpenses($fiscalYearId, $widows, $bankAccounts);
         $this->seedTransfers($fiscalYearId, $bankAccounts);
@@ -646,6 +650,99 @@ class DemoDataSeeder extends Seeder
      *
      * @param  array<int, array{id: int, year: int, active: bool}>  $fiscalYears
      */
+
+    /**
+     * Getting the children to the centre.
+     *
+     * One bus and a monthly pot, which is how the association actually does
+     * it: the fuel and the driver's fee are totalled at the end of the month
+     * and divided among whoever rode consistently. A handful of children
+     * live beyond the bus and are paid per attendance instead.
+     *
+     * Three months are seeded - two settled and the current one still a
+     * draft - so the screens have a closed sheet to read and an open one to
+     * work on, and the difference between the two is visible.
+     */
+    private function seedTransport(array $academicYears): void
+    {
+        $currentYear = end($academicYears);
+        $settlement = app(\App\Services\TransportSettlementService::class);
+
+        $enrollments = OrphanEnrollment::where('academic_year_id', $currentYear->id)
+            ->orderBy('id')
+            ->get();
+
+        if ($enrollments->isEmpty()) {
+            return;
+        }
+
+        // Roughly half the children ride; a few of those who do not are far
+        // enough out to be paid their own way instead.
+        foreach ($enrollments as $index => $enrollment) {
+            if ($index % 2 === 0) {
+                TransportSupport::create([
+                    'enrollment_id' => $enrollment->id,
+                    'mode' => TransportSupport::MODE_BUS,
+                    'pickup_point' => ['أمام المسجد', 'محطة الحافلات', 'أمام الفرن', 'ساحة الحي'][$index % 4],
+                    'start_date' => $currentYear->start_year . '-09-15',
+                    'status' => TransportSupport::STATUS_ACTIVE,
+                ]);
+            } elseif ($index % 7 === 3) {
+                TransportSupport::create([
+                    'enrollment_id' => $enrollment->id,
+                    'mode' => TransportSupport::MODE_ALLOWANCE,
+                    'allowance_rate' => [10, 12, 15][$index % 3],
+                    'start_date' => $currentYear->start_year . '-09-15',
+                    'status' => TransportSupport::STATUS_ACTIVE,
+                    'notes' => 'يسكن خارج مسار الحافلة',
+                ]);
+            }
+        }
+
+        // Months run from the start of the school year to the month we are in.
+        $opened = Carbon::create($currentYear->start_year, 10, 1)->startOfMonth();
+        $costs = [
+            ['fuel' => 1850, 'driver' => 2000, 'other' => 0],
+            ['fuel' => 1920, 'driver' => 2000, 'other' => 340],
+            ['fuel' => 1780, 'driver' => 2000, 'other' => 0],
+        ];
+
+        foreach ($costs as $position => $cost) {
+            $month = TransportMonth::create([
+                'academic_year_id' => $currentYear->id,
+                'period_month' => $opened->copy()->addMonths($position)->toDateString(),
+                'fuel_cost' => $cost['fuel'],
+                'driver_cost' => $cost['driver'],
+                'other_cost' => $cost['other'],
+                'status' => TransportMonth::STATUS_DRAFT,
+            ]);
+
+            $settlement->syncLines($month);
+
+            // Not everybody rides every month: a couple are marked as having
+            // missed too much to count, and the allowance children are given
+            // the number of times they actually turned up.
+            foreach ($month->lines()->get() as $lineIndex => $line) {
+                if ($line->mode === TransportSupport::MODE_BUS) {
+                    $line->rode_consistently = ! (($lineIndex + $position) % 9 === 0);
+                } else {
+                    $line->attendances = 6 + (($lineIndex + $position) % 5);
+                }
+                $line->save();
+            }
+
+            $settlement->recalculate($month);
+
+            // The first two are settled; the last stays open to be worked on.
+            if ($position < count($costs) - 1) {
+                $month->update([
+                    'status' => TransportMonth::STATUS_CLOSED,
+                    'closed_at' => $month->period_month->copy()->endOfMonth(),
+                ]);
+            }
+        }
+    }
+
     private function seedPriorYears(array $fiscalYears, array $donors, array $widows): void
     {
         $generalBudgetId = Budget::where('is_default', true)->value('id') ?? Budget::value('id');

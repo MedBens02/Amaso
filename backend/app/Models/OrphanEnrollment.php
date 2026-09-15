@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class OrphanEnrollment extends Model
 {
@@ -130,5 +131,17 @@ class OrphanEnrollment extends Model
     public function school(): BelongsTo
     {
         return $this->belongsTo(School::class);
+    }
+
+    /**
+     * How this child gets to the centre this year.
+     *
+     * Plural because the record keeps the arrangement that ended beside the
+     * one that replaced it - a child who moves house comes off the bus and
+     * onto an allowance, and both belong in the history. Only one is live.
+     */
+    public function transportSupport(): HasMany
+    {
+        return $this->hasMany(TransportSupport::class, 'enrollment_id');
     }
 }

@@ -921,6 +921,85 @@ class ApiClient {
     return this.request<any>(`/schools/${id}`, { method: 'DELETE' })
   }
 
+  // ---------------------------------------------------------------------
+  // Transport
+  //
+  // One bus to the association's centre, and a monthly sheet that divides
+  // what it cost among the children who used it. Children the bus cannot
+  // reach are paid per attendance instead.
+  // ---------------------------------------------------------------------
+
+  async getTransportSupport(params?: {
+    academic_year_id?: number
+    mode?: string
+    status?: string
+    search?: string
+    per_page?: number
+  }) {
+    const q = new URLSearchParams()
+    Object.entries(params || {}).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') q.set(k, String(v))
+    })
+    const query = q.toString()
+    return this.request<any[]>(`/transport-support${query ? `?${query}` : ''}`)
+  }
+
+  async createTransportSupport(data: Record<string, any>) {
+    return this.request<any>('/transport-support', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async updateTransportSupport(id: number, data: Record<string, any>) {
+    return this.request<any>(`/transport-support/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  }
+
+  async deleteTransportSupport(id: number) {
+    return this.request<any>(`/transport-support/${id}`, { method: 'DELETE' })
+  }
+
+  async getTransportMonths(academicYearId?: number) {
+    const q = academicYearId ? `?academic_year_id=${academicYearId}` : ''
+    return this.request<any[]>(`/transport-months${q}`)
+  }
+
+  /** One month's sheet: every child, what they did, and what it comes to. */
+  async getTransportMonth(id: number) {
+    return this.request<any>(`/transport-months/${id}`)
+  }
+
+  async createTransportMonth(data: Record<string, any>) {
+    return this.request<any>('/transport-months', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  /** Costs and rider lines in one save, so the sheet is written atomically. */
+  async updateTransportMonth(id: number, data: Record<string, any>) {
+    return this.request<any>(`/transport-months/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  }
+
+  async refreshTransportMonth(id: number) {
+    return this.request<any>(`/transport-months/${id}/refresh`, { method: 'POST' })
+  }
+
+  /** The month as an expense waiting to be written. Reads only. */
+  async getTransportMonthExpenseDraft(id: number) {
+    return this.request<any>(`/transport-months/${id}/expense-draft`)
+  }
+
+  /** Names the expense that settled the month, and freezes its amounts. */
+  async closeTransportMonth(id: number, expenseId: number) {
+    return this.request<any>(`/transport-months/${id}/close`, {
+      method: 'POST',
+      body: JSON.stringify({ expense_id: expenseId }),
+    })
+  }
+
+  async reopenTransportMonth(id: number) {
+    return this.request<any>(`/transport-months/${id}/reopen`, { method: 'POST' })
+  }
+
+  async deleteTransportMonth(id: number) {
+    return this.request<any>(`/transport-months/${id}`, { method: 'DELETE' })
+  }
+
   /**
    * Every movement on one account, plus whether they add up to its balance.
    * The ledger has always been written; this is what reads it back.
@@ -957,6 +1036,8 @@ class ApiClient {
     education_level_id?: number
     school_type?: 'school' | 'university'
     has_tutoring?: 0 | 1
+    /** Whether the child has a live transport arrangement this year. */
+    has_transport?: 0 | 1
     status?: string
     search?: string
     page?: number

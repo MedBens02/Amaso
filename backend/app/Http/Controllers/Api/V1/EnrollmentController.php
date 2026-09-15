@@ -14,7 +14,10 @@ use Illuminate\Validation\Rule;
 
 class EnrollmentController extends Controller
 {
-    private const RELATIONS = ['orphan.widow', 'academicYear', 'educationLevel', 'school'];
+    private const RELATIONS = [
+        'orphan.widow', 'academicYear', 'educationLevel', 'school',
+        'transportSupport',
+    ];
 
     public function index(Request $request): JsonResponse
     {
@@ -28,6 +31,11 @@ class EnrollmentController extends Controller
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
             // "1"/"0" rather than a boolean: it arrives as a query string.
             ->when($request->filled('has_tutoring'), fn ($q) => $q->where('has_tutoring', $request->boolean('has_tutoring')))
+            // Transport is a row rather than a flag, so "who is carried" is a
+            // question about whether one exists and is live - not a column.
+            ->when($request->filled('has_transport'), fn ($q) => $request->boolean('has_transport')
+                ? $q->whereHas('transportSupport', fn ($t) => $t->active())
+                : $q->whereDoesntHave('transportSupport', fn ($t) => $t->active()))
             ->when($request->filled('school_type'), fn ($q) => $q->whereHas(
                 'school',
                 fn ($school) => $school->where('type', $request->school_type),
