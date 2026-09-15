@@ -521,7 +521,7 @@ export default function HomePage() {
             {[
               { icon: Phone, label: "الهاتف", value: "05 37 85 00 80", href: "tel:+212537850080" },
               { icon: Mail, label: "البريد الإلكتروني", value: "kafalatyatimsala@gmail.com", href: "mailto:kafalatyatimsala@gmail.com" },
-              { icon: MapPin, label: "العنوان", value: "70 rue Mouzambik, rostane Tabriquet, 11000 Salé", target: "_blank", href: "https://maps.app.goo.gl/A8J7SER9r7vHvcDm7" }, 
+              { icon: MapPin, label: "العنوان", value: "70 rue Mouzambik rostane Tabriquet, 11000 Salé", target: "_blank", href: "https://maps.app.goo.gl/A8J7SER9r7vHvcDm7" }, 
             ].map((item) => (
               <Reveal key={item.label}>
                 <a
