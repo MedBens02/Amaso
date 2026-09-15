@@ -29,7 +29,10 @@ class TransportMonthController extends Controller
     {
         $yearId = $request->integer('academic_year_id') ?: AcademicYear::where('is_current', true)->value('id');
 
-        $months = TransportMonth::with('expense:id,amount,expense_date,status')
+        $months = TransportMonth::with([
+            'busExpense:id,amount,expense_date,status',
+            'allowanceExpense:id,amount,expense_date,status',
+        ])
             ->withCount([
                 'lines',
                 'lines as riders_count' => fn ($q) => $q
@@ -49,6 +52,7 @@ class TransportMonthController extends Controller
             'meta' => [
                 'academic_year_id' => $yearId,
                 'statuses' => TransportMonth::STATUSES,
+                'parts' => TransportMonth::PARTS,
             ],
         ]);
     }
@@ -103,7 +107,6 @@ class TransportMonthController extends Controller
                 'driver_cost' => $validated['driver_cost'] ?? 0,
                 'other_cost' => $validated['other_cost'] ?? 0,
                 'notes' => $validated['notes'] ?? null,
-                'status' => TransportMonth::STATUS_DRAFT,
             ]);
 
             $this->settlement->syncLines($month);
@@ -121,8 +124,6 @@ class TransportMonthController extends Controller
     /** Change the month's costs, and optionally the whole sheet in one go. */
     public function update(Request $request, TransportMonth $transportMonth): JsonResponse
     {
-        $this->guardOpen($transportMonth);
-
         $validated = $request->validate([
             'fuel_cost' => ['nullable', 'numeric', 'min:0', 'max:9999999.99'],
             'driver_cost' => ['nullable', 'numeric', 'min:0', 'max:9999999.99'],
@@ -137,13 +138,26 @@ class TransportMonthController extends Controller
             'lines.*.attendances.max' => 'عدد مرات الحضور في الشهر لا يتجاوز 60',
         ]);
 
-        DB::transaction(function () use ($validated, $transportMonth) {
-            $transportMonth->update([
-                'fuel_cost' => $validated['fuel_cost'] ?? $transportMonth->fuel_cost,
-                'driver_cost' => $validated['driver_cost'] ?? $transportMonth->driver_cost,
-                'other_cost' => $validated['other_cost'] ?? $transportMonth->other_cost,
-                'notes' => array_key_exists('notes', $validated) ? $validated['notes'] : $transportMonth->notes,
+        // The bus's costs belong to the bus half. Once that has been paid,
+        // changing the fuel bill would re-divide a pot that is already out
+        // the door - while the attendance counts beside it must still be
+        // editable, because they are a different expense.
+        $touchesBusCosts = $request->hasAny(['fuel_cost', 'driver_cost', 'other_cost']);
+        if ($touchesBusCosts && $transportMonth->bus_settled) {
+            throw ValidationException::withMessages([
+                'fuel_cost' => ['كلفة الحافلة مُرحَّلة ولا يمكن تعديلها. أرجع ترحيل الحافلة أولاً.'],
             ]);
+        }
+
+        DB::transaction(function () use ($validated, $transportMonth, $touchesBusCosts) {
+            if ($touchesBusCosts || array_key_exists('notes', $validated)) {
+                $transportMonth->update([
+                    'fuel_cost' => $validated['fuel_cost'] ?? $transportMonth->fuel_cost,
+                    'driver_cost' => $validated['driver_cost'] ?? $transportMonth->driver_cost,
+                    'other_cost' => $validated['other_cost'] ?? $transportMonth->other_cost,
+                    'notes' => array_key_exists('notes', $validated) ? $validated['notes'] : $transportMonth->notes,
+                ]);
+            }
 
             foreach ($validated['lines'] ?? [] as $row) {
                 $line = TransportMonthLine::where('transport_month_id', $transportMonth->id)
@@ -154,13 +168,24 @@ class TransportMonthController extends Controller
                     continue;   // a line from another month, or one since removed
                 }
 
+                // Silently skipped rather than refused: the screen sends the
+                // whole sheet in one save, so a settled half arriving
+                // unchanged alongside an edited one is normal, not an error.
+                $part = $line->mode === TransportSupport::MODE_BUS
+                    ? TransportMonth::PART_BUS
+                    : TransportMonth::PART_ALLOWANCE;
+
+                if ($transportMonth->isPartSettled($part)) {
+                    continue;
+                }
+
                 $line->fill(array_intersect_key($row, array_flip([
                     'rode_consistently', 'attendances', 'notes',
                 ])));
                 $line->save();
             }
 
-            $this->settlement->recalculate($transportMonth);
+            $this->settlement->recalculate($transportMonth->fresh());
         });
 
         return response()->json([
@@ -172,7 +197,11 @@ class TransportMonthController extends Controller
     /** Pick up children enrolled since the sheet was opened. */
     public function refresh(TransportMonth $transportMonth): JsonResponse
     {
-        $this->guardOpen($transportMonth);
+        if ($transportMonth->status === TransportMonth::STATUS_CLOSED) {
+            throw ValidationException::withMessages([
+                'status' => ['هذا الشهر مُرحَّل بالكامل. أرجع ترحيل أحد جزأيه أولاً.'],
+            ]);
+        }
 
         $before = $transportMonth->lines()->count();
 
@@ -192,18 +221,25 @@ class TransportMonthController extends Controller
     }
 
     /**
-     * The month as an expense waiting to be written, for the form to fill
-     * itself from. Reads only - nothing is posted to the accounts from here.
+     * One half of the month as an expense waiting to be written, for the
+     * form to fill itself from. Reads only - nothing is posted from here.
      */
-    public function expenseDraft(TransportMonth $transportMonth): JsonResponse
+    public function expenseDraft(Request $request, TransportMonth $transportMonth): JsonResponse
     {
-        $draft = $this->settlement->expenseDraft($transportMonth);
+        $part = $this->part($request);
+        $draft = $this->settlement->expenseDraft($transportMonth, $part);
+
+        $what = $part === TransportMonth::PART_BUS
+            ? 'كلفة نقل المستفيدين بحافلة المنصور'
+            : 'منح تنقل المستفيدين إلى المركز';
 
         return response()->json([
             'data' => array_merge($draft, [
                 'transport_month_id' => $transportMonth->id,
                 'period_label' => $transportMonth->period_label,
-                'details' => "مصاريف نقل المستفيدين إلى المركز - {$transportMonth->period_label}",
+                'part_label' => TransportMonth::PARTS[$part],
+                'already_settled' => $transportMonth->isPartSettled($part),
+                'details' => "{$what} - {$transportMonth->period_label}",
                 // The last day of the month it covers, which is when the
                 // association actually settles it.
                 'expense_date' => $transportMonth->period_month->copy()->endOfMonth()->toDateString(),
@@ -219,68 +255,72 @@ class TransportMonthController extends Controller
     }
 
     /**
-     * Mark the month settled, naming the expense that paid it.
+     * Mark one half settled, naming the expense that paid it.
      *
      * Called by the expenses screen after the expense is saved, so the sheet
-     * and the money can be read back against each other. The amounts stop
-     * moving at this point: re-dividing a closed month after a child is
-     * added would disagree with an expense already in the accounts.
+     * and the money can be read back against each other. That half's amounts
+     * stop moving at this point; the other carries on being worked on.
      */
     public function close(Request $request, TransportMonth $transportMonth): JsonResponse
     {
+        $part = $this->part($request);
+
         $validated = $request->validate([
             'expense_id' => ['required', 'exists:expenses,id'],
         ], [
             'expense_id.required' => 'رقم المصروف مطلوب لترحيل الشهر',
         ]);
 
-        if ($transportMonth->isClosed()) {
+        if ($transportMonth->isPartSettled($part)) {
             throw ValidationException::withMessages([
-                'expense_id' => ['هذا الشهر مُرحَّل بالفعل'],
+                'expense_id' => [TransportMonth::PARTS[$part] . ' مُرحَّلة بالفعل في هذا الشهر'],
             ]);
         }
 
-        DB::transaction(function () use ($transportMonth, $validated) {
+        DB::transaction(function () use ($transportMonth, $validated, $part) {
             // One last division, so what is frozen is what the sheet showed.
             $this->settlement->recalculate($transportMonth);
 
-            $transportMonth->update([
-                'status' => TransportMonth::STATUS_CLOSED,
-                'expense_id' => $validated['expense_id'],
-                'closed_at' => now(),
-            ]);
+            $transportMonth->update($part === TransportMonth::PART_BUS
+                ? ['bus_expense_id' => $validated['expense_id'], 'bus_settled_at' => now()]
+                : ['allowance_expense_id' => $validated['expense_id'], 'allowance_settled_at' => now()]);
         });
 
         return response()->json([
-            'message' => 'تم ترحيل الشهر وربطه بالمصروف',
+            'message' => 'تم ترحيل ' . TransportMonth::PARTS[$part] . ' وربطها بالمصروف',
             'data' => $this->sheet($transportMonth->fresh()),
         ]);
     }
 
-    /** Undo a settlement, for a month closed against the wrong expense. */
-    public function reopen(TransportMonth $transportMonth): JsonResponse
+    /** Undo one half's settlement, for a part closed against the wrong expense. */
+    public function reopen(Request $request, TransportMonth $transportMonth): JsonResponse
     {
-        if (! $transportMonth->isClosed()) {
-            return response()->json(['message' => 'هذا الشهر غير مُرحَّل أصلاً'], 400);
+        $part = $this->part($request);
+
+        if (! $transportMonth->isPartSettled($part)) {
+            return response()->json([
+                'message' => TransportMonth::PARTS[$part] . ' غير مُرحَّلة أصلاً',
+            ], 400);
         }
 
-        $transportMonth->update([
-            'status' => TransportMonth::STATUS_DRAFT,
-            'expense_id' => null,
-            'closed_at' => null,
-        ]);
+        $transportMonth->update($part === TransportMonth::PART_BUS
+            ? ['bus_expense_id' => null, 'bus_settled_at' => null]
+            : ['allowance_expense_id' => null, 'allowance_settled_at' => null]);
+
+        $this->settlement->recalculate($transportMonth->fresh());
 
         return response()->json([
-            'message' => 'تم إرجاع الشهر إلى مسودة. لم يُحذف المصروف المرتبط به - احذفه من المصروفات إن لزم.',
+            'message' => 'تم إرجاع ' . TransportMonth::PARTS[$part]
+                . ' إلى مسودة. لم يُحذف المصروف المرتبط بها - احذفه من المصروفات إن لزم.',
             'data' => $this->sheet($transportMonth->fresh()),
         ]);
     }
 
     public function destroy(TransportMonth $transportMonth): JsonResponse
     {
-        if ($transportMonth->isClosed()) {
+        if ($transportMonth->isTouched()) {
             return response()->json([
-                'message' => 'لا يمكن حذف شهر مُرحَّل. أرجعه إلى مسودة أولاً.',
+                'message' => 'لا يمكن حذف شهر رُحِّل أحد جزأيه. أرجع الترحيل أولاً.',
             ], 400);
         }
 
@@ -288,6 +328,20 @@ class TransportMonthController extends Controller
         $transportMonth->delete();
 
         return response()->json(['message' => "تم حذف شهر {$label}"]);
+    }
+
+    /** Which half of the month a request is about. */
+    private function part(Request $request): string
+    {
+        $part = $request->get('part', TransportMonth::PART_BUS);
+
+        if (! array_key_exists($part, TransportMonth::PARTS)) {
+            throw ValidationException::withMessages([
+                'part' => ['جزء غير معروف من الشهر'],
+            ]);
+        }
+
+        return $part;
     }
 
     /**
@@ -312,15 +366,6 @@ class TransportMonthController extends Controller
             ?? Budget::orderBy('id')->value('id');
     }
 
-    private function guardOpen(TransportMonth $month): void
-    {
-        if ($month->isClosed()) {
-            throw ValidationException::withMessages([
-                'status' => ['هذا الشهر مُرحَّل ولا يمكن تعديله. أرجعه إلى مسودة أولاً.'],
-            ]);
-        }
-    }
-
     /** The month, its lines, and the totals every screen wants with them. */
     private function sheet(TransportMonth $month): array
     {
@@ -334,7 +379,11 @@ class TransportMonthController extends Controller
         $allowances = $lines->where('mode', TransportSupport::MODE_ALLOWANCE);
 
         return [
-            'month' => $month->load('expense:id,amount,expense_date,status', 'academicYear'),
+            'month' => $month->load(
+                'busExpense:id,amount,expense_date,status',
+                'allowanceExpense:id,amount,expense_date,status',
+                'academicYear',
+            ),
             'lines' => $lines,
             'totals' => [
                 'bus_pot' => $month->bus_pot,

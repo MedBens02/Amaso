@@ -979,21 +979,28 @@ class ApiClient {
     return this.request<any>(`/transport-months/${id}/refresh`, { method: 'POST' })
   }
 
-  /** The month as an expense waiting to be written. Reads only. */
-  async getTransportMonthExpenseDraft(id: number) {
-    return this.request<any>(`/transport-months/${id}/expense-draft`)
+  /**
+   * One half of a month as an expense waiting to be written. Reads only.
+   *
+   * The bus and the allowances settle as two expenses because they are two
+   * kinds of spending - a shared vehicle divided up, and individual
+   * allowances - and one mixed expense would make them indistinguishable in
+   * the accounts afterwards.
+   */
+  async getTransportMonthExpenseDraft(id: number, part: 'bus' | 'allowance' = 'bus') {
+    return this.request<any>(`/transport-months/${id}/expense-draft?part=${part}`)
   }
 
-  /** Names the expense that settled the month, and freezes its amounts. */
-  async closeTransportMonth(id: number, expenseId: number) {
-    return this.request<any>(`/transport-months/${id}/close`, {
+  /** Names the expense that settled one half, and freezes its amounts. */
+  async closeTransportMonth(id: number, expenseId: number, part: 'bus' | 'allowance' = 'bus') {
+    return this.request<any>(`/transport-months/${id}/close?part=${part}`, {
       method: 'POST',
       body: JSON.stringify({ expense_id: expenseId }),
     })
   }
 
-  async reopenTransportMonth(id: number) {
-    return this.request<any>(`/transport-months/${id}/reopen`, { method: 'POST' })
+  async reopenTransportMonth(id: number, part: 'bus' | 'allowance' = 'bus') {
+    return this.request<any>(`/transport-months/${id}/reopen?part=${part}`, { method: 'POST' })
   }
 
   async deleteTransportMonth(id: number) {

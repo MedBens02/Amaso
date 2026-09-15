@@ -714,7 +714,6 @@ class DemoDataSeeder extends Seeder
                 'fuel_cost' => $cost['fuel'],
                 'driver_cost' => $cost['driver'],
                 'other_cost' => $cost['other'],
-                'status' => TransportMonth::STATUS_DRAFT,
             ]);
 
             $settlement->syncLines($month);
@@ -733,12 +732,15 @@ class DemoDataSeeder extends Seeder
 
             $settlement->recalculate($month);
 
-            // The first two are settled; the last stays open to be worked on.
-            if ($position < count($costs) - 1) {
-                $month->update([
-                    'status' => TransportMonth::STATUS_CLOSED,
-                    'closed_at' => $month->period_month->copy()->endOfMonth(),
-                ]);
+            // The first month is settled on both halves, the second only on
+            // the bus, and the third is untouched - so the screens have one
+            // of each state to show rather than only the extremes.
+            $endOfMonth = $month->period_month->copy()->endOfMonth();
+
+            if ($position === 0) {
+                $month->update(['bus_settled_at' => $endOfMonth, 'allowance_settled_at' => $endOfMonth]);
+            } elseif ($position === 1) {
+                $month->update(['bus_settled_at' => $endOfMonth]);
             }
         }
     }

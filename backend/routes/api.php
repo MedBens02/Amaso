@@ -175,6 +175,7 @@ Route::prefix('v1')->group(function () {
     // and handed to the model binding as an id of "summary".
     Route::get('transport-months/{transportMonth}/expense-draft', [TransportMonthController::class, 'expenseDraft']);
     Route::post('transport-months/{transportMonth}/refresh', [TransportMonthController::class, 'refresh']);
+    // Both take ?part=bus|allowance - the two halves settle independently.
     Route::post('transport-months/{transportMonth}/close', [TransportMonthController::class, 'close']);
     Route::post('transport-months/{transportMonth}/reopen', [TransportMonthController::class, 'reopen']);
     Route::apiResource('transport-months', TransportMonthController::class)

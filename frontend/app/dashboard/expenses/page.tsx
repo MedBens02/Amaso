@@ -23,6 +23,7 @@ export default function ExpensesPage() {
   // a line per family already in place.
   const [expensePrefill, setExpensePrefill] = useState<any | null>(null)
   const [transportMonthId, setTransportMonthId] = useState<number | null>(null)
+  const [transportPart, setTransportPart] = useState<"bus" | "allowance">("bus")
   const [filters, setFilters] = useState<FilterValues>({})
   const [appliedFilters, setAppliedFilters] = useState<FilterValues>({})
   const [isExporting, setIsExporting] = useState(false)
@@ -39,12 +40,14 @@ export default function ExpensesPage() {
   useEffect(() => {
     if (typeof window === "undefined") return
 
-    const id = Number(new URLSearchParams(window.location.search).get("transport_month"))
+    const params = new URLSearchParams(window.location.search)
+    const id = Number(params.get("transport_month"))
+    const part = params.get("part") === "allowance" ? "allowance" : "bus"
     if (!id) return
 
     ;(async () => {
       try {
-        const response = await api.getTransportMonthExpenseDraft(id)
+        const response = await api.getTransportMonthExpenseDraft(id, part)
         const draft = (response as any).data
 
         if (!draft?.rows?.length) {
@@ -67,6 +70,7 @@ export default function ExpensesPage() {
           beneficiaries: draft.rows,
         })
         setTransportMonthId(id)
+        setTransportPart(part)
         setShowNewDialog(true)
 
         // Taken out of the address bar so a refresh does not re-open a form
@@ -402,8 +406,8 @@ export default function ExpensesPage() {
           // stops being re-divided after it has been paid.
           if (transportMonthId && expense?.id) {
             try {
-              await api.closeTransportMonth(transportMonthId, expense.id)
-              toast({ title: "تم", description: "تم ترحيل شهر النقل وربطه بالمصروف" })
+              await api.closeTransportMonth(transportMonthId, expense.id, transportPart)
+              toast({ title: "تم", description: "تم ترحيل هذا الجزء من شهر النقل وربطه بالمصروف" })
             } catch (error: any) {
               toast({
                 title: "المصروف مسجَّل، لكن الشهر لم يُرحَّل",
