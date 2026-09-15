@@ -73,7 +73,12 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+      // text-start, not text-left: the cells below have no alignment of their
+      // own and so follow the document direction, which is right in this
+      // app. A header pinned to the left sat over the wrong end of its own
+      // column in every table on every screen. Call sites that really want
+      // one end or the other still say so in className, which wins.
+      "h-12 px-4 text-start align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
       className
     )}
     {...props}

@@ -16,10 +16,11 @@ use Illuminate\Support\Facades\Schema;
  * bought all month and totalled once; the driver is paid once. Neither is
  * knowable per trip, so nothing here pretends to track trips.
  *
- * A closed month is a settled one: its amounts are frozen and an expense
- * has been raised from it. Re-running the division later, after a child has
- * been added or a rate changed, would silently disagree with money already
- * paid - so once closed, the numbers stop moving.
+ * A settled part is a paid one: its amounts are frozen and an expense has
+ * been raised from it. Re-running the division later, after a child has been
+ * added or a rate changed, would silently disagree with money already paid -
+ * so once a part is settled, its numbers stop moving. The other half of the
+ * sheet carries on being worked on.
  */
 return new class extends Migration
 {
@@ -39,14 +40,22 @@ return new class extends Migration
             // fuel figure stays a fuel figure and nobody has to pad it.
             $table->decimal('other_cost', 10, 2)->default(0);
 
-            $table->string('status', 20)->default('draft');    // draft | closed
-
-            // The expense this month was settled into, so the sheet and the
-            // money can be read back against each other. nullOnDelete: an
-            // expense deleted in the accounts must not take the month's
-            // record of who rode with it.
-            $table->foreignId('expense_id')->nullable()->constrained('expenses')->nullOnDelete();
-            $table->timestamp('closed_at')->nullable();
+            // Two expenses, not one, because the month pays for two different
+            // things: a shared vehicle whose cost is divided, and a set of
+            // individual allowances that are each somebody's own. Rolling
+            // them into one expense would make the bus's cost and the
+            // allowances indistinguishable in the accounts ever after.
+            //
+            // They settle independently: the bus can be written up as soon as
+            // the fuel bill is in, while the attendance counts are still
+            // being collected.
+            //
+            // nullOnDelete: an expense deleted in the accounts must not take
+            // the month's record of who rode with it.
+            $table->foreignId('bus_expense_id')->nullable()->constrained('expenses')->nullOnDelete();
+            $table->timestamp('bus_settled_at')->nullable();
+            $table->foreignId('allowance_expense_id')->nullable()->constrained('expenses')->nullOnDelete();
+            $table->timestamp('allowance_settled_at')->nullable();
 
             $table->text('notes')->nullable();
             $table->timestamps();

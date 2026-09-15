@@ -13,26 +13,26 @@ use Illuminate\Support\Collection;
  *
  * The association's method, unchanged: total the fuel and the driver's fee,
  * count the children who used the bus consistently, divide, and attribute
- * each share to that child's family. Children the bus cannot reach are paid
- * per attendance instead, so their amount is a multiplication rather than a
- * division.
+ * each share to that child. Children the bus cannot reach are paid per
+ * attendance instead, so their amount is a multiplication rather than a
+ * division - and it is settled as its own expense, because it is a different
+ * kind of spending from a shared vehicle.
  */
 class TransportSettlementService
 {
     /**
-     * Fill a draft month with a line for every child currently being helped,
+     * Fill a month with a line for every child currently being helped,
      * leaving alone any line already there.
      *
      * Additive on purpose. Somebody opens the sheet, ticks half of it, and a
      * new child is enrolled the next day; re-opening it must add that child
      * without discarding the ticks already made.
+     *
+     * A part that has been settled takes no new children: their share would
+     * have to come out of a pot already paid out.
      */
     public function syncLines(TransportMonth $month): void
     {
-        if ($month->isClosed()) {
-            return;
-        }
-
         $existing = $month->lines()->pluck('support_id')->all();
 
         $missing = TransportSupport::query()
@@ -42,6 +42,14 @@ class TransportSettlementService
             ->get();
 
         foreach ($missing as $support) {
+            $part = $support->mode === TransportSupport::MODE_BUS
+                ? TransportMonth::PART_BUS
+                : TransportMonth::PART_ALLOWANCE;
+
+            if ($month->isPartSettled($part)) {
+                continue;
+            }
+
             TransportMonthLine::create([
                 'transport_month_id' => $month->id,
                 'support_id' => $support->id,
@@ -69,22 +77,32 @@ class TransportSettlementService
     /**
      * Work out what every line is worth and write the amounts back.
      *
-     * Returns the same lines, so a caller can show the result without
-     * re-reading them.
+     * Lines belonging to a settled part are left exactly as they are. Their
+     * money has been paid; re-dividing a pot after the fact would leave the
+     * sheet disagreeing with an expense already in the accounts.
      */
     public function recalculate(TransportMonth $month): Collection
     {
         $lines = $month->lines()->with('support.enrollment.orphan')->get();
 
+        $busSettled = $month->bus_settled;
+        $allowanceSettled = $month->allowance_settled;
+
         $riders = $lines->filter(fn (TransportMonthLine $line) => $line->countsTowardsSplit());
-        $shares = $this->splitEvenly($month->bus_pot, $riders->count());
+        $shares = $busSettled ? [] : $this->splitEvenly($month->bus_pot, $riders->count());
 
         $position = 0;
         foreach ($lines as $line) {
+            $isBus = $line->mode === TransportSupport::MODE_BUS;
+
+            if (($isBus && $busSettled) || (! $isBus && $allowanceSettled)) {
+                continue;
+            }
+
             if ($line->countsTowardsSplit()) {
                 $line->amount = $shares[$position];
                 $position++;
-            } elseif ($line->mode === TransportSupport::MODE_ALLOWANCE) {
+            } elseif (! $isBus) {
                 $line->amount = round((float) $line->rate * $line->attendances, 2);
             } else {
                 // A bus rider who did not ride consistently is owed nothing.
@@ -127,94 +145,111 @@ class TransportSettlementService
     }
 
     /**
-     * The month as an expense waiting to be written.
+     * One half of the month as an expense waiting to be written.
      *
-     * Grouped by family, because that is how the association attributes it:
-     * a family with two children on the bus owes two shares, and sees one
-     * line for them. The per-child figures stay visible on the sheet itself,
-     * so the total on a family's line can always be taken apart again.
+     * A line per child, not per family. The child is who was carried, and
+     * the family report, the kafala budgets and the kafil statement all
+     * follow an orphan beneficiary back to their mother anyway - so naming
+     * the child loses nothing and says which one of three siblings the money
+     * was for.
      */
-    public function expenseDraft(TransportMonth $month): array
+    public function expenseDraft(TransportMonth $month, string $part): array
     {
+        $mode = $part === TransportMonth::PART_BUS
+            ? TransportSupport::MODE_BUS
+            : TransportSupport::MODE_ALLOWANCE;
+
         $lines = $month->lines()
+            ->where('mode', $mode)
             ->with('support.enrollment.orphan.widow')
             ->get()
             ->filter(fn (TransportMonthLine $line) => (float) $line->amount > 0);
 
-        $byWidow = [];
-        $orphaned = [];   // lines whose child has no family on record
+        $byOrphan = [];
+        $unidentified = 0;   // lines whose child could not be resolved at all
 
         foreach ($lines as $line) {
             $orphan = $line->support?->enrollment?->orphan;
-            $widowId = $orphan?->widow_id;
 
-            if ($widowId === null) {
-                $orphaned[] = $line;
+            if ($orphan === null) {
+                $unidentified++;
                 continue;
             }
 
-            $byWidow[$widowId] ??= ['amount' => 0.0, 'children' => []];
-            $byWidow[$widowId]['amount'] = round($byWidow[$widowId]['amount'] + (float) $line->amount, 2);
-            $byWidow[$widowId]['children'][] = [
-                'name' => trim(($orphan->first_name ?? '') . ' ' . ($orphan->last_name ?? '')),
-                'mode' => $line->mode,
-                'amount' => (float) $line->amount,
-                'attendances' => $line->mode === TransportSupport::MODE_ALLOWANCE ? $line->attendances : null,
-            ];
+            // A child appearing twice in one part would be two arrangements of
+            // the same kind at once, which the support guard prevents - but
+            // summing rather than overwriting means a future change there
+            // cannot silently drop one of them.
+            $byOrphan[$orphan->id] ??= ['orphan' => $orphan, 'amount' => 0.0, 'attendances' => 0];
+            $byOrphan[$orphan->id]['amount'] = round($byOrphan[$orphan->id]['amount'] + (float) $line->amount, 2);
+            $byOrphan[$orphan->id]['attendances'] += (int) $line->attendances;
         }
 
-        // One query for every family's beneficiary row rather than one per
-        // family - this runs for the whole roster at once.
-        $beneficiaries = Beneficiary::with('widow')
-            ->where('type', 'Widow')
-            ->whereIn('widow_id', array_keys($byWidow))
+        // One query for every child's beneficiary row rather than one per
+        // child - this runs for the whole roster at once.
+        $beneficiaries = Beneficiary::with('orphan.widow')
+            ->where('type', 'Orphan')
+            ->whereIn('orphan_id', array_keys($byOrphan))
             ->get()
-            ->keyBy('widow_id');
+            ->keyBy('orphan_id');
 
         $rows = [];
-        $unmatched = [];
+        $withoutBeneficiary = [];
 
-        foreach ($byWidow as $widowId => $entry) {
-            $beneficiary = $beneficiaries->get($widowId);
+        foreach ($byOrphan as $orphanId => $entry) {
+            $beneficiary = $beneficiaries->get($orphanId);
 
             if ($beneficiary === null) {
-                $unmatched[] = $widowId;
+                $withoutBeneficiary[] = trim(
+                    ($entry['orphan']->first_name ?? '') . ' ' . ($entry['orphan']->last_name ?? ''),
+                );
                 continue;
             }
+
+            $mother = $beneficiary->orphan?->widow;
 
             $rows[] = [
                 'beneficiary_id' => $beneficiary->id,
                 'amount' => $entry['amount'],
                 'group_id' => null,
-                'notes' => collect($entry['children'])
-                    ->map(fn ($child) => $child['attendances'] !== null
-                        ? "{$child['name']} ({$child['attendances']} حضور)"
-                        : $child['name'])
-                    ->implode('، '),
+                'notes' => $mode === TransportSupport::MODE_ALLOWANCE
+                    ? "{$entry['attendances']} حضور"
+                    : null,
+                // Shaped the way the expense form rehydrates a saved row, so
+                // the names appear in the selected list rather than as bare
+                // ids: it reads beneficiary.orphan.widow_id to group by
+                // family, and beneficiary.orphan.widow for the mother's name.
                 'beneficiary' => [
                     'id' => $beneficiary->id,
-                    'type' => $beneficiary->type,
+                    'type' => 'Orphan',
                     'full_name' => $beneficiary->full_name,
-                    'widow' => $beneficiary->widow ? [
-                        'id' => $beneficiary->widow->id,
-                        'full_name' => trim($beneficiary->widow->first_name . ' ' . $beneficiary->widow->last_name),
-                    ] : null,
+                    'orphan' => [
+                        'id' => $entry['orphan']->id,
+                        'widow_id' => $entry['orphan']->widow_id,
+                        'first_name' => $entry['orphan']->first_name,
+                        'last_name' => $entry['orphan']->last_name,
+                        'widow' => $mother ? [
+                            'id' => $mother->id,
+                            'first_name' => $mother->first_name,
+                            'last_name' => $mother->last_name,
+                            'full_name' => trim($mother->first_name . ' ' . $mother->last_name),
+                        ] : null,
+                    ],
                 ],
-                'children' => $entry['children'],
             ];
         }
 
         usort($rows, fn ($a, $b) => $b['amount'] <=> $a['amount']);
 
         return [
+            'part' => $part,
             'rows' => $rows,
             'total' => round(array_sum(array_column($rows, 'amount')), 2),
-            // Reported rather than swallowed: a child with no family on
-            // record, or a family with no beneficiary row, would otherwise
-            // drop quietly out of a total that is supposed to equal the
-            // month's spending.
-            'excluded_children' => count($orphaned),
-            'families_without_beneficiary' => $unmatched,
+            // Reported rather than swallowed: a line with no child, or a
+            // child with no beneficiary row, would otherwise drop quietly out
+            // of a total that is supposed to equal the month's spending.
+            'unidentified_lines' => $unidentified,
+            'children_without_beneficiary' => $withoutBeneficiary,
         ];
     }
 }

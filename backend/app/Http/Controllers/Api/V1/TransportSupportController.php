@@ -97,8 +97,15 @@ class TransportSupportController extends Controller
      */
     public function destroy(TransportSupport $transportSupport): JsonResponse
     {
+        // status is derived from the two settlement timestamps, not stored,
+        // so the question has to be asked of them: has the half of any month
+        // that this child belongs to already been paid out?
+        $column = $transportSupport->mode === TransportSupport::MODE_BUS
+            ? 'bus_settled_at'
+            : 'allowance_settled_at';
+
         $settled = $transportSupport->monthLines()
-            ->whereHas('month', fn ($q) => $q->where('status', TransportMonth::STATUS_CLOSED))
+            ->whereHas('month', fn ($q) => $q->whereNotNull($column))
             ->count();
 
         if ($settled > 0) {

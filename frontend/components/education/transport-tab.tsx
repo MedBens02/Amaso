@@ -180,7 +180,7 @@ export function TransportTab({ refreshKey }: { refreshKey?: number }) {
         </Card>
       </div>
 
-      {yearId && <TransportMonthPanel academicYearId={yearId} onSettled={loadSupport} />}
+      {yearId && <TransportMonthPanel academicYearId={yearId} />}
 
       <Card>
         <CardHeader>
