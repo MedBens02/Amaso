@@ -1,4 +1,18 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
+/**
+ * Where the API lives.
+ *
+ * Exported because the alternative is what happened: every call site that
+ * uses raw `fetch()` wrote its own copy of this line, and the transfers and
+ * fiscal-year screens wrote theirs as a bare `http://127.0.0.1:8000/api/v1`
+ * with no environment variable at all. That address is what
+ * next.config.mjs proxies /api to, so those screens worked perfectly under
+ * `next dev` and asked the visitor's own machine for data in production.
+ *
+ * In a single-origin deployment NEXT_PUBLIC_API_BASE_URL is the relative
+ * `/api/v1`, which nginx passes to Laravel. Anything reading this constant
+ * therefore has to cope with a base that is not a full URL - see apiUrl().
+ */
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
 
 interface ApiResponse<T> {
   data: T

@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { CheckCircle, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { API_BASE_URL } from "@/lib/api"
 
 interface Transfer {
   id: number
@@ -61,7 +62,7 @@ export function ApproveTransferDialog({
 
     setLoading(true)
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/v1/transfers/${transfer.id}/approve`, {
+      const response = await fetch(`${API_BASE_URL}/transfers/${transfer.id}/approve`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast"
 import { ArrowLeftRight, Banknote, Loader2 } from "lucide-react"
 import { format } from "date-fns"
 import { toDateInputValue, fromDateInputValue } from "@/lib/date-utils"
+import { API_BASE_URL } from "@/lib/api"
 
 interface BankAccount {
   id: number
@@ -91,8 +92,8 @@ export function NewTransferDialog({ open, onOpenChange, onTransferCreated }: New
     setLoading(true)
     try {
       const [accountsResponse, fiscalYearsResponse] = await Promise.all([
-        fetch('http://127.0.0.1:8000/api/v1/bank-accounts'),
-        fetch('http://127.0.0.1:8000/api/v1/fiscal-years')
+        fetch(`${API_BASE_URL}/bank-accounts`),
+        fetch(`${API_BASE_URL}/fiscal-years`)
       ])
 
       const accountsData = await accountsResponse.json()
@@ -145,7 +146,7 @@ export function NewTransferDialog({ open, onOpenChange, onTransferCreated }: New
         remarks: data.remarks || ''
       }
 
-      const response = await fetch('http://127.0.0.1:8000/api/v1/transfers', {
+      const response = await fetch(`${API_BASE_URL}/transfers`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

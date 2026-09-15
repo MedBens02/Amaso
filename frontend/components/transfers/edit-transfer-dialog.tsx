@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast"
 import { ArrowLeftRight, Banknote, Loader2 } from "lucide-react"
 import { format } from "date-fns"
 import { toDateInputValue, fromDateInputValue } from "@/lib/date-utils"
+import { API_BASE_URL } from "@/lib/api"
 
 interface BankAccount {
   id: number
@@ -119,7 +120,7 @@ export function EditTransferDialog({ transfer, open, onOpenChange, onTransferUpd
   const fetchBankAccounts = async () => {
     setLoading(true)
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/v1/bank-accounts')
+      const response = await fetch(`${API_BASE_URL}/bank-accounts`)
       const data = await response.json()
 
       if (data.data) {
@@ -157,7 +158,7 @@ export function EditTransferDialog({ transfer, open, onOpenChange, onTransferUpd
         remarks: data.remarks || ''
       }
 
-      const response = await fetch(`http://127.0.0.1:8000/api/v1/transfers/${transfer.id}`, {
+      const response = await fetch(`${API_BASE_URL}/transfers/${transfer.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'

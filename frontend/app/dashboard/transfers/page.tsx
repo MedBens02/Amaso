@@ -11,6 +11,7 @@ import { BankAccountStatement } from "@/components/transfers/bank-account-statem
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
+import { API_BASE_URL } from "@/lib/api"
 
 interface BankAccount {
   id: number
@@ -63,7 +64,7 @@ export default function TransfersPage() {
 
   const fetchBankAccounts = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/v1/bank-accounts')
+      const response = await fetch(`${API_BASE_URL}/bank-accounts`)
       const data = await response.json()
       
       if (data.data) {

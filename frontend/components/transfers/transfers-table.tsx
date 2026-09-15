@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 import { ApproveTransferDialog } from "./approve-transfer-dialog"
 import { EditTransferDialog } from "./edit-transfer-dialog"
 import { ViewTransferDialog } from "./view-transfer-dialog"
+import { API_BASE_URL } from "@/lib/api"
 
 interface Transfer {
   id: number
@@ -101,7 +102,7 @@ export function TransfersTable({ filters, onBalanceUpdate }: TransfersTableProps
       queryParams.append('page', currentPage.toString())
       queryParams.append('per_page', itemsPerPage.toString())
 
-      const response = await fetch(`http://127.0.0.1:8000/api/v1/transfers?${queryParams.toString()}`)
+      const response = await fetch(`${API_BASE_URL}/transfers?${queryParams.toString()}`)
       const data = await response.json()
       
       if (data.success) {
@@ -156,7 +157,7 @@ export function TransfersTable({ filters, onBalanceUpdate }: TransfersTableProps
     }
 
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/v1/transfers/${transferId}`, {
+      const response = await fetch(`${API_BASE_URL}/transfers/${transferId}`, {
         method: 'DELETE'
       })
       const data = await response.json()
