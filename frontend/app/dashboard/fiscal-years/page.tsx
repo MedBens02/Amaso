@@ -10,6 +10,7 @@ import { CloseFiscalYearDialog } from "@/components/forms/CloseFiscalYearDialog"
 import { FiscalYearDetailsDialog } from "@/components/fiscal-years/fiscal-year-details-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { isCurrentUserAdmin } from "@/lib/roles"
+import { API_BASE_URL } from "@/lib/api"
 
 interface FiscalYear {
   id: number
@@ -83,7 +84,7 @@ export default function FiscalYearsPage() {
 
   const fetchFiscalYears = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/v1/fiscal-years')
+      const response = await fetch(`${API_BASE_URL}/fiscal-years`)
       const data = await response.json()
       
       if (data.success) {
@@ -93,7 +94,7 @@ export default function FiscalYearsPage() {
         const activeYears = data.data.filter((year: FiscalYear) => year.isActive)
         for (const year of activeYears) {
           try {
-            const summaryResponse = await fetch(`http://127.0.0.1:8000/api/v1/fiscal-years/${year.id}/closing-summary`)
+            const summaryResponse = await fetch(`${API_BASE_URL}/fiscal-years/${year.id}/closing-summary`)
             const summaryData = await summaryResponse.json()
             if (summaryData.success) {
               setClosingSummaries(prev => ({
@@ -190,12 +191,22 @@ export default function FiscalYearsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                {/* Current Cash from Database View */}
+                {/*
+                  * current_cash is SUM(bank_accounts.balance) - one live
+                  * figure the API repeats on every year's row. On a closed
+                  * year it is today's money, not that year's, so printing it
+                  * there would be wrong; the literal string 'NaN' that used
+                  * to stand in its place was worse. What a closed year ended
+                  * with is `remaining`, which is what getCurrentAmount
+                  * returns - the helper was already here and never called.
+                  */}
                 <div className="bg-blue-50 dark:bg-blue-950/40 p-3 rounded-lg border border-blue-200 dark:border-blue-900">
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-blue-700 dark:text-blue-400">الرصيد النقدي الحالي:</span>
+                    <span className="text-blue-700 dark:text-blue-400">
+                      {year.isActive ? 'الرصيد النقدي الحالي:' : 'الرصيد عند الإغلاق:'}
+                    </span>
                     <span className="font-bold text-blue-800 dark:text-blue-400">
-                      {year.isActive ? `DH ${formatAmount(year.current_cash)}` : 'NaN'}
+                      DH {formatAmount(getCurrentAmount(year))}
                     </span>
                   </div>
                   {year.carryOver > 0 && (
@@ -223,7 +234,7 @@ export default function FiscalYearsPage() {
                 {year.isActive && closingSummaries[year.id] && (
                   <div className="bg-green-50 dark:bg-green-950/40 p-3 rounded-lg border border-green-200 dark:border-green-900">
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="text-green-700 dark:text-green-400">الرصيد النقدي الحالي:</span>
+                      <span className="text-green-700 dark:text-green-400">الرصيد المتاح للترحيل:</span>
                       <span className="font-bold text-green-800 dark:text-green-400">
                         DH {formatAmount(closingSummaries[year.id].currentCash)}
                       </span>

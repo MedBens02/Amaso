@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AlertTriangle, CheckCircle, XCircle, Calendar, DollarSign, TrendingUp, TrendingDown, ArrowRight } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { API_BASE_URL } from "@/lib/api"
 
 interface FiscalYear {
   id: number
@@ -81,7 +82,7 @@ export function CloseFiscalYearDialog({
     
     setLoading(true)
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/v1/fiscal-years/${fiscalYear.id}/closing-summary`)
+      const response = await fetch(`${API_BASE_URL}/fiscal-years/${fiscalYear.id}/closing-summary`)
       const data = await response.json()
       
       if (data.success) {
@@ -109,7 +110,7 @@ export function CloseFiscalYearDialog({
     
     setClosing(true)
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/v1/fiscal-years/${fiscalYear.id}/close`, {
+      const response = await fetch(`${API_BASE_URL}/fiscal-years/${fiscalYear.id}/close`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
