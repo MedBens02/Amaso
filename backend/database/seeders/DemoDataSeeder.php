@@ -15,6 +15,7 @@ use App\Models\Kafil;
 use App\Models\KafalaChamilaSplit;
 use App\Models\KafilSponsorship;
 use App\Models\OrphanEnrollment;
+use App\Models\OrphanTransportSubscription;
 use App\Models\Partner;
 use App\Models\PartnerField;
 use App\Models\PartnerSubfield;
@@ -22,6 +23,8 @@ use App\Models\School;
 use App\Models\Skill;
 use App\Models\Budget;
 use App\Models\Transfer;
+use App\Models\TransportProvider;
+use App\Models\TransportRoute;
 use App\Models\Widow;
 use App\Services\ExpenseService;
 use App\Services\IncomeService;
@@ -80,6 +83,7 @@ class DemoDataSeeder extends Seeder
         [$widows, $sponsorlessWidow] = $this->seedWidows($partners);
         [$donors, $kafils] = $this->seedDonorsAndKafils($widows);
         $this->seedSchoolsAndEnrollments($widows, $academicYears);
+        $this->seedTransport($academicYears);
         $this->seedIncomes($fiscalYearId, $donors, $kafils, $bankAccounts);
         $this->seedExpenses($fiscalYearId, $widows, $bankAccounts);
         $this->seedTransfers($fiscalYearId, $bankAccounts);
@@ -646,6 +650,195 @@ class DemoDataSeeder extends Seeder
      *
      * @param  array<int, array{id: int, year: int, active: bool}>  $fiscalYears
      */
+
+    /**
+     * Who is carried where.
+     *
+     * Three transporters of different kinds, because what the association
+     * pays for differs by kind and a demo that only shows one hides that: its
+     * own van (a driver's wage and a fuel bill), a contractor (one invoice),
+     * and a school's own bus (often nothing at all).
+     *
+     * Riders are drawn from the current year's enrollments, so the rosters
+     * point at children who really are at those schools. A handful are given
+     * a standalone run to tutoring instead of a seat on a bus, which is the
+     * case a routes-only model could not express.
+     */
+    private function seedTransport(array $academicYears): void
+    {
+        $currentYear = end($academicYears);
+
+        $ownVan = TransportProvider::create([
+            'name' => 'حافلة الجمعية',
+            'type' => 'association',
+            'contact_name' => 'السائق: محمد أوبلا',
+            'phone' => '0661234567',
+            'notes' => 'حافلة الجمعية - 22 مقعداً',
+        ]);
+        $contractor = TransportProvider::create([
+            'name' => 'نقل الأمل للنقل المدرسي',
+            'type' => 'contractor',
+            'contact_name' => 'عبد الرحيم بناني',
+            'phone' => '0662345678',
+            'notes' => 'عقد سنوي يجدد في شتنبر',
+        ]);
+        $schoolBus = TransportProvider::create([
+            'name' => 'حافلة مدرسة النور الخاصة',
+            'type' => 'school',
+            'contact_name' => 'إدارة المؤسسة',
+            'phone' => '0663456789',
+            'notes' => 'تتحمل المؤسسة الكلفة كاملة',
+        ]);
+
+        $schools = School::pluck('id', 'name');
+
+        $routes = [
+            TransportRoute::create([
+                'academic_year_id' => $currentYear->id,
+                'provider_id' => $ownVan->id,
+                'name' => 'مسار الحي المحمدي - صباح',
+                'destination_type' => 'school',
+                'school_id' => $schools['مدرسة الأمل الابتدائية'] ?? null,
+                'capacity' => 22,
+                'monthly_cost' => 2800,
+                'schedule' => 'الإثنين - الجمعة، 07:15 ذهاباً و 17:00 إياباً',
+                'pickup_area' => 'الحي المحمدي',
+            ]),
+            TransportRoute::create([
+                'academic_year_id' => $currentYear->id,
+                'provider_id' => $contractor->id,
+                'name' => 'مسار تالبرجت - عدة مؤسسات',
+                'destination_type' => 'school',
+                // No school_id: one van that drops children at whichever
+                // school each of them attends, which is why that column is
+                // nullable rather than required on a school run.
+                'school_id' => null,
+                'capacity' => 15,
+                'monthly_cost' => 3200,
+                'schedule' => 'الإثنين - السبت، 07:30 ذهاباً و 18:00 إياباً',
+                'pickup_area' => 'تالبرجت',
+            ]),
+            TransportRoute::create([
+                'academic_year_id' => $currentYear->id,
+                'provider_id' => $schoolBus->id,
+                'name' => 'حافلة مدرسة النور',
+                'destination_type' => 'school',
+                'school_id' => $schools['مدرسة النور الخاصة'] ?? null,
+                'capacity' => 10,
+                'monthly_cost' => 0,
+                'schedule' => 'الإثنين - الجمعة، 07:45 ذهاباً و 16:30 إياباً',
+                'pickup_area' => 'وسط المدينة',
+                'notes' => 'ضمن اتفاقية الشراكة مع المؤسسة',
+            ]),
+            TransportRoute::create([
+                'academic_year_id' => $currentYear->id,
+                'provider_id' => $contractor->id,
+                'name' => 'مسار الدعم المدرسي - مساء السبت',
+                'destination_type' => 'tutoring',
+                'capacity' => 12,
+                'monthly_cost' => 900,
+                'schedule' => 'السبت، 14:00 ذهاباً و 18:00 إياباً',
+                'pickup_area' => 'عدة أحياء',
+            ]),
+        ];
+
+        // A seat on the run that goes to the school the child actually attends;
+        // anyone left over rides the general run.
+        $enrollments = OrphanEnrollment::with('orphan')
+            ->where('academic_year_id', $currentYear->id)
+            ->whereNotNull('school_id')
+            ->orderBy('id')
+            ->get();
+
+        $bySchool = [];
+        foreach ($routes as $route) {
+            if ($route->school_id !== null) {
+                $bySchool[$route->school_id] = $route;
+            }
+        }
+        $tutoringRoute = $routes[3];
+
+        $sharedRoute = $routes[1];
+
+        $index = 0;
+        foreach ($enrollments as $enrollment) {
+            // A seat on the run to this child's own school where one exists,
+            // otherwise the van that serves several schools.
+            $route = $bySchool[$enrollment->school_id] ?? null;
+            if ($route === null || $index % 7 === 0) {
+                $route = $sharedRoute;
+            }
+
+            // Not every child is carried - most walk, and a demo where all of
+            // them ride would make the roster meaningless.
+            if ($index % 3 !== 0 && $index % 7 !== 0) {
+                $index++;
+                continue;
+            }
+
+            if ($route->capacity !== null && $route->activeRiders()->count() >= $route->capacity) {
+                $index++;
+                continue;
+            }
+
+            OrphanTransportSubscription::create([
+                'enrollment_id' => $enrollment->id,
+                'route_id' => $route->id,
+                'purpose' => 'school',
+                'pickup_point' => ['أمام المسجد', 'محطة الحافلات', 'أمام الفرن', 'ساحة الحي'][$index % 4],
+                'paid_by' => $route->monthly_cost > 0 ? 'association' : 'provider',
+                'start_date' => $currentYear->start_year . '-09-15',
+                'status' => 'active',
+            ]);
+
+            $index++;
+        }
+
+        // Tutoring: a few on the Saturday run, and two driven separately -
+        // the arrangement that has no route at all.
+        $tutored = OrphanEnrollment::where('academic_year_id', $currentYear->id)
+            ->where('has_tutoring', true)
+            ->orderBy('id')
+            ->take(8)
+            ->get();
+
+        foreach ($tutored as $position => $enrollment) {
+            $standalone = $position >= 6;
+
+            OrphanTransportSubscription::create([
+                'enrollment_id' => $enrollment->id,
+                'route_id' => $standalone ? null : $tutoringRoute->id,
+                'provider_id' => $standalone ? $contractor->id : null,
+                'purpose' => 'tutoring',
+                'pickup_point' => $standalone ? 'من المنزل' : 'نقطة تجمع الحي',
+                'monthly_cost' => $standalone ? 250 : null,
+                'paid_by' => $standalone ? 'shared' : 'association',
+                'start_date' => $currentYear->start_year . '-10-01',
+                'status' => 'active',
+                'notes' => $standalone ? 'نقل فردي بسيارة أجرة' : null,
+            ]);
+        }
+
+        // One arrangement that ended mid-year, so the screens have a case of
+        // history sitting beside a live record rather than only live ones.
+        $ended = $enrollments->first(
+            fn ($e) => ! OrphanTransportSubscription::where('enrollment_id', $e->id)->exists(),
+        );
+
+        if ($ended !== null) {
+            OrphanTransportSubscription::create([
+                'enrollment_id' => $ended->id,
+                'route_id' => $routes[0]->id,
+                'purpose' => 'school',
+                'paid_by' => 'association',
+                'start_date' => $currentYear->start_year . '-09-15',
+                'end_date' => ($currentYear->start_year + 1) . '-01-20',
+                'status' => 'ended',
+                'notes' => 'انتقلت الأسرة إلى حي آخر',
+            ]);
+        }
+    }
+
     private function seedPriorYears(array $fiscalYears, array $donors, array $widows): void
     {
         $generalBudgetId = Budget::where('is_default', true)->value('id') ?? Budget::value('id');

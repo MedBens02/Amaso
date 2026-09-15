@@ -51,6 +51,9 @@ class AppServiceProvider extends ServiceProvider
         \App\Models\AcademicYear::class,
         \App\Models\OrphanEnrollment::class,
         \App\Models\OrphansEducationLevel::class,
+        \App\Models\TransportProvider::class,
+        \App\Models\TransportRoute::class,
+        \App\Models\OrphanTransportSubscription::class,
 
         // Reference data
         \App\Models\AidType::class,

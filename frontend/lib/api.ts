@@ -95,7 +95,7 @@ const referenceCache = new Map<string, { at: number; promise: Promise<any> }>()
  * caller.
  */
 const REFERENCE_ENDPOINTS =
-  /\/api\/v1\/(budgets|income-categories|expense-categories|fiscal-years|academic-years|orphans-education-levels|widows-reference-data|references\/[a-z-]+)(\?|$)/
+  /\/api\/v1\/(budgets|income-categories|expense-categories|fiscal-years|academic-years|orphans-education-levels|widows-reference-data|transport-providers|references\/[a-z-]+)(\?|$)/
 
 function cachedReferenceFetch(key: string, load: () => Promise<Response>): Promise<Response> {
   const hit = referenceCache.get(key)
@@ -921,6 +921,115 @@ class ApiClient {
     return this.request<any>(`/schools/${id}`, { method: 'DELETE' })
   }
 
+  // ---------------------------------------------------------------------
+  // Transport
+  //
+  // Three things, because transport is three things: who carries children
+  // (providers), the shared runs they operate (routes), and which child is
+  // on which run (subscriptions). A rider sits on a run or has a standalone
+  // arrangement of their own, never both.
+  // ---------------------------------------------------------------------
+
+  async getTransportProviders(params?: { search?: string; type?: string; is_active?: boolean }) {
+    const q = new URLSearchParams()
+    if (params?.search) q.set('search', params.search)
+    if (params?.type) q.set('type', params.type)
+    if (params?.is_active !== undefined) q.set('is_active', params.is_active ? '1' : '0')
+    const query = q.toString()
+    return this.request<any[]>(`/transport-providers${query ? `?${query}` : ''}`)
+  }
+
+  async createTransportProvider(data: Record<string, any>) {
+    return this.request<any>('/transport-providers', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async updateTransportProvider(id: number, data: Record<string, any>) {
+    return this.request<any>(`/transport-providers/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  }
+
+  async deleteTransportProvider(id: number) {
+    return this.request<any>(`/transport-providers/${id}`, { method: 'DELETE' })
+  }
+
+  async getTransportRoutes(params?: {
+    academic_year_id?: number
+    provider_id?: number
+    destination_type?: string
+    is_active?: boolean
+    search?: string
+  }) {
+    const q = new URLSearchParams()
+    if (params?.academic_year_id) q.set('academic_year_id', String(params.academic_year_id))
+    if (params?.provider_id) q.set('provider_id', String(params.provider_id))
+    if (params?.destination_type) q.set('destination_type', params.destination_type)
+    if (params?.is_active !== undefined) q.set('is_active', params.is_active ? '1' : '0')
+    if (params?.search) q.set('search', params.search)
+    const query = q.toString()
+    return this.request<any[]>(`/transport-routes${query ? `?${query}` : ''}`)
+  }
+
+  /** One run and everybody on it. */
+  async getTransportRoute(id: number) {
+    return this.request<any>(`/transport-routes/${id}`)
+  }
+
+  async createTransportRoute(data: Record<string, any>) {
+    return this.request<any>('/transport-routes', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async updateTransportRoute(id: number, data: Record<string, any>) {
+    return this.request<any>(`/transport-routes/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  }
+
+  async deleteTransportRoute(id: number) {
+    return this.request<any>(`/transport-routes/${id}`, { method: 'DELETE' })
+  }
+
+  /** Riders, counts and the advisory monthly total for one academic year. */
+  async getTransportSummary(academicYearId?: number) {
+    const q = academicYearId ? `?academic_year_id=${academicYearId}` : ''
+    return this.request<any>(`/transport-routes/summary${q}`)
+  }
+
+  async getTransportSubscriptions(params?: {
+    academic_year_id?: number
+    route_id?: number
+    provider_id?: number
+    purpose?: string
+    status?: string
+    paid_by?: string
+    standalone_only?: boolean
+    search?: string
+    page?: number
+    per_page?: number
+  }) {
+    const q = new URLSearchParams()
+    if (params?.academic_year_id) q.set('academic_year_id', String(params.academic_year_id))
+    if (params?.route_id) q.set('route_id', String(params.route_id))
+    if (params?.provider_id) q.set('provider_id', String(params.provider_id))
+    if (params?.purpose) q.set('purpose', params.purpose)
+    if (params?.status) q.set('status', params.status)
+    if (params?.paid_by) q.set('paid_by', params.paid_by)
+    if (params?.standalone_only) q.set('standalone_only', '1')
+    if (params?.search) q.set('search', params.search)
+    if (params?.page) q.set('page', String(params.page))
+    if (params?.per_page) q.set('per_page', String(params.per_page))
+    const query = q.toString()
+    return this.request<any[]>(`/transport-subscriptions${query ? `?${query}` : ''}`)
+  }
+
+  async createTransportSubscription(data: Record<string, any>) {
+    return this.request<any>('/transport-subscriptions', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async updateTransportSubscription(id: number, data: Record<string, any>) {
+    return this.request<any>(`/transport-subscriptions/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  }
+
+  async deleteTransportSubscription(id: number) {
+    return this.request<any>(`/transport-subscriptions/${id}`, { method: 'DELETE' })
+  }
+
   /**
    * Every movement on one account, plus whether they add up to its balance.
    * The ledger has always been written; this is what reads it back.
@@ -957,6 +1066,8 @@ class ApiClient {
     education_level_id?: number
     school_type?: 'school' | 'university'
     has_tutoring?: 0 | 1
+    /** Whether the child has a live transport arrangement this year. */
+    has_transport?: 0 | 1
     status?: string
     search?: string
     page?: number

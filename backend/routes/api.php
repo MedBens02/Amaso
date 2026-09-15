@@ -11,6 +11,9 @@ use App\Http\Controllers\Api\V1\OrphanController;
 use App\Http\Controllers\Api\V1\IncomeController;
 use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\TransferController;
+use App\Http\Controllers\Api\V1\TransportProviderController;
+use App\Http\Controllers\Api\V1\TransportRouteController;
+use App\Http\Controllers\Api\V1\TransportSubscriptionController;
 use App\Http\Controllers\Api\V1\FiscalYearController;
 use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\AcademicYearController;
@@ -165,6 +168,21 @@ Route::prefix('v1')->group(function () {
     Route::post('enrollments/grades', [EnrollmentController::class, 'storeGrades']);
     Route::apiResource('enrollments', EnrollmentController::class)->except(['show'])
         ->parameters(['enrollments' => 'enrollment']);
+
+    // Transport - who is carried where, by whom, on what terms.
+    //
+    // The summary route is declared before the resource so that
+    // /transport-routes/summary is not swallowed by /transport-routes/{route}
+    // and handed to the model binding as an id of "summary".
+    Route::get('transport-routes/summary', [TransportRouteController::class, 'summary']);
+    Route::apiResource('transport-providers', TransportProviderController::class)
+        ->except(['show'])
+        ->parameters(['transport-providers' => 'transportProvider']);
+    Route::apiResource('transport-routes', TransportRouteController::class)
+        ->parameters(['transport-routes' => 'transportRoute']);
+    Route::apiResource('transport-subscriptions', TransportSubscriptionController::class)
+        ->except(['show'])
+        ->parameters(['transport-subscriptions' => 'transportSubscription']);
 
     // Lookup data endpoints
     Route::get('bank-accounts', [BankAccountController::class, 'index']);

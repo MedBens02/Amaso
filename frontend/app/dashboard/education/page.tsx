@@ -2,10 +2,11 @@
 
 import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { School, CalendarDays, GraduationCap } from "lucide-react"
+import { School, CalendarDays, GraduationCap, Bus } from "lucide-react"
 import { SchoolsTab } from "@/components/education/schools-tab"
 import { AcademicYearsTab } from "@/components/education/academic-years-tab"
 import { EnrollmentsTab } from "@/components/education/enrollments-tab"
+import { TransportTab } from "@/components/education/transport-tab"
 
 export default function EducationPage() {
   // Bumped when academic years change (creation/rollover) so the
@@ -17,15 +18,19 @@ export default function EducationPage() {
       <div>
         <h1 className="text-3xl font-bold text-foreground">التتبع الدراسي</h1>
         <p className="text-muted-foreground mt-2">
-          تتبع مسار الأيتام الدراسي سنة بسنة، من التمدرس الأول إلى التخرج من الجامعة
+          تتبع مسار الأيتام الدراسي سنة بسنة، من التمدرس الأول إلى التخرج من الجامعة، وما يرافقه من دعم ونقل
         </p>
       </div>
 
       <Tabs defaultValue="enrollments" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
           <TabsTrigger value="enrollments" className="flex items-center gap-2">
             <GraduationCap className="h-4 w-4" />
             التسجيلات
+          </TabsTrigger>
+          <TabsTrigger value="transport" className="flex items-center gap-2">
+            <Bus className="h-4 w-4" />
+            النقل
           </TabsTrigger>
           <TabsTrigger value="schools" className="flex items-center gap-2">
             <School className="h-4 w-4" />
@@ -39,6 +44,10 @@ export default function EducationPage() {
 
         <TabsContent value="enrollments">
           <EnrollmentsTab refreshKey={refreshKey} />
+        </TabsContent>
+
+        <TabsContent value="transport">
+          <TransportTab refreshKey={refreshKey} />
         </TabsContent>
 
         <TabsContent value="schools">
