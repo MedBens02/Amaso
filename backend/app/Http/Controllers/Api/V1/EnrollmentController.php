@@ -16,7 +16,7 @@ class EnrollmentController extends Controller
 {
     private const RELATIONS = [
         'orphan.widow', 'academicYear', 'educationLevel', 'school',
-        'transportSubscriptions.route.provider', 'transportSubscriptions.provider',
+        'transportSupport',
     ];
 
     public function index(Request $request): JsonResponse
@@ -34,8 +34,8 @@ class EnrollmentController extends Controller
             // Transport is a row rather than a flag, so "who is carried" is a
             // question about whether one exists and is live - not a column.
             ->when($request->filled('has_transport'), fn ($q) => $request->boolean('has_transport')
-                ? $q->whereHas('transportSubscriptions', fn ($t) => $t->active())
-                : $q->whereDoesntHave('transportSubscriptions', fn ($t) => $t->active()))
+                ? $q->whereHas('transportSupport', fn ($t) => $t->active())
+                : $q->whereDoesntHave('transportSupport', fn ($t) => $t->active()))
             ->when($request->filled('school_type'), fn ($q) => $q->whereHas(
                 'school',
                 fn ($school) => $school->where('type', $request->school_type),

@@ -18,10 +18,69 @@ export default function ExpensesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [showFilters, setShowFilters] = useState(false)
   const [showNewDialog, setShowNewDialog] = useState(false)
+  // Filled when the transport screen sends a settled month over to be
+  // written up, so the form opens with the category, the date, the total and
+  // a line per family already in place.
+  const [expensePrefill, setExpensePrefill] = useState<any | null>(null)
+  const [transportMonthId, setTransportMonthId] = useState<number | null>(null)
   const [filters, setFilters] = useState<FilterValues>({})
   const [appliedFilters, setAppliedFilters] = useState<FilterValues>({})
   const [isExporting, setIsExporting] = useState(false)
   const { toast } = useToast()
+
+  /**
+   * A month of transport, handed over from the education screen.
+   *
+   * Read from window.location rather than useSearchParams: this app is built
+   * as a static export, where that hook forces the page into a Suspense
+   * boundary at build time. The query string is only ever read here, once,
+   * in the browser.
+   */
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const id = Number(new URLSearchParams(window.location.search).get("transport_month"))
+    if (!id) return
+
+    ;(async () => {
+      try {
+        const response = await api.getTransportMonthExpenseDraft(id)
+        const draft = (response as any).data
+
+        if (!draft?.rows?.length) {
+          toast({
+            title: "لا توجد مبالغ",
+            description: "هذا الشهر لا يحتوي على مبالغ مستحقة بعد",
+            variant: "destructive",
+          })
+          return
+        }
+
+        setExpensePrefill({
+          expense_category_id: draft.expense_category_id ?? undefined,
+          budget_id: draft.budget_id ?? undefined,
+          fiscal_year_id: draft.fiscal_year_id ?? undefined,
+          expense_date: draft.expense_date,
+          amount: draft.total,
+          details: draft.details,
+          unrelated_to_benef: false,
+          beneficiaries: draft.rows,
+        })
+        setTransportMonthId(id)
+        setShowNewDialog(true)
+
+        // Taken out of the address bar so a refresh does not re-open a form
+        // for a month that has since been written up.
+        window.history.replaceState({}, "", window.location.pathname)
+      } catch (error: any) {
+        toast({
+          title: "تعذر تحضير المصروف",
+          description: error.message || "فشل في قراءة حساب الشهر",
+          variant: "destructive",
+        })
+      }
+    })()
+  }, [])
   const [budgets, setBudgets] = useState<any[]>([])
   const [expenseCategories, setExpenseCategories] = useState<any[]>([])
   const [partners, setPartners] = useState<any[]>([])
@@ -330,9 +389,32 @@ export default function ExpensesPage() {
 
       <NewExpenseDialog 
         open={showNewDialog} 
-        onOpenChange={setShowNewDialog} 
-        onSuccess={() => {
+        onOpenChange={(open) => {
+          setShowNewDialog(open)
+          if (!open) { setExpensePrefill(null); setTransportMonthId(null) }
+        }}
+        initialData={expensePrefill ?? undefined}
+        onSuccess={async (expense?: any) => {
           setShowNewDialog(false)
+
+          // Name the expense on the month it settled, so the sheet and the
+          // money can be read back against each other - and so the month
+          // stops being re-divided after it has been paid.
+          if (transportMonthId && expense?.id) {
+            try {
+              await api.closeTransportMonth(transportMonthId, expense.id)
+              toast({ title: "تم", description: "تم ترحيل شهر النقل وربطه بالمصروف" })
+            } catch (error: any) {
+              toast({
+                title: "المصروف مسجَّل، لكن الشهر لم يُرحَّل",
+                description: error.message || "افتح شاشة النقل وأعد المحاولة",
+                variant: "destructive",
+              })
+            }
+          }
+
+          setExpensePrefill(null)
+          setTransportMonthId(null)
         }}
       />
     </div>

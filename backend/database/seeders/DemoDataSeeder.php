@@ -15,7 +15,7 @@ use App\Models\Kafil;
 use App\Models\KafalaChamilaSplit;
 use App\Models\KafilSponsorship;
 use App\Models\OrphanEnrollment;
-use App\Models\OrphanTransportSubscription;
+use App\Models\TransportSupport;
 use App\Models\Partner;
 use App\Models\PartnerField;
 use App\Models\PartnerSubfield;
@@ -23,9 +23,9 @@ use App\Models\School;
 use App\Models\Skill;
 use App\Models\Budget;
 use App\Models\Transfer;
-use App\Models\TransportProvider;
-use App\Models\TransportRoute;
+use App\Models\TransportMonth;
 use App\Models\Widow;
+use Illuminate\Support\Carbon;
 use App\Services\ExpenseService;
 use App\Services\IncomeService;
 use App\Services\KafalaChamilaService;
@@ -652,190 +652,94 @@ class DemoDataSeeder extends Seeder
      */
 
     /**
-     * Who is carried where.
+     * Getting the children to the centre.
      *
-     * Three transporters of different kinds, because what the association
-     * pays for differs by kind and a demo that only shows one hides that: its
-     * own van (a driver's wage and a fuel bill), a contractor (one invoice),
-     * and a school's own bus (often nothing at all).
+     * One bus and a monthly pot, which is how the association actually does
+     * it: the fuel and the driver's fee are totalled at the end of the month
+     * and divided among whoever rode consistently. A handful of children
+     * live beyond the bus and are paid per attendance instead.
      *
-     * Riders are drawn from the current year's enrollments, so the rosters
-     * point at children who really are at those schools. A handful are given
-     * a standalone run to tutoring instead of a seat on a bus, which is the
-     * case a routes-only model could not express.
+     * Three months are seeded - two settled and the current one still a
+     * draft - so the screens have a closed sheet to read and an open one to
+     * work on, and the difference between the two is visible.
      */
     private function seedTransport(array $academicYears): void
     {
         $currentYear = end($academicYears);
+        $settlement = app(\App\Services\TransportSettlementService::class);
 
-        $ownVan = TransportProvider::create([
-            'name' => 'حافلة الجمعية',
-            'type' => 'association',
-            'contact_name' => 'السائق: محمد أوبلا',
-            'phone' => '0661234567',
-            'notes' => 'حافلة الجمعية - 22 مقعداً',
-        ]);
-        $contractor = TransportProvider::create([
-            'name' => 'نقل الأمل للنقل المدرسي',
-            'type' => 'contractor',
-            'contact_name' => 'عبد الرحيم بناني',
-            'phone' => '0662345678',
-            'notes' => 'عقد سنوي يجدد في شتنبر',
-        ]);
-        $schoolBus = TransportProvider::create([
-            'name' => 'حافلة مدرسة النور الخاصة',
-            'type' => 'school',
-            'contact_name' => 'إدارة المؤسسة',
-            'phone' => '0663456789',
-            'notes' => 'تتحمل المؤسسة الكلفة كاملة',
-        ]);
+        $enrollments = OrphanEnrollment::where('academic_year_id', $currentYear->id)
+            ->orderBy('id')
+            ->get();
 
-        $schools = School::pluck('id', 'name');
+        if ($enrollments->isEmpty()) {
+            return;
+        }
 
-        $routes = [
-            TransportRoute::create([
-                'academic_year_id' => $currentYear->id,
-                'provider_id' => $ownVan->id,
-                'name' => 'مسار الحي المحمدي - صباح',
-                'destination_type' => 'school',
-                'school_id' => $schools['مدرسة الأمل الابتدائية'] ?? null,
-                'capacity' => 22,
-                'monthly_cost' => 2800,
-                'schedule' => 'الإثنين - الجمعة، 07:15 ذهاباً و 17:00 إياباً',
-                'pickup_area' => 'الحي المحمدي',
-            ]),
-            TransportRoute::create([
-                'academic_year_id' => $currentYear->id,
-                'provider_id' => $contractor->id,
-                'name' => 'مسار تالبرجت - عدة مؤسسات',
-                'destination_type' => 'school',
-                // No school_id: one van that drops children at whichever
-                // school each of them attends, which is why that column is
-                // nullable rather than required on a school run.
-                'school_id' => null,
-                'capacity' => 15,
-                'monthly_cost' => 3200,
-                'schedule' => 'الإثنين - السبت، 07:30 ذهاباً و 18:00 إياباً',
-                'pickup_area' => 'تالبرجت',
-            ]),
-            TransportRoute::create([
-                'academic_year_id' => $currentYear->id,
-                'provider_id' => $schoolBus->id,
-                'name' => 'حافلة مدرسة النور',
-                'destination_type' => 'school',
-                'school_id' => $schools['مدرسة النور الخاصة'] ?? null,
-                'capacity' => 10,
-                'monthly_cost' => 0,
-                'schedule' => 'الإثنين - الجمعة، 07:45 ذهاباً و 16:30 إياباً',
-                'pickup_area' => 'وسط المدينة',
-                'notes' => 'ضمن اتفاقية الشراكة مع المؤسسة',
-            ]),
-            TransportRoute::create([
-                'academic_year_id' => $currentYear->id,
-                'provider_id' => $contractor->id,
-                'name' => 'مسار الدعم المدرسي - مساء السبت',
-                'destination_type' => 'tutoring',
-                'capacity' => 12,
-                'monthly_cost' => 900,
-                'schedule' => 'السبت، 14:00 ذهاباً و 18:00 إياباً',
-                'pickup_area' => 'عدة أحياء',
-            ]),
+        // Roughly half the children ride; a few of those who do not are far
+        // enough out to be paid their own way instead.
+        foreach ($enrollments as $index => $enrollment) {
+            if ($index % 2 === 0) {
+                TransportSupport::create([
+                    'enrollment_id' => $enrollment->id,
+                    'mode' => TransportSupport::MODE_BUS,
+                    'pickup_point' => ['أمام المسجد', 'محطة الحافلات', 'أمام الفرن', 'ساحة الحي'][$index % 4],
+                    'start_date' => $currentYear->start_year . '-09-15',
+                    'status' => TransportSupport::STATUS_ACTIVE,
+                ]);
+            } elseif ($index % 7 === 3) {
+                TransportSupport::create([
+                    'enrollment_id' => $enrollment->id,
+                    'mode' => TransportSupport::MODE_ALLOWANCE,
+                    'allowance_rate' => [10, 12, 15][$index % 3],
+                    'start_date' => $currentYear->start_year . '-09-15',
+                    'status' => TransportSupport::STATUS_ACTIVE,
+                    'notes' => 'يسكن خارج مسار الحافلة',
+                ]);
+            }
+        }
+
+        // Months run from the start of the school year to the month we are in.
+        $opened = Carbon::create($currentYear->start_year, 10, 1)->startOfMonth();
+        $costs = [
+            ['fuel' => 1850, 'driver' => 2000, 'other' => 0],
+            ['fuel' => 1920, 'driver' => 2000, 'other' => 340],
+            ['fuel' => 1780, 'driver' => 2000, 'other' => 0],
         ];
 
-        // A seat on the run that goes to the school the child actually attends;
-        // anyone left over rides the general run.
-        $enrollments = OrphanEnrollment::with('orphan')
-            ->where('academic_year_id', $currentYear->id)
-            ->whereNotNull('school_id')
-            ->orderBy('id')
-            ->get();
-
-        $bySchool = [];
-        foreach ($routes as $route) {
-            if ($route->school_id !== null) {
-                $bySchool[$route->school_id] = $route;
-            }
-        }
-        $tutoringRoute = $routes[3];
-
-        $sharedRoute = $routes[1];
-
-        $index = 0;
-        foreach ($enrollments as $enrollment) {
-            // A seat on the run to this child's own school where one exists,
-            // otherwise the van that serves several schools.
-            $route = $bySchool[$enrollment->school_id] ?? null;
-            if ($route === null || $index % 7 === 0) {
-                $route = $sharedRoute;
-            }
-
-            // Not every child is carried - most walk, and a demo where all of
-            // them ride would make the roster meaningless.
-            if ($index % 3 !== 0 && $index % 7 !== 0) {
-                $index++;
-                continue;
-            }
-
-            if ($route->capacity !== null && $route->activeRiders()->count() >= $route->capacity) {
-                $index++;
-                continue;
-            }
-
-            OrphanTransportSubscription::create([
-                'enrollment_id' => $enrollment->id,
-                'route_id' => $route->id,
-                'purpose' => 'school',
-                'pickup_point' => ['أمام المسجد', 'محطة الحافلات', 'أمام الفرن', 'ساحة الحي'][$index % 4],
-                'paid_by' => $route->monthly_cost > 0 ? 'association' : 'provider',
-                'start_date' => $currentYear->start_year . '-09-15',
-                'status' => 'active',
+        foreach ($costs as $position => $cost) {
+            $month = TransportMonth::create([
+                'academic_year_id' => $currentYear->id,
+                'period_month' => $opened->copy()->addMonths($position)->toDateString(),
+                'fuel_cost' => $cost['fuel'],
+                'driver_cost' => $cost['driver'],
+                'other_cost' => $cost['other'],
+                'status' => TransportMonth::STATUS_DRAFT,
             ]);
 
-            $index++;
-        }
+            $settlement->syncLines($month);
 
-        // Tutoring: a few on the Saturday run, and two driven separately -
-        // the arrangement that has no route at all.
-        $tutored = OrphanEnrollment::where('academic_year_id', $currentYear->id)
-            ->where('has_tutoring', true)
-            ->orderBy('id')
-            ->take(8)
-            ->get();
+            // Not everybody rides every month: a couple are marked as having
+            // missed too much to count, and the allowance children are given
+            // the number of times they actually turned up.
+            foreach ($month->lines()->get() as $lineIndex => $line) {
+                if ($line->mode === TransportSupport::MODE_BUS) {
+                    $line->rode_consistently = ! (($lineIndex + $position) % 9 === 0);
+                } else {
+                    $line->attendances = 6 + (($lineIndex + $position) % 5);
+                }
+                $line->save();
+            }
 
-        foreach ($tutored as $position => $enrollment) {
-            $standalone = $position >= 6;
+            $settlement->recalculate($month);
 
-            OrphanTransportSubscription::create([
-                'enrollment_id' => $enrollment->id,
-                'route_id' => $standalone ? null : $tutoringRoute->id,
-                'provider_id' => $standalone ? $contractor->id : null,
-                'purpose' => 'tutoring',
-                'pickup_point' => $standalone ? 'من المنزل' : 'نقطة تجمع الحي',
-                'monthly_cost' => $standalone ? 250 : null,
-                'paid_by' => $standalone ? 'shared' : 'association',
-                'start_date' => $currentYear->start_year . '-10-01',
-                'status' => 'active',
-                'notes' => $standalone ? 'نقل فردي بسيارة أجرة' : null,
-            ]);
-        }
-
-        // One arrangement that ended mid-year, so the screens have a case of
-        // history sitting beside a live record rather than only live ones.
-        $ended = $enrollments->first(
-            fn ($e) => ! OrphanTransportSubscription::where('enrollment_id', $e->id)->exists(),
-        );
-
-        if ($ended !== null) {
-            OrphanTransportSubscription::create([
-                'enrollment_id' => $ended->id,
-                'route_id' => $routes[0]->id,
-                'purpose' => 'school',
-                'paid_by' => 'association',
-                'start_date' => $currentYear->start_year . '-09-15',
-                'end_date' => ($currentYear->start_year + 1) . '-01-20',
-                'status' => 'ended',
-                'notes' => 'انتقلت الأسرة إلى حي آخر',
-            ]);
+            // The first two are settled; the last stays open to be worked on.
+            if ($position < count($costs) - 1) {
+                $month->update([
+                    'status' => TransportMonth::STATUS_CLOSED,
+                    'closed_at' => $month->period_month->copy()->endOfMonth(),
+                ]);
+            }
         }
     }
 

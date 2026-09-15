@@ -134,13 +134,14 @@ class OrphanEnrollment extends Model
     }
 
     /**
-     * Transport laid on for this child this year.
+     * How this child gets to the centre this year.
      *
-     * Plural because a child can be carried to school in the morning and to
-     * tutoring in the evening - two arrangements, not one with two halves.
+     * Plural because the record keeps the arrangement that ended beside the
+     * one that replaced it - a child who moves house comes off the bus and
+     * onto an allowance, and both belong in the history. Only one is live.
      */
-    public function transportSubscriptions(): HasMany
+    public function transportSupport(): HasMany
     {
-        return $this->hasMany(OrphanTransportSubscription::class, 'enrollment_id');
+        return $this->hasMany(TransportSupport::class, 'enrollment_id');
     }
 }
