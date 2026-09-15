@@ -654,95 +654,14 @@ class DemoDataSeeder extends Seeder
     /**
      * Getting the children to the centre.
      *
-     * One bus and a monthly pot, which is how the association actually does
-     * it: the fuel and the driver's fee are totalled at the end of the month
-     * and divided among whoever rode consistently. A handful of children
-     * live beyond the bus and are paid per attendance instead.
-     *
-     * Three months are seeded - two settled and the current one still a
-     * draft - so the screens have a closed sheet to read and an open one to
-     * work on, and the difference between the two is visible.
+     * Delegated rather than written out here, because the same data has to
+     * be seedable on its own: a server that already holds demo families
+     * cannot re-run this whole seeder to pick up transport, and a second
+     * copy of the logic would be the one that drifts.
      */
     private function seedTransport(array $academicYears): void
     {
-        $currentYear = end($academicYears);
-        $settlement = app(\App\Services\TransportSettlementService::class);
-
-        $enrollments = OrphanEnrollment::where('academic_year_id', $currentYear->id)
-            ->orderBy('id')
-            ->get();
-
-        if ($enrollments->isEmpty()) {
-            return;
-        }
-
-        // Roughly half the children ride; a few of those who do not are far
-        // enough out to be paid their own way instead.
-        foreach ($enrollments as $index => $enrollment) {
-            if ($index % 2 === 0) {
-                TransportSupport::create([
-                    'enrollment_id' => $enrollment->id,
-                    'mode' => TransportSupport::MODE_BUS,
-                    'pickup_point' => ['أمام المسجد', 'محطة الحافلات', 'أمام الفرن', 'ساحة الحي'][$index % 4],
-                    'start_date' => $currentYear->start_year . '-09-15',
-                    'status' => TransportSupport::STATUS_ACTIVE,
-                ]);
-            } elseif ($index % 7 === 3) {
-                TransportSupport::create([
-                    'enrollment_id' => $enrollment->id,
-                    'mode' => TransportSupport::MODE_ALLOWANCE,
-                    'allowance_rate' => [10, 12, 15][$index % 3],
-                    'start_date' => $currentYear->start_year . '-09-15',
-                    'status' => TransportSupport::STATUS_ACTIVE,
-                    'notes' => 'يسكن خارج مسار الحافلة',
-                ]);
-            }
-        }
-
-        // Months run from the start of the school year to the month we are in.
-        $opened = Carbon::create($currentYear->start_year, 10, 1)->startOfMonth();
-        $costs = [
-            ['fuel' => 1850, 'driver' => 2000, 'other' => 0],
-            ['fuel' => 1920, 'driver' => 2000, 'other' => 340],
-            ['fuel' => 1780, 'driver' => 2000, 'other' => 0],
-        ];
-
-        foreach ($costs as $position => $cost) {
-            $month = TransportMonth::create([
-                'academic_year_id' => $currentYear->id,
-                'period_month' => $opened->copy()->addMonths($position)->toDateString(),
-                'fuel_cost' => $cost['fuel'],
-                'driver_cost' => $cost['driver'],
-                'other_cost' => $cost['other'],
-            ]);
-
-            $settlement->syncLines($month);
-
-            // Not everybody rides every month: a couple are marked as having
-            // missed too much to count, and the allowance children are given
-            // the number of times they actually turned up.
-            foreach ($month->lines()->get() as $lineIndex => $line) {
-                if ($line->mode === TransportSupport::MODE_BUS) {
-                    $line->rode_consistently = ! (($lineIndex + $position) % 9 === 0);
-                } else {
-                    $line->attendances = 6 + (($lineIndex + $position) % 5);
-                }
-                $line->save();
-            }
-
-            $settlement->recalculate($month);
-
-            // The first month is settled on both halves, the second only on
-            // the bus, and the third is untouched - so the screens have one
-            // of each state to show rather than only the extremes.
-            $endOfMonth = $month->period_month->copy()->endOfMonth();
-
-            if ($position === 0) {
-                $month->update(['bus_settled_at' => $endOfMonth, 'allowance_settled_at' => $endOfMonth]);
-            } elseif ($position === 1) {
-                $month->update(['bus_settled_at' => $endOfMonth]);
-            }
-        }
+        $this->callWith(TransportDemoSeeder::class, ['silent' => true]);
     }
 
     private function seedPriorYears(array $fiscalYears, array $donors, array $widows): void

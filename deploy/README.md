@@ -298,6 +298,39 @@ sudo bash /var/www/amaso/deploy/deploy.sh
 sudo bash /var/www/amaso/deploy/status.sh
 ```
 
+### A new feature's demo data is missing after an update
+
+`deploy.sh --demo` seeds only into a database with **no families at all**,
+because the demo seeder inserts rather than upserts — a second pass collides
+on the first bank account it tries to create. So a test server seeded before
+a feature existed gets that feature's tables from the migrations and nothing
+in them.
+
+`seed-demo.sh` fills them without starting over:
+
+```bash
+sudo bash /var/www/amaso/deploy/seed-demo.sh                      # what is in there
+sudo bash /var/www/amaso/deploy/seed-demo.sh --transport          # add the transport demo
+sudo bash /var/www/amaso/deploy/seed-demo.sh --transport --fresh  # replace it
+```
+
+Everything in that script writes invented records, so everything in it
+refuses to run where any family is **not** demo data — the same `DEMO`
+national-id marker the money harnesses check. A real install cannot pick up
+invented bus riders from a mistyped command.
+
+### Starting the test server over
+
+```bash
+sudo bash /var/www/amaso/deploy/seed-demo.sh --reset
+```
+
+Drops every table, re-runs the migrations, and seeds the demo data again. It
+takes a backup first, asks you to type `reset` in full, and refuses outright
+on a database holding real families. Accounts go back to
+`admin@amaso.org` / `password`, so anything typed into the application —
+including changed passwords — is gone.
+
 The server follows its branch, so **merge before you deploy**. To move a
 server onto a different branch, name it once and it stays there:
 
@@ -403,6 +436,7 @@ not a list of things that might.
 | `backup.sh` | Nightly dumps, listing and restore |
 | `restrict-access.sh` | A password or address gate in front of the whole site |
 | `status.sh` | What is running, what is broken, what needs attention |
+| `seed-demo.sh` | Demo data on a test server: inspect it, top it up, or start over. Refuses on real data. |
 | `common.sh` | Shared helpers, sourced by the rest |
 | `nginx.conf.template` | The site configuration `provision.sh` fills in |
 
