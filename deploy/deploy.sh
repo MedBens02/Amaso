@@ -459,14 +459,25 @@ fi
 log "Verifying"
 sleep 2
 
-page_status="$(http_code http://127.0.0.1/)"
-api_status="$(http_code http://127.0.0.1/api/v1/widows)"
+# Ask for the name nginx answers for, not its IP - see http_code_site in
+# common.sh. Once a certificate is installed, a loopback probe by IP is
+# answered `return 404` by certbot's redirect block, and this check would
+# call every subsequent deploy broken.
+verify_site="$(site_host)"
+if [[ -n "$verify_site" ]]; then
+    site_is_tls && verify_scheme=https || verify_scheme=http
+else
+    verify_site="127.0.0.1"; verify_scheme=http
+fi
+
+page_status="$(http_code_site "$verify_site" "/" "$verify_scheme")"
+api_status="$(http_code_site "$verify_site" "/api/v1/widows" "$verify_scheme")"
 
 # 401 is the right answer for the API: it means Laravel handled the request
 # and asked for a token. A 200 there would mean the route is unprotected.
 if [[ "$page_status" == "200" ]]; then
     ok "Frontend answers (HTTP $page_status)"
-elif [[ "$page_status" == "401" ]] && [[ -s /etc/nginx/snippets/amaso-gate-site.conf ]]; then
+elif [[ "$page_status" == "401" ]] && [[ -s "$GATE_SITE_SNIPPET" ]]; then
     # restrict-access.sh is in force and this check has no password to give
     # it - the gate holding is the correct answer, not a failed deploy.
     ok "Frontend answers behind the access gate (HTTP 401, as expected)"

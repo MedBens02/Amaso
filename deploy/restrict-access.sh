@@ -27,9 +27,9 @@ HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 # shellcheck source=common.sh
 source "$HERE/common.sh"
 
-SITE="/etc/nginx/sites-available/amaso"
-SNIPPET="/etc/nginx/snippets/amaso-gate-site.conf"
-API_SNIPPET="/etc/nginx/snippets/amaso-gate-api.conf"
+SITE="$NGINX_SITE"
+SNIPPET="$GATE_SITE_SNIPPET"
+API_SNIPPET="$GATE_API_SNIPPET"
 HTPASSWD="/etc/nginx/.amaso-htpasswd"
 USERNAME="${RESTRICT_USER:-amaso}"
 
@@ -57,7 +57,7 @@ done
 
 need_root
 [[ -f "$SITE" ]] || die "$SITE not found - run provision.sh first."
-mkdir -p /etc/nginx/snippets
+mkdir -p "$NGINX_SNIPPETS"
 
 # ---------------------------------------------------------------------------
 # status
@@ -99,13 +99,13 @@ fi
 # no include at all, so one is added here.
 # ---------------------------------------------------------------------------
 if ! grep -q 'amaso-gate-site' "$SITE"; then
-    sed -i '0,/^\s*charset/s||    include /etc/nginx/snippets/amaso-gate-site*.conf;\n\n    charset|' "$SITE"
+    sed -i "0,/^\\s*charset/s||    include ${NGINX_SNIPPETS}/amaso-gate-site*.conf;\\n\\n    charset|" "$SITE"
     grep -q 'amaso-gate-site' "$SITE" || die "Could not add the include to $SITE - add it inside the server block by hand"
     ok "Added the restriction include to the site configuration"
 fi
 
 if ! grep -q 'amaso-gate-api' "$SITE"; then
-    sed -i 's|\(\s*\)fastcgi_pass unix:/run/php/php-fpm-amaso.sock;|\1include /etc/nginx/snippets/amaso-gate-api*.conf;\n&|' "$SITE"
+    sed -i "s|\\(\\s*\\)fastcgi_pass unix:/run/php/php-fpm-amaso.sock;|\\1include ${NGINX_SNIPPETS}/amaso-gate-api*.conf;\\n\&|" "$SITE"
     grep -q 'amaso-gate-api' "$SITE" && ok "Added the API include to the site configuration"
 fi
 

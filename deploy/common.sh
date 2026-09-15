@@ -135,6 +135,76 @@ http_code() {
     printf '%s' "${code:-000}"
 }
 
+# Where things live
+#
+# One definition each. The site file and the two gate snippets were spelled
+# out as literals in four scripts between them. They agree today and nothing
+# but habit was keeping them that way, which is the same shape as every
+# other duplicated-fact bug in this tree.
+NGINX_SITE="${NGINX_SITE:-/etc/nginx/sites-available/amaso}"
+NGINX_ENABLED="${NGINX_ENABLED:-/etc/nginx/sites-enabled/amaso}"
+NGINX_SNIPPETS="${NGINX_SNIPPETS:-/etc/nginx/snippets}"
+GATE_SITE_SNIPPET="$NGINX_SNIPPETS/amaso-gate-site.conf"
+GATE_API_SNIPPET="$NGINX_SNIPPETS/amaso-gate-api.conf"
+
+# The site nginx is configured for
+#
+# These exist because http://127.0.0.1/ stopped being a usable health check
+# the moment certbot ran. With --redirect it rewrites the port-80 server
+# block to redirect the names on the certificate and answer
+#
+#     return 404;   # managed by Certbot
+#
+# to every other Host - and a loopback request by IP carries
+# Host: 127.0.0.1, which is every other Host. The site was serving every
+# real visitor correctly while status.sh called both halves of it broken.
+
+# The first real name nginx answers for, or nothing while it is still the
+# `_` catch-all that provision.sh installs.
+#
+# `tr` first, because nginx separates directives with semicolons and braces
+# and does not care about newlines: `server { listen 80; server_name x;` on
+# one line is valid, and a pattern anchored to the start of a line silently
+# misses it - reporting a named site as unnamed, or a TLS site as plain,
+# and sending the health check back to the loopback address it cannot use.
+# Splitting on those separators puts every directive at the start of a line
+# whatever the file looks like.
+#
+# Wildcard and regex names are skipped: `*.amaso.site` is something nginx
+# matches against, not a name anything can connect to.
+site_host() {
+    [[ -f "$NGINX_SITE" ]] || return 0
+    tr ';{}' '\n\n\n' < "$NGINX_SITE" \
+        | awk '/^[[:space:]]*server_name[[:space:]]/ {
+                   for (i = 2; i <= NF; i++) {
+                       if ($i != "_" && $i !~ /^[*~]/) { print $i; exit }
+                   }
+               }'
+}
+
+# Whether that site has been given a certificate.
+site_is_tls() {
+    [[ -f "$NGINX_SITE" ]] || return 1
+    tr ';{}' '\n\n\n' < "$NGINX_SITE" \
+        | grep -qE '^[[:space:]]*listen[[:space:]]+.*\b443\b'
+}
+
+# The status code the local nginx answers with for one of its own names.
+#
+# --resolve keeps the connection on loopback while sending the Host header
+# and the TLS SNI that nginx actually selects a server block on, so the
+# check needs no DNS, no route out to the internet, and no ability for the
+# machine to reach its own public address - which on EC2 is not a given.
+# --noproxy because a health check of this machine must never be answered
+# by a proxy that happens to be in the environment.
+http_code_site() {
+    local host="$1" path="${2:-/}" scheme="${3:-https}" port code
+    [[ "$scheme" == "https" ]] && port=443 || port=80
+    code="$(curl -sS --noproxy '*' -o /dev/null -w '%{http_code}' --max-time "${4:-12}" \
+        --resolve "${host}:${port}:127.0.0.1" "${scheme}://${host}${path}" 2>/dev/null)" || true
+    printf '%s' "${code:-000}"
+}
+
 # The address a name resolves to here, or nothing at all.
 #
 # `getent hosts` exits 2 for a name that does not resolve. Under

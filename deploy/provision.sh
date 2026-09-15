@@ -513,18 +513,18 @@ log "Configuring nginx"
 sed -e "s|__APP_DIR__|${APP_DIR}|g" \
     -e "s|__SERVER_NAME__|${SERVER_NAME}|g" \
     "$HERE/nginx.conf.template" \
-    > /etc/nginx/sites-available/amaso
+    > "$NGINX_SITE"
 
 # On a host without IPv6 in the kernel, `listen [::]:80` does not degrade
 # gracefully - nginx refuses to start at all with "Address family not
 # supported by protocol". Some cloud images ship that way, so the line is
 # dropped rather than left to break the boot.
 if [[ ! -e /proc/net/if_inet6 ]]; then
-    sed -i '/listen \[::\]:80;/d' /etc/nginx/sites-available/amaso
+    sed -i '/listen \[::\]:80;/d' "$NGINX_SITE"
     warn "No IPv6 on this host - removed the IPv6 listen directive"
 fi
 
-ln -sf /etc/nginx/sites-available/amaso /etc/nginx/sites-enabled/amaso
+ln -sf "$NGINX_SITE" "$NGINX_ENABLED"
 rm -f /etc/nginx/sites-enabled/default
 
 # The site cannot start until deploy.sh has put files in place, so only

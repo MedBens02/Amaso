@@ -87,8 +87,19 @@ fi
 # ---------------------------------------------------------------------------
 log "Answering"
 
-page="$(http_code http://127.0.0.1/)"
-api="$(http_code http://127.0.0.1/api/v1/widows)"
+# Ask for the name nginx is configured to answer for, over the scheme it
+# answers on, rather than for its IP over plain HTTP. See http_code_site in
+# common.sh for why the old probe reported a healthy site as two failures
+# the moment a certificate was installed.
+site="$(site_host)"
+if [[ -n "$site" ]]; then
+    site_is_tls && scheme=https || scheme=http
+else
+    site="127.0.0.1"; scheme=http     # still on the `_` catch-all
+fi
+
+page="$(http_code_site "$site" "/" "$scheme")"
+api="$(http_code_site "$site" "/api/v1/widows" "$scheme")"
 
 # With restrict-access.sh in force, a request carrying no gate password is
 # supposed to be refused - and this check cannot carry one, because the file
@@ -97,7 +108,9 @@ api="$(http_code http://127.0.0.1/api/v1/widows)"
 # wrong. What is behind the gate cannot be checked from here; the build and
 # the API below are what stand in for it.
 gate_is_up=0
-[[ -s /etc/nginx/snippets/amaso-gate-site.conf ]] && gate_is_up=1
+[[ -s "$GATE_SITE_SNIPPET" ]] && gate_is_up=1
+
+row "probing" "${scheme}://${site}/  (resolved to this machine)"
 
 if [[ "$page" == "200" ]]; then
     good "frontend" "HTTP 200"
@@ -169,7 +182,7 @@ fi
 # ---------------------------------------------------------------------------
 log "Who can reach it"
 
-gate="/etc/nginx/snippets/amaso-gate-site.conf"
+gate="$GATE_SITE_SNIPPET"
 if [[ -s "$gate" ]]; then
     what=()
     grep -q 'auth_basic "' "$gate" && what+=("shared password")

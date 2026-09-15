@@ -89,7 +89,7 @@ ok "certbot installed"
 # against a certificate. Name it before asking for one.
 # ---------------------------------------------------------------------------
 log "Setting the server name"
-sed -i "s|^\(\s*\)server_name .*;|\1server_name ${DOMAINS[*]};|" /etc/nginx/sites-available/amaso
+sed -i "s|^\(\s*\)server_name .*;|\1server_name ${DOMAINS[*]};|" "$NGINX_SITE"
 nginx -t >/dev/null 2>&1 || die "The nginx configuration is invalid - run 'nginx -t'"
 systemctl reload nginx || die "nginx would not reload - check 'systemctl status nginx'"
 ok "nginx now answers for ${DOMAINS[*]}"
@@ -117,13 +117,13 @@ ok "Certificate installed, HTTP redirects to HTTPS"
 # records, and exactly what you do not want set while HTTPS is still
 # broken, because it locks visitors out of the only working version.
 # ---------------------------------------------------------------------------
-if ! grep -q "Strict-Transport-Security" /etc/nginx/sites-available/amaso; then
+if ! grep -q "Strict-Transport-Security" "$NGINX_SITE"; then
     sed -i '/listen 443 ssl/a\    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;' \
-        /etc/nginx/sites-available/amaso
+        "$NGINX_SITE"
     if nginx -t >/dev/null 2>&1; then
         ok "HSTS enabled (browsers will refuse plain HTTP for a year)"
     else
-        sed -i '/Strict-Transport-Security/d' /etc/nginx/sites-available/amaso
+        sed -i '/Strict-Transport-Security/d' "$NGINX_SITE"
         warn "Could not add the HSTS header cleanly - left it off"
     fi
 fi
