@@ -172,7 +172,7 @@ cd frontend && npm run dev            # http://localhost:3000
 
 On Windows, `setup\start-app.bat` does both and opens the browser.
 
-Sign in as `admin@amaso.org` / `password` — and change that password before
+Sign in with the account and password the seeder printed — and change it before
 the application holds anything real.
 
 ### Production

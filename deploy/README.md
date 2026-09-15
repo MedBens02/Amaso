@@ -172,7 +172,9 @@ Fetches the code into `/var/www/amaso`, installs dependencies, builds the
 frontend, creates the schema, and checks that both the pages and the API
 answer before it reports success.
 
-Open `http://<server-ip>`. Sign in as `admin@amaso.org` / `password`, then
+Open `http://<server-ip>`. Sign in with the account and password the seeder
+printed while deploying — write them down at the time, as they are not
+shown again — then
 **change that password immediately** under Paramètres → Gestion des comptes.
 
 ### 4. Add a domain and HTTPS
@@ -328,7 +330,7 @@ sudo bash /var/www/amaso/deploy/seed-demo.sh --reset
 Drops every table, re-runs the migrations, and seeds the demo data again. It
 takes a backup first, asks you to type `reset` in full, and refuses outright
 on a database holding real families. Accounts go back to
-`admin@amaso.org` / `password`, so anything typed into the application —
+the freshly printed passwords, so anything typed into the application —
 including changed passwords — is gone.
 
 The server follows its branch, so **merge before you deploy**. To move a
@@ -465,7 +467,7 @@ Not done, and deliberately left to you:
   `/etc/ssh/sshd_config` once you have confirmed your key works.
 - **Off-site backups.** The nightly dump protects against a mistake, not
   against losing the machine. See the `rsync` line above.
-- **Changing the seeded passwords.** `admin@amaso.org` / `password` is a
+- **Changing the seeded passwords.** The generated password is a
   published default. Change it before the application holds anything real.
 
 ---

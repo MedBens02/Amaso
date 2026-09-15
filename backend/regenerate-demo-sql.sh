@@ -58,7 +58,11 @@ fi
 
 echo "Rebuilding $DB_DATABASE from migrations and seeders..."
 php artisan migrate:fresh --force >/dev/null
-php artisan db:seed --force >/dev/null
+# The dump exists for somebody with phpMyAdmin and no PHP toolchain, so the
+# accounts in it need a password they can actually sign in with. A real
+# install invents one per account and prints it once; this override is the
+# only place that value is ever fixed, and the header below says so.
+AMASO_SEED_PASSWORD="demo-only-password" php artisan db:seed --force >/dev/null
 php artisan db:seed --class=DemoDataSeeder --force
 
 count() {
@@ -115,9 +119,12 @@ cat > "$tmp" <<HEADER
 --       php artisan db:seed --class=DemoDataSeeder
 --
 -- حسابات الدخول / Login accounts (password for all three: password)
---   admin@amaso.org       مدير            admin
---   accountant@amaso.org  محاسب           accountant
---   social@amaso.org      أخصائي اجتماعي  social_worker
+--   mohamed@amaso.site    مستخدم أعلى     superuser
+--   bouchra@amaso.site    مستخدم أعلى     superuser
+--
+--   Both sign in with the password "demo-only-password". That is true of
+--   THIS FILE ONLY: a real install invents a different password per account
+--   while seeding and prints it once. Never import this dump into one.
 --
 --   Change these before the application is used for anything real.
 

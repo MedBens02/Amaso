@@ -59,10 +59,11 @@ Route::prefix('v1')->group(function () {
     // The association's identity - everyone reads it, admins edit it
     Route::get('settings/organization', [SettingsController::class, 'organization']);
     Route::put('settings/organization', [SettingsController::class, 'updateOrganization'])
-        ->middleware('role:admin');
+        ->middleware('role:admin,superuser');
 
-    // Account management, admin only
-    Route::middleware('role:admin')->group(function () {
+    // The two things an admin is not given: handing out everybody else's
+    // access, and reading the record of what everybody did.
+    Route::middleware('role:superuser')->group(function () {
         Route::apiResource('users', UserController::class);
         Route::patch('users/{user}/active', [UserController::class, 'setActive']);
         Route::post('users/{user}/password', [UserController::class, 'resetPassword']);

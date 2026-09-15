@@ -1,5 +1,21 @@
 <?php
 
+/*
+ * Signs in with the account named in the environment:
+ *
+ *     AMASO_EMAIL=you@amaso.site AMASO_PASSWORD='...' php money-concurrency.php
+ *
+ * It used to be a demo account with a shared password, which no longer
+ * exists - every install now invents its own while seeding.
+ */
+define('AMASO_EMAIL', getenv('AMASO_EMAIL') ?: 'mohamed@amaso.site');
+define('AMASO_PASSWORD', getenv('AMASO_PASSWORD') ?: '');
+
+if (AMASO_PASSWORD === '') {
+    fwrite(STDERR, "Set AMASO_PASSWORD (and AMASO_EMAIL if not " . AMASO_EMAIL . ") before running this.\n");
+    exit(1);
+}
+
 /**
  * Does the same thing twice at once, and checks the money only moved once.
  *
@@ -70,7 +86,7 @@ function bothAtOnce(array $calls, string $token): array {
     return $out;
 }
 
-$login = one($A, 'POST', '/auth/login', ['email'=>'admin@amaso.org','password'=>'password'], null);
+$login = one($A, 'POST', '/auth/login', ['email' => AMASO_EMAIL, 'password' => AMASO_PASSWORD], null);
 $token = $login['body']['data']['token'] ?? $login['body']['token'];
 
 $fy = DB::table('fiscal_years')->where('is_active', true)->first();

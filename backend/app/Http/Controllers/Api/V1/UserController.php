@@ -63,11 +63,13 @@ class UserController extends Controller
         $data = $request->validated();
 
         // Demoting yourself would take away the screen you are standing on,
-        // and demoting the only admin would leave nobody able to grant the
-        // role back.
-        if ($user->isAdmin() && $data['role'] !== User::ROLE_ADMIN) {
+        // and demoting the only superuser would leave nobody able to grant
+        // the role back - an admin cannot, which is the point of the role.
+        // Demoting an ordinary admin needs no such guard: they could not
+        // hand out access either way.
+        if ($user->isSuperuser() && $data['role'] !== User::ROLE_SUPERUSER) {
             $this->guardSelf($request, $user, 'لا يمكنك تغيير صلاحيتك الخاصة');
-            $this->guardLastAdmin($user, 'لا يمكن تغيير صلاحية آخر مدير للنظام');
+            $this->guardLastSuperuser($user, 'لا يمكن تغيير صلاحية آخر مستخدم أعلى في النظام');
         }
 
         $user->fill($data)->save();
@@ -89,8 +91,8 @@ class UserController extends Controller
 
         if (!$isActive) {
             $this->guardSelf($request, $user, 'لا يمكنك إيقاف حسابك الخاص');
-            if ($user->isAdmin()) {
-                $this->guardLastAdmin($user, 'لا يمكن إيقاف آخر مدير للنظام');
+            if ($user->isSuperuser()) {
+                $this->guardLastSuperuser($user, 'لا يمكن إيقاف آخر مستخدم أعلى في النظام');
             }
         }
 
@@ -130,8 +132,8 @@ class UserController extends Controller
     {
         $this->guardSelf($request, $user, 'لا يمكنك حذف حسابك الخاص');
 
-        if ($user->isAdmin()) {
-            $this->guardLastAdmin($user, 'لا يمكن حذف آخر مدير للنظام');
+        if ($user->isSuperuser()) {
+            $this->guardLastSuperuser($user, 'لا يمكن حذف آخر مستخدم أعلى في النظام');
         }
 
         $user->tokens()->delete();
@@ -147,14 +149,21 @@ class UserController extends Controller
         }
     }
 
-    private function guardLastAdmin(User $user, string $message): void
+    /**
+     * There must always be one active superuser left.
+     *
+     * They are the only accounts that can reach this screen at all, so
+     * losing the last one locks account management shut for good - with no
+     * way back through the application, only through the database.
+     */
+    private function guardLastSuperuser(User $user, string $message): void
     {
-        $otherActiveAdmins = User::where('role', User::ROLE_ADMIN)
+        $otherActiveSuperusers = User::where('role', User::ROLE_SUPERUSER)
             ->where('is_active', true)
             ->where('id', '!=', $user->id)
             ->exists();
 
-        if (!$otherActiveAdmins) {
+        if (!$otherActiveSuperusers) {
             throw new BusinessRuleException($message);
         }
     }

@@ -29,11 +29,29 @@ import {
   History,
   Loader2,
 } from "lucide-react"
-import { isCurrentUserAdmin } from "@/lib/roles"
+import type { LucideIcon } from "lucide-react"
+import { isCurrentUserAdmin, isCurrentUserSuperuser } from "@/lib/roles"
 import { logout } from "@/lib/auth"
 import api from "@/lib/api"
 
-const navigation = [
+/**
+ * One entry in the sidebar.
+ *
+ * Declared rather than inferred: with the flags optional and only set on
+ * some entries, TypeScript infers a union per array and then refuses to read
+ * a flag that is missing from one branch of it.
+ */
+interface NavItem {
+  name: string
+  href: string
+  icon: LucideIcon
+  /** Hidden from everyone below admin. A superuser counts as an admin. */
+  adminOnly?: boolean
+  /** Hidden from admins too - accounts and the activity log. */
+  superuserOnly?: boolean
+}
+
+const navigation: NavItem[] = [
   {
     name: "الرئيسية",
     href: "/dashboard",
@@ -61,7 +79,7 @@ const navigation = [
   },
 ]
 
-const educationNavigation = [
+const educationNavigation: NavItem[] = [
   {
     name: "التعليم",
     href: "/dashboard/education",
@@ -69,7 +87,7 @@ const educationNavigation = [
   },
 ]
 
-const financialNavigation = [
+const financialNavigation: NavItem[] = [
   {
     name: "الإيرادات",
     href: "/dashboard/incomes",
@@ -97,7 +115,7 @@ const financialNavigation = [
   },
 ]
 
-const systemNavigation = [
+const systemNavigation: NavItem[] = [
   {
     name: "التقارير",
     href: "/dashboard/reports",
@@ -108,23 +126,24 @@ const systemNavigation = [
     href: "/dashboard/settings",
     icon: Settings,
   },
-  // Account management is admin-only. The API enforces that too (role:admin);
-  // hiding the entry just keeps a door the user cannot open out of the menu.
+  // The two an admin does not get. The API enforces it too
+  // (role:superuser); hiding the entries just keeps doors the user cannot
+  // open out of the menu.
   {
     name: "إدارة الحسابات",
     href: "/dashboard/users",
     icon: UserCog,
-    adminOnly: true,
+    superuserOnly: true,
   },
   {
     name: "سجل النشاط",
     href: "/dashboard/audit-log",
     icon: History,
-    adminOnly: true,
+    superuserOnly: true,
   },
 ]
 
-const referencesNavigation = [
+const referencesNavigation: NavItem[] = [
   {
     name: "البيانات المرجعية",
     href: "/dashboard/references",
@@ -143,6 +162,7 @@ export function Sidebar() {
   // Read after mount: localStorage is not available during SSR, and
   // rendering the admin entry on the server would flash it for everyone.
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isSuperuser, setIsSuperuser] = useState(false)
   // Whatever the admin saved on the settings screen, so the sidebar carries
   // the association's own name rather than a generic label.
   const [orgName, setOrgName] = useState("")
@@ -150,6 +170,7 @@ export function Sidebar() {
 
   useEffect(() => {
     setIsAdmin(isCurrentUserAdmin())
+    setIsSuperuser(isCurrentUserSuperuser())
 
     api
       .getOrganizationSettings()
@@ -234,7 +255,10 @@ export function Sidebar() {
             )}
             <nav className="space-y-1">
               {systemNavigation
-                .filter((item) => !item.adminOnly || isAdmin)
+                // superuserOnly is the narrower of the two: handing out
+                // access and reading the activity log are withheld from
+                // admins, everything else adminOnly is not.
+                .filter((item) => (!item.adminOnly || isAdmin) && (!item.superuserOnly || isSuperuser))
                 .map((item) => {
                 const isActive = pathname === item.href
                 return (

@@ -107,10 +107,10 @@ export default function UsersPage() {
 
   useEffect(() => {
     const current = getCurrentUser()
-    setIsAdmin(current?.role === "admin")
+    setIsAdmin(current?.role === "superuser")
     setCurrentUserId(current?.id ?? null)
 
-    if (current?.role === "admin") {
+    if (current?.role === "superuser") {
       load()
     } else {
       setLoading(false)
@@ -175,8 +175,8 @@ export default function UsersPage() {
       <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
         <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" />
         <div>
-          <p className="font-medium">هذه الصفحة لمدير النظام</p>
-          <p className="text-sm">إدارة الحسابات متاحة لمدير النظام وحده.</p>
+          <p className="font-medium">هذه الصفحة للمستخدم الأعلى</p>
+          <p className="text-sm">إدارة الحسابات متاحة للمستخدم الأعلى وحده — مدير النظام لا يصل إليها.</p>
         </div>
       </div>
     )

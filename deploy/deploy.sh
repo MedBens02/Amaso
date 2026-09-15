@@ -322,7 +322,7 @@ elif [[ "$user_count" == "0" ]]; then
     # DatabaseSeeder only: reference data and the three staff accounts.
     # DemoDataSeeder, which invents families and money, is never run here.
     as_app php "$APP_DIR/backend/artisan" db:seed --force
-    warn "Sign in as admin@amaso.org / password, then change it immediately"
+    warn "The starting accounts and their passwords were printed above - write them down"
 else
     ok "${user_count} user account(s) already present - not seeding"
 fi

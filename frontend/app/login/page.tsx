@@ -13,7 +13,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Logo } from "@/components/landing/logo"
 import { ThemeToggle } from "@/components/theme-toggle"
 import api from "@/lib/api"
-import { DEMO_ACCOUNTS } from "@/lib/roles"
 
 const ORG_NAME = "جمعية المنصور لكفالة اليتيم"
 
@@ -57,12 +56,6 @@ export default function LoginPage() {
     // than flicking back to "sign in" for the moment before navigation.
   }
 
-  const fillDemoAccount = (demoEmail: string, demoPassword: string) => {
-    setEmail(demoEmail)
-    setPassword(demoPassword)
-    setError("")
-  }
-
   return (
     <div className="flex min-h-screen bg-[#fdfcfa] text-slate-800 dark:bg-slate-950 dark:text-slate-200">
       {/* ------------------------------------------------------------ form */}
@@ -100,7 +93,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@amaso.org"
+                  placeholder="name@amaso.site"
                   required
                   autoComplete="username"
                   dir="ltr"
@@ -157,37 +150,6 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* --------------------------------------------- demo accounts */}
-            <div className="mt-8">
-              <div className="mb-3 flex items-center gap-3">
-                <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
-                <span className="text-xs font-medium text-slate-400">حسابات تجريبية</span>
-                <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
-              </div>
-
-              <div className="grid gap-2">
-                {DEMO_ACCOUNTS.map((account) => (
-                  <button
-                    key={account.email}
-                    type="button"
-                    onClick={() => fillDemoAccount(account.email, account.password)}
-                    className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-right transition-all hover:border-teal-300 hover:bg-teal-50/60 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-teal-800 dark:hover:bg-slate-800"
-                  >
-                    <span className="text-xs text-slate-400 group-hover:text-teal-600 dark:group-hover:text-teal-400" dir="ltr">
-                      {account.email}
-                    </span>
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                      {account.label}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              <p className="mt-3 text-center text-xs text-slate-400">
-                كلمة المرور لجميع الحسابات التجريبية:{" "}
-                <span className="font-semibold text-slate-500 dark:text-slate-300" dir="ltr">password</span>
-              </p>
-            </div>
           </div>
         </div>
       </div>

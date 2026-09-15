@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast"
 import { History, Search, ShieldAlert, Loader2, ChevronDown, ChevronLeft, RotateCcw } from "lucide-react"
 import api from "@/lib/api"
-import { isCurrentUserAdmin } from "@/lib/roles"
+import { isCurrentUserSuperuser } from "@/lib/roles"
 import { cn } from "@/lib/utils"
 
 type Change = {
@@ -114,7 +114,7 @@ export default function AuditLogPage() {
   // Read after mount: the role lives in localStorage, which the server does
   // not have during the first render.
   useEffect(() => {
-    setIsAdmin(isCurrentUserAdmin())
+    setIsAdmin(isCurrentUserSuperuser())
   }, [])
 
   useEffect(() => {
@@ -186,8 +186,8 @@ export default function AuditLogPage() {
       <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
         <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" />
         <div>
-          <p className="font-medium">هذه الصفحة لمدير النظام</p>
-          <p className="text-sm">سجل النشاط متاح لمدير النظام وحده.</p>
+          <p className="font-medium">هذه الصفحة للمستخدم الأعلى</p>
+          <p className="text-sm">سجل النشاط متاح للمستخدم الأعلى وحده — مدير النظام لا يصل إليه.</p>
         </div>
       </div>
     )

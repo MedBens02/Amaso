@@ -1,5 +1,21 @@
 <?php
 
+/*
+ * Signs in with the account named in the environment:
+ *
+ *     AMASO_EMAIL=you@amaso.site AMASO_PASSWORD='...' php money-audit.php
+ *
+ * It used to be a demo account with a shared password, which no longer
+ * exists - every install now invents its own while seeding.
+ */
+define('AMASO_EMAIL', getenv('AMASO_EMAIL') ?: 'mohamed@amaso.site');
+define('AMASO_PASSWORD', getenv('AMASO_PASSWORD') ?: '');
+
+if (AMASO_PASSWORD === '') {
+    fwrite(STDERR, "Set AMASO_PASSWORD (and AMASO_EMAIL if not " . AMASO_EMAIL . ") before running this.\n");
+    exit(1);
+}
+
 /**
  * Drives the money side of the API from end to end and checks the books.
  *
@@ -136,7 +152,7 @@ echo PHP_EOL . "  database " . config('database.connections.mysql.database')
 // ---------------------------------------------------------------------------
 heading('Sign in and read the starting position');
 // ---------------------------------------------------------------------------
-$login = api('POST', '/auth/login', ['email' => 'admin@amaso.org', 'password' => 'password']);
+$login = api('POST', '/auth/login', ['email' => AMASO_EMAIL, 'password' => AMASO_PASSWORD]);
 check('login returns a token', $login['status'] === 200 && !empty($login['body']['data']['token'] ?? $login['body']['token'] ?? null));
 $token = $login['body']['data']['token'] ?? $login['body']['token'] ?? null;
 
