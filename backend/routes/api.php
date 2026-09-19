@@ -235,6 +235,12 @@ Route::prefix('v1')->group(function () {
         Route::put('illnesses/{illness}', [References\IllnessController::class, 'update']);
         Route::delete('illnesses/{illness}', [References\IllnessController::class, 'destroy']);
 
+        // Housing Types
+        Route::get('housing-types', [References\HousingTypeController::class, 'index']);
+        Route::post('housing-types', [References\HousingTypeController::class, 'store']);
+        Route::put('housing-types/{housingType}', [References\HousingTypeController::class, 'update']);
+        Route::delete('housing-types/{housingType}', [References\HousingTypeController::class, 'destroy']);
+
         // Aid Types
         Route::get('aid-types', [References\AidTypeController::class, 'index']);
         Route::post('aid-types', [References\AidTypeController::class, 'store']);

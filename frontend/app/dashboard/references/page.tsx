@@ -18,6 +18,7 @@ import {
   Building, 
   Star,
   HandHeart,
+  Home,
   ArrowUpDown
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
@@ -38,6 +39,7 @@ export default function ReferencesPage() {
   const [illnesses, setIllnesses] = useState<ReferenceItem[]>([])
   const [skills, setSkills] = useState<ReferenceItem[]>([])
   const [aidTypes, setAidTypes] = useState<ReferenceItem[]>([])
+  const [housingTypes, setHousingTypes] = useState<ReferenceItem[]>([])
   const [incomeCategories, setIncomeCategories] = useState<ReferenceItem[]>([])
   const [expenseCategories, setExpenseCategories] = useState<ReferenceItem[]>([])
   const [partners, setPartners] = useState<ReferenceItem[]>([])
@@ -46,7 +48,7 @@ export default function ReferencesPage() {
   
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [dialogType, setDialogType] = useState<'illness' | 'skill' | 'aid-type' | 'income-category' | 'expense-category' | 'partner' | 'education-level'>('illness')
+  const [dialogType, setDialogType] = useState<'illness' | 'skill' | 'aid-type' | 'housing-type' | 'income-category' | 'expense-category' | 'partner' | 'education-level'>('illness')
   const [selectedItem, setSelectedItem] = useState<ReferenceItem | undefined>()
   
   // Reorder dialog state
@@ -70,6 +72,7 @@ export default function ReferencesPage() {
         fetch(`${baseUrl}/references/skills`).then(res => res.ok ? res.json() : { data: [] }),
         fetch(`${baseUrl}/references/illnesses`).then(res => res.ok ? res.json() : { data: [] }),
         fetch(`${baseUrl}/references/aid-types`).then(res => res.ok ? res.json() : { data: [] }),
+        fetch(`${baseUrl}/references/housing-types`).then(res => res.ok ? res.json() : { data: [] }),
         fetch(`${baseUrl}/references/widow-income-categories`).then(res => res.ok ? res.json() : { data: [] }),
         fetch(`${baseUrl}/references/widow-expense-categories`).then(res => res.ok ? res.json() : { data: [] }),
         fetch(`${baseUrl}/references/partners`).then(res => res.ok ? res.json() : { data: [] }),
@@ -80,6 +83,7 @@ export default function ReferencesPage() {
         skillsResponse, 
         illnessesResponse, 
         aidTypesResponse, 
+        housingTypesResponse,
         incomeCategoriesResponse, 
         expenseCategoriesResponse, 
         partnersResponse, 
@@ -94,6 +98,9 @@ export default function ReferencesPage() {
       }
       if (aidTypesResponse.status === 'fulfilled') {
         setAidTypes(aidTypesResponse.value.data || [])
+      }
+      if (housingTypesResponse.status === 'fulfilled') {
+        setHousingTypes(housingTypesResponse.value.data || [])
       }
       if (incomeCategoriesResponse.status === 'fulfilled') {
         setIncomeCategories(incomeCategoriesResponse.value.data || [])
@@ -144,7 +151,14 @@ export default function ReferencesPage() {
   }
 
   const handleDeleteItem = async (type: typeof dialogType, item: ReferenceItem) => {
-    if (!confirm(`هل أنت متأكد من حذف هذا العنصر؟ سيتم حذف جميع البيانات المرتبطة به.`)) {
+    // A housing type is the one answer to "where does this family live", so
+    // nothing is deleted alongside it - the server refuses while any family
+    // is on it. Promising to delete "everything linked" would be a lie.
+    const warning = type === 'housing-type'
+      ? `هل أنت متأكد من حذف هذا العنصر؟`
+      : `هل أنت متأكد من حذف هذا العنصر؟ سيتم حذف جميع البيانات المرتبطة به.`
+
+    if (!confirm(warning)) {
       return
     }
 
@@ -153,6 +167,7 @@ export default function ReferencesPage() {
         'illness': 'references/illnesses',
         'skill': 'references/skills',
         'aid-type': 'references/aid-types',
+        'housing-type': 'references/housing-types',
         'income-category': 'references/widow-income-categories',
         'expense-category': 'references/widow-expense-categories',
         'partner': 'references/partners',
@@ -285,7 +300,7 @@ export default function ReferencesPage() {
       </div>
 
       <Tabs defaultValue="illnesses" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid h-auto w-full grid-cols-4 gap-1 xl:grid-cols-8">
           <TabsTrigger value="illnesses" className="flex items-center gap-2">
             <Heart className="h-4 w-4" />
             الأمراض
@@ -297,6 +312,10 @@ export default function ReferencesPage() {
           <TabsTrigger value="aid-types" className="flex items-center gap-2">
             <HandHeart className="h-4 w-4" />
             أنواع المساعدات
+          </TabsTrigger>
+          <TabsTrigger value="housing-types" className="flex items-center gap-2">
+            <Home className="h-4 w-4" />
+            أنواع السكن
           </TabsTrigger>
           <TabsTrigger value="income" className="flex items-center gap-2">
             <DollarSign className="h-4 w-4" />
@@ -344,6 +363,16 @@ export default function ReferencesPage() {
             icon={HandHeart}
             keyField="label"
             type="aid-type"
+          />
+        </TabsContent>
+
+        <TabsContent value="housing-types">
+          <ReferenceDataTable
+            data={housingTypes}
+            title="أنواع السكن"
+            icon={Home}
+            keyField="label"
+            type="housing-type"
           />
         </TabsContent>
 

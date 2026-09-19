@@ -22,7 +22,7 @@ import { useToast } from "@/hooks/use-toast"
 interface ReferenceItemDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  type: 'illness' | 'skill' | 'aid-type' | 'income-category' | 'expense-category' | 'partner' | 'education-level' | 'partner-field' | 'partner-subfield'
+  type: 'illness' | 'skill' | 'aid-type' | 'housing-type' | 'income-category' | 'expense-category' | 'partner' | 'education-level' | 'partner-field' | 'partner-subfield'
   item?: any
   onSuccess: () => void
   extraProps?: any
@@ -33,6 +33,7 @@ const getTitle = (type: string) => {
     'illness': 'المرض',
     'skill': 'المهارة',
     'aid-type': 'نوع المساعدة',
+    'housing-type': 'نوع السكن',
     'income-category': 'فئة الدخل',
     'expense-category': 'فئة المصروف',
     'partner': 'الشريك',
@@ -42,6 +43,9 @@ const getTitle = (type: string) => {
   }
   return titles[type as keyof typeof titles] || 'العنصر'
 }
+
+/** The lookups whose text lives in a `label` column; the rest use `name`. */
+const labelledTypes = ['skill', 'aid-type', 'housing-type', 'illness']
 
 const getSchema = (type: string) => {
   if (type === 'illness') {
@@ -60,7 +64,7 @@ const getSchema = (type: string) => {
     })
   }
 
-  if (type === 'skill' || type === 'aid-type') {
+  if (type === 'skill' || type === 'aid-type' || type === 'housing-type') {
     return z.object({
       label: z.string().min(1, "التسمية مطلوبة"),
     })
@@ -177,6 +181,7 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
         'illness': 'references/illnesses',
         'skill': 'references/skills',
         'aid-type': 'references/aid-types',
+        'housing-type': 'references/housing-types',
         'income-category': 'references/widow-income-categories',
         'expense-category': 'references/widow-expense-categories',
         'partner': 'references/partners',
@@ -504,18 +509,19 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
             </>
           ) : (
             <div className="space-y-2">
-              <Label htmlFor={type === 'skill' || type === 'aid-type' || type === 'illness' ? 'label' : 'name'}>
+              <Label htmlFor={labelledTypes.includes(type) ? 'label' : 'name'}>
                 {type === 'skill' ? 'اسم المهارة' :
                  type === 'aid-type' ? 'نوع المساعدة' :
+                 type === 'housing-type' ? 'نوع السكن' :
                  type === 'illness' ? 'المرض' :
                  type === 'income-category' ? 'اسم فئة الدخل' :
                  type === 'expense-category' ? 'اسم فئة المصروف' :
                  'الاسم'} *
               </Label>
               <Input
-                id={type === 'skill' || type === 'aid-type' || type === 'illness' ? 'label' : 'name'}
-                {...form.register(type === 'skill' || type === 'aid-type' || type === 'illness' ? 'label' : 'name')}
-                placeholder={type === 'income-category' ? 'مثال: راتب، مساعدات خارجية' : type === 'expense-category' ? 'مثال: رواتب، مصاريف إدارية' : 'ادخل الاسم'}
+                id={labelledTypes.includes(type) ? 'label' : 'name'}
+                {...form.register(labelledTypes.includes(type) ? 'label' : 'name')}
+                placeholder={type === 'income-category' ? 'مثال: راتب، مساعدات خارجية' : type === 'expense-category' ? 'مثال: رواتب، مصاريف إدارية' : type === 'housing-type' ? 'مثال: شقة، منزل، غرفة' : 'ادخل الاسم'}
               />
               {form.formState.errors.name && (
                 <p className="text-sm text-red-600">{form.formState.errors.name.message}</p>

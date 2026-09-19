@@ -22,7 +22,7 @@ class ReferenceDataSeeder extends Seeder
             DB::table('aid_types')->updateOrInsert(['label' => $label], ['updated_at' => $now, 'created_at' => $now]);
         }
 
-        foreach (['شقة', 'منزل', 'غرفة', 'بيت شعبي', 'كوخ'] as $label) {
+        foreach (['شقة', 'منزل', 'غرفة', 'بيت شعبي'] as $label) {
             DB::table('housing_types')->updateOrInsert(['label' => $label], ['updated_at' => $now, 'created_at' => $now]);
         }
 
