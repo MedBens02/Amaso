@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -259,12 +260,12 @@ export default function AuditLogPage() {
 
             <div className="space-y-1.5">
               <Label className="text-xs">من تاريخ</Label>
-              <Input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} />
+              <DateField value={fromDate} onChange={setFromDate} />
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-xs">إلى تاريخ</Label>
-              <Input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} />
+              <DateField value={toDate} onChange={setToDate} />
             </div>
           </div>
 

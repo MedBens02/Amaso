@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Switch } from "@/components/ui/switch"
 import { Filter, X } from "lucide-react"
@@ -112,18 +113,16 @@ export function ReportFilters({
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">من تاريخ</Label>
-                <Input
-                  type="date"
+                <DateField
                   value={toDateInputValue(values[fromField])}
-                  onChange={(e) => handleValueChange(fromField, fromDateInputValue(e.target.value))}
+                  onChange={(value) => handleValueChange(fromField, fromDateInputValue(value))}
                 />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">إلى تاريخ</Label>
-                <Input
-                  type="date"
+                <DateField
                   value={toDateInputValue(values[toField])}
-                  onChange={(e) => handleValueChange(toField, fromDateInputValue(e.target.value))}
+                  onChange={(value) => handleValueChange(toField, fromDateInputValue(value))}
                 />
               </div>
             </div>

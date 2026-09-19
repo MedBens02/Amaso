@@ -5,7 +5,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -106,11 +106,11 @@ export function OperationalReportDialog({ open, onOpenChange, spec }: Operationa
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">من تاريخ</Label>
-              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+              <DateField value={from} onChange={setFrom} />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">إلى تاريخ</Label>
-              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+              <DateField value={to} onChange={setTo} />
             </div>
           </div>
         )}

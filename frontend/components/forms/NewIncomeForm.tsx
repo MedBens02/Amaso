@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -518,11 +519,10 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                 name="income_date"
                 control={form.control}
                 render={({ field }) => (
-                  <Input
-                    type="date"
+                  <DateField
                     max={toDateInputValue(new Date())}
                     value={toDateInputValue(field.value)}
-                    onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
+                    onChange={(value) => field.onChange(fromDateInputValue(value))}
                   />
                 )}
               />
@@ -977,7 +977,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
             ⚠️ تحذير السنة المالية
           </DialogTitle>
           <DialogDescription>
-            التاريخ المحدد ({pendingSubmitData ? format(pendingSubmitData.income_date, 'yyyy/MM/dd') : ''}) لا يقع ضمن السنة المالية النشطة ({activeFiscalYear?.year}).
+            التاريخ المحدد ({pendingSubmitData ? format(pendingSubmitData.income_date, 'dd/MM/yyyy') : ''}) لا يقع ضمن السنة المالية النشطة ({activeFiscalYear?.year}).
             <br /><br />
             سيتم ربط هذا الإيراد بالسنة المالية النشطة ({activeFiscalYear?.year}) وليس بسنة التاريخ المحدد.
             <br /><br />

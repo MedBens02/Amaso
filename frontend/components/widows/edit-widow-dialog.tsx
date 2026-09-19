@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
@@ -648,11 +649,10 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                       control={form.control}
                       render={({ field }) => (
                         <div onClick={(e) => e.stopPropagation()}>
-                          <Input
-                            type="date"
+                          <DateField
                             max={toDateInputValue(new Date())}
                             value={toDateInputValue(field.value)}
-                            onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
+                            onChange={(value) => field.onChange(fromDateInputValue(value))}
                           />
                         </div>
                       )}
@@ -720,11 +720,10 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                       control={form.control}
                       render={({ field }) => (
                         <div onClick={(e) => e.stopPropagation()}>
-                          <Input
-                            type="date"
+                          <DateField
                             max={toDateInputValue(new Date())}
                             value={toDateInputValue(field.value)}
-                            onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
+                            onChange={(value) => field.onChange(fromDateInputValue(value))}
                           />
                         </div>
                       )}
@@ -877,11 +876,10 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                         control={form.control}
                         render={({ field }) => (
                           <div onClick={(e) => e.stopPropagation()}>
-                            <Input
-                            type="date"
+                            <DateField
                             max={toDateInputValue(new Date())}
                             value={toDateInputValue(field.value)}
-                            onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
+                            onChange={(value) => field.onChange(fromDateInputValue(value))}
                           />
                           </div>
                         )}

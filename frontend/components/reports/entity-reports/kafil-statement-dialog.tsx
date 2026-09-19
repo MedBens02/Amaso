@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { FileDown, HandCoins, Loader2, Users } from "lucide-react"
@@ -140,11 +140,11 @@ export function KafilStatementDialog({ open, onOpenChange }: KafilStatementDialo
 
             <div className="space-y-2">
               <Label>من تاريخ</Label>
-              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+              <DateField value={from} onChange={setFrom} />
             </div>
             <div className="space-y-2">
               <Label>إلى تاريخ</Label>
-              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+              <DateField value={to} onChange={setTo} />
             </div>
             <div className="flex items-end">
               <Button onClick={loadStatement} disabled={loading} className="w-full">

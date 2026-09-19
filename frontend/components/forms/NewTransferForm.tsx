@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -213,10 +214,9 @@ export function NewTransferDialog({ open, onOpenChange, onTransferCreated }: New
                 control={form.control}
                 render={({ field }) => (
                   <div onClick={(e) => e.stopPropagation()}>
-                    <Input
-                      type="date"
+                    <DateField
                       value={toDateInputValue(field.value)}
-                      onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
+                      onChange={(value) => field.onChange(fromDateInputValue(value))}
                     />
                   </div>
                 )}

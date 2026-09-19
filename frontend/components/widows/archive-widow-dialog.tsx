@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { useToast } from "@/hooks/use-toast"
 import { Archive, Loader2 } from "lucide-react"
 import api from "@/lib/api"
@@ -94,7 +94,7 @@ export function ArchiveWidowDialog({ open, onOpenChange, widowId, widowName, onA
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>تاريخ المغادرة *</Label>
-            <Input type="date" value={leavingDate} onChange={(e) => setLeavingDate(e.target.value)} />
+            <DateField value={leavingDate} onChange={setLeavingDate} />
           </div>
 
           <div className="space-y-2">

@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Search, ArrowLeftRight, Banknote, Filter, Calendar, DollarSign } from "lucide-react"
+import { Plus, Search, ArrowLeftRight, Banknote, Filter, DollarSign } from "lucide-react"
 import { TransfersTable } from "@/components/transfers/transfers-table"
 import { NewTransferDialog } from "@/components/forms/NewTransferForm"
 import { BankAccountStatement } from "@/components/transfers/bank-account-statement"
@@ -363,15 +364,10 @@ export default function TransfersPage() {
               {/* Date Range */}
               <div className="space-y-2">
                 <Label>من تاريخ</Label>
-                <div className="relative">
-                  <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    type="date"
-                    value={filters.from_date}
-                    onChange={(e) => updateFilter('from_date', e.target.value)}
-                    className="pr-10"
-                  />
-                </div>
+                <DateField
+                  value={filters.from_date}
+                  onChange={(value) => updateFilter('from_date', value)}
+                />
               </div>
 
             </div>

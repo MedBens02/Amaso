@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Banknote } from "lucide-react"
@@ -227,11 +227,10 @@ export function TransferIncomeDialog({ open, onOpenChange, items, onSuccess }: T
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="transferDate">تاريخ التحويل *</Label>
-              <Input
-                type="date"
+              <DateField
                 value={toDateInputValue(transferDate)}
-                onChange={(e) => {
-                  const date = fromDateInputValue(e.target.value)
+                onChange={(value) => {
+                  const date = fromDateInputValue(value)
                   if (date) setTransferDate(date)
                 }}
               />
