@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Select, { ActionMeta } from 'react-select'
-import { reactSelectStyles } from '@/lib/react-select-theme'
+import { reactSelectProps } from '@/lib/react-select-theme'
 import CreatableSelect from 'react-select/creatable'
 
 export interface Option {
@@ -54,23 +54,12 @@ export function SingleSelectRS({
     onChange(newValue ? newValue.value : null)
   }
 
-  /**
-   * The shared theme, plus the few rules this control needs on top.
-   *
-   * The local copy that used to live here set `position: 'relative'` on the
-   * menu. react-select portals the menu to <body> and positions it absolutely
-   * against the control; forcing it relative broke that, and with it the
-   * list's own max-height - which is why long lists (income sources, skills,
-   * sponsors) appeared to stop partway down with no way to scroll. The shared
-   * theme leaves the positioning to the library and caps the list instead.
-   */
-  const customStyles = { ...reactSelectStyles }
-
   const SelectComponent = isCreatable ? CreatableSelect : Select
 
   return (
     <div className={className}>
       <SelectComponent
+        {...reactSelectProps}
         options={options}
         value={selectedOption}
         onChange={handleChange}
@@ -79,11 +68,6 @@ export function SingleSelectRS({
         isDisabled={isDisabled}
         isClearable={isClearable}
         menuPortalTarget={menuPortalTarget}
-        menuPosition="fixed"
-        menuShouldBlockScroll={false}
-        menuShouldScrollIntoView={false}
-        styles={customStyles}
-        classNamePrefix="rs"
         // Creatable specific props
         createOptionPosition="first"
         formatCreateLabel={(inputValue) => `إنشاء "${inputValue}"`}
@@ -97,10 +81,6 @@ export function SingleSelectRS({
           const newValue = `__new_option_${inputValue}`
           onChange(newValue)
         }}
-        components={{
-          IndicatorSeparator: () => null,
-        }}
-        noOptionsMessage={() => "لا توجد خيارات"}
       />
     </div>
   )
