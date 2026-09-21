@@ -449,6 +449,9 @@ class DemoDataSeeder extends Seeder
             $donors[] = Donor::create([
                 'first_name' => $first,
                 'last_name' => $last,
+                // Invented, like every other identifier in this seeder:
+                // a letter and six digits, in the shape of a Moroccan CIN.
+                'national_id' => 'D' . rand(100000, 999999),
                 'phone' => '06' . rand(10000000, 99999999),
                 'email' => strtolower($first) . '.' . strtolower($last) . '@example.com',
                 'is_kafil' => $index < 8,

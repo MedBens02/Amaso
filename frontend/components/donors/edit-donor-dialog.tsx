@@ -7,13 +7,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { User, Phone, Mail, MapPin, HandCoins } from "lucide-react"
+import { CreditCard, HandCoins, Mail, MapPin, Phone, User } from "lucide-react"
 import api from "@/lib/api"
 
 interface Donor {
   id: number
   first_name: string
   last_name: string
+  national_id?: string
   phone: string
   email: string
   address?: string
@@ -35,6 +36,7 @@ export function EditDonorDialog({ donor, open, onOpenChange, onSuccess }: EditDo
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
+    national_id: "",
     phone: "",
     email: "",
     address: "",
@@ -46,6 +48,7 @@ export function EditDonorDialog({ donor, open, onOpenChange, onSuccess }: EditDo
       setFormData({
         first_name: donor.first_name || "",
         last_name: donor.last_name || "",
+        national_id: donor.national_id || "",
         phone: donor.phone || "",
         email: donor.email || "",
         address: donor.address || "",
@@ -62,6 +65,7 @@ export function EditDonorDialog({ donor, open, onOpenChange, onSuccess }: EditDo
       const updateData = {
         first_name: formData.first_name,
         last_name: formData.last_name,
+        national_id: formData.national_id || undefined,
         phone: formData.phone || undefined,
         email: formData.email || undefined,
         address: formData.address || undefined,
@@ -146,6 +150,19 @@ export function EditDonorDialog({ donor, open, onOpenChange, onSuccess }: EditDo
                   required
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="nationalId" className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                رقم البطاقة الوطنية
+              </Label>
+              <Input
+                id="nationalId"
+                value={formData.national_id}
+                onChange={(e) => handleInputChange("national_id", e.target.value)}
+                placeholder="أدخل رقم البطاقة الوطنية"
+              />
             </div>
 
             <div className="space-y-2">

@@ -405,6 +405,7 @@ class ApiClient {
   async createDonor(data: {
     first_name: string
     last_name: string
+    national_id?: string
     phone?: string
     email?: string
     address?: string
@@ -421,6 +422,7 @@ class ApiClient {
   async updateDonor(id: number, data: {
     first_name: string
     last_name: string
+    national_id?: string
     phone?: string
     email?: string
     address?: string

@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Phone, Mail, MapPin, HandCoins, Users } from "lucide-react"
+import { CreditCard, HandCoins, Mail, MapPin, Phone, Users } from "lucide-react"
 import { PrintDonorPDF } from "./print-donor-pdf"
 import api from "@/lib/api"
 
@@ -13,6 +13,7 @@ interface Donor {
   id: number
   first_name: string
   last_name: string
+  national_id?: string
   phone: string
   email: string
   address?: string
@@ -87,6 +88,14 @@ export function ViewDonorDialog({ donor, open, onOpenChange }: ViewDonorDialogPr
               <Label className="text-sm font-medium text-muted-foreground">الاسم الكامل</Label>
               <p className="text-lg font-semibold">
                 {donor.first_name} {donor.last_name}
+              </p>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground">رقم البطاقة الوطنية</Label>
+              <p className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-muted-foreground" />
+                {donor.national_id || "غير محدد"}
               </p>
             </div>
 
