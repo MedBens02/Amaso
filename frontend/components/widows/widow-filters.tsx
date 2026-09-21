@@ -178,7 +178,7 @@ export function WidowFilters({ onFiltersChange, initialFilters = {} }: WidowFilt
             <SelectTrigger>
               <SelectValue placeholder="اختر شريك المؤونة" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               <SelectItem value="all">جميع الشركاء</SelectItem>
               {referenceData.partners.map((partner) => (
                 <SelectItem key={partner.id} value={partner.id.toString()}>
@@ -196,7 +196,7 @@ export function WidowFilters({ onFiltersChange, initialFilters = {} }: WidowFilt
             <SelectTrigger>
               <SelectValue placeholder="اختر نوع المرض" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               <SelectItem value="all">جميع الأمراض</SelectItem>
               {referenceData.illnesses.map((illness) => (
                 <SelectItem key={illness.id} value={illness.id.toString()}>
@@ -214,7 +214,7 @@ export function WidowFilters({ onFiltersChange, initialFilters = {} }: WidowFilt
             <SelectTrigger>
               <SelectValue placeholder="اختر نوع المساعدة" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               <SelectItem value="all">جميع أنواع المساعدة</SelectItem>
               {referenceData.aid_types.map((aid) => (
                 <SelectItem key={aid.id} value={aid.id.toString()}>
@@ -232,7 +232,7 @@ export function WidowFilters({ onFiltersChange, initialFilters = {} }: WidowFilt
             <SelectTrigger>
               <SelectValue placeholder="اختر المهارة" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               <SelectItem value="all">جميع المهارات</SelectItem>
               {referenceData.skills.map((skill) => (
                 <SelectItem key={skill.id} value={skill.id.toString()}>

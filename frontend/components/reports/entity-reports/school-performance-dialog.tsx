@@ -156,7 +156,7 @@ export function SchoolPerformanceDialog({ open, onOpenChange }: SchoolPerformanc
               <Label className="text-xs">السنة الدراسية</Label>
               <Select value={academicYearId} onValueChange={setAcademicYearId}>
                 <SelectTrigger><SelectValue placeholder="السنة" /></SelectTrigger>
-                <SelectContent>
+                <SelectContent searchable>
                   <SelectItem value={ANY}>السنة الحالية</SelectItem>
                   {years.map((year) => (
                     <SelectItem key={year.id} value={year.id.toString()}>
@@ -195,7 +195,7 @@ export function SchoolPerformanceDialog({ open, onOpenChange }: SchoolPerformanc
               <Label className="text-xs">المستوى الدراسي</Label>
               <Select value={levelId} onValueChange={setLevelId}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent searchable>
                   <SelectItem value={ANY}>كل المستويات</SelectItem>
                   {levels.map((level) => (
                     <SelectItem key={level.id} value={level.id.toString()}>{level.name_ar}</SelectItem>
@@ -232,7 +232,7 @@ export function SchoolPerformanceDialog({ open, onOpenChange }: SchoolPerformanc
               <Label className="text-xs">المؤسسة</Label>
               <Select value={schoolId} onValueChange={setSchoolId}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent searchable>
                   <SelectItem value={ANY}>كل المؤسسات</SelectItem>
                   {schools.map((school) => (
                     <SelectItem key={school.id} value={school.id.toString()}>{school.name}</SelectItem>

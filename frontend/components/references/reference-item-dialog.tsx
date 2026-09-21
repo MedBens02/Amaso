@@ -354,7 +354,7 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
                       <SelectTrigger>
                         <SelectValue placeholder="اختر المجال" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent searchable>
                         {extraProps?.fields?.map((fieldOption: any) => (
                           <SelectItem key={fieldOption.id} value={fieldOption.id.toString()}>
                             {fieldOption.label}
@@ -451,7 +451,7 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
                       <SelectTrigger>
                         <SelectValue placeholder="اختر المجال (اختياري)" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent searchable>
                         <SelectItem value="0">بدون مجال</SelectItem>
                         {extraProps?.fields?.map((fieldOption: any) => (
                           <SelectItem key={fieldOption.id} value={fieldOption.id.toString()}>
@@ -488,7 +488,7 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
                               : "اختر التخصص (اختياري)"
                           } />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent searchable>
                           <SelectItem value="0">بدون تخصص</SelectItem>
                           {availableSubfields.map((subfield: any) => (
                             <SelectItem key={subfield.id} value={subfield.id.toString()}>

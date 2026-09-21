@@ -99,7 +99,7 @@ export function IncomeFilters({ filters, onFiltersChange, onApply, onClear }: In
             <SelectTrigger>
               <SelectValue placeholder="اختر السنة المالية" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               <SelectItem value="all">جميع السنوات</SelectItem>
               {fiscalYears.map((year) => (
                 <SelectItem key={year.id} value={year.id.toString()}>
@@ -119,7 +119,7 @@ export function IncomeFilters({ filters, onFiltersChange, onApply, onClear }: In
             <SelectTrigger>
               <SelectValue placeholder="اختر الميزانية" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               <SelectItem value="all">جميع الميزانيات</SelectItem>
               {budgets.map((budget) => (
                 <SelectItem key={budget.id} value={budget.id.toString()}>

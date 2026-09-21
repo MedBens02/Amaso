@@ -223,7 +223,7 @@ export default function AuditLogPage() {
               <Label className="text-xs">المستخدم</Label>
               <Select value={userId} onValueChange={setUserId}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent searchable>
                   <SelectItem value={ANY}>الجميع</SelectItem>
                   {users.map((option) => (
                     <SelectItem key={option.value} value={String(option.value)}>{option.label}</SelectItem>
@@ -236,7 +236,7 @@ export default function AuditLogPage() {
               <Label className="text-xs">نوع العملية</Label>
               <Select value={action} onValueChange={setAction}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent searchable>
                   <SelectItem value={ANY}>كل العمليات</SelectItem>
                   {actions.map((option) => (
                     <SelectItem key={option.value} value={String(option.value)}>{option.label}</SelectItem>
@@ -249,7 +249,7 @@ export default function AuditLogPage() {
               <Label className="text-xs">نوع السجل</Label>
               <Select value={entityType} onValueChange={setEntityType}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent searchable>
                   <SelectItem value={ANY}>كل السجلات</SelectItem>
                   {entityTypes.map((option) => (
                     <SelectItem key={option.value} value={String(option.value)}>{option.label}</SelectItem>

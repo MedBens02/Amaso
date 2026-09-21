@@ -278,7 +278,7 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="السنة الدراسية" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               {years.map((y) => (
                 <SelectItem key={y.id} value={y.id.toString()}>
                   {y.label} {y.is_current ? "(الحالية)" : ""}

@@ -220,7 +220,7 @@ export function EnrollmentDialog({
                 <SelectTrigger>
                   <SelectValue placeholder="اختر السنة" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent searchable>
                   {years.map((year) => (
                     <SelectItem key={year.id} value={String(year.id)}>
                       {year.label} {year.is_current ? "(الحالية)" : ""}

@@ -242,7 +242,7 @@ export function TransferIncomeDialog({ open, onOpenChange, items, onSuccess }: T
                 <SelectTrigger>
                   <SelectValue placeholder="اختر الحساب البنكي" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent searchable>
                   {bankAccounts.map((account) => (
                     <SelectItem key={account.id} value={account.id.toString()}>
                       <div className="text-right">

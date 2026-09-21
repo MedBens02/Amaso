@@ -853,7 +853,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                                 <SelectTrigger>
                                   <SelectValue placeholder="اختر المرحلة الدراسية" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent searchable>
                                   <SelectItem value="0">غير محدد</SelectItem>
                                   {educationLevels.map((level) => (
                                     <SelectItem key={level.id} value={level.id.toString()}>
@@ -910,7 +910,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                             <SelectTrigger>
                               <SelectValue placeholder="اختر نوع السكن" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent searchable>
                               {referenceData.housing_types.map((type: any) => (
                                 <SelectItem key={type.id} value={type.id.toString()}>
                                   {type.label}
@@ -1038,7 +1038,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                                 <SelectTrigger>
                                   <SelectValue placeholder="اختر المصدر" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent searchable>
                                   {referenceData.income_categories.map((category: any) => (
                                     <SelectItem key={category.id} value={category.id.toString()}>
                                       {category.name}
@@ -1105,7 +1105,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                                 <SelectTrigger>
                                   <SelectValue placeholder="اختر الفئة" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent searchable>
                                   {referenceData.expense_categories.map((category: any) => (
                                     <SelectItem key={category.id} value={category.id.toString()}>
                                       {category.name}

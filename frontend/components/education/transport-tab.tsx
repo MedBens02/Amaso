@@ -119,7 +119,7 @@ export function TransportTab({ refreshKey }: { refreshKey?: number }) {
           <Label>السنة الدراسية</Label>
           <Select value={yearId ? String(yearId) : ""} onValueChange={(v) => setYearId(Number(v))}>
             <SelectTrigger className="w-56"><SelectValue placeholder="اختر السنة" /></SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               {years.map((year) => (
                 <SelectItem key={year.id} value={String(year.id)}>
                   {year.label}{year.is_current ? " (الحالية)" : ""}

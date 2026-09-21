@@ -252,7 +252,7 @@ export default function TransfersPage() {
                   <SelectTrigger>
                     <SelectValue placeholder="جميع الحسابات" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent searchable>
                     <SelectItem value="all">جميع الحسابات</SelectItem>
                     {bankAccounts.map((account) => (
                       <SelectItem key={account.id} value={account.id.toString()}>
@@ -269,7 +269,7 @@ export default function TransfersPage() {
                   <SelectTrigger>
                     <SelectValue placeholder="جميع الحسابات" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent searchable>
                     <SelectItem value="all">جميع الحسابات</SelectItem>
                     {bankAccounts.map((account) => (
                       <SelectItem key={account.id} value={account.id.toString()}>

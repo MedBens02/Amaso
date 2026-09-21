@@ -876,7 +876,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                         <SelectTrigger>
                           <SelectValue placeholder="اختر الميزانية" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent searchable>
                           {budgets.map(budget => (
                             <SelectItem key={budget.id} value={budget.id.toString()}>
                               {budget.label}
@@ -899,7 +899,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                         <SelectTrigger>
                           <SelectValue placeholder="اختر فئة المصروف" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent searchable>
                           {categoryOptions.map(option => (
                             <SelectItem key={option.value} value={option.value}>
                               {option.label}
@@ -922,7 +922,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                         <SelectTrigger>
                           <SelectValue placeholder="اختر الشريك (اختياري)" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent searchable>
                           <SelectItem value="0">بدون شريك</SelectItem>
                           {partners.map(partner => (
                             <SelectItem key={partner.id} value={partner.id.toString()}>
@@ -1029,7 +1029,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
                           <SelectTrigger>
                             <SelectValue placeholder="اختر الحساب البنكي" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent searchable>
                             {bankAccounts.map(account => (
                               <SelectItem key={account.id} value={account.id.toString()}>
                                 {account.label || account.name} - {account.bank_name} (رصيد: {Number(account.balance).toLocaleString()} DH)

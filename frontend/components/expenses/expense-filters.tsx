@@ -104,7 +104,7 @@ export function ExpenseFilters({ filters, onFiltersChange, onApply, onClear }: E
             <SelectTrigger>
               <SelectValue placeholder="اختر السنة المالية" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               <SelectItem value="all">جميع السنوات المالية</SelectItem>
               {fiscalYears.map(fy => (
                 <SelectItem key={fy.id} value={fy.id.toString()}>{fy.year}</SelectItem>
@@ -119,7 +119,7 @@ export function ExpenseFilters({ filters, onFiltersChange, onApply, onClear }: E
             <SelectTrigger>
               <SelectValue placeholder="اختر الميزانية" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               <SelectItem value="all">جميع الميزانيات</SelectItem>
               {budgets.map(sb => (
                 <SelectItem key={sb.id} value={sb.id.toString()}>{sb.label}</SelectItem>
@@ -134,7 +134,7 @@ export function ExpenseFilters({ filters, onFiltersChange, onApply, onClear }: E
             <SelectTrigger>
               <SelectValue placeholder="اختر فئة المصروف" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               <SelectItem value="all">جميع فئات المصروف</SelectItem>
               {expenseCategories.map(category => (
                 <SelectItem key={category.id} value={category.id.toString()}>{category.label}</SelectItem>
@@ -149,7 +149,7 @@ export function ExpenseFilters({ filters, onFiltersChange, onApply, onClear }: E
             <SelectTrigger>
               <SelectValue placeholder="اختر الشريك" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               <SelectItem value="all">جميع الشركاء</SelectItem>
               {partners.map(partner => (
                 <SelectItem key={partner.id} value={partner.id.toString()}>{partner.name}</SelectItem>

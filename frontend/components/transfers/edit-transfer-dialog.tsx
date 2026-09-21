@@ -242,7 +242,7 @@ export function EditTransferDialog({ transfer, open, onOpenChange, onTransferUpd
                     <SelectTrigger>
                       <SelectValue placeholder="اختر الحساب المرسل" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent searchable>
                       {bankAccounts.map((account) => (
                         <SelectItem key={account.id} value={account.id.toString()}>
                           <div className="flex items-center justify-between w-full">
@@ -276,7 +276,7 @@ export function EditTransferDialog({ transfer, open, onOpenChange, onTransferUpd
                     <SelectTrigger>
                       <SelectValue placeholder="اختر الحساب المستقبل" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent searchable>
                       {bankAccounts
                         .filter((account) => account.id.toString() !== fromAccount)
                         .map((account) => (

@@ -795,7 +795,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                           <SelectTrigger>
                             <SelectValue placeholder={incomeType === 'kafala_chamila' ? 'اختر الأسرة المستفيدة' : 'اختر الأسرة المستفيدة (اختياري)'} />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent searchable>
                             {selectedKafilSponsorship.sponsorships
                               // A sponsorship with no resolvable family cannot
                               // be offered: Radix refuses an empty value, and

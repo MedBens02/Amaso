@@ -142,7 +142,7 @@ export function ChildExtraFields({ form, index, schools = [] }: ChildExtraFields
                     <SelectTrigger>
                       <SelectValue placeholder="اختر المؤسسة" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent searchable>
                       <SelectItem value="0">غير محددة</SelectItem>
                       {schools.map((school) => (
                         <SelectItem key={school.id} value={school.id.toString()}>

@@ -983,7 +983,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                               <SelectTrigger>
                                 <SelectValue placeholder="اختر المرحلة الدراسية" />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent searchable>
                                 <SelectItem value="0">غير محدد</SelectItem>
                                 {educationLevels.map((level) => (
                                   <SelectItem key={level.id} value={level.id.toString()}>
@@ -1038,7 +1038,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                             <SelectTrigger>
                               <SelectValue placeholder="اختر نوع السكن" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent searchable>
                               {lookupData.housingTypes.map((type) => (
                                 <SelectItem key={type.id} value={type.id.toString()}>
                                   {type.name}

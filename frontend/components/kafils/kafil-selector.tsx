@@ -54,10 +54,17 @@ export function KafilSelector({ value, onValueChange, placeholder = "اختر ا
 
   const loadOptions = async (inputValue: string): Promise<KafilOption[]> => {
     try {
-      if (inputValue.length < 2 && inputValue.length > 0) {
-        return []
+      // One letter is too little to ask the server for - it would match
+      // most of the register - but returning nothing for it told the person
+      // typing "لا توجد نتائج", which reads as "this search is broken"
+      // rather than "keep typing". The list already on hand is filtered
+      // instead, so the first keystroke narrows something.
+      if (inputValue.length === 1) {
+        const needle = inputValue.toLowerCase()
+
+        return defaultOptions.filter((option) => option.label.toLowerCase().includes(needle))
       }
-      
+
       const response = await api.getKafilsForSponsorship(inputValue || undefined)
       return response.data
         .filter((kafil: Kafil) => !excludeIds.includes(kafil.id.toString()))

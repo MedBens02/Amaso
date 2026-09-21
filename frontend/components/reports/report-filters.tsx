@@ -144,7 +144,7 @@ export function ReportFilters({
               <SelectTrigger className="w-full">
                 <SelectValue placeholder={isLoading ? "جاري التحميل..." : (option.placeholder || "اختر")} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent searchable>
                 <SelectItem value="all">الكل</SelectItem>
                 {selectOptions.map(opt => (
                   <SelectItem key={opt.value} value={opt.value}>
