@@ -121,12 +121,16 @@ Route::prefix('v1')->group(function () {
     Route::get('reports/expenses.xlsx', [ReportController::class, 'expenseListExcel']);
     Route::get('reports/families/{widow}/financial', [ReportController::class, 'familyFinancial']);
     Route::get('reports/families/{widow}/financial.pdf', [ReportController::class, 'familyFinancialPdf']);
+    Route::get('reports/families/{widow}/financial.xlsx', [ReportController::class, 'familyFinancialExcel']);
     Route::get('reports/sponsorship-gaps', [ReportController::class, 'sponsorshipGaps']);
     Route::get('reports/sponsorship-gaps.pdf', [ReportController::class, 'sponsorshipGapsPdf']);
+    Route::get('reports/sponsorship-gaps.xlsx', [ReportController::class, 'sponsorshipGapsExcel']);
     Route::get('reports/kafil-follow-up', [ReportController::class, 'kafilFollowUp']);
     Route::get('reports/kafil-follow-up.pdf', [ReportController::class, 'kafilFollowUpPdf']);
+    Route::get('reports/kafil-follow-up.xlsx', [ReportController::class, 'kafilFollowUpExcel']);
     Route::get('reports/budget-utilization', [ReportController::class, 'budgetUtilization']);
     Route::get('reports/budget-utilization.pdf', [ReportController::class, 'budgetUtilizationPdf']);
+    Route::get('reports/budget-utilization.xlsx', [ReportController::class, 'budgetUtilizationExcel']);
     Route::get('reports/widows', [ReportController::class, 'widows']);
     Route::get('reports/widows.pdf', [ReportController::class, 'widowsPdf']);
     Route::get('reports/widows.xlsx', [ReportController::class, 'widowsExcel']);
@@ -143,7 +147,9 @@ Route::prefix('v1')->group(function () {
     Route::get('reports/annual.xlsx', [ReportController::class, 'annualExcel']);
     Route::get('reports/school-performance', [ReportController::class, 'schoolPerformance']);
     Route::get('reports/school-performance.pdf', [ReportController::class, 'schoolPerformancePdf']);
+    Route::get('reports/school-performance.xlsx', [ReportController::class, 'schoolPerformanceExcel']);
     Route::get('reports/kafils/{kafil}/statement.pdf', [ReportController::class, 'kafilStatementPdf']);
+    Route::get('reports/kafils/{kafil}/statement.xlsx', [ReportController::class, 'kafilStatementExcel']);
 
     // Expenses CRUD + approval
     Route::apiResource('expenses', ExpenseController::class);

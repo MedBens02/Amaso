@@ -536,6 +536,254 @@ class ReportController extends Controller
     }
 
     /**
+     * The same five reports as spreadsheets.
+     *
+     * They could only be downloaded as PDF, which is right for handing to
+     * somebody and wrong for anyone who then has to add a column, sort by
+     * a different figure or paste the numbers into next year's plan. Each
+     * one is built from the same aggregate as its PDF, so the two cannot
+     * say different things.
+     */
+    public function sponsorshipGapsExcel(Request $request)
+    {
+        $filters = $this->reportFilters($request);
+        $report = $this->aggregates->sponsorshipGaps($filters);
+
+        return $this->downloadSheet(
+            $this->spreadsheets->build(
+                'تقرير نقص الكفالة',
+                'الأسر غير المكفولة والأسر ذات التغطية الناقصة',
+                [
+                    ['key' => 'full_name', 'label' => 'الأسرة', 'width' => 30],
+                    ['key' => 'phone', 'label' => 'الهاتف', 'width' => 18],
+                    ['key' => 'neighborhood', 'label' => 'الحي', 'width' => 22],
+                    ['key' => 'orphans_count', 'label' => 'الأيتام', 'width' => 12],
+                    ['key' => 'kafils_count', 'label' => 'الكفلاء', 'width' => 12],
+                    ['key' => 'covered', 'label' => 'المغطّى', 'width' => 18, 'money' => true],
+                    ['key' => 'shortfall', 'label' => 'النقص', 'width' => 18, 'money' => true],
+                ],
+                $report['families'],
+                array_filter([
+                    'target' => 'السقف الشهري: ' . number_format($report['target'], 2) . ' د.م',
+                    'scope' => $this->gapsScope($filters),
+                    'families' => 'أسر بها نقص: ' . $report['totals']['families_with_gap'],
+                    'shortfall' => 'مجموع النقص: ' . number_format($report['totals']['total_shortfall'], 2) . ' د.م',
+                ]),
+            ),
+            $this->filename('sponsorship-gaps', null, 'xlsx'),
+        );
+    }
+
+    public function kafilFollowUpExcel(Request $request)
+    {
+        $report = $this->aggregates->kafilFollowUp($this->reportFilters($request));
+
+        return $this->downloadSheet(
+            $this->spreadsheets->build(
+                'متابعة التزامات الكفلاء',
+                'المتوقّع مقابل المحصّل خلال الفترة',
+                [
+                    ['key' => 'full_name', 'label' => 'الكفيل', 'width' => 30],
+                    ['key' => 'phone', 'label' => 'الهاتف', 'width' => 18],
+                    ['key' => 'families', 'label' => 'الأسر', 'width' => 12],
+                    ['key' => 'expected', 'label' => 'المتوقّع', 'width' => 18, 'money' => true],
+                    ['key' => 'paid', 'label' => 'المحصّل', 'width' => 18, 'money' => true],
+                    ['key' => 'balance', 'label' => 'الفارق', 'width' => 18, 'money' => true],
+                    ['key' => 'last_payment', 'label' => 'آخر دفعة', 'width' => 16],
+                ],
+                $report['kafils'],
+                [
+                    'period' => "الفترة: {$report['period']['from']} — {$report['period']['to']}",
+                    'expected' => 'المتوقّع: ' . number_format($report['totals']['expected'], 2) . ' د.م',
+                    'paid' => 'المحصّل: ' . number_format($report['totals']['paid'], 2) . ' د.م',
+                    'behind' => 'متأخرون: ' . $report['totals']['behind'],
+                ],
+            ),
+            $this->filename('kafil-follow-up', $report['period']['from'], 'xlsx'),
+        );
+    }
+
+    public function budgetUtilizationExcel(Request $request)
+    {
+        $report = $this->aggregates->budgetUtilization($this->reportFilters($request));
+
+        return $this->downloadSheet(
+            $this->spreadsheets->build(
+                'تقرير استعمال الميزانيات',
+                'الوارد والمصروف والمتبقي في كل ميزانية',
+                [
+                    ['key' => 'label', 'label' => 'الميزانية', 'width' => 32],
+                    ['key' => 'income', 'label' => 'الإيرادات', 'width' => 18, 'money' => true],
+                    ['key' => 'expense', 'label' => 'المصروفات', 'width' => 18, 'money' => true],
+                    ['key' => 'remaining', 'label' => 'المتبقي', 'width' => 18, 'money' => true],
+                    ['key' => 'utilization', 'label' => 'نسبة الصرف %', 'width' => 16],
+                ],
+                $report['budgets'],
+                [
+                    'period' => "الفترة: {$report['period']['from']} — {$report['period']['to']}",
+                    'remaining' => 'المتبقي الإجمالي: ' . number_format($report['totals']['remaining'], 2) . ' د.م',
+                    'overspent' => 'ميزانيات متجاوزة: ' . $report['totals']['overspent'],
+                ],
+            ),
+            $this->filename('budget-utilization', $report['period']['from'], 'xlsx'),
+        );
+    }
+
+    public function schoolPerformanceExcel(Request $request)
+    {
+        $report = $this->schoolPerformance->report($this->validateSchoolPerformance($request));
+
+        return $this->downloadSheet(
+            $this->spreadsheets->buildSections(
+                'تقرير الأداء الدراسي',
+                'نتائج الأيتام المتمدرسين',
+                [
+                    [
+                        'heading' => 'ترتيب التلاميذ',
+                        'columns' => [
+                            ['key' => 'rank', 'label' => 'الترتيب', 'width' => 10],
+                            ['key' => 'full_name', 'label' => 'التلميذ', 'width' => 28],
+                            ['key' => 'family', 'label' => 'الأسرة', 'width' => 26],
+                            ['key' => 'school', 'label' => 'المؤسسة', 'width' => 26],
+                            ['key' => 'education_level', 'label' => 'المستوى', 'width' => 22],
+                            ['key' => 'grade', 'label' => 'النقطة', 'width' => 12],
+                            ['key' => 'percentage', 'label' => 'النسبة %', 'width' => 12],
+                        ],
+                        'rows' => $report['students'] ?? [],
+                    ],
+                    $this->averages('حسب المؤسسة', 'المؤسسة', $report['by_school'] ?? []),
+                    $this->averages('حسب المستوى', 'المستوى', $report['by_level'] ?? []),
+                    $this->averages('حسب الجنس', 'الجنس', $report['by_gender'] ?? []),
+                ],
+                ['year' => 'السنة الدراسية: ' . ($report['academic_year']['label'] ?? '—')],
+            ),
+            $this->filename('school-performance', null, 'xlsx'),
+        );
+    }
+
+    public function kafilStatementExcel(Request $request, Kafil $kafil)
+    {
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+
+        [$from, $to] = $this->resolvePeriod($validated);
+        $statement = $this->reports->kafilStatement($kafil, $from, $to);
+
+        return $this->downloadSheet(
+            $this->spreadsheets->buildSections(
+                'كشف الكفيل',
+                $statement['kafil']['full_name'],
+                [
+                    [
+                        'heading' => 'المساهمات حسب الميزانية',
+                        'columns' => [
+                            ['key' => 'label', 'label' => 'الميزانية', 'width' => 30],
+                            ['key' => 'amount', 'label' => 'المبلغ', 'width' => 20, 'money' => true],
+                        ],
+                        // by_budget comes back as a Collection; the sheet
+                        // builder wants a plain array.
+                        'rows' => collect($statement['contributions']['by_budget'] ?? [])->all(),
+                    ],
+                    [
+                        'heading' => 'الأسر المكفولة',
+                        'columns' => [
+                            ['key' => 'full_name', 'label' => 'الأسرة', 'width' => 30],
+                            ['key' => 'orphans_count', 'label' => 'الأيتام', 'width' => 12],
+                            ['key' => 'sponsorship_amount', 'label' => 'الكفالة الشهرية', 'width' => 18, 'money' => true],
+                            ['key' => 'designated_total', 'label' => 'المخصّص لها', 'width' => 18, 'money' => true],
+                            ['key' => 'received_total', 'label' => 'ما تلقّته خلال الفترة', 'width' => 22, 'money' => true],
+                        ],
+                        // Flattened: `received` is a nested total and a
+                        // breakdown, and a sheet column needs one number.
+                        'rows' => collect($statement['families'] ?? [])
+                            ->map(fn ($family) => [
+                                'full_name' => $family['full_name'] ?? '—',
+                                'orphans_count' => $family['orphans_count'] ?? 0,
+                                'sponsorship_amount' => $family['sponsorship_amount'] ?? 0,
+                                'designated_total' => $family['designated_total'] ?? 0,
+                                'received_total' => $family['received']['total'] ?? 0,
+                            ])
+                            ->all(),
+                    ],
+                ],
+                [
+                    'period' => "الفترة: {$from} — {$to}",
+                    'contributed' => 'مجموع المساهمات: '
+                        . number_format($statement['totals']['contributed'] ?? 0, 2) . ' د.م',
+                    'received' => 'ما تلقّته الأسر: '
+                        . number_format($statement['totals']['received_by_families'] ?? 0, 2) . ' د.م',
+                ],
+            ),
+            $this->filename('kafil-statement', $statement['kafil']['full_name'], 'xlsx'),
+        );
+    }
+
+    public function familyFinancialExcel(Request $request, Widow $widow)
+    {
+        [$from, $to] = $this->resolvePeriod($this->reportFilters($request));
+        $report = $this->familyReports->financial($widow, $from, $to);
+
+        return $this->downloadSheet(
+            $this->spreadsheets->build(
+                'الكشف المالي للأسرة',
+                $report['family']['full_name'],
+                [
+                    ['key' => 'date', 'label' => 'التاريخ', 'width' => 16],
+                    ['key' => 'budget', 'label' => 'الميزانية', 'width' => 22],
+                    ['key' => 'category', 'label' => 'الفئة', 'width' => 24],
+                    ['key' => 'beneficiary', 'label' => 'المستفيد', 'width' => 26],
+                    ['key' => 'amount', 'label' => 'المبلغ', 'width' => 18, 'money' => true],
+                ],
+                $report['expenses']['rows'] ?? [],
+                [
+                    'period' => "الفترة: {$report['period']['from']} — {$report['period']['to']}",
+                ],
+            ),
+            $this->filename('family-financial', $widow->id, 'xlsx'),
+        );
+    }
+
+    /**
+     * A school-performance cut: how many students, what they averaged, and
+     * how many passed. Not the label/count/total shape `breakdown()` builds,
+     * because an average is not a sum and must not be totalled.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array{heading: string, columns: array, rows: array}
+     */
+    private function averages(string $heading, string $labelHeading, array $rows): array
+    {
+        return [
+            'heading' => $heading,
+            'columns' => [
+                ['key' => 'label', 'label' => $labelHeading, 'width' => 30],
+                ['key' => 'students', 'label' => 'عدد التلاميذ', 'width' => 14],
+                ['key' => 'average_percentage', 'label' => 'المعدل %', 'width' => 14],
+                ['key' => 'pass_rate', 'label' => 'نسبة النجاح %', 'width' => 16],
+            ],
+            'rows' => $rows,
+        ];
+    }
+
+    /** One line saying what the kafala shortfall report was narrowed to. */
+    private function gapsScope(array $filters): ?string
+    {
+        $parts = [];
+
+        if (!empty($filters['kafil_id'])) {
+            $parts[] = 'الكفيل: ' . (Kafil::find($filters['kafil_id'])?->full_name ?? $filters['kafil_id']);
+        }
+
+        if (!empty($filters['admission_from']) || !empty($filters['admission_to'])) {
+            $parts[] = 'الانتساب: ' . ($filters['admission_from'] ?? '—') . ' — ' . ($filters['admission_to'] ?? '—');
+        }
+
+        return $parts === [] ? null : implode('  |  ', $parts);
+    }
+
+    /**
      * A label/count/total block as the aggregates return them.
      *
      * @param  array<int, array<string, mixed>>  $rows
@@ -625,6 +873,7 @@ class ReportController extends Controller
             'admission_from' => ['nullable', 'date'],
             'admission_to' => ['nullable', 'date', 'after_or_equal:admission_from'],
             'target' => ['nullable', 'numeric', 'min:0'],
+            'kafil_id' => ['nullable', 'integer', 'exists:kafils,id'],
             'status' => ['nullable', 'in:Draft,Approved,Rejected'],
             'budget_id' => ['nullable', 'integer', 'exists:budgets,id'],
         ], [

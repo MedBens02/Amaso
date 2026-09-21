@@ -289,6 +289,16 @@ class ReportAggregateService
                 'neighborhood',
                 \App\Models\Neighborhood::where('sector_id', $filters['sector_id'])->pluck('label'),
             ))
+            // One sponsor's own families. The shortfall itself stays what
+            // it was - the whole commitment against the target, from every
+            // sponsor - because what a family is still short does not
+            // change depending on who is asking.
+            ->when(!empty($filters['kafil_id']), fn ($q) => $q->whereHas(
+                'sponsorships',
+                fn ($s) => $s->where('kafil_id', $filters['kafil_id']),
+            ))
+            ->when(!empty($filters['admission_from']), fn ($q) => $q->whereDate('admission_date', '>=', $filters['admission_from']))
+            ->when(!empty($filters['admission_to']), fn ($q) => $q->whereDate('admission_date', '<=', $filters['admission_to']))
             ->withCount('orphans')
             ->orderBy('first_name')
             ->get()
