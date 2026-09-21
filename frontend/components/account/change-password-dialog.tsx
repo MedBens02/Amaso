@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import {
   Dialog,
@@ -101,9 +102,8 @@ export function ChangePasswordDialog({
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="current-password">كلمة المرور الحالية</Label>
-              <Input
+              <PasswordInput
                 id="current-password"
-                type="password"
                 autoComplete="current-password"
                 value={current}
                 onChange={(e) => setCurrent(e.target.value)}
@@ -112,9 +112,8 @@ export function ChangePasswordDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="new-password">كلمة المرور الجديدة</Label>
-              <Input
+              <PasswordInput
                 id="new-password"
-                type="password"
                 autoComplete="new-password"
                 value={next}
                 onChange={(e) => setNext(e.target.value)}
@@ -124,9 +123,8 @@ export function ChangePasswordDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirm-password">تأكيد كلمة المرور</Label>
-              <Input
+              <PasswordInput
                 id="confirm-password"
-                type="password"
                 autoComplete="new-password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}

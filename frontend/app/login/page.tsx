@@ -5,9 +5,10 @@ import type React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowRight, Eye, EyeOff, Loader2, Lock, ShieldCheck } from "lucide-react"
+import { ArrowRight, Loader2, Lock, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Logo } from "@/components/landing/logo"
@@ -34,7 +35,6 @@ const ORG_NAME = "جمعية المنصور لكفالة اليتيم"
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -105,27 +105,15 @@ export default function LoginPage() {
                 <Label htmlFor="password" className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                   كلمة المرور
                 </Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    autoComplete="current-password"
-                    dir="ltr"
-                    className="h-12 rounded-xl border-slate-200 bg-white pl-12 text-left placeholder:text-slate-400 focus-visible:ring-teal-500 dark:border-slate-800 dark:bg-slate-900"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
-                    className="absolute inset-y-0 left-0 flex items-center px-4 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
+                <PasswordInput
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  autoComplete="current-password"
+                  className="h-12 rounded-xl border-slate-200 bg-white pl-12 placeholder:text-slate-400 focus-visible:ring-teal-500 dark:border-slate-800 dark:bg-slate-900"
+                />
               </div>
 
               {error && (
