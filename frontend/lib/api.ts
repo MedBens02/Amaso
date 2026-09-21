@@ -752,6 +752,8 @@ class ApiClient {
     widow_id?: number
     has_disability?: boolean
     education_level?: string
+    sector_id?: number
+    neighborhood?: string
     illness_id?: number
     aid_type_id?: number
     skill_id?: number
@@ -771,6 +773,8 @@ class ApiClient {
     if (params?.widow_id) searchParams.set('widow_id', params.widow_id.toString())
     if (params?.has_disability !== undefined) searchParams.set('has_disability', params.has_disability.toString())
     if (params?.education_level) searchParams.set('education_level', params.education_level)
+    if (params?.sector_id) searchParams.set('sector_id', params.sector_id.toString())
+    if (params?.neighborhood) searchParams.set('neighborhood', params.neighborhood)
     if (params?.illness_id) searchParams.set('illness_id', params.illness_id.toString())
     if (params?.aid_type_id) searchParams.set('aid_type_id', params.aid_type_id.toString())
     if (params?.skill_id) searchParams.set('skill_id', params.skill_id.toString())

@@ -25,6 +25,7 @@ import { MultiSelectRS } from "@/components/common/MultiSelectRS"
 import { ExtraPhonesField } from "@/components/widows/extra-phones-field"
 import { ChildExtraFields } from "@/components/widows/child-extra-fields"
 import { SingleSelectRS } from "@/components/common/SingleSelectRS"
+import { groupBySector } from "@/lib/neighborhoods"
 import { StarRating } from "@/components/common/StarRating"
 import { useToast } from "@/hooks/use-toast"
 import { Plus, Trash2, User, Users, Home, Heart, HandHeart, Edit } from "lucide-react"
@@ -174,6 +175,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
   const [schools, setSchools] = useState<any[]>([])
   const [referenceData, setReferenceData] = useState({
     housing_types: [],
+    neighborhoods: [],
     skills: [],
     illnesses: [],
     aid_types: [],
@@ -704,10 +706,21 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="neighborhood">الحي *</Label>
-                    <Input
-                      id="neighborhood"
-                      {...form.register("neighborhood")}
-                      placeholder="أدخل الحي"
+                    {/* The same picker the add form uses. A free text box
+                        here is how a typo became a neighbourhood: the two
+                        forms write to the same column. */}
+                    <Controller
+                      name="neighborhood"
+                      control={form.control}
+                      render={({ field }) => (
+                        <SingleSelectRS
+                          options={groupBySector(referenceData.neighborhoods || [])}
+                          onChange={field.onChange}
+                          value={field.value || ""}
+                          placeholder="اختر الحي أو اكتب حياً جديداً"
+                          isCreatable={true}
+                        />
+                      )}
                     />
                     {form.formState.errors.neighborhood && (
                       <p className="text-sm text-red-500">{form.formState.errors.neighborhood.message}</p>

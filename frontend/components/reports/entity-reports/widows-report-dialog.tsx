@@ -21,8 +21,21 @@ interface WidowsReportDialogProps {
  */
 async function loadReferenceOptions(key: "neighborhoods" | "education_levels") {
   const response = await api.getWidowsReferenceData()
-  const values: string[] = (response.data as any)?.[key] ?? []
-  return values.map((value) => ({ label: value, value }))
+  const values: Array<string | { label: string }> = (response.data as any)?.[key] ?? []
+
+  // Education levels are still plain strings; neighbourhoods became rows
+  // when they were given a sector. Both are a name to filter on.
+  return values.map((value) =>
+    typeof value === "string" ? { label: value, value } : { label: value.label, value: value.label },
+  )
+}
+
+/** The sector is filtered by id, since that is what the server matches on. */
+async function loadSectorOptions() {
+  const response = await api.getWidowsReferenceData()
+  const sectors: Array<{ id: number; label: string }> = (response.data as any)?.sectors ?? []
+
+  return sectors.map((sector) => ({ label: sector.label, value: String(sector.id) }))
 }
 
 /**
@@ -34,6 +47,13 @@ async function loadReferenceOptions(key: "neighborhoods" | "education_levels") {
  * that cannot earn their place leaves a shorter list that does what it says.
  */
 const FILTER_CONFIG: FilterOption[] = [
+  {
+    type: "select",
+    field: "sector_id",
+    label: "القطاع",
+    placeholder: "كل القطاعات",
+    optionsLoader: loadSectorOptions,
+  },
   {
     type: "select",
     field: "neighborhood",

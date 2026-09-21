@@ -19,6 +19,8 @@ import {
   Star,
   HandHeart,
   Home,
+  Map,
+  MapPin,
   ArrowUpDown
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
@@ -33,6 +35,25 @@ interface ReferenceItem {
   name_ar?: string
   is_active?: boolean
   is_chronic?: boolean
+  /** Sectors: how many neighborhoods are filed under this one. */
+  neighborhoods_count?: number
+  /** Neighborhoods: the sector it belongs to, and how many families live there. */
+  sector?: { id: number; label: string } | null
+  sector_id?: number | null
+  widows_count?: number
+}
+
+/**
+ * Whichever column this kind of reference keeps its name in. Not every one
+ * of them uses the same, and some rows carry other objects (a sector, for
+ * instance) that are never the name.
+ */
+function displayName(item: ReferenceItem, keyField: string): string {
+  const value = item[keyField as keyof ReferenceItem]
+
+  if (typeof value === "string" && value !== "") return value
+
+  return item.name_ar || item.name || ""
 }
 
 export default function ReferencesPage() {
@@ -40,6 +61,8 @@ export default function ReferencesPage() {
   const [skills, setSkills] = useState<ReferenceItem[]>([])
   const [aidTypes, setAidTypes] = useState<ReferenceItem[]>([])
   const [housingTypes, setHousingTypes] = useState<ReferenceItem[]>([])
+  const [sectors, setSectors] = useState<ReferenceItem[]>([])
+  const [neighborhoods, setNeighborhoods] = useState<ReferenceItem[]>([])
   const [incomeCategories, setIncomeCategories] = useState<ReferenceItem[]>([])
   const [expenseCategories, setExpenseCategories] = useState<ReferenceItem[]>([])
   const [partners, setPartners] = useState<ReferenceItem[]>([])
@@ -48,7 +71,7 @@ export default function ReferencesPage() {
   
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [dialogType, setDialogType] = useState<'illness' | 'skill' | 'aid-type' | 'housing-type' | 'income-category' | 'expense-category' | 'partner' | 'education-level'>('illness')
+  const [dialogType, setDialogType] = useState<'illness' | 'skill' | 'aid-type' | 'housing-type' | 'sector' | 'neighborhood' | 'income-category' | 'expense-category' | 'partner' | 'education-level'>('illness')
   const [selectedItem, setSelectedItem] = useState<ReferenceItem | undefined>()
   
   // Reorder dialog state
@@ -73,6 +96,8 @@ export default function ReferencesPage() {
         fetch(`${baseUrl}/references/illnesses`).then(res => res.ok ? res.json() : { data: [] }),
         fetch(`${baseUrl}/references/aid-types`).then(res => res.ok ? res.json() : { data: [] }),
         fetch(`${baseUrl}/references/housing-types`).then(res => res.ok ? res.json() : { data: [] }),
+        fetch(`${baseUrl}/references/sectors`).then(res => res.ok ? res.json() : { data: [] }),
+        fetch(`${baseUrl}/references/neighborhoods`).then(res => res.ok ? res.json() : { data: [] }),
         fetch(`${baseUrl}/references/widow-income-categories`).then(res => res.ok ? res.json() : { data: [] }),
         fetch(`${baseUrl}/references/widow-expense-categories`).then(res => res.ok ? res.json() : { data: [] }),
         fetch(`${baseUrl}/references/partners`).then(res => res.ok ? res.json() : { data: [] }),
@@ -84,6 +109,8 @@ export default function ReferencesPage() {
         illnessesResponse, 
         aidTypesResponse, 
         housingTypesResponse,
+        sectorsResponse,
+        neighborhoodsResponse,
         incomeCategoriesResponse, 
         expenseCategoriesResponse, 
         partnersResponse, 
@@ -101,6 +128,12 @@ export default function ReferencesPage() {
       }
       if (housingTypesResponse.status === 'fulfilled') {
         setHousingTypes(housingTypesResponse.value.data || [])
+      }
+      if (sectorsResponse.status === 'fulfilled') {
+        setSectors(sectorsResponse.value.data || [])
+      }
+      if (neighborhoodsResponse.status === 'fulfilled') {
+        setNeighborhoods(neighborhoodsResponse.value.data || [])
       }
       if (incomeCategoriesResponse.status === 'fulfilled') {
         setIncomeCategories(incomeCategoriesResponse.value.data || [])
@@ -154,9 +187,12 @@ export default function ReferencesPage() {
     // A housing type is the one answer to "where does this family live", so
     // nothing is deleted alongside it - the server refuses while any family
     // is on it. Promising to delete "everything linked" would be a lie.
-    const warning = type === 'housing-type'
-      ? `هل أنت متأكد من حذف هذا العنصر؟`
-      : `هل أنت متأكد من حذف هذا العنصر؟ سيتم حذف جميع البيانات المرتبطة به.`
+    const warning =
+      type === 'housing-type' || type === 'neighborhood'
+        ? `هل أنت متأكد من حذف هذا العنصر؟`
+        : type === 'sector'
+          ? `هل أنت متأكد من حذف هذا القطاع؟ ستبقى أحياؤه كما هي، بدون قطاع.`
+          : `هل أنت متأكد من حذف هذا العنصر؟ سيتم حذف جميع البيانات المرتبطة به.`
 
     if (!confirm(warning)) {
       return
@@ -168,6 +204,8 @@ export default function ReferencesPage() {
         'skill': 'references/skills',
         'aid-type': 'references/aid-types',
         'housing-type': 'references/housing-types',
+        'sector': 'references/sectors',
+        'neighborhood': 'references/neighborhoods',
         'income-category': 'references/widow-income-categories',
         'expense-category': 'references/widow-expense-categories',
         'partner': 'references/partners',
@@ -214,6 +252,7 @@ export default function ReferencesPage() {
     keyField = "label", 
     showActive = false,
     showChronic = false,
+    meta,
     type
   }: {
     data: ReferenceItem[]
@@ -222,6 +261,8 @@ export default function ReferencesPage() {
     keyField?: string
     showActive?: boolean
     showChronic?: boolean
+    /** A line under the name - what this row is attached to, or how much of it is in use. */
+    meta?: (item: ReferenceItem) => React.ReactNode
     type: typeof dialogType
   }) => (
     <Card>
@@ -257,9 +298,12 @@ export default function ReferencesPage() {
             {data.map((item) => (
               <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center gap-3">
-                  <span className="font-medium">
-                    {item[keyField as keyof ReferenceItem] || item.name_ar || item.name}
-                  </span>
+                  <div>
+                    <span className="font-medium">
+                      {displayName(item, keyField)}
+                    </span>
+                    {meta && <p className="text-xs text-muted-foreground">{meta(item)}</p>}
+                  </div>
                   <div className="flex gap-2">
                     {showActive && (
                       <Badge variant={item.is_active ? "default" : "secondary"}>
@@ -300,7 +344,7 @@ export default function ReferencesPage() {
       </div>
 
       <Tabs defaultValue="illnesses" className="space-y-6">
-        <TabsList className="grid h-auto w-full grid-cols-4 gap-1 xl:grid-cols-8">
+        <TabsList className="grid h-auto w-full grid-cols-4 gap-1 xl:grid-cols-5">
           <TabsTrigger value="illnesses" className="flex items-center gap-2">
             <Heart className="h-4 w-4" />
             الأمراض
@@ -316,6 +360,14 @@ export default function ReferencesPage() {
           <TabsTrigger value="housing-types" className="flex items-center gap-2">
             <Home className="h-4 w-4" />
             أنواع السكن
+          </TabsTrigger>
+          <TabsTrigger value="sectors" className="flex items-center gap-2">
+            <Map className="h-4 w-4" />
+            القطاعات
+          </TabsTrigger>
+          <TabsTrigger value="neighborhoods" className="flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            الأحياء
           </TabsTrigger>
           <TabsTrigger value="income" className="flex items-center gap-2">
             <DollarSign className="h-4 w-4" />
@@ -376,6 +428,30 @@ export default function ReferencesPage() {
           />
         </TabsContent>
 
+        <TabsContent value="sectors">
+          <ReferenceDataTable
+            data={sectors}
+            title="القطاعات"
+            icon={Map}
+            keyField="label"
+            meta={(item) => `${item.neighborhoods_count ?? 0} حي`}
+            type="sector"
+          />
+        </TabsContent>
+
+        <TabsContent value="neighborhoods">
+          <ReferenceDataTable
+            data={neighborhoods}
+            title="الأحياء"
+            icon={MapPin}
+            keyField="label"
+            meta={(item) =>
+              `${item.sector?.label ?? "بدون قطاع"} · ${item.widows_count ?? 0} أسرة`
+            }
+            type="neighborhood"
+          />
+        </TabsContent>
+
         <TabsContent value="income">
           <ReferenceDataTable
             data={incomeCategories}
@@ -418,6 +494,7 @@ export default function ReferencesPage() {
         type={dialogType}
         item={selectedItem}
         onSuccess={handleDialogSuccess}
+        extraProps={{ sectors }}
       />
 
       <EducationLevelReorder

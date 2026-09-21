@@ -386,6 +386,7 @@ class ReportController extends Controller
                 [
                     ['key' => 'full_name', 'label' => 'الاسم الكامل', 'width' => 30],
                     ['key' => 'phone', 'label' => 'الهاتف', 'width' => 18],
+                    ['key' => 'sector', 'label' => 'القطاع', 'width' => 20],
                     ['key' => 'neighborhood', 'label' => 'الحي', 'width' => 22],
                     ['key' => 'orphans_count', 'label' => 'عدد الأيتام', 'width' => 14],
                     ['key' => 'sponsorships_count', 'label' => 'عدد الكفالات', 'width' => 14],
@@ -610,6 +611,7 @@ class ReportController extends Controller
             'to' => ['nullable', 'date', 'after_or_equal:from'],
             'fiscal_year_id' => ['nullable', 'integer', 'exists:fiscal_years,id'],
             'neighborhood' => ['nullable', 'string', 'max:120'],
+            'sector_id' => ['nullable', 'integer', 'exists:sectors,id'],
             'disability_flag' => ['nullable', 'boolean'],
             // The widows report's own selectors. They were being sent by the
             // dialog and silently ignored here, which is why filtering it

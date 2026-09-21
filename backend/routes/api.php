@@ -235,6 +235,17 @@ Route::prefix('v1')->group(function () {
         Route::put('illnesses/{illness}', [References\IllnessController::class, 'update']);
         Route::delete('illnesses/{illness}', [References\IllnessController::class, 'destroy']);
 
+        // Sectors, and the neighborhoods inside them
+        Route::get('sectors', [References\SectorController::class, 'index']);
+        Route::post('sectors', [References\SectorController::class, 'store']);
+        Route::put('sectors/{sector}', [References\SectorController::class, 'update']);
+        Route::delete('sectors/{sector}', [References\SectorController::class, 'destroy']);
+
+        Route::get('neighborhoods', [References\NeighborhoodController::class, 'index']);
+        Route::post('neighborhoods', [References\NeighborhoodController::class, 'store']);
+        Route::put('neighborhoods/{neighborhood}', [References\NeighborhoodController::class, 'update']);
+        Route::delete('neighborhoods/{neighborhood}', [References\NeighborhoodController::class, 'destroy']);
+
         // Housing Types
         Route::get('housing-types', [References\HousingTypeController::class, 'index']);
         Route::post('housing-types', [References\HousingTypeController::class, 'store']);

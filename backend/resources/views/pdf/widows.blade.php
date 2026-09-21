@@ -18,6 +18,14 @@
     </table>
 
     @include('pdf.partials.breakdown', [
+        'heading' => 'التوزيع حسب القطاع',
+        'rows' => $report['by_sector'] ?? [],
+        'labelHeading' => 'القطاع',
+        'valueHeading' => 'عدد الأرامل',
+        'showCount' => false,
+    ])
+
+    @include('pdf.partials.breakdown', [
         'heading' => 'التوزيع حسب الحي',
         'rows' => $report['by_neighborhood'],
         'labelHeading' => 'الحي',

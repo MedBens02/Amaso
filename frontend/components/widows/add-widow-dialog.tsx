@@ -25,6 +25,7 @@ import { MultiSelectRS } from "@/components/common/MultiSelectRS"
 import { ExtraPhonesField } from "@/components/widows/extra-phones-field"
 import { ChildExtraFields } from "@/components/widows/child-extra-fields"
 import { SingleSelectRS } from "@/components/common/SingleSelectRS"
+import { groupBySector, type NeighborhoodOption } from "@/lib/neighborhoods"
 import { StarRating } from "@/components/common/StarRating"
 import { useToast } from "@/hooks/use-toast"
 import { Plus, Trash2, User, Users, Home, Heart, HandHeart } from "lucide-react"
@@ -205,7 +206,7 @@ interface LookupOption {
 }
 
 interface LookupData {
-  neighborhoods: LookupOption[]
+  neighborhoods: NeighborhoodOption[]
   housingTypes: LookupOption[]
   incomeCategories: LookupOption[]
   expenseCategories: LookupOption[]
@@ -328,16 +329,14 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
         ])
 
         const apiData: LookupData = {
-          // The neighbourhoods already on file, read from the same endpoint
-          // the rest of this form reads. These used to be four names written
-          // into this file, which meant a neighbourhood added through the
-          // form's own "write a new one" box was saved, appeared in the
-          // referential, and then could never be picked for the next family -
-          // while one of the four hardcoded names belonged to no family at all.
-          neighborhoods: (widowsRefData?.data?.neighborhoods || []).map((name: string) => ({
-            id: name,
-            name,
-          })),
+          // The managed list, with each neighbourhood's sector, read from
+          // the same endpoint as the rest of this form. These used to be
+          // four names written into this file, which meant a neighbourhood
+          // added through the form's own "write a new one" box was saved,
+          // appeared in the referential, and then could never be picked for
+          // the next family - while one of the four hardcoded names
+          // belonged to no family at all.
+          neighborhoods: widowsRefData?.data?.neighborhoods || [],
           housingTypes: (widowsRefData?.data?.housing_types || []).map((item: any) => ({
             id: item.id.toString(),
             name: item.label
@@ -791,10 +790,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                     control={form.control}
                     render={({ field }) => (
                       <SingleSelectRS
-                        options={lookupData.neighborhoods.map((neighborhood) => ({ 
-                          label: neighborhood.name, 
-                          value: neighborhood.name 
-                        }))}
+                        options={groupBySector(lookupData.neighborhoods)}
                         onChange={field.onChange}
                         value={field.value || ""}
                         placeholder="اختر الحي أو اكتب حياً جديداً"

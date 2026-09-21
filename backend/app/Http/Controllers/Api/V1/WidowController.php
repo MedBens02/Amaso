@@ -59,6 +59,20 @@ class WidowController extends Controller
             $query->where('education_level', $request->get('education_level'));
         }
 
+        if ($request->filled('neighborhood')) {
+            $query->where('neighborhood', $request->get('neighborhood'));
+        }
+
+        // A sector is asked for by id and answered in names, because that
+        // is what the family record holds. An empty sector matches nothing,
+        // which is right: it has no neighborhoods for anybody to live in.
+        if ($request->filled('sector_id')) {
+            $query->whereIn(
+                'neighborhood',
+                \App\Models\Neighborhood::where('sector_id', $request->get('sector_id'))->pluck('label'),
+            );
+        }
+
         if ($request->filled('illness_id')) {
             $query->whereHas('illnesses', fn ($q) => $q->where('illnesses.id', $request->get('illness_id')));
         }
@@ -206,12 +220,30 @@ class WidowController extends Controller
                 'income_categories' => \App\Models\WidowIncomeCategory::all(['id', 'name']),
                 'expense_categories' => \App\Models\WidowExpenseCategory::all(['id', 'name']),
                 'partners' => \App\Models\Partner::with(['field', 'subfield'])->get(['id', 'name', 'field_id', 'subfield_id']),
-                // Drawn from the families themselves rather than a fixed list:
-                // both columns are free text, so the only values worth
-                // offering as a filter are the ones that will match something.
-                'neighborhoods' => Widow::query()
-                    ->whereNotNull('neighborhood')->where('neighborhood', '!=', '')
-                    ->distinct()->orderBy('neighborhood')->pluck('neighborhood'),
+                'sectors' => \App\Models\Sector::orderBy('label')->get(['id', 'label']),
+                // The managed list, not whatever happens to be typed into
+                // the families' records - that is what let a typo become a
+                // neighborhood. Names still in use but never added to the
+                // list are appended so that no family's address quietly
+                // disappears from the form; they show with no sector until
+                // somebody files them.
+                'neighborhoods' => \App\Models\Neighborhood::with('sector')
+                    ->orderBy('label')
+                    ->get(['id', 'label', 'sector_id'])
+                    ->map(fn ($item) => [
+                        'id' => $item->id,
+                        'label' => $item->label,
+                        'sector_id' => $item->sector_id,
+                        'sector' => $item->sector?->label,
+                    ])
+                    ->concat(
+                        Widow::query()
+                            ->whereNotNull('neighborhood')->where('neighborhood', '!=', '')
+                            ->whereNotIn('neighborhood', \App\Models\Neighborhood::pluck('label'))
+                            ->distinct()->orderBy('neighborhood')->pluck('neighborhood')
+                            ->map(fn ($label) => ['id' => null, 'label' => $label, 'sector_id' => null, 'sector' => null]),
+                    )
+                    ->values(),
                 'education_levels' => Widow::query()
                     ->whereNotNull('education_level')->where('education_level', '!=', '')
                     ->distinct()->orderBy('education_level')->pluck('education_level'),

@@ -154,6 +154,8 @@ export function WidowsTable({
         // Add all filter parameters, converting boolean strings to actual booleans
         ...(filters.has_disability && filters.has_disability !== "all" && { has_disability: filters.has_disability === "true" }),
         ...(filters.education_level && filters.education_level !== "all" && { education_level: filters.education_level }),
+        ...(filters.sector_id && filters.sector_id !== "all" && { sector_id: parseInt(filters.sector_id) }),
+        ...(filters.neighborhood && filters.neighborhood !== "all" && { neighborhood: filters.neighborhood }),
         ...(filters.illness_id && filters.illness_id !== "all" && { illness_id: parseInt(filters.illness_id) }),
         ...(filters.aid_type_id && filters.aid_type_id !== "all" && { aid_type_id: parseInt(filters.aid_type_id) }),
         ...(filters.skill_id && filters.skill_id !== "all" && { skill_id: parseInt(filters.skill_id) }),

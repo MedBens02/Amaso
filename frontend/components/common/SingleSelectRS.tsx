@@ -10,8 +10,21 @@ export interface Option {
   value: string
 }
 
-interface SingleSelectRSProps {
+/** A heading with its own options under it, e.g. a sector and its neighborhoods. */
+export interface OptionGroup {
+  label: string
   options: Option[]
+}
+
+const isGroup = (item: Option | OptionGroup): item is OptionGroup =>
+  Array.isArray((item as OptionGroup).options)
+
+/** Every option, whether the list is grouped or flat. */
+const flatten = (items: Array<Option | OptionGroup>): Option[] =>
+  items.flatMap((item) => (isGroup(item) ? item.options : [item]))
+
+interface SingleSelectRSProps {
+  options: Array<Option | OptionGroup>
   value?: string
   onChange: (value: string | null) => void
   placeholder?: string
@@ -39,7 +52,7 @@ export function SingleSelectRS({
   // Build selected option including both existing options and newly created ones
   const selectedOption = value ? (() => {
     // First try to find in existing options
-    const existingOption = options.find(opt => opt.value === value)
+    const existingOption = flatten(options).find(opt => opt.value === value)
     if (existingOption) {
       return existingOption
     }
