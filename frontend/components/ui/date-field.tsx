@@ -25,8 +25,15 @@ import { Input } from "@/components/ui/input"
  * unchanged.
  */
 
-/** "2026-09-19" -> "19/09/2026" */
-function toDisplay(iso: string | undefined | null): string {
+/**
+ * "2026-09-19" -> "19/09/2026"
+ *
+ * Exported because it is the application's one dd/mm/yyyy formatter, and a
+ * screen that shows a stored date outside a field needs the same answer this
+ * field gives. Re-deriving it per screen is how half the app ends up
+ * disagreeing about which number is the month.
+ */
+export function toDisplay(iso: string | undefined | null): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso ?? "")
 
   return match ? `${match[3]}/${match[2]}/${match[1]}` : ""

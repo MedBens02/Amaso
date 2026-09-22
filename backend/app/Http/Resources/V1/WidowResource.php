@@ -23,6 +23,13 @@ class WidowResource extends JsonResource
             'birth_date' => $this->birth_date?->format('Y-m-d'),
             'age' => $this->birth_date ? $this->birth_date->diffInYears(now()) : null,
             'marital_status' => $this->marital_status,
+            'husband_death_date' => $this->husband_death_date?->format('Y-m-d'),
+            // Where this family stands in her عدة, or null for an ordinary
+            // one. The عدة screen needs the whole block; every other screen
+            // only needs to know it is null.
+            'is_idda_case' => $this->is_idda_case,
+            'idda_end_date' => $this->idda_end_date?->format('Y-m-d'),
+            'idda' => $this->idda,
             'family_liaison' => $this->family_liaison,
             'education_level' => $this->education_level,
             'disability_flag' => $this->disability_flag,

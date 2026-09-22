@@ -1,6 +1,7 @@
 "use client"
 
 import { toNumber } from "@/lib/utils"
+import { BudgetCategoriesCard } from "@/components/accounting/budget-categories-card"
 
 import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,6 +19,7 @@ import {
   Edit2,
   HandCoins,
   Landmark,
+  Layers,
   Lock,
   Plus,
   Search,
@@ -988,7 +990,7 @@ export default function AccountingReferencesPage() {
       </div>
 
       <Tabs defaultValue="budgets" className="space-y-6">
-        <TabsList className="grid h-auto w-full grid-cols-3 gap-1 lg:grid-cols-5">
+        <TabsList className="grid h-auto w-full grid-cols-3 gap-1 lg:grid-cols-6">
           <TabsTrigger value="budgets" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
             الميزانيات
@@ -1001,6 +1003,12 @@ export default function AccountingReferencesPage() {
             <TrendingDown className="h-4 w-4" />
             فئات المصروفات
           </TabsTrigger>
+          {/* Which fund offers which categories - the hierarchy the income
+              and expense forms filter on. */}
+          <TabsTrigger value="budget-categories" className="flex items-center gap-2">
+            <Layers className="h-4 w-4" />
+            فئات الميزانيات
+          </TabsTrigger>
           <TabsTrigger value="kafala-chamila" className="flex items-center gap-2">
             <HandCoins className="h-4 w-4" />
             الكفالة الشاملة
@@ -1010,6 +1018,10 @@ export default function AccountingReferencesPage() {
             الحسابات البنكية
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="budget-categories">
+          <BudgetCategoriesCard />
+        </TabsContent>
 
         <TabsContent value="budgets">
           <BudgetsTable />

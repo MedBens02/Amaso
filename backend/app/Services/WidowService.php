@@ -39,6 +39,7 @@ class WidowService
         'address', 'neighborhood', 'admission_date', 'national_id',
         'birth_date', 'marital_status', 'family_liaison', 'education_level',
         'disability_flag', 'disability_type',
+        'husband_death_date', 'idda_end_date', 'is_idda_case',
     ];
 
     public function create(array $validated): Widow

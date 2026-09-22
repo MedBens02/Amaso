@@ -636,11 +636,25 @@ class ApiClient {
    * page - the same trap the incomes search was in, where a name present in
    * the database simply did not come up.
    */
-  async getBeneficiaries(params?: { search?: string; type?: 'Widow' | 'Orphan'; per_page?: number }) {
+  /**
+   * Who can be picked, which depends on which fund is paying.
+   *
+   * The عدة fund offers the families still in their waiting period and
+   * nobody else; every other fund offers the association's families and not
+   * them. Passing the budget is what makes that happen, so a form that
+   * forgets to pass it gets the ordinary families - the safe way round.
+   */
+  async getBeneficiaries(params?: {
+    search?: string
+    type?: 'Widow' | 'Orphan'
+    per_page?: number
+    budget_id?: number
+  }) {
     const query = new URLSearchParams()
     if (params?.search) query.set('search', params.search)
     if (params?.type) query.set('type', params.type)
     if (params?.per_page) query.set('per_page', String(params.per_page))
+    if (params?.budget_id) query.set('budget_id', String(params.budget_id))
 
     const suffix = query.toString()
     return this.request<any[]>(`/beneficiaries${suffix ? `?${suffix}` : ''}`)
@@ -773,6 +787,23 @@ class ApiClient {
     return this.request<any[]>('/budgets')
   }
 
+  /** Which categories each fund offers, as budget id => category ids. */
+  async getBudgetCategories() {
+    return this.request<{ income: Record<string, number[]>; expense: Record<string, number[]> }>(
+      '/budget-categories',
+    )
+  }
+
+  async saveBudgetCategories(
+    budgetId: number,
+    lists: { income_category_ids: number[]; expense_category_ids: number[] },
+  ) {
+    return this.request<any>(`/budgets/${budgetId}/categories`, {
+      method: 'PUT',
+      body: JSON.stringify(lists),
+    })
+  }
+
   async getIncomeCategories() {
     return this.request<any[]>('/income-categories')
   }
@@ -806,10 +837,13 @@ class ApiClient {
     sort_by?: string
     sort_order?: 'asc' | 'desc'
     archived?: boolean
+    /** 'only' for the عدة cases, 'all' for both; omitted means the families. */
+    idda?: 'only' | 'all'
   }) {
     const searchParams = new URLSearchParams()
     if (params?.search) searchParams.set('search', params.search)
     if (params?.archived) searchParams.set('archived', '1')
+    if (params?.idda) searchParams.set('idda', params.idda)
     if (params?.widow_id) searchParams.set('widow_id', params.widow_id.toString())
     if (params?.has_disability !== undefined) searchParams.set('has_disability', params.has_disability.toString())
     if (params?.education_level) searchParams.set('education_level', params.education_level)
@@ -929,6 +963,11 @@ class ApiClient {
   }
 
   /** Archive a family (soft delete) with the leaving information. */
+  /** Take a family on once her عدة is over: she becomes one of the families. */
+  async enrolWidow(id: number) {
+    return this.request<any>(`/widows/${id}/enrol`, { method: 'POST' })
+  }
+
   async archiveWidow(id: number, leaving: {
     leaving_date: string
     leaving_reason: string

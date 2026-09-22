@@ -22,7 +22,7 @@ import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { toDateInputValue, fromDateInputValue } from "@/lib/date-utils"
 import { KafalaCoveragePanel } from "@/components/forms/KafalaCoveragePanel"
-import { buildCategoryOptions } from "@/lib/categories"
+import { buildCategoryOptions, categoriesForBudget } from "@/lib/categories"
 import { SingleSelectRS } from "@/components/common/SingleSelectRS"
 
 // Form validation schema
@@ -193,6 +193,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
   // Reference data
   const [budgets, setBudgets] = useState<Budget[]>([])
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([])
+  const [budgetCategories, setBudgetCategories] = useState<{ income: Record<string, number[]>; expense: Record<string, number[]> } | undefined>()
   const [partners, setPartners] = useState<Partner[]>([])
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([])
@@ -395,7 +396,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
     setLoading(true)
     try {
       // Try to load real data from API
-      const [budgetsRes, categoriesRes, partnersRes, bankAccountsRes, fiscalYearRes, groupsRes] = await Promise.all([
+      const [budgetsRes, categoriesRes, partnersRes, bankAccountsRes, fiscalYearRes, groupsRes, linksRes] = await Promise.all([
         api.getBudgets(),
         api.getExpenseCategories(),
         api.getPartners(),
@@ -404,11 +405,16 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
         // Groups are small and there is no searching to do over them, so the
         // whole list is fetched once and offered as a dropdown.
         api.getBeneficiaryGroups().catch(() => ({ data: [] as any[] })),
+        // Which categories each fund offers. A failure here leaves every
+        // category on offer rather than none, which is the same fallback an
+        // unlisted fund gets.
+        api.getBudgetCategories().catch(() => ({ data: undefined as any })),
       ])
       
       // Use real data from API
       setBudgets(budgetsRes.data || [])
       setExpenseCategories(categoriesRes.data || [])
+      setBudgetCategories(linksRes.data)
 
       setPartners(partnersRes.data || [])
       setBankAccounts(bankAccountsRes.data || [])
@@ -492,10 +498,14 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
       // to whatever the first page happened to contain, so searching for
       // somebody who sorted past the first hundred beneficiaries returned
       // nothing at all and looked like they were not registered.
+      // The fund decides who can be picked: the عدة fund offers the families
+      // still in their waiting period and nobody else, every other fund
+      // offers the association's families and not them.
       const response = await api.getBeneficiaries({
         search: beneficiarySearchTerm.trim() || undefined,
         type: beneficiaryTypeFilter === 'all' ? undefined : beneficiaryTypeFilter,
         per_page: 50,
+        budget_id: budgetId || undefined,
       })
 
       setBeneficiaries(response.data || [])
@@ -509,7 +519,7 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
     } finally {
       setBeneficiarySearchLoading(false)
     }
-  }, [beneficiarySearchTerm, beneficiaryTypeFilter, toast])
+  }, [beneficiarySearchTerm, beneficiaryTypeFilter, budgetId, toast])
   
   /**
    * Search as you type, once you have stopped.
@@ -609,7 +619,15 @@ export function NewExpenseDialog({ open, onOpenChange, onSuccess, initialData }:
 
   // Categories are independent of budgets - the full tree is always offered,
   // parents first with their children indented underneath.
-  const categoryOptions = useMemo(() => buildCategoryOptions(expenseCategories), [expenseCategories])
+  // Only what this fund is spent on. A fund with no list attached offers
+  // everything, and the category already chosen is always kept so reopening
+  // an older expense still shows its own.
+  const categoryOptions = useMemo(
+    () => buildCategoryOptions(
+      categoriesForBudget(expenseCategories, budgetId, budgetCategories?.expense, expenseCategoryId),
+    ),
+    [expenseCategories, budgetId, budgetCategories, expenseCategoryId],
+  )
   
   // Which family each selected beneficiary belongs to, recorded at selection
   // time: the search results are replaced on every new search, so the mapping

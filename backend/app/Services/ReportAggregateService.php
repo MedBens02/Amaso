@@ -37,7 +37,10 @@ class ReportAggregateService
             ? now()->subYears((int) $filters['max_age'] + 1)->endOfDay()
             : null;
 
-        $widows = Widow::query()
+        // Families still in عدة are left out: they are being supported while
+        // the case is looked at, not yet taken on, and counting them would
+        // overstate every figure in this report.
+        $widows = Widow::query()->regular()
             ->when(!empty($filters['neighborhood']), fn ($q) => $q->where('neighborhood', $filters['neighborhood']))
             ->when(!empty($filters['sector_id']), fn ($q) => $q->whereIn(
                 'neighborhood',
@@ -283,7 +286,7 @@ class ReportAggregateService
             ->selectRaw('widow_id, SUM(amount) as total, COUNT(*) as kafils')
             ->groupBy('widow_id')->get()->keyBy('widow_id');
 
-        $rows = Widow::query()
+        $rows = Widow::query()->regular()
             ->when(!empty($filters['neighborhood']), fn ($q) => $q->where('neighborhood', $filters['neighborhood']))
             ->when(!empty($filters['sector_id']), fn ($q) => $q->whereIn(
                 'neighborhood',

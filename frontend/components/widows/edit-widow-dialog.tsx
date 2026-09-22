@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { IddaFields } from "@/components/widows/idda-fields"
 import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -49,6 +50,9 @@ const editWidowSchema = z
     neighborhood: z.string().min(1, "الحي مطلوب"),
     address: z.string().optional(),
     admissionDate: z.date({ required_error: "تاريخ الانضمام مطلوب" }),
+    husbandDeathDate: z.string().optional(),
+    isIddaCase: z.boolean().optional(),
+    iddaEndDate: z.string().optional(),
     maritalStatus: z.string().optional(),
     educationLevel: z.string().optional(),
     disabilityFlag: z.boolean().default(false),
@@ -139,6 +143,9 @@ interface Widow {
   address?: string
   neighborhood?: string
   admission_date: string
+  husband_death_date?: string | null
+  is_idda_case?: boolean
+  idda_end_date?: string | null
   national_id: string
   birth_date: string
   marital_status: string
@@ -204,6 +211,9 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
       neighborhood: "",
       address: "",
       admissionDate: new Date(),
+      husbandDeathDate: "",
+      isIddaCase: false,
+      iddaEndDate: "",
       maritalStatus: "Widowed",
       educationLevel: "",
       disabilityFlag: false,
@@ -303,6 +313,9 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
         neighborhood: widow.neighborhood || "",
         address: widow.address || "",
         admissionDate: admissionDate,
+        husbandDeathDate: widow.husband_death_date || "",
+        isIddaCase: Boolean(widow.is_idda_case),
+        iddaEndDate: widow.idda_end_date || "",
         maritalStatus: widow.marital_status || "Widowed",
         educationLevel: widow.education_level || "",
         disabilityFlag: widow.disability_flag || false,
@@ -422,6 +435,9 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
         address: data.address || undefined,
         neighborhood: data.neighborhood,
         admission_date: data.admissionDate.toISOString().split('T')[0],
+        husband_death_date: data.husbandDeathDate || null,
+        is_idda_case: Boolean(data.isIddaCase),
+        idda_end_date: data.isIddaCase ? (data.iddaEndDate || null) : null,
         national_id: data.nationalId || undefined,
         birth_date: data.birthDate.toISOString().split('T')[0],
         marital_status: data.maritalStatus as 'Widowed' | 'Divorced' | 'Single',
@@ -746,6 +762,18 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                     )}
                   </div>
                 </div>
+
+                <IddaFields
+                  husbandDeathDate={form.watch("husbandDeathDate") || ""}
+                  isIddaCase={form.watch("isIddaCase") || false}
+                  iddaEndDate={form.watch("iddaEndDate") || ""}
+                  admissionDate={toDateInputValue(form.watch("admissionDate"))}
+                  onChange={(patch) => {
+                    if (patch.husbandDeathDate !== undefined) form.setValue("husbandDeathDate", patch.husbandDeathDate)
+                    if (patch.isIddaCase !== undefined) form.setValue("isIddaCase", patch.isIddaCase)
+                    if (patch.iddaEndDate !== undefined) form.setValue("iddaEndDate", patch.iddaEndDate)
+                  }}
+                />
 
                 <div className="space-y-2">
                   <Label htmlFor="address">العنوان التفصيلي</Label>

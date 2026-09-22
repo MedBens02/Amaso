@@ -91,6 +91,7 @@ class DemoDataSeeder extends Seeder
         $this->seedPriorYears($fiscalYears, $donors, $widows);
         $this->seedBeneficiaryGroup($widows);
         $this->archiveOneFamily($sponsorlessWidow);
+        $this->markIddaCases($widows);
 
         $this->command?->info('Demo data seeded: '
             . Widow::count() . ' widows, '
@@ -1034,6 +1035,45 @@ class DemoDataSeeder extends Seeder
                 'updated_at' => now(),
             ]);
         }
+    }
+
+    /**
+     * Two families registered as يتيم جديد cases, one of each kind.
+     *
+     * They exist so the screen has something on it: a family still inside her
+     * عدة, who appears only when the عدة fund is paying, and one whose عدة has
+     * run out and is waiting for somebody to enrol or archive her. Both are
+     * lifted out of the beneficiary lists, which is most of what the feature
+     * does and is hard to see on an empty table.
+     */
+    private function markIddaCases(array $widows): void
+    {
+        // From the end of the list, so the families the money and the
+        // sponsorships were seeded against are left where they are.
+        $candidates = collect($widows)
+            ->reverse()
+            ->filter(fn (Widow $widow) => ! $widow->fresh()?->trashed())
+            ->values();
+
+        if ($candidates->count() < 2) {
+            return;
+        }
+
+        $inIdda = $candidates[0];
+        $inIdda->update([
+            'husband_death_date' => now()->subMonths(2)->subDays(6)->format('Y-m-d'),
+            'admission_date' => now()->subMonths(1)->subDays(9)->format('Y-m-d'),
+            'idda_end_date' => now()->addMonths(2)->addDays(4)->format('Y-m-d'),
+            'is_idda_case' => true,
+        ]);
+
+        $ended = $candidates[1];
+        $ended->update([
+            'husband_death_date' => now()->subMonths(6)->format('Y-m-d'),
+            'admission_date' => now()->subMonths(5)->subDays(12)->format('Y-m-d'),
+            'idda_end_date' => now()->subDays(18)->format('Y-m-d'),
+            'is_idda_case' => true,
+        ]);
     }
 
     private function archiveOneFamily(Widow $widow): void

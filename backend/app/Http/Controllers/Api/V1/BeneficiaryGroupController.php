@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Beneficiary;
+use App\Models\Budget;
 use App\Models\BeneficiaryGroup;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -157,6 +158,34 @@ class BeneficiaryGroupController extends Controller
         if (in_array($request->type, ['Widow', 'Orphan'])) {
             $query->where('type', $request->type);
         }
+
+        // Which fund the money is coming out of decides who can be picked.
+        //
+        // The عدة fund pays one thing - the monthly allowance to a family in
+        // her waiting period - so it offers those families and nobody else.
+        // Every other fund offers the association's families and not them:
+        // a woman being supported through عدة has not been taken on, and
+        // putting her in front of every expense would be inviting somebody
+        // to spend on a family the association has not committed to.
+        //
+        // A family whose عدة has run out is in neither list. The allowance
+        // has stopped, and she is waiting on a decision rather than on money.
+        $budget = $request->filled('budget_id')
+            ? Budget::find($request->integer('budget_id'))
+            : null;
+
+        // whereNull on deleted_at, not just the scope: Beneficiary::widow()
+        // opts into trashed rows on purpose, so a paid expense still resolves
+        // the family it went to. That is right for history and wrong here -
+        // an archived family was being offered to spend on.
+        $scope = $budget?->is_idda
+            ? fn ($widow) => $widow->iddaActive()->whereNull('widows.deleted_at')
+            : fn ($widow) => $widow->regular()->whereNull('widows.deleted_at');
+
+        $query->where(function ($q) use ($scope) {
+            $q->whereHas('widow', $scope)
+                ->orWhereHas('orphan', fn ($orphan) => $orphan->whereHas('widow', $scope));
+        });
 
         if ($search = $request->search) {
             $query->where(function ($q) use ($search) {

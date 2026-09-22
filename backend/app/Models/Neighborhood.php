@@ -29,6 +29,9 @@ class Neighborhood extends Model
      */
     public function widows(): Builder
     {
-        return Widow::query()->where('neighborhood', $this->label);
+        // The association's families. A عدة case lives somewhere too, but she
+        // is not one of them yet and this count is what the reference screen
+        // shows as "how many families are here".
+        return Widow::query()->regular()->where('neighborhood', $this->label);
     }
 }

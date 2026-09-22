@@ -41,6 +41,15 @@ class WidowController extends Controller
     {
         $query = Widow::query()->with(['orphans.currentEnrollment.educationLevel', 'orphans.currentEnrollment.grades']);
 
+        // A family in عدة is not one of the association's families yet, so
+        // she is not in the list of them. The عدة screen asks for her by
+        // name through this same endpoint rather than having one of its own.
+        match ($request->get('idda')) {
+            'only' => $query->iddaCases(),
+            'all' => null,
+            default => $query->regular(),
+        };
+
         if ($request->filled('search')) {
             $search = $request->get('search');
             $query->where(function ($q) use ($search) {
@@ -197,6 +206,29 @@ class WidowController extends Controller
     }
 
     /**
+     * Take a family on: she stops being a عدة case and becomes one of the
+     * association's families.
+     *
+     * The decision a human makes, not one a date makes. Her عدة running out
+     * is what puts the case in front of somebody; this is somebody answering
+     * it. The dates stay on the record - how she came to the association is
+     * part of her history, not something to tidy away once she is enrolled.
+     */
+    public function enrol(Widow $widow): JsonResponse
+    {
+        if (! $widow->is_idda_case) {
+            return response()->json(['message' => 'هذه الأسرة مسجّلة أصلاً ضمن الأسر المكفولة'], 400);
+        }
+
+        $widow->update(['is_idda_case' => false]);
+
+        return response()->json([
+            'message' => "تم تسجيل أسرة \"{$widow->full_name}\" ضمن الأسر المكفولة",
+            'data' => $widow->fresh(),
+        ]);
+    }
+
+    /**
      * Restore an archived family.
      */
     public function restore(Widow $widow): JsonResponse
@@ -241,14 +273,14 @@ class WidowController extends Controller
                         'sector' => $item->sector?->label,
                     ])
                     ->concat(
-                        Widow::query()
+                        Widow::query()->regular()
                             ->whereNotNull('neighborhood')->where('neighborhood', '!=', '')
                             ->whereNotIn('neighborhood', \App\Models\Neighborhood::pluck('label'))
                             ->distinct()->orderBy('neighborhood')->pluck('neighborhood')
                             ->map(fn ($label) => ['id' => null, 'label' => $label, 'sector_id' => null, 'sector' => null]),
                     )
                     ->values(),
-                'education_levels' => Widow::query()
+                'education_levels' => Widow::query()->regular()
                     ->whereNotNull('education_level')->where('education_level', '!=', '')
                     ->distinct()->orderBy('education_level')->pluck('education_level'),
             ],

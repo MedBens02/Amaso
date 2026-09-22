@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\V1\BudgetCategoryController;
 use App\Http\Controllers\Api\V1\BankAccountController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DonorController;
@@ -80,6 +81,8 @@ Route::prefix('v1')->group(function () {
     // Widows CRUD (families; destroy archives instead of deleting)
     Route::apiResource('widows', WidowController::class)->withTrashed(['show']);
     Route::post('widows/{widow}/restore', [WidowController::class, 'restore'])->withTrashed();
+    // A family whose عدة is over, taken on as one of the association's own.
+    Route::post('widows/{widow}/enrol', [WidowController::class, 'enrol']);
     Route::get('widows-reference-data', [WidowController::class, 'getReferenceData']);
 
     // Orphans CRUD (read-only, managed through widows)
@@ -221,6 +224,13 @@ Route::prefix('v1')->group(function () {
             'data' => \App\Models\Budget::orderByDesc('is_default')->orderBy('label')->get(),
         ]);
     });
+
+    // Which categories each fund offers. Read by the income and expense
+    // forms to narrow their category lists, and by the screen that sets them.
+    Route::get('budget-categories', [BudgetCategoryController::class, 'index']);
+    Route::get('budgets/{budget}/categories', [BudgetCategoryController::class, 'show']);
+    Route::put('budgets/{budget}/categories', [BudgetCategoryController::class, 'update'])
+        ->middleware('role:admin,superuser,accountant');
 
     Route::get('income-categories', function () {
         return response()->json([

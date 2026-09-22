@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { IddaFields } from "@/components/widows/idda-fields"
 import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -49,6 +50,11 @@ const widowSchema = z
     neighborhood: z.string().min(1, "الحي مطلوب"),
     address: z.string().optional(),
     admissionDate: z.date({ required_error: "تاريخ الانضمام مطلوب" }),
+    // When she was widowed, and whether this is still a عدة case rather than
+    // one of the association's families.
+    husbandDeathDate: z.string().optional(),
+    isIddaCase: z.boolean().optional(),
+    iddaEndDate: z.string().optional(),
     maritalStatus: z.string().optional(),
     educationLevel: z.string().optional(),
     disabilityFlag: z.boolean().default(false),
@@ -242,6 +248,9 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
       email: "",
       address: "",
       neighborhood: "",
+      husbandDeathDate: "",
+      isIddaCase: false,
+      iddaEndDate: "",
       maritalStatus: "Widowed",
       educationLevel: "",
       children: [],
@@ -459,6 +468,9 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
           ? data.neighborhood.replace('__new_option_', '') 
           : data.neighborhood,
         admission_date: data.admissionDate.toISOString().split('T')[0],
+        husband_death_date: data.husbandDeathDate || null,
+        is_idda_case: data.isIddaCase,
+        idda_end_date: data.isIddaCase ? (data.iddaEndDate || null) : null,
         national_id: data.nationalId || "",
         birth_date: data.birthDate.toISOString().split('T')[0],
         marital_status: data.maritalStatus || "Widowed",
@@ -822,6 +834,18 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                   )}
                 </div>
               </div>
+
+              <IddaFields
+                husbandDeathDate={form.watch("husbandDeathDate") || ""}
+                isIddaCase={form.watch("isIddaCase") || false}
+                iddaEndDate={form.watch("iddaEndDate") || ""}
+                admissionDate={toDateInputValue(form.watch("admissionDate"))}
+                onChange={(patch) => {
+                  if (patch.husbandDeathDate !== undefined) form.setValue("husbandDeathDate", patch.husbandDeathDate)
+                  if (patch.isIddaCase !== undefined) form.setValue("isIddaCase", patch.isIddaCase)
+                  if (patch.iddaEndDate !== undefined) form.setValue("iddaEndDate", patch.iddaEndDate)
+                }}
+              />
 
               {/* الحالة الاجتماعية was dropped from the form: the column
                   is required by the API and keeps its "Widowed" default, but

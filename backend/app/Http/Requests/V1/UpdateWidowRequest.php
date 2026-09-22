@@ -31,6 +31,22 @@ class UpdateWidowRequest extends FormRequest
             ],
             'birth_date' => ['sometimes', 'date', 'before:today'],
             'marital_status' => ['sometimes', 'string', 'in:Widowed,Divorced,Single'],
+
+            // When she was widowed. Worth recording on any family, not only
+            // the ones registered while still in عدة.
+            'husband_death_date' => ['nullable', 'date', 'before_or_equal:today'],
+
+            // A family registered as a يتيم جديد case: supported through عدة
+            // and kept off the beneficiary lists until the association
+            // decides. The end date is required for one, because it is what
+            // the allowance and the whole screen run on.
+            'is_idda_case' => ['boolean'],
+            'idda_end_date' => [
+                'nullable',
+                'required_if:is_idda_case,true',
+                'date',
+                'after_or_equal:husband_death_date',
+            ],
             'family_liaison' => ['nullable', 'string', 'max:100'],
             'education_level' => ['nullable', 'string', 'max:100'],
             'disability_flag' => ['boolean'],

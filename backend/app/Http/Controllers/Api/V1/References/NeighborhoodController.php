@@ -26,7 +26,7 @@ class NeighborhoodController extends Controller
 
         // How many families are on each name, counted in one query rather
         // than one per row. It is what makes "can I delete this?" answerable.
-        $families = Widow::query()
+        $families = Widow::query()->regular()
             ->selectRaw('neighborhood, COUNT(*) as total')
             ->groupBy('neighborhood')
             ->pluck('total', 'neighborhood');
@@ -80,6 +80,9 @@ class NeighborhoodController extends Controller
      */
     public function destroy(Neighborhood $neighborhood): JsonResponse
     {
+        // Every family on the name, عدة cases included: a name still
+        // attached to one of them is still in use, and deleting it would
+        // leave her address pointing at nothing.
         $inUse = Widow::where('neighborhood', $neighborhood->label)->count();
 
         if ($inUse > 0) {
