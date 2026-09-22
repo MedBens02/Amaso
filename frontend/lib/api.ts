@@ -1147,9 +1147,7 @@ class ApiClient {
       throw new ApiError(response, data)
     }
 
-    const disposition = response.headers.get('Content-Disposition') || ''
-    const match = disposition.match(/filename="?([^"';]+)"?/)
-    const filename = match ? match[1] : fallbackName
+    const filename = filenameFrom(response.headers.get('Content-Disposition')) ?? fallbackName
 
     const blob = await response.blob()
     const url = URL.createObjectURL(blob)
@@ -1337,6 +1335,30 @@ class ApiClient {
   async getOrphansEducationLevels() {
     return this.request<any[]>('/orphans-education-levels')
   }
+}
+
+/**
+ * The name the server gave the file.
+ *
+ * Reports and cards are titled in Arabic, which cannot travel in the plain
+ * `filename=` parameter - the header is bytes with no declared encoding. The
+ * server sends the real name in RFC 5987's `filename*`, which declares UTF-8
+ * and percent-encodes it, and leaves a plain ASCII name in `filename=` for
+ * anything that does not understand that. Read the good one first.
+ */
+function filenameFrom(disposition: string | null): string | null {
+  if (!disposition) return null
+
+  const encoded = disposition.match(/filename\*\s*=\s*UTF-8''([^;]+)/i)
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded[1].trim())
+    } catch {
+      // A malformed escape is not worth losing the download over.
+    }
+  }
+
+  return disposition.match(/filename="?([^"';]+)"?/)?.[1] ?? null
 }
 
 export const api = new ApiClient()

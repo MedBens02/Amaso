@@ -12,6 +12,7 @@ use App\Services\ReportAggregateService;
 use App\Services\ReportService;
 use App\Services\SchoolPerformanceService;
 use App\Services\SpreadsheetService;
+use App\Support\Attachment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -68,7 +69,7 @@ class ReportController extends Controller
                 'entity' => $statement['kafil']['full_name'],
                 'statement' => $statement,
             ]),
-            $this->filename('kafil-statement', $statement['kafil']['full_name']),
+            $this->reportName('كشف الكفيل', $statement['kafil']['full_name']),
         );
     }
 
@@ -119,7 +120,7 @@ class ReportController extends Controller
                 'report' => $report,
                 'filterSummary' => $this->describeSchoolFilters($validated),
             ], ['landscape' => true]),
-            $this->filename('school-performance', $report['academic_year']['label'] ?? 'report'),
+            $this->reportName('تقرير الأداء الدراسي', $report['academic_year']['label'] ?? null),
         );
     }
 
@@ -170,7 +171,7 @@ class ReportController extends Controller
                 'subtitle' => 'إحصائيات الأسر والأطفال المسجلين',
                 'report' => $report,
             ]),
-            $this->filename('widows-report', null),
+            $this->reportName('تقرير الأرامل والأيتام', null),
         );
     }
 
@@ -191,7 +192,7 @@ class ReportController extends Controller
                 'entity' => \App\Support\PdfFormat::periodLabel($report['period']['from'], $report['period']['to']),
                 'report' => $report,
             ]),
-            $this->filename('financial-report', $report['period']['from']),
+            $this->reportName('التقرير المالي الشامل', $report['period']['from']),
         );
     }
 
@@ -211,7 +212,7 @@ class ReportController extends Controller
                 'entity' => \App\Support\PdfFormat::periodLabel($report['period']['from'], $report['period']['to']),
                 'report' => $report,
             ]),
-            $this->filename('donors-report', $report['period']['from']),
+            $this->reportName('تقرير الكفلاء والمتبرعين', $report['period']['from']),
         );
     }
 
@@ -231,7 +232,7 @@ class ReportController extends Controller
                 'entity' => \App\Support\PdfFormat::periodLabel($report['period']['from'], $report['period']['to']),
                 'report' => $report,
             ]),
-            $this->filename('annual-report', $report['period']['from']),
+            $this->reportName('تقرير الأداء السنوي', $report['period']['from']),
         );
     }
 
@@ -250,7 +251,7 @@ class ReportController extends Controller
                 'subtitle' => 'الأسر غير المكفولة والأسر ذات التغطية الناقصة',
                 'report' => $report,
             ], ['landscape' => true]),
-            $this->filename('sponsorship-gaps', null),
+            $this->reportName('تقرير نقص الكفالة', null),
         );
     }
 
@@ -270,7 +271,7 @@ class ReportController extends Controller
                 'entity' => \App\Support\PdfFormat::periodLabel($report['period']['from'], $report['period']['to']),
                 'report' => $report,
             ], ['landscape' => true]),
-            $this->filename('kafil-follow-up', $report['period']['from']),
+            $this->reportName('متابعة التزامات الكفلاء', $report['period']['from']),
         );
     }
 
@@ -290,7 +291,7 @@ class ReportController extends Controller
                 'entity' => \App\Support\PdfFormat::periodLabel($report['period']['from'], $report['period']['to']),
                 'report' => $report,
             ]),
-            $this->filename('budget-utilization', $report['period']['from']),
+            $this->reportName('تقرير استعمال الميزانيات', $report['period']['from']),
         );
     }
 
@@ -307,7 +308,7 @@ class ReportController extends Controller
                 'kind' => 'income',
                 'report' => $report,
             ], ['landscape' => true]),
-            $this->filename('incomes', $report['period']['from']),
+            $this->reportName('سجل الإيرادات', $report['period']['from']),
         );
     }
 
@@ -323,7 +324,7 @@ class ReportController extends Controller
                 'kind' => 'expense',
                 'report' => $report,
             ], ['landscape' => true]),
-            $this->filename('expenses', $report['period']['from']),
+            $this->reportName('سجل المصروفات', $report['period']['from']),
         );
     }
 
@@ -347,7 +348,7 @@ class ReportController extends Controller
                 $report['rows'],
                 $this->periodCaptions($report),
             ),
-            $this->filename('incomes', $report['period']['from'], 'xlsx'),
+            $this->reportName('سجل الإيرادات', $report['period']['from']),
         );
     }
 
@@ -371,7 +372,7 @@ class ReportController extends Controller
                 $report['rows'],
                 $this->periodCaptions($report),
             ),
-            $this->filename('expenses', $report['period']['from'], 'xlsx'),
+            $this->reportName('سجل المصروفات', $report['period']['from']),
         );
     }
 
@@ -395,7 +396,7 @@ class ReportController extends Controller
                 $report['widows'],
                 ['count' => 'عدد الأسر: ' . count($report['widows'])],
             ),
-            $this->filename('widows', null, 'xlsx'),
+            $this->reportName('تقرير الأرامل والأيتام', null),
         );
     }
 
@@ -424,7 +425,7 @@ class ReportController extends Controller
                 $rows,
                 $this->periodCaptions(['period' => $report['period'], 'totals' => ['count' => count($rows)]]),
             ),
-            $this->filename('donors', $report['period']['from'], 'xlsx'),
+            $this->reportName('تقرير الكفلاء والمتبرعين', $report['period']['from']),
         );
     }
 
@@ -452,7 +453,7 @@ class ReportController extends Controller
                     'schooled' => "متمدرسون: {$report['totals']['schooled']}",
                 ],
             ),
-            $this->filename('orphans', null, 'xlsx'),
+            $this->reportName('قائمة الأيتام', null),
         );
     }
 
@@ -483,7 +484,7 @@ class ReportController extends Controller
                     ['label' => 'متمدرسون', 'value' => $report['totals']['schooled']],
                 ],
             ], ['landscape' => true]),
-            $this->filename('orphans', null),
+            $this->reportName('قائمة الأيتام', null),
         );
     }
 
@@ -509,7 +510,7 @@ class ReportController extends Controller
                     'balance' => 'الرصيد: ' . number_format($report['totals']['balance'], 2) . ' د.م',
                 ],
             ),
-            $this->filename('financial', $report['period']['from'], 'xlsx'),
+            $this->reportName('التقرير المالي الشامل', $report['period']['from']),
         );
     }
 
@@ -531,7 +532,7 @@ class ReportController extends Controller
                     'period' => "الفترة: {$financial['period']['from']} — {$financial['period']['to']}",
                 ],
             ),
-            $this->filename('annual', $financial['period']['from'] ?? null, 'xlsx'),
+            $this->reportName('تقرير الأداء السنوي', $financial['period']['from'] ?? null),
         );
     }
 
@@ -570,7 +571,7 @@ class ReportController extends Controller
                     'shortfall' => 'مجموع النقص: ' . number_format($report['totals']['total_shortfall'], 2) . ' د.م',
                 ]),
             ),
-            $this->filename('sponsorship-gaps', null, 'xlsx'),
+            $this->reportName('تقرير نقص الكفالة', null),
         );
     }
 
@@ -599,7 +600,7 @@ class ReportController extends Controller
                     'behind' => 'متأخرون: ' . $report['totals']['behind'],
                 ],
             ),
-            $this->filename('kafil-follow-up', $report['period']['from'], 'xlsx'),
+            $this->reportName('متابعة التزامات الكفلاء', $report['period']['from']),
         );
     }
 
@@ -625,7 +626,7 @@ class ReportController extends Controller
                     'overspent' => 'ميزانيات متجاوزة: ' . $report['totals']['overspent'],
                 ],
             ),
-            $this->filename('budget-utilization', $report['period']['from'], 'xlsx'),
+            $this->reportName('تقرير استعمال الميزانيات', $report['period']['from']),
         );
     }
 
@@ -657,7 +658,7 @@ class ReportController extends Controller
                 ],
                 ['year' => 'السنة الدراسية: ' . ($report['academic_year']['label'] ?? '—')],
             ),
-            $this->filename('school-performance', null, 'xlsx'),
+            $this->reportName('تقرير الأداء الدراسي', null),
         );
     }
 
@@ -716,7 +717,7 @@ class ReportController extends Controller
                         . number_format($statement['totals']['received_by_families'] ?? 0, 2) . ' د.م',
                 ],
             ),
-            $this->filename('kafil-statement', $statement['kafil']['full_name'], 'xlsx'),
+            $this->reportName('كشف الكفيل', $statement['kafil']['full_name']),
         );
     }
 
@@ -741,7 +742,7 @@ class ReportController extends Controller
                     'period' => "الفترة: {$report['period']['from']} — {$report['period']['to']}",
                 ],
             ),
-            $this->filename('family-financial', $widow->id, 'xlsx'),
+            $this->reportName('الكشف المالي للأسرة', $widow->id),
         );
     }
 
@@ -819,13 +820,9 @@ class ReportController extends Controller
         ];
     }
 
-    private function downloadSheet(string $contents, string $filename)
+    private function downloadSheet(string $contents, string $name)
     {
-        return response($contents, 200, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-            'Access-Control-Expose-Headers' => 'Content-Disposition',
-        ]);
+        return Attachment::sheet($contents, $name);
     }
 
     /** Everything the association has done for one family, in one document. */
@@ -848,7 +845,7 @@ class ReportController extends Controller
                 'entity' => $widow->full_name,
                 'report' => $report,
             ]),
-            $this->filename('family-financial', $widow->id),
+            $this->reportName('الكشف المالي للأسرة', $widow->id),
         );
     }
 
@@ -883,22 +880,26 @@ class ReportController extends Controller
         ]);
     }
 
-    private function download(string $pdf, string $filename)
+    private function download(string $pdf, string $name)
     {
-        return response($pdf, 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-            // The browser fetches this with an Authorization header, so the
-            // frontend reads it as a blob - it needs the name from here.
-            'Access-Control-Expose-Headers' => 'Content-Disposition',
-        ]);
+        return Attachment::pdf($pdf, $name);
     }
 
-    private function filename(string $prefix, ?string $suffix, string $extension = 'pdf'): string
+    /**
+     * What the downloaded file is called, in the words of the report it came
+     * from. Attachment adds the date and the extension.
+     *
+     * The suffix is whatever narrows this copy from every other copy of the
+     * same report - a sponsor's name, a family's, the start of the period.
+     * It used to be run through a slug that kept only A-Z and digits, which
+     * for an Arabic name left nothing at all: every sponsor's statement was
+     * called kafil-statement--2026-09-22.pdf.
+     */
+    private function reportName(string $name, int|string|null $suffix = null): string
     {
-        $slug = trim(preg_replace('/[^A-Za-z0-9]+/', '-', (string) $suffix), '-');
+        $suffix = trim((string) $suffix);
 
-        return trim("{$prefix}-{$slug}", '-') . '-' . now()->format('Y-m-d') . '.' . $extension;
+        return $suffix === '' ? $name : "{$name} - {$suffix}";
     }
 
     /**

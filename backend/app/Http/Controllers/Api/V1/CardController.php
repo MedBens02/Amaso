@@ -8,6 +8,7 @@ use App\Models\Income;
 use App\Models\Kafil;
 use App\Models\Orphan;
 use App\Models\Widow;
+use App\Support\Attachment;
 use App\Services\PdfService;
 use Illuminate\Http\Request;
 
@@ -51,7 +52,7 @@ class CardController extends Controller
                 'widow' => $widow,
                 'sections' => $sections,
             ]),
-            $this->filename('widow-card', $widow->id),
+            $this->cardName('بطاقة الأسرة', $widow->full_name),
         );
     }
 
@@ -72,7 +73,7 @@ class CardController extends Controller
                 'entity' => trim("{$orphan->first_name} {$orphan->last_name}"),
                 'orphan' => $orphan,
             ]),
-            $this->filename('orphan-card', $orphan->id),
+            $this->cardName('بطاقة اليتيم', trim("{$orphan->first_name} {$orphan->last_name}")),
         );
     }
 
@@ -92,7 +93,7 @@ class CardController extends Controller
                 'donor' => $donor,
                 'incomes' => $incomes,
             ]),
-            $this->filename('donor-card', $donor->id),
+            $this->cardName('بطاقة المتبرع', trim("{$donor->first_name} {$donor->last_name}")),
         );
     }
 
@@ -106,21 +107,22 @@ class CardController extends Controller
                 'entity' => $kafil->full_name,
                 'kafil' => $kafil,
             ]),
-            $this->filename('kafil-card', $kafil->id),
+            $this->cardName('بطاقة الكفيل', $kafil->full_name),
         );
     }
 
-    private function download(string $pdf, string $filename)
+    private function download(string $pdf, string $name)
     {
-        return response($pdf, 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-            'Access-Control-Expose-Headers' => 'Content-Disposition',
-        ]);
+        return Attachment::pdf($pdf, $name, 'card');
     }
 
-    private function filename(string $prefix, int|string $id): string
+    /**
+     * A card is about one person, so it is named after them. It used to be
+     * named after their row id - widow-card-17.pdf - which is unfindable in
+     * a folder of thirty of them.
+     */
+    private function cardName(string $kind, string $who): string
     {
-        return "{$prefix}-{$id}-" . now()->format('Y-m-d') . '.pdf';
+        return trim("{$kind} - {$who}");
     }
 }
