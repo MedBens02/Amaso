@@ -16,7 +16,7 @@ class EnrollmentController extends Controller
 {
     private const RELATIONS = [
         'orphan.widow', 'academicYear', 'educationLevel', 'school',
-        'transportSupport',
+        'transportSupport', 'grades',
     ];
 
     public function index(Request $request): JsonResponse
@@ -128,6 +128,58 @@ class EnrollmentController extends Controller
         $enrollment->delete();
 
         return response()->json(['message' => 'تم حذف التسجيل بنجاح']);
+    }
+
+    /**
+     * The exam marks on one enrollment, replaced as a set.
+     *
+     * Sent whole rather than one row at a time: the screen edits a list -
+     * add a line, retitle one, delete one - and saving it as a set means
+     * what is on screen is what ends up stored, with no way for a delete to
+     * be lost because the request that carried it failed on its own.
+     */
+    public function saveGrades(Request $request, OrphanEnrollment $enrollment): JsonResponse
+    {
+        $validated = $request->validate([
+            'grades' => ['present', 'array', 'max:50'],
+            'grades.*.label' => ['required', 'string', 'max:120'],
+            'grades.*.mark' => ['required', 'numeric', 'min:0'],
+            'grades.*.scale' => ['required', 'numeric', 'min:1', 'max:1000'],
+        ], [
+            'grades.*.label.required' => 'اسم النقطة مطلوب',
+            'grades.*.mark.required' => 'النقطة مطلوبة',
+            'grades.*.mark.numeric' => 'النقطة يجب أن تكون رقماً',
+            'grades.*.scale.required' => 'السلم مطلوب',
+        ]);
+
+        // A mark above its own ceiling is a typo, not a record worth keeping -
+        // the same rule the semester marks have always had.
+        foreach ($validated['grades'] as $index => $grade) {
+            if ((float) $grade['mark'] > (float) $grade['scale']) {
+                return response()->json([
+                    'message' => "النقطة \"{$grade['label']}\" ({$grade['mark']}) تتجاوز سلمها ({$grade['scale']}).",
+                    'errors' => ["grades.{$index}.mark" => ['النقطة تتجاوز السلم المعتمد']],
+                ], 422);
+            }
+        }
+
+        DB::transaction(function () use ($enrollment, $validated) {
+            $enrollment->grades()->delete();
+
+            foreach ($validated['grades'] as $index => $grade) {
+                $enrollment->grades()->create([
+                    'label' => $grade['label'],
+                    'mark' => $grade['mark'],
+                    'scale' => $grade['scale'],
+                    'sort_order' => $index,
+                ]);
+            }
+        });
+
+        return response()->json([
+            'message' => 'تم حفظ النقط بنجاح',
+            'data' => $enrollment->fresh('grades')->grades,
+        ]);
     }
 
     /**

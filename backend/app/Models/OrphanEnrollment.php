@@ -118,6 +118,12 @@ class OrphanEnrollment extends Model
         return $this->belongsTo(Orphan::class)->withTrashed();
     }
 
+    /** The named exam marks, in the order they were entered. */
+    public function grades(): HasMany
+    {
+        return $this->hasMany(EnrollmentGrade::class, 'enrollment_id')->orderBy('sort_order')->orderBy('id');
+    }
+
     public function academicYear(): BelongsTo
     {
         return $this->belongsTo(AcademicYear::class);

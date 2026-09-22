@@ -753,6 +753,14 @@ class ApiClient {
     return this.request<any>(`/kafala-chamila/splits/${id}`, { method: 'DELETE' })
   }
 
+  /** Replaces the whole set of named exam marks on one enrollment. */
+  async saveExamGrades(enrollmentId: number, grades: Array<{ label: string; mark: number; scale: number }>) {
+    return this.request<any>(`/enrollments/${enrollmentId}/grades`, {
+      method: 'PUT',
+      body: JSON.stringify({ grades }),
+    })
+  }
+
   async getBudgets() {
     return this.request<any[]>('/budgets')
   }

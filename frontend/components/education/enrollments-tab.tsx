@@ -8,11 +8,13 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { GraduationCap, Plus, Loader2, Search, Trash2, Save, Pencil, BookOpen } from "lucide-react"
+import { UNSAVED_GRADES_MESSAGE, useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes"
+import { BookOpen, ClipboardList, GraduationCap, Loader2, Pencil, Plus, Save, Search, Trash2 } from "lucide-react"
 import { RowActions } from "@/components/ui/row-actions"
 import api from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { EnrollmentDialog, type Phase } from "./enrollment-dialog"
+import { ExamGradesDialog } from "./exam-grades-dialog"
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   enrolled: { label: "مسجل", className: "bg-blue-100 dark:bg-blue-950/50 text-blue-800 dark:text-blue-400" },
@@ -32,7 +34,7 @@ const draftOf = (row: any): GradeDraft => ({
   scale: String(Number(row.grade_scale) || 20),
 })
 
-export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
+export function EnrollmentsTab() {
   const [enrollments, setEnrollments] = useState<any[]>([])
   const [years, setYears] = useState<any[]>([])
   const [schools, setSchools] = useState<any[]>([])
@@ -104,7 +106,10 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
         rows.map((row: any) => [row.id, draftOf(row)]),
       )
       setGradeDrafts((previous) => {
-        const merged: Record<number, GradeDraft> = {}
+        // Starting from what is already held, not from an empty object: a
+        // row the new filter excludes is not a row the user abandoned, and
+        // dropping it here lost marks that were typed a moment earlier.
+        const merged: Record<number, GradeDraft> = { ...previous }
         for (const row of rows) {
           const before = serverGrades.current[row.id]
           const current = previous[row.id]
@@ -115,7 +120,7 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
         }
         return merged
       })
-      serverGrades.current = fresh
+      serverGrades.current = { ...serverGrades.current, ...fresh }
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message || "فشل في تحميل التسجيلات", variant: "destructive" })
     } finally {
@@ -125,11 +130,11 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
 
   useEffect(() => {
     fetchLookups()
-  }, [refreshKey])
+  }, [])
 
   useEffect(() => {
     fetchEnrollments()
-  }, [search, yearFilter, statusFilter, tutoringFilter, refreshKey])
+  }, [search, yearFilter, statusFilter, tutoringFilter])
 
   const setStatus = async (enrollment: any, status: string) => {
     try {
@@ -181,19 +186,23 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
 
   // Only the rows the user actually touched are sent, so saving a class of 40
   // after correcting two marks does not rewrite 38 untouched records.
+  //
+  // Measured against what the server last sent for that row rather than
+  // against the listed rows, so a mark typed before the year filter changed
+  // still counts and still saves. The registrar's work outlives the view
+  // they happened to be looking at when they typed it.
   const changedGrades = () =>
-    enrollments
-      .filter((enrollment) => {
-        const draft = gradeDrafts[enrollment.id]
-        if (!draft) return false
-        const original = draftOf(enrollment)
+    Object.entries(gradeDrafts)
+      .filter(([id, draft]) => {
+        const original = serverGrades.current[Number(id)]
+        if (!original) return false
         return draft.s1 !== original.s1 || draft.s2 !== original.s2 || draft.scale !== original.scale
       })
-      .map((enrollment) => ({
-        enrollment_id: enrollment.id,
-        first_semester_grade: gradeDrafts[enrollment.id].s1 === "" ? null : Number(gradeDrafts[enrollment.id].s1),
-        second_semester_grade: gradeDrafts[enrollment.id].s2 === "" ? null : Number(gradeDrafts[enrollment.id].s2),
-        grade_scale: Number(gradeDrafts[enrollment.id].scale) || 20,
+      .map(([id, draft]) => ({
+        enrollment_id: Number(id),
+        first_semester_grade: draft.s1 === "" ? null : Number(draft.s1),
+        second_semester_grade: draft.s2 === "" ? null : Number(draft.s2),
+        grade_scale: Number(draft.scale) || 20,
       }))
 
   const handleSaveGrades = async () => {
@@ -235,8 +244,14 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
     setDialogOpen(true)
   }
 
+  const [examTarget, setExamTarget] = useState<any | null>(null)
+
   const tutoringCount = enrollments.filter((e) => e.has_tutoring).length
   const pendingGrades = changedGrades().length
+
+  // The marks sit in the table until the save button is pressed, so leaving
+  // for another screen used to bin them silently.
+  useUnsavedChangesWarning(pendingGrades > 0, UNSAVED_GRADES_MESSAGE)
 
   return (
     <Card>
@@ -459,6 +474,11 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
                           actions={[
                             { label: "تعديل التسجيل", icon: Pencil, onSelect: () => openEdit(enrollment) },
                             {
+                              label: `نقط الامتحانات${enrollment.grades?.length ? ` (${enrollment.grades.length})` : ""}`,
+                              icon: ClipboardList,
+                              onSelect: () => setExamTarget(enrollment),
+                            },
+                            {
                               label: "حذف التسجيل",
                               icon: Trash2,
                               onSelect: () => handleDelete(enrollment),
@@ -485,6 +505,13 @@ export function EnrollmentsTab({ refreshKey }: { refreshKey?: number }) {
         schools={schools}
         phases={phases}
         defaultYearId={yearFilter}
+        onSaved={fetchEnrollments}
+      />
+
+      <ExamGradesDialog
+        open={examTarget !== null}
+        onOpenChange={(open) => !open && setExamTarget(null)}
+        enrollment={examTarget}
         onSaved={fetchEnrollments}
       />
     </Card>

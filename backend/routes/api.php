@@ -181,6 +181,8 @@ Route::prefix('v1')->group(function () {
     Route::post('academic-years', [AcademicYearController::class, 'store']);
     Route::post('academic-years/rollover', [AcademicYearController::class, 'rollover']);
     Route::post('enrollments/grades', [EnrollmentController::class, 'storeGrades']);
+    // The named exam marks on one enrollment, saved as a set.
+    Route::put('enrollments/{enrollment}/grades', [EnrollmentController::class, 'saveGrades']);
     Route::apiResource('enrollments', EnrollmentController::class)->except(['show'])
         ->parameters(['enrollments' => 'enrollment']);
 
