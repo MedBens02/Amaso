@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Support\MailDelivery;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -59,6 +60,12 @@ class UserSeeder extends Seeder
                 'password' => Hash::make($password),
                 'email_verified_at' => now(),
                 'is_active' => true,
+                // A fresh install runs this after the migration, so the
+                // migration's backfill never saw these rows. Without this
+                // they would take the column default and require a code
+                // that a log-file "mailer" can never deliver - locking
+                // somebody out of a server they just installed.
+                'two_factor_enabled' => MailDelivery::works(),
             ]);
 
             $created[$account['email']] = $password;
@@ -111,5 +118,12 @@ class UserSeeder extends Seeder
         $this->command->warn('  │  Change them after signing in:  الإعدادات ← الملف الشخصي');
         $this->command->warn('  └' . str_repeat('─', 63));
         $this->command->warn('');
+
+        if (! MailDelivery::works()) {
+            foreach (MailDelivery::adviceLines() as $line) {
+                $this->command->warn('  ' . $line);
+            }
+            $this->command->warn('');
+        }
     }
 }

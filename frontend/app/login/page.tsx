@@ -2,10 +2,10 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowRight, Loader2, Lock, ShieldCheck } from "lucide-react"
+import { ArrowRight, ArrowLeft, Loader2, Lock, MailCheck, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/ui/password-input"
@@ -32,6 +32,9 @@ const ORG_NAME = "جمعية المنصور لكفالة اليتيم"
  * gets the form immediately instead of a screenful of decoration to scroll
  * past.
  */
+/** How long before the code can be asked for again, in seconds. */
+const RESEND_AFTER = 45
+
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -39,13 +42,54 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
+  // The second step. `challenge` is what the server gave us to name this
+  // attempt; it is not a token and opens nothing on its own.
+  const [challenge, setChallenge] = useState<string | null>(null)
+  const [emailHint, setEmailHint] = useState("")
+  const [code, setCode] = useState("")
+  const [notice, setNotice] = useState("")
+  const [cooldown, setCooldown] = useState(0)
+  const codeRef = useRef<HTMLInputElement>(null)
+
+  // Count the resend cooldown down. Asking again is a real send to a real
+  // inbox, so it is worth a short wait - and every resend invalidates the
+  // code already sitting in the person's mail, which is confusing if they
+  // can trigger it by clicking twice.
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const id = setTimeout(() => setCooldown((s) => s - 1), 1000)
+    return () => clearTimeout(id)
+  }, [cooldown])
+
+  // Land the cursor in the code box the moment the step changes, so the
+  // person can type the digits straight out of the email.
+  useEffect(() => {
+    if (challenge) codeRef.current?.focus()
+  }, [challenge])
+
+  const startCodeStep = (hint: string, message?: string) => {
+    setEmailHint(hint)
+    setNotice(message || `أرسلنا رمزاً من ستة أرقام إلى ${hint}`)
+    setCode("")
+    setCooldown(RESEND_AFTER)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setNotice("")
     setLoading(true)
 
     try {
-      await api.login(email, password)
+      const outcome = await api.login(email, password)
+
+      if (outcome.status === "code_required") {
+        setChallenge(outcome.challenge)
+        startCodeStep(outcome.emailHint, outcome.message)
+        setLoading(false)
+        return
+      }
+
       router.push("/dashboard")
     } catch (err: any) {
       setError(err.message || "بيانات الدخول غير صحيحة")
@@ -54,6 +98,66 @@ export default function LoginPage() {
     // On success the redirect above unmounts this page, so `loading` stays
     // true and the button keeps its pending state until it goes - rather
     // than flicking back to "sign in" for the moment before navigation.
+  }
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!challenge) return
+    setError("")
+    setNotice("")
+    setLoading(true)
+
+    try {
+      await api.verifyLoginCode(challenge, code)
+      router.push("/dashboard")
+    } catch (err: any) {
+      setError(err.message || "رمز التحقق غير صحيح")
+      // Cleared so the next attempt starts from an empty box rather than
+      // from digits the person then has to select and delete.
+      setCode("")
+      codeRef.current?.focus()
+      setLoading(false)
+    }
+  }
+
+  /**
+   * Ask for another code.
+   *
+   * Signing in again is the resend: the server issues a new code and
+   * consumes the old one, which is exactly what "send me another" should
+   * mean. It also hands back a new challenge, so the old one is replaced
+   * here too rather than left pointing at a code that no longer exists.
+   */
+  const handleResend = async () => {
+    if (cooldown > 0 || loading) return
+    setError("")
+    setNotice("")
+    setLoading(true)
+
+    try {
+      const outcome = await api.login(email, password)
+
+      if (outcome.status === "code_required") {
+        setChallenge(outcome.challenge)
+        startCodeStep(outcome.emailHint, `أرسلنا رمزاً جديداً إلى ${outcome.emailHint}`)
+      } else {
+        // 2FA was switched off between the two steps; nothing left to verify.
+        router.push("/dashboard")
+        return
+      }
+    } catch (err: any) {
+      setError(err.message || "تعذّر إرسال الرمز")
+    }
+
+    setLoading(false)
+  }
+
+  const backToPassword = () => {
+    setChallenge(null)
+    setCode("")
+    setError("")
+    setNotice("")
+    setPassword("")
   }
 
   return (
@@ -77,12 +181,91 @@ export default function LoginPage() {
                 since the panel is not rendered on a phone. */}
             <div className="mb-8 flex flex-col items-center text-center lg:items-start lg:text-right">
               <Logo className="mb-5 h-16 w-16" size={128} priority />
-              <h1 className="text-3xl font-bold text-slate-900 dark:text-white">أهلاً بعودتك</h1>
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+                {challenge ? "تحقّق من بريدك" : "أهلاً بعودتك"}
+              </h1>
               <p className="mt-2 text-slate-500 dark:text-slate-400">
-                سجّل دخولك للوصول إلى نظام إدارة الجمعية
+                {challenge
+                  ? "أدخل الرمز الذي وصلك لإتمام تسجيل الدخول"
+                  : "سجّل دخولك للوصول إلى نظام إدارة الجمعية"}
               </p>
             </div>
 
+            {challenge ? (
+            /* ------------------------------------------------- step two */
+            <form onSubmit={handleVerify} className="space-y-5">
+              <div className="flex items-start gap-3 rounded-xl border border-teal-200 bg-teal-50/70 p-4 text-sm text-teal-900 dark:border-teal-900/60 dark:bg-teal-950/40 dark:text-teal-100">
+                <MailCheck className="mt-0.5 h-5 w-5 shrink-0 text-teal-600 dark:text-teal-400" />
+                <p className="leading-relaxed">{notice}</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="code" className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  رمز التحقق
+                </Label>
+                <Input
+                  id="code"
+                  ref={codeRef}
+                  value={code}
+                  /* Digits only, and never more than six: the box refuses
+                     what the server would refuse, instead of accepting it
+                     and spending one of five attempts to say so. */
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="000000"
+                  required
+                  dir="ltr"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  className="h-14 rounded-xl border-slate-200 bg-white text-center text-2xl font-bold tracking-[0.5em] placeholder:tracking-[0.5em] placeholder:text-slate-300 focus-visible:ring-teal-500 dark:border-slate-800 dark:bg-slate-900"
+                />
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  الرمز صالح لمدة قصيرة ولمرة واحدة. إن لم تجده، راجع مجلد الرسائل غير المرغوب فيها.
+                </p>
+              </div>
+
+              {error && (
+                <Alert variant="destructive" className="rounded-xl">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <Button
+                type="submit"
+                disabled={loading || code.length !== 6}
+                className="h-12 w-full rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600 text-base font-semibold text-white shadow-lg shadow-teal-600/20 transition-transform hover:scale-[1.01] hover:from-teal-700 hover:to-emerald-700 disabled:scale-100 disabled:opacity-70"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    جاري التحقق...
+                  </>
+                ) : (
+                  "تأكيد الدخول"
+                )}
+              </Button>
+
+              <div className="flex items-center justify-between text-sm">
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={cooldown > 0 || loading}
+                  className="font-medium text-teal-700 transition-colors hover:text-teal-800 disabled:cursor-default disabled:text-slate-400 dark:text-teal-400 dark:hover:text-teal-300 dark:disabled:text-slate-600"
+                >
+                  {cooldown > 0 ? `إعادة الإرسال بعد ${cooldown} ثانية` : "لم يصلني الرمز، أعد الإرسال"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={backToPassword}
+                  className="inline-flex items-center gap-1 font-medium text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  حساب آخر
+                </button>
+              </div>
+            </form>
+            ) : (
+            /* ------------------------------------------------- step one */
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -137,6 +320,7 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
+            )}
 
           </div>
         </div>

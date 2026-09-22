@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Header } from "@/components/dashboard/header"
 import { Sidebar } from "@/components/dashboard/sidebar"
+import { PasswordExpiredGate } from "@/components/account/password-expired-gate"
 import api from "@/lib/api"
 
 export default function DashboardLayout({
@@ -90,6 +91,9 @@ export default function DashboardLayout({
         <Sidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
           <Header user={user} />
+          {/* Renders nothing most days; a thin warning in the last few; and
+              a wall across the whole page once the password is overdue. */}
+          <PasswordExpiredGate user={user} />
           <main className="flex-1 overflow-auto bg-muted/30 p-6">{children}</main>
         </div>
       </div>

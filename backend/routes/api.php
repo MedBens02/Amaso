@@ -45,8 +45,18 @@ Route::prefix('v1')->group(function () {
 
     // Authentication (public)
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+    // The second step. Throttled harder than the first: the password is
+    // already known by whoever gets here, so this is the last wall, and six
+    // digits only hold while the guesses are rationed.
+    Route::post('auth/verify-code', [AuthController::class, 'verifyCode'])
+        ->middleware('throttle:10,1');
 
-    Route::middleware('auth:sanctum')->group(function () {
+    // fresh.password: once a password is past its age, or was reset by an
+    // administrator, nothing but changing it answers. Applied to the whole
+    // group rather than per route, because the rule is "nothing else" and a
+    // list of exceptions kept by hand grows a hole the first time somebody
+    // adds an endpoint.
+    Route::middleware(['auth:sanctum', 'fresh.password'])->group(function () {
 
     // Authentication (requires a valid token)
     Route::post('auth/logout', [AuthController::class, 'logout']);
@@ -68,6 +78,8 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('users', UserController::class);
         Route::patch('users/{user}/active', [UserController::class, 'setActive']);
         Route::post('users/{user}/password', [UserController::class, 'resetPassword']);
+        // The way back in when mail stops: see UserController::setTwoFactor.
+        Route::patch('users/{user}/two-factor', [UserController::class, 'setTwoFactor']);
 
         // The activity log. Read-only: there is no route that writes,
         // edits or deletes a row, deliberately.

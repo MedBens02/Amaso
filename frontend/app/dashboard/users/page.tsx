@@ -44,6 +44,8 @@ import {
   Trash2,
   Loader2,
   ShieldAlert,
+  ShieldCheck,
+  ShieldOff,
 } from "lucide-react"
 import { getRoleLabel, ROLE_LABELS, getCurrentUser } from "@/lib/roles"
 import { UserFormDialog } from "@/components/account/user-form-dialog"
@@ -87,6 +89,8 @@ export default function UsersPage() {
   const [editing, setEditing] = useState<ManagedUser | null>(null)
   const [resetting, setResetting] = useState<ManagedUser | null>(null)
   const [deleting, setDeleting] = useState<ManagedUser | null>(null)
+  // The account whose second factor is about to be switched off.
+  const [disablingTwoFactor, setDisablingTwoFactor] = useState<ManagedUser | null>(null)
   const [busyId, setBusyId] = useState<number | null>(null)
 
   const load = useCallback(async () => {
@@ -143,6 +147,36 @@ export default function UsersPage() {
     } catch (error) {
       toast({
         title: "تعذر تغيير حالة الحساب",
+        description: error instanceof Error ? error.message : undefined,
+        variant: "destructive",
+      })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  /**
+   * Turn the emailed login code on or off for one account.
+   *
+   * Turning it off is a weakening, so it is confirmed rather than done from
+   * the menu directly. Turning it back on is not: restoring a protection
+   * needs no second thought.
+   */
+  const applyTwoFactor = async (user: ManagedUser, enabled: boolean) => {
+    setBusyId(user.id)
+    try {
+      const response = await api.setUserTwoFactor(user.id, enabled)
+      setUsers((prev) => prev.map((row) => (row.id === user.id ? (response.data as ManagedUser) : row)))
+      toast({
+        title: enabled ? "تم تفعيل التحقق بخطوتين" : "تم تعطيل التحقق بخطوتين",
+        description: enabled
+          ? `سيحتاج "${user.name}" إلى الرمز المُرسل إلى بريده عند كل دخول`
+          : `سيدخل "${user.name}" بكلمة المرور وحدها. أعِد تفعيله بمجرد أن يعمل البريد.`,
+      })
+      setDisablingTwoFactor(null)
+    } catch (error) {
+      toast({
+        title: "تعذر تغيير إعداد التحقق بخطوتين",
         description: error instanceof Error ? error.message : undefined,
         variant: "destructive",
       })
@@ -268,6 +302,7 @@ export default function UsersPage() {
                     <TableHead>الصلاحية</TableHead>
                     <TableHead>الهاتف</TableHead>
                     <TableHead>الحالة</TableHead>
+                    <TableHead>التحقق بخطوتين</TableHead>
                     <TableHead>آخر دخول</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
@@ -303,6 +338,22 @@ export default function UsersPage() {
                             <Badge variant="destructive">موقوف</Badge>
                           )}
                         </TableCell>
+                        <TableCell>
+                          {user.two_factor_enabled ? (
+                            <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                              <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                              مُفعّل
+                            </span>
+                          ) : (
+                            /* Called out rather than left blank: an account
+                               signing in on a password alone is the weaker
+                               case, and an admin should see it at a glance. */
+                            <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100 dark:bg-amber-950 dark:text-amber-300">
+                              <ShieldOff className="ml-1 h-3 w-3" />
+                              معطّل
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="text-muted-foreground">
                           {formatDate(user.last_login_at)}
                         </TableCell>
@@ -331,6 +382,25 @@ export default function UsersPage() {
                               <DropdownMenuItem onClick={() => setResetting(user)}>
                                 <Key className="ml-2 h-4 w-4" />
                                 إعادة تعيين كلمة المرور
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  user.two_factor_enabled
+                                    ? setDisablingTwoFactor(user)
+                                    : applyTwoFactor(user, true)
+                                }
+                              >
+                                {user.two_factor_enabled ? (
+                                  <>
+                                    <ShieldOff className="ml-2 h-4 w-4" />
+                                    تعطيل التحقق بخطوتين
+                                  </>
+                                ) : (
+                                  <>
+                                    <ShieldCheck className="ml-2 h-4 w-4" />
+                                    تفعيل التحقق بخطوتين
+                                  </>
+                                )}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               {/* Your own account is excluded from the
@@ -397,6 +467,38 @@ export default function UsersPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               حذف الحساب
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Switching the second factor off is confirmed, and says what it
+          costs, because the reason for doing it is almost always a mail
+          problem somebody means to fix - and an account left like this
+          afterwards is one password away from the families' records. */}
+      <AlertDialog
+        open={disablingTwoFactor !== null}
+        onOpenChange={(open) => !open && setDisablingTwoFactor(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>تعطيل التحقق بخطوتين؟</AlertDialogTitle>
+            <AlertDialogDescription>
+              سيتمكّن "{disablingTwoFactor?.name}" من الدخول بكلمة المرور
+              وحدها، دون الرمز المُرسل إلى بريده. استعمل هذا فقط عندما يتعذّر
+              وصول البريد، وأعِد تفعيله بعد حلّ المشكلة.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                if (disablingTwoFactor) applyTwoFactor(disablingTwoFactor, false)
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              تعطيل
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

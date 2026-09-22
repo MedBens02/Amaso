@@ -150,6 +150,7 @@ drift apart:
 | **Develop** — edit the code, hot reload | [`SETUP_GUIDE.md`](SETUP_GUIDE.md) |
 | **Run it on a Windows PC** | [`setup/README.md`](setup/README.md) *(français)* |
 | **Deploy to a server** | [`deploy/README.md`](deploy/README.md) |
+| **Upgrade a server that is already running** | [`UPGRADE.md`](UPGRADE.md) |
 
 The short version, once PHP 8.2+, Composer, Node 20+ and MySQL are
 installed:

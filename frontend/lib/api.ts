@@ -57,6 +57,62 @@ export interface EnrollmentInput {
   grade_scale?: number | null
 }
 
+/**
+ * What comes back from step one of a login.
+ *
+ * Two genuinely different replies, not one reply with optional fields: an
+ * account that requires a code is handed no token at all, and a type that
+ * admits both at once invites reading a token that is not there.
+ */
+type LoginData =
+  | { token: string; user: any }
+  | {
+      requires_code: true
+      challenge: string
+      expires_in_minutes: number
+      email_hint: string
+    }
+
+export type LoginOutcome =
+  | { status: 'signed_in'; user: any }
+  | {
+      status: 'code_required'
+      /** Names this attempt to the server. Not the account, and not a token. */
+      challenge: string
+      /** "m*****d@amaso.site" - enough to recognise, no help to a stranger. */
+      emailHint: string
+      expiresInMinutes: number
+      message?: string
+    }
+
+/**
+ * Fired when the server refuses a call because the password is overdue.
+ *
+ * An event rather than a redirect: the person is properly signed in, their
+ * token is good, and the only thing standing in the way is a password they
+ * can change without leaving the screen they are on. Sending them to /login
+ * would look like being thrown out and would lose whatever they were doing.
+ */
+/**
+ * The calls where a 401 means "wrong credentials", not "your session died".
+ *
+ * Everywhere else a 401 means the stored token is gone, and the right answer
+ * is to clear it and go back to the login page. On these two it is the whole
+ * point of the reply: signing in with the wrong password, or typing the
+ * wrong digits, has to leave the person exactly where they are - sending
+ * them "back" to a screen they never left, minus the challenge they were
+ * halfway through, turns one mistyped digit into starting over.
+ */
+const CREDENTIAL_ENDPOINTS = ['/auth/login', '/auth/verify-code']
+
+export const PASSWORD_EXPIRED_EVENT = 'amaso:password-expired'
+
+function announcePasswordExpired() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(PASSWORD_EXPIRED_EVENT))
+  }
+}
+
 export class ApiError extends Error {
   status: number
   errors?: Record<string, string[]>
@@ -188,10 +244,22 @@ class ApiClient {
         // let the caller show that. A 401 on any other endpoint means the
         // stored token is gone/expired: drop it and send the user back to
         // the login page instead of leaving every page silently broken.
-        if (response.status === 401 && endpoint !== '/auth/login' && typeof window !== 'undefined') {
+        if (
+          response.status === 401 &&
+          !CREDENTIAL_ENDPOINTS.includes(endpoint) &&
+          typeof window !== 'undefined'
+        ) {
           this.clearSession()
           window.location.href = '/login'
         }
+
+        // Not an expired session - an expired password. The token is still
+        // good, so the session is left alone and the app is told to ask for
+        // a new password where the person already is.
+        if (response.status === 423 && data?.code === 'password_expired') {
+          announcePasswordExpired()
+        }
+
         throw new ApiError(response, data)
       }
 
@@ -205,17 +273,60 @@ class ApiClient {
   }
 
   // Authentication
-  async login(email: string, password: string) {
-    const response = await this.request<{ token: string; user: any }>('/auth/login', {
+
+  /** Keep the token and the cached profile in step, in memory and storage. */
+  private storeSession(token: string, user: any) {
+    this.setToken(token)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(TOKEN_STORAGE_KEY, token)
+      window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user))
+    }
+  }
+
+  /**
+   * Step one. The password alone no longer finishes a login.
+   *
+   * When the account requires a code there is no token in the reply, so the
+   * two outcomes are returned as separate shapes rather than one shape with
+   * an optional token - reading `.token` off a response that never carried
+   * one is how a browser ends up storing the string "undefined" and calling
+   * it a session.
+   */
+  async login(email: string, password: string): Promise<LoginOutcome> {
+    const response = await this.request<LoginData>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
 
-    this.setToken(response.data.token)
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(TOKEN_STORAGE_KEY, response.data.token)
-      window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(response.data.user))
+    if ('requires_code' in response.data) {
+      return {
+        status: 'code_required',
+        challenge: response.data.challenge,
+        emailHint: response.data.email_hint,
+        expiresInMinutes: response.data.expires_in_minutes,
+        message: response.message,
+      }
     }
+
+    this.storeSession(response.data.token, response.data.user)
+
+    return { status: 'signed_in', user: response.data.user }
+  }
+
+  /**
+   * Step two: the challenge from step one plus the digits from the inbox.
+   *
+   * The email address is not sent again. The challenge already names the
+   * attempt, and asking the browser to hold an address it would have to send
+   * back would make the code a second password rather than a second factor.
+   */
+  async verifyLoginCode(challenge: string, code: string) {
+    const response = await this.request<{ token: string; user: any }>('/auth/verify-code', {
+      method: 'POST',
+      body: JSON.stringify({ challenge, code }),
+    })
+
+    this.storeSession(response.data.token, response.data.user)
 
     return response
   }
@@ -271,11 +382,7 @@ class ApiClient {
       body: JSON.stringify(data),
     })
 
-    this.setToken(response.data.token)
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(TOKEN_STORAGE_KEY, response.data.token)
-      window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(response.data.user))
-    }
+    this.storeSession(response.data.token, response.data.user)
 
     return response
   }
@@ -339,6 +446,21 @@ class ApiClient {
     return this.request<any>(`/users/${id}/active`, {
       method: 'PATCH',
       body: JSON.stringify({ is_active: isActive }),
+    })
+  }
+
+  /**
+   * Turn the emailed login code on or off for one account.
+   *
+   * The way back in when somebody's address stops working - a staff member
+   * who has left the organisation that hosted their mailbox, or a mail
+   * provider having a bad week. It is per account rather than global so that
+   * one person's problem does not take the second factor off everybody.
+   */
+  async setUserTwoFactor(id: number, enabled: boolean) {
+    return this.request<any>(`/users/${id}/two-factor`, {
+      method: 'PATCH',
+      body: JSON.stringify({ two_factor_enabled: enabled }),
     })
   }
 
@@ -1524,9 +1646,26 @@ if (typeof window !== 'undefined' && !(window as any).__amasoFetchPatched) {
 
     const response = await originalFetch(input, init)
 
-    if (isApiRequest && response.status === 401 && !url.includes('/auth/login')) {
+    if (
+      isApiRequest &&
+      response.status === 401 &&
+      !CREDENTIAL_ENDPOINTS.some((path) => url.includes(path))
+    ) {
       api.clearSession()
       window.location.href = '/login'
+    }
+
+    // The same password-expiry signal, for the screens that call fetch()
+    // directly. Read from a clone so the caller still gets an unread body.
+    if (isApiRequest && response.status === 423) {
+      try {
+        const body = await response.clone().json()
+        if (body?.code === 'password_expired') {
+          announcePasswordExpired()
+        }
+      } catch {
+        /* not JSON; nothing to signal */
+      }
     }
 
     // Any successful write can have changed a cached reference list. The

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Budget;
+use App\Models\Setting;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -75,6 +76,9 @@ return new class extends Migration
             ['key' => 'idda_monthly_allowance'],
             ['value' => '400', 'updated_at' => $now, 'created_at' => $now],
         );
+        // Written through the query builder, so the model's cache still
+        // holds the values from before this ran.
+        Setting::forget();
     }
 
     public function down(): void
