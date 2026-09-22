@@ -22,7 +22,7 @@ interface AcademicYear {
   enrollments_count?: number
 }
 
-export function AcademicYearsTab({ onChanged }: { onChanged?: () => void }) {
+export function AcademicYearsTab() {
   const [years, setYears] = useState<AcademicYear[]>([])
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
@@ -66,7 +66,6 @@ export function AcademicYearsTab({ onChanged }: { onChanged?: () => void }) {
       toast({ title: "تم الإنشاء", description: response.message })
       setAddOpen(false)
       fetchYears()
-      onChanged?.()
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message || "فشل في إنشاء السنة الدراسية", variant: "destructive" })
     } finally {
@@ -82,7 +81,6 @@ export function AcademicYearsTab({ onChanged }: { onChanged?: () => void }) {
       setRolloverResult(response.data ?? null)
       setRolloverOpen(false)
       fetchYears()
-      onChanged?.()
     } catch (error: any) {
       toast({ title: "لا يمكن إغلاق السنة", description: error.message || "فشل في الانتقال للسنة الجديدة", variant: "destructive" })
     } finally {

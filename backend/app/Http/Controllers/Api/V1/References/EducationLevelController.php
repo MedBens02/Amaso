@@ -11,11 +11,18 @@ use Illuminate\Validation\Rule;
 
 class EducationLevelController extends Controller
 {
+    /**
+     * Every level, active or not.
+     *
+     * This is the management list, and it used to hide the inactive ones -
+     * which meant switching a level off removed it from the only screen
+     * that can switch it back on. The dropdowns that offer a level to pick
+     * read `orphans-education-levels`, which does filter on active; this
+     * one shows what there is to manage.
+     */
     public function index(): JsonResponse
     {
-        $levels = OrphansEducationLevel::where('is_active', true)
-            ->orderBy('sort_order')
-            ->get();
+        $levels = OrphansEducationLevel::orderBy('sort_order')->orderBy('id')->get();
 
         return response()->json(['data' => $levels]);
     }

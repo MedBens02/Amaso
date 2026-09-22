@@ -26,7 +26,7 @@ interface AcademicYear {
 const dirham = (v: number | string | null | undefined) =>
   v == null ? "—" : `${Number(v).toLocaleString("en-US")} د.م.`
 
-export function TransportTab({ refreshKey }: { refreshKey?: number }) {
+export function TransportTab() {
   const [years, setYears] = useState<AcademicYear[]>([])
   const [yearId, setYearId] = useState<number | null>(null)
   const [support, setSupport] = useState<TransportSupport[]>([])
@@ -53,7 +53,7 @@ export function TransportTab({ refreshKey }: { refreshKey?: number }) {
         toast({ title: "خطأ", description: error.message || "فشل في تحميل السنوات", variant: "destructive" })
       }
     })()
-  }, [refreshKey])
+  }, [])
 
   const loadSupport = useCallback(async () => {
     if (!yearId) return

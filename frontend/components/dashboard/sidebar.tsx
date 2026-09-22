@@ -29,6 +29,9 @@ import {
   History,
   Wallet,
   Loader2,
+  Bus,
+  School,
+  ListOrdered,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { isCurrentUserAdmin, isCurrentUserSuperuser } from "@/lib/roles"
@@ -102,7 +105,16 @@ const groups: NavGroup[] = [
     id: "education",
     name: "التعليم",
     icon: GraduationCap,
-    items: [{ name: "التتبع الدراسي", href: "/dashboard/education", icon: GraduationCap }],
+    // The education section used to be a single page carrying four tabs,
+    // one of which held two more. Each of its screens is a page now, so
+    // each one is reachable from here instead of only from inside it.
+    items: [
+      { name: "التسجيلات", href: "/dashboard/education", icon: GraduationCap },
+      { name: "النقل المدرسي", href: "/dashboard/education/transport", icon: Bus },
+      { name: "المؤسسات التعليمية", href: "/dashboard/education/schools", icon: School },
+      { name: "السنوات الدراسية", href: "/dashboard/education/years", icon: Calendar },
+      { name: "المستويات التعليمية", href: "/dashboard/education/levels", icon: ListOrdered },
+    ],
   },
   {
     id: "references",

@@ -32,7 +32,8 @@ import { Card } from "@/components/ui/card"
 import { GripVertical } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
-interface EducationLevel {
+/** Shared with the screen that lists them, so the two cannot drift apart. */
+export interface EducationLevel {
   id: number
   name_ar: string
   name_en?: string

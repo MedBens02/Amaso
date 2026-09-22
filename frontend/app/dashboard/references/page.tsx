@@ -13,19 +13,16 @@ import {
   Edit2, 
   Trash2, 
   Heart, 
-  Users, 
   DollarSign, 
   Building, 
   Star,
   HandHeart,
   Home,
   Map,
-  MapPin,
-  ArrowUpDown
+  MapPin
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { ReferenceItemDialog } from "@/components/references/reference-item-dialog"
-import { EducationLevelReorder } from "@/components/references/education-level-reorder"
 import { PartnersManagement } from "@/components/references/partners-management"
 
 interface ReferenceItem {
@@ -66,16 +63,12 @@ export default function ReferencesPage() {
   const [incomeCategories, setIncomeCategories] = useState<ReferenceItem[]>([])
   const [expenseCategories, setExpenseCategories] = useState<ReferenceItem[]>([])
   const [partners, setPartners] = useState<ReferenceItem[]>([])
-  const [educationLevels, setEducationLevels] = useState<ReferenceItem[]>([])
   const [loading, setLoading] = useState(true)
   
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [dialogType, setDialogType] = useState<'illness' | 'skill' | 'aid-type' | 'housing-type' | 'sector' | 'neighborhood' | 'income-category' | 'expense-category' | 'partner' | 'education-level'>('illness')
+  const [dialogType, setDialogType] = useState<'illness' | 'skill' | 'aid-type' | 'housing-type' | 'sector' | 'neighborhood' | 'income-category' | 'expense-category' | 'partner'>('illness')
   const [selectedItem, setSelectedItem] = useState<ReferenceItem | undefined>()
-  
-  // Reorder dialog state
-  const [reorderDialogOpen, setReorderDialogOpen] = useState(false)
   
   const { toast } = useToast()
 
@@ -100,8 +93,7 @@ export default function ReferencesPage() {
         fetch(`${baseUrl}/references/neighborhoods`).then(res => res.ok ? res.json() : { data: [] }),
         fetch(`${baseUrl}/references/widow-income-categories`).then(res => res.ok ? res.json() : { data: [] }),
         fetch(`${baseUrl}/references/widow-expense-categories`).then(res => res.ok ? res.json() : { data: [] }),
-        fetch(`${baseUrl}/references/partners`).then(res => res.ok ? res.json() : { data: [] }),
-        fetch(`${baseUrl}/references/education-levels`).then(res => res.ok ? res.json() : { data: [] })
+        fetch(`${baseUrl}/references/partners`).then(res => res.ok ? res.json() : { data: [] })
       ])
 
       const [
@@ -113,8 +105,7 @@ export default function ReferencesPage() {
         neighborhoodsResponse,
         incomeCategoriesResponse, 
         expenseCategoriesResponse, 
-        partnersResponse, 
-        educationResponse
+        partnersResponse
       ] = responses
 
       if (skillsResponse.status === 'fulfilled') {
@@ -143,9 +134,6 @@ export default function ReferencesPage() {
       }
       if (partnersResponse.status === 'fulfilled') {
         setPartners(partnersResponse.value.data || [])
-      }
-      if (educationResponse.status === 'fulfilled') {
-        setEducationLevels(educationResponse.value.data || [])
       }
     } catch (error) {
       console.error('Error loading reference data:', error)
@@ -208,8 +196,7 @@ export default function ReferencesPage() {
         'neighborhood': 'references/neighborhoods',
         'income-category': 'references/widow-income-categories',
         'expense-category': 'references/widow-expense-categories',
-        'partner': 'references/partners',
-        'education-level': 'references/education-levels'
+        'partner': 'references/partners'
       }
       
       const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1'
@@ -272,18 +259,10 @@ export default function ReferencesPage() {
             <Icon className="h-5 w-5" />
             {title}
           </div>
-          <div className="flex items-center gap-2">
-            {type === 'education-level' && (
-              <Button size="sm" variant="outline" onClick={() => setReorderDialogOpen(true)}>
-                <ArrowUpDown className="h-4 w-4 ml-2" />
-                إعادة ترتيب
-              </Button>
-            )}
-            <Button size="sm" onClick={() => handleAddItem(type)}>
-              <Plus className="h-4 w-4 ml-2" />
-              إضافة جديد
-            </Button>
-          </div>
+          <Button size="sm" onClick={() => handleAddItem(type)}>
+            <Plus className="h-4 w-4 ml-2" />
+            إضافة جديد
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -381,10 +360,6 @@ export default function ReferencesPage() {
             <Building className="h-4 w-4" />
             الشركاء
           </TabsTrigger>
-          <TabsTrigger value="education" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            التعليم
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="illnesses">
@@ -475,17 +450,6 @@ export default function ReferencesPage() {
         <TabsContent value="partners">
           <PartnersManagement onDataChange={loadReferenceData} />
         </TabsContent>
-
-        <TabsContent value="education">
-          <ReferenceDataTable
-            data={educationLevels}
-            title="المراحل التعليمية"
-            icon={Users}
-            keyField="name_ar"
-            showActive
-            type="education-level"
-          />
-        </TabsContent>
       </Tabs>
 
       <ReferenceItemDialog
@@ -495,13 +459,6 @@ export default function ReferencesPage() {
         item={selectedItem}
         onSuccess={handleDialogSuccess}
         extraProps={{ sectors }}
-      />
-
-      <EducationLevelReorder
-        open={reorderDialogOpen}
-        onOpenChange={setReorderDialogOpen}
-        educationLevels={educationLevels}
-        onReorderSuccess={loadReferenceData}
       />
     </div>
   )
