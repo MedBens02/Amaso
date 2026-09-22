@@ -110,6 +110,9 @@ Route::prefix('v1')->group(function () {
     Route::get('kafala-chamila/balances', [KafalaChamilaController::class, 'balances']);
     Route::get('kafala-chamila/family-balances', [KafalaChamilaController::class, 'familyBalances']);
     Route::put('kafala-chamila/splits', [KafalaChamilaController::class, 'updateSplits']);
+    Route::post('kafala-chamila/splits', [KafalaChamilaController::class, 'storeSplit']);
+    Route::put('kafala-chamila/splits/{split}', [KafalaChamilaController::class, 'updateSplit']);
+    Route::delete('kafala-chamila/splits/{split}', [KafalaChamilaController::class, 'destroySplit']);
     Route::post('kafala-chamila/incomes', [KafalaChamilaController::class, 'storeIncome']);
 
     // Per-entity information cards (PDF)
@@ -199,6 +202,14 @@ Route::prefix('v1')->group(function () {
 
     // Lookup data endpoints
     Route::get('bank-accounts', [BankAccountController::class, 'index']);
+    // Adding or removing an account is a change to where the association's
+    // money is held, so it sits with the people who answer for the books.
+    Route::post('bank-accounts', [BankAccountController::class, 'store'])
+        ->middleware('role:admin,superuser,accountant');
+    Route::put('bank-accounts/{bankAccount}', [BankAccountController::class, 'update'])
+        ->middleware('role:admin,superuser,accountant');
+    Route::delete('bank-accounts/{bankAccount}', [BankAccountController::class, 'destroy'])
+        ->middleware('role:admin,superuser,accountant');
     // The ledger has always been written; this is what reads it back, so a
     // balance can be traced and checked against the bank's own statement.
     Route::get('bank-accounts/{bankAccount}/statement', [BankAccountController::class, 'statement']);

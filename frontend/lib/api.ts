@@ -729,6 +729,30 @@ class ApiClient {
     return this.request<any>('/reports/sponsorship-gaps')
   }
 
+  async createBankAccount(data: Record<string, any>) {
+    return this.request<any>('/bank-accounts', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async updateBankAccount(id: number, data: Record<string, any>) {
+    return this.request<any>(`/bank-accounts/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  }
+
+  async deleteBankAccount(id: number) {
+    return this.request<any>(`/bank-accounts/${id}`, { method: 'DELETE' })
+  }
+
+  async createKafalaChamilaSplit(label: string) {
+    return this.request<any>('/kafala-chamila/splits', { method: 'POST', body: JSON.stringify({ label }) })
+  }
+
+  async renameKafalaChamilaSplit(id: number, label: string) {
+    return this.request<any>(`/kafala-chamila/splits/${id}`, { method: 'PUT', body: JSON.stringify({ label }) })
+  }
+
+  async deleteKafalaChamilaSplit(id: number) {
+    return this.request<any>(`/kafala-chamila/splits/${id}`, { method: 'DELETE' })
+  }
+
   async getBudgets() {
     return this.request<any[]>('/budgets')
   }

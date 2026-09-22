@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Budget;
 use App\Models\Expense;
+use App\Models\IncomeCategory;
 use App\Models\Income;
 use App\Models\KafalaChamilaSplit;
 use Illuminate\Database\Eloquent\Collection;
@@ -66,8 +68,115 @@ class KafalaChamilaService
                 KafalaChamilaSplit::whereKey($split['id'])->update(['percentage' => $split['percentage']]);
             }
 
-            return KafalaChamilaSplit::with(['budget', 'incomeCategory'])->orderBy('sort_order')->get();
+            return $this->allSplits();
         });
+    }
+
+    /**
+     * A new part of the split, and the two rows that make it spendable.
+     *
+     * A part is not just a percentage: money booked to it has to land
+     * somewhere, and "somewhere" is a budget of its own plus an income
+     * category of its own - that is how the balances screen can say what
+     * each part holds, and how an expense can be charged against one. So
+     * adding a part creates all three together, or none of them.
+     *
+     * It starts at zero percent. The percentages have to total exactly 100
+     * and a new part cannot know whose share it is taking, so the split is
+     * left as it was and somebody then decides.
+     */
+    public function createSplit(string $label): KafalaChamilaSplit
+    {
+        return DB::transaction(function () use ($label) {
+            $name = "كفالة شاملة - {$label}";
+
+            $budget = Budget::create(['label' => $name]);
+            $category = IncomeCategory::create(['label' => $name]);
+
+            return KafalaChamilaSplit::create([
+                'key' => $this->keyFor($label),
+                'label' => $label,
+                'percentage' => 0,
+                'budget_id' => $budget->id,
+                'income_category_id' => $category->id,
+                'sort_order' => (int) KafalaChamilaSplit::max('sort_order') + 1,
+            ]);
+        });
+    }
+
+    /**
+     * Renaming a part renames its budget and its category with it.
+     *
+     * They are one thing wearing three names; letting them drift is how a
+     * screen ends up showing "تعليم" beside a budget still called
+     * "كفالة شاملة - تكوين".
+     */
+    public function renameSplit(KafalaChamilaSplit $split, string $label): KafalaChamilaSplit
+    {
+        return DB::transaction(function () use ($split, $label) {
+            $name = "كفالة شاملة - {$label}";
+
+            $split->budget?->update(['label' => $name]);
+            $split->incomeCategory?->update(['label' => $name]);
+            $split->update(['label' => $label]);
+
+            return $split->fresh(['budget', 'incomeCategory']);
+        });
+    }
+
+    /**
+     * Removing a part, its budget and its category - only while empty.
+     *
+     * Once money has been booked to the part, the budget is the record of
+     * where that money went; deleting it would orphan approved incomes and
+     * expenses. A part nobody has used yet is a different thing, and that is
+     * all this removes.
+     */
+    public function deleteSplit(KafalaChamilaSplit $split): void
+    {
+        DB::transaction(function () use ($split) {
+            $budgetId = $split->budget_id;
+            $categoryId = $split->income_category_id;
+
+            $split->delete();
+
+            Budget::whereKey($budgetId)->delete();
+            IncomeCategory::whereKey($categoryId)->delete();
+        });
+    }
+
+    /** How much money has ever been booked to this part, in or out. */
+    public function splitUsage(KafalaChamilaSplit $split): array
+    {
+        return [
+            'incomes' => Income::where('budget_id', $split->budget_id)->count(),
+            'expenses' => Expense::where('budget_id', $split->budget_id)->count(),
+        ];
+    }
+
+    public function allSplits(): Collection
+    {
+        return KafalaChamilaSplit::with(['budget', 'incomeCategory'])->orderBy('sort_order')->get();
+    }
+
+    /**
+     * The machine key. Arabic labels do not make one, so a part added later
+     * gets a generated key - nothing reads these except the seeder, which
+     * only ever looks up the seven it created.
+     */
+    private function keyFor(string $label): string
+    {
+        $slug = trim(preg_replace('/[^a-z0-9]+/', '-', strtolower($label)), '-');
+
+        $base = $slug !== '' ? substr($slug, 0, 20) : 'part-' . now()->format('ymdHis');
+        $key = $base;
+        $n = 2;
+
+        while (KafalaChamilaSplit::where('key', $key)->exists()) {
+            $key = substr($base, 0, 26) . '-' . $n++;
+        }
+
+        return $key;
     }
 
     /**

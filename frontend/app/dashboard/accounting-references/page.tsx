@@ -8,24 +8,27 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
   Calculator,
-  Plus,
-  Edit2,
-  Trash2,
-  Database,
-  TrendingUp,
-  TrendingDown,
-  Search,
   ChevronDown,
   ChevronRight,
-  Lock,
-  Star,
+  Database,
+  Edit2,
   HandCoins,
+  Landmark,
+  Lock,
+  Plus,
+  Search,
+  Star,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { AccountingReferenceDialog } from "@/components/accounting/accounting-reference-dialog"
+import { BankAccountDialog } from "@/components/accounting/bank-account-dialog"
 import { isCurrentUserAdmin } from "@/lib/roles"
 import api from "@/lib/api"
 
@@ -106,6 +109,13 @@ export default function AccountingReferencesPage() {
   // Kafala chamila split percentages - a fixed 7-part structure whose
   // budgets/categories are locked against edit/delete everywhere else.
   const [kafalaChamilaSplits, setKafalaChamilaSplits] = useState<KafalaChamilaSplit[]>([])
+  const [newSplitLabel, setNewSplitLabel] = useState("")
+  const [busySplit, setBusySplit] = useState(false)
+  const [bankAccounts, setBankAccounts] = useState<any[]>([])
+  const [accountDialog, setAccountDialog] = useState<{ open: boolean; account: any | null }>({
+    open: false,
+    account: null,
+  })
   const [kafalaChamilaDraft, setKafalaChamilaDraft] = useState<Record<number, string>>({})
   const [savingSplits, setSavingSplits] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -164,6 +174,7 @@ export default function AccountingReferencesPage() {
     loadReferenceData()
     loadKafalaChamilaSplits()
     loadKafalaChamilaBalances()
+    loadBankAccounts()
     setIsAdmin(isCurrentUserAdmin())
   }, [])
 
@@ -194,6 +205,71 @@ export default function AccountingReferencesPage() {
     () => Object.values(kafalaChamilaDraft).reduce((sum, v) => sum + (parseFloat(v) || 0), 0),
     [kafalaChamilaDraft],
   )
+
+  const loadBankAccounts = async () => {
+    try {
+      const response = await api.getBankAccounts()
+      setBankAccounts(response.data || [])
+    } catch (error) {
+      console.error("Failed to load bank accounts:", error)
+    }
+  }
+
+  /** One place for the three part operations, which all end the same way. */
+  const runSplitAction = async (action: () => Promise<{ message?: string }>) => {
+    setBusySplit(true)
+    try {
+      const res = await action()
+      toast({ title: "تم", description: res.message })
+      await loadKafalaChamilaSplits()
+      await loadKafalaChamilaBalances()
+    } catch (error) {
+      toast({
+        title: "تعذر إتمام العملية",
+        description: error instanceof Error ? error.message : undefined,
+        variant: "destructive",
+      })
+    } finally {
+      setBusySplit(false)
+    }
+  }
+
+  const handleAddSplit = async () => {
+    const label = newSplitLabel.trim()
+    if (!label) return
+
+    await runSplitAction(() => api.createKafalaChamilaSplit(label))
+    setNewSplitLabel("")
+  }
+
+  const handleRenameSplit = async (split: KafalaChamilaSplit) => {
+    const label = window.prompt("الاسم الجديد للبند:", split.label)?.trim()
+    if (!label || label === split.label) return
+
+    await runSplitAction(() => api.renameKafalaChamilaSplit(split.id, label))
+  }
+
+  const handleDeleteSplit = async (split: KafalaChamilaSplit) => {
+    if (!window.confirm(`هل أنت متأكد من حذف بند "${split.label}"؟ ستُحذف ميزانيته وفئة إيراده معه.`)) return
+
+    await runSplitAction(() => api.deleteKafalaChamilaSplit(split.id))
+  }
+
+  const handleDeleteBankAccount = async (account: any) => {
+    if (!window.confirm(`هل أنت متأكد من حذف الحساب "${account.label}"؟`)) return
+
+    try {
+      const res = await api.deleteBankAccount(account.id)
+      toast({ title: "تم الحذف", description: res.message })
+      loadBankAccounts()
+    } catch (error) {
+      toast({
+        title: "تعذر الحذف",
+        description: error instanceof Error ? error.message : undefined,
+        variant: "destructive",
+      })
+    }
+  }
 
   const handleSaveKafalaChamilaSplits = async () => {
     if (Math.abs(kafalaChamilaDraftSum - 100) > 0.01) {
@@ -722,6 +798,72 @@ export default function AccountingReferencesPage() {
     </Card>
   )
 
+  /**
+   * Where the association's money is held.
+   *
+   * The accounts could only be read. They are not something the association
+   * sets up once and never touches - a bank is changed, an account is
+   * closed - and until now that meant asking somebody with database access.
+   */
+  const BankAccountsTable = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Landmark className="h-5 w-5 text-blue-600" />
+            الحسابات البنكية
+          </div>
+          <Button size="sm" onClick={() => setAccountDialog({ open: true, account: null })}>
+            <Plus className="h-4 w-4 ml-2" />
+            حساب جديد
+          </Button>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground mb-4">
+          الرصيد محسوب: الرصيد الافتتاحي زائد كل حركة مسجَّلة. لا يُحرَّر مباشرة — تعديل الرصيد الافتتاحي ينقل الرصيد بنفس الفارق.
+        </p>
+
+        {bankAccounts.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">لا توجد حسابات بنكية</div>
+        ) : (
+          <div className="space-y-2">
+            {bankAccounts.map((account) => (
+              <div key={account.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div>
+                  <span className="font-medium">{account.label}</span>
+                  <span className="text-xs text-muted-foreground block">
+                    {[account.bank_name, account.account_number].filter(Boolean).join(" · ") || "بدون تفاصيل"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{money(account.balance)}</Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setAccountDialog({ open: true, account })}
+                    aria-label={`تعديل ${account.label}`}
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700"
+                    onClick={() => handleDeleteBankAccount(account)}
+                    aria-label={`حذف ${account.label}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+
   const KafalaChamilaSplitsTable = () => (
     <Card>
       <CardHeader>
@@ -739,8 +881,8 @@ export default function AccountingReferencesPage() {
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground mb-4">
-          كفالة شاملة (800 د.م افتراضياً) تُقسّم دائماً على هذه البنود السبعة الثابتة، وكل بند مرتبط بميزانية وفئة إيراد مقفلتين لا يمكن حذفهما أو تعديلهما.
-          {isAdmin ? " يمكنك تعديل النسب أدناه بشرط أن يبقى مجموعها 100%." : " تعديل النسب مقتصر على المديرين."}
+          كفالة شاملة (800 د.م افتراضياً) تُقسّم على هذه البنود، ولكل بند ميزانية وفئة إيراد خاصتان به تُنشآن وتُحذفان معه، ولا تُعدّلان من شاشة المراجع.
+          {isAdmin ? " يمكنك إضافة بنود وتعديل أسمائها ونسبها، بشرط أن يبقى مجموع النسب 100%." : " تعديل البنود مقتصر على المديرين."}
         </p>
 
         {loading ? (
@@ -771,6 +913,25 @@ export default function AccountingReferencesPage() {
                       className="w-24 text-left"
                     />
                     <span className="text-sm text-muted-foreground">%</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={busySplit}
+                      onClick={() => handleRenameSplit(split)}
+                      aria-label={`تعديل اسم ${split.label}`}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700"
+                      disabled={busySplit}
+                      onClick={() => handleDeleteSplit(split)}
+                      aria-label={`حذف ${split.label}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 ) : (
                   <Badge variant="outline">{parseFloat(String(split.percentage))}%</Badge>
@@ -784,6 +945,32 @@ export default function AccountingReferencesPage() {
                 {kafalaChamilaDraftSum.toFixed(2)}%
               </span>
             </div>
+
+            {isAdmin && (
+              <div className="flex items-end gap-2 pt-3">
+                <div className="flex-1 space-y-1">
+                  <Label htmlFor="new-split" className="text-xs text-muted-foreground">
+                    بند جديد — يُضاف بنسبة 0% ثم توزَّع النسب
+                  </Label>
+                  <Input
+                    id="new-split"
+                    value={newSplitLabel}
+                    onChange={(e) => setNewSplitLabel(e.target.value)}
+                    placeholder="مثال: نقل"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        handleAddSplit()
+                      }
+                    }}
+                  />
+                </div>
+                <Button onClick={handleAddSplit} disabled={busySplit || !newSplitLabel.trim()}>
+                  <Plus className="h-4 w-4 ml-2" />
+                  إضافة بند
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
@@ -801,7 +988,7 @@ export default function AccountingReferencesPage() {
       </div>
 
       <Tabs defaultValue="budgets" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid h-auto w-full grid-cols-3 gap-1 lg:grid-cols-5">
           <TabsTrigger value="budgets" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
             الميزانيات
@@ -817,6 +1004,10 @@ export default function AccountingReferencesPage() {
           <TabsTrigger value="kafala-chamila" className="flex items-center gap-2">
             <HandCoins className="h-4 w-4" />
             الكفالة الشاملة
+          </TabsTrigger>
+          <TabsTrigger value="bank-accounts" className="flex items-center gap-2">
+            <Landmark className="h-4 w-4" />
+            الحسابات البنكية
           </TabsTrigger>
         </TabsList>
 
@@ -836,6 +1027,10 @@ export default function AccountingReferencesPage() {
           <KafalaChamilaBalancesCard />
           <KafalaChamilaSplitsTable />
         </TabsContent>
+
+        <TabsContent value="bank-accounts">
+          <BankAccountsTable />
+        </TabsContent>
       </Tabs>
 
       <AccountingReferenceDialog
@@ -844,6 +1039,13 @@ export default function AccountingReferencesPage() {
         type={dialogType}
         item={selectedItem}
         onSuccess={handleDialogSuccess}
+      />
+
+      <BankAccountDialog
+        open={accountDialog.open}
+        onOpenChange={(open) => setAccountDialog((s) => ({ ...s, open }))}
+        account={accountDialog.account}
+        onSaved={loadBankAccounts}
       />
     </div>
   )
