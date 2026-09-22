@@ -155,12 +155,16 @@ class TransportDemoSeeder extends Seeder
 
             $settlement->syncLines($month);
 
-            // Not everybody rides every month: a couple are marked as having
-            // missed too much to count, and the allowance children are given
-            // the number of times they actually turned up.
+            // Nobody rides every single trip. The bus ran 20 times that
+            // month; most children made nearly all of them, a few missed a
+            // stretch, and one did not ride at all - which is the spread the
+            // pro-rata split exists to handle. The allowance children are
+            // given the number of times they actually turned up.
             foreach ($month->lines()->get() as $lineIndex => $line) {
                 if ($line->mode === TransportSupport::MODE_BUS) {
-                    $line->rode_consistently = ! (($lineIndex + $position) % 9 === 0);
+                    $line->attendances = ($lineIndex + $position) % 9 === 0
+                        ? 0
+                        : 20 - (($lineIndex * 3 + $position) % 7);
                 } else {
                     $line->attendances = 6 + (($lineIndex + $position) % 5);
                 }

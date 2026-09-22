@@ -28,10 +28,25 @@ class TransportMonthLine extends Model
         'amount' => 'decimal:2',
     ];
 
+    /**
+     * Whether this line takes a share of the month's bus pot, and how big.
+     *
+     * The weight is the number of trips the child made, so a child carried
+     * twice as often is owed twice as much. It used to be a tick - rode
+     * consistently or did not - and every tick was worth the same share;
+     * `rode_consistently` is still on the table because it is the record of
+     * how the months settled under that rule were decided, but nothing
+     * computes from it any more.
+     */
+    public function splitWeight(): int
+    {
+        return $this->mode === TransportSupport::MODE_BUS ? max(0, (int) $this->attendances) : 0;
+    }
+
     /** Whether this line is one of the shares the month's pot is divided into. */
     public function countsTowardsSplit(): bool
     {
-        return $this->mode === TransportSupport::MODE_BUS && $this->rode_consistently;
+        return $this->splitWeight() > 0;
     }
 
     public function month(): BelongsTo

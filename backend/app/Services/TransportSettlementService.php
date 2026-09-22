@@ -11,12 +11,14 @@ use Illuminate\Support\Collection;
 /**
  * The end-of-month arithmetic, in one place.
  *
- * The association's method, unchanged: total the fuel and the driver's fee,
- * count the children who used the bus consistently, divide, and attribute
- * each share to that child. Children the bus cannot reach are paid per
- * attendance instead, so their amount is a multiplication rather than a
- * division - and it is settled as its own expense, because it is a different
- * kind of spending from a shared vehicle.
+ * The association's method: total the fuel and the driver's fee, then share
+ * that pot out among the children who rode, in proportion to how many times
+ * each of them rode. A child carried eighteen times is owed twice what a
+ * child carried nine times is, and a child carried not at all is owed
+ * nothing. Children the bus cannot reach are paid per attendance instead, so
+ * their amount is a multiplication rather than a division - and it is
+ * settled as its own expense, because it is a different kind of spending
+ * from a shared vehicle.
  */
 class TransportSettlementService
 {
@@ -34,6 +36,15 @@ class TransportSettlementService
     public function syncLines(TransportMonth $month): void
     {
         $existing = $month->lines()->pluck('support_id')->all();
+
+        // What a child who rode the whole month is down for on this sheet.
+        // A child enrolled halfway through it most likely rode as often as
+        // the rest from then on, and this is the only number on the sheet
+        // that says how often that is - better than starting them at zero
+        // and better than inventing a figure from a calendar.
+        $fullMonth = (int) $month->lines()
+            ->where('mode', TransportSupport::MODE_BUS)
+            ->max('attendances');
 
         $missing = TransportSupport::query()
             ->active()
@@ -59,11 +70,12 @@ class TransportSettlementService
                 'rate' => $support->mode === TransportSupport::MODE_ALLOWANCE
                     ? $support->allowance_rate
                     : null,
-                // A bus rider is assumed to have ridden until somebody says
-                // otherwise: that is the common case, and the staff are
-                // unticking exceptions rather than ticking the whole roster.
+                // Retired: the bus share follows the trip count now. Left
+                // set so a row still says what kind of line it was under the
+                // old rule, and so the column keeps a meaning for the months
+                // that were settled under it.
                 'rode_consistently' => $support->mode === TransportSupport::MODE_BUS,
-                'attendances' => 0,
+                'attendances' => $support->mode === TransportSupport::MODE_BUS ? $fullMonth : 0,
                 'amount' => 0,
             ]);
         }
@@ -83,13 +95,25 @@ class TransportSettlementService
      */
     public function recalculate(TransportMonth $month): Collection
     {
-        $lines = $month->lines()->with('support.enrollment.orphan')->get();
+        // Ordered explicitly, because the odd centimes depend on it. They go
+        // to whichever shares lost most in the flooring, and when several
+        // lose the same amount the order decides between them - so an
+        // unordered read would hand the same sheet's spare centime to a
+        // different child on a different day. The screen previews the split
+        // while somebody is still typing and has to land on the same answer,
+        // so it sorts by id too rather than by the name it displays.
+        $lines = $month->lines()->with('support.enrollment.orphan')->orderBy('id')->get();
 
         $busSettled = $month->bus_settled;
         $allowanceSettled = $month->allowance_settled;
 
         $riders = $lines->filter(fn (TransportMonthLine $line) => $line->countsTowardsSplit());
-        $shares = $busSettled ? [] : $this->splitEvenly($month->bus_pot, $riders->count());
+        $shares = $busSettled
+            ? []
+            : $this->splitProRata(
+                $month->bus_pot,
+                $riders->map(fn (TransportMonthLine $line) => $line->splitWeight())->values()->all(),
+            );
 
         $position = 0;
         foreach ($lines as $line) {
@@ -105,7 +129,7 @@ class TransportSettlementService
             } elseif (! $isBus) {
                 $line->amount = round((float) $line->rate * $line->attendances, 2);
             } else {
-                // A bus rider who did not ride consistently is owed nothing.
+                // A rider with no trips on the sheet did not use the bus.
                 $line->amount = 0;
             }
 
@@ -116,29 +140,63 @@ class TransportSettlementService
     }
 
     /**
-     * Divide an amount of money into n equal parts that add back up to it.
+     * Divide an amount of money in proportion to a list of weights, exactly.
      *
-     * In centimes, because 100 / 3 in floating point is 33.33 three times
-     * and one centime vanishes - and the whole point of this sheet is that
-     * the shares total exactly what was spent, or the expense raised from it
-     * will not balance against the fuel receipts. The odd centimes go to the
-     * first few shares, which is arbitrary but has to be somebody.
+     * In centimes, because a third of 100 in floating point is 33.33 three
+     * times and one centime vanishes - and the whole point of this sheet is
+     * that the shares total exactly what was spent, or the expense raised
+     * from it will not balance against the fuel receipts.
      *
-     * @return array<int, float>
+     * Proportion alone almost never lands on whole centimes, so each share
+     * is floored and the centimes left over are handed out one each to the
+     * shares that lost the most in the flooring - the largest-remainder
+     * method. Ties break towards the larger weight, so of two children who
+     * come out level the one carried more often gets the odd centime, and
+     * then towards the earlier line so the answer never depends on the order
+     * two equal rows happened to arrive in.
+     *
+     * Every weight equal reproduces an even split, which is what the sheets
+     * written before the trip counts existed contain.
+     *
+     * @param  array<int, int>  $weights  One per share, in the caller's order.
+     * @return array<int, float>          Shares in that same order.
      */
-    public function splitEvenly(float $total, int $parts): array
+    public function splitProRata(float $total, array $weights): array
     {
-        if ($parts < 1) {
+        $count = count($weights);
+
+        if ($count === 0) {
             return [];
         }
 
+        $sum = array_sum($weights);
+
+        if ($sum <= 0) {
+            return array_fill(0, $count, 0.0);
+        }
+
         $centimes = (int) round($total * 100);
-        $base = intdiv($centimes, $parts);
-        $remainder = $centimes % $parts;
+        $floors = [];
+        $order = [];
+
+        foreach ($weights as $index => $weight) {
+            $exact = $centimes * $weight;
+            $floors[$index] = intdiv($exact, $sum);
+            $order[] = ['index' => $index, 'remainder' => $exact % $sum, 'weight' => $weight];
+        }
+
+        usort($order, fn ($a, $b) => [$b['remainder'], $b['weight'], $a['index']]
+            <=> [$a['remainder'], $a['weight'], $b['index']]);
+
+        $leftover = $centimes - array_sum($floors);
+
+        for ($i = 0; $i < $leftover; $i++) {
+            $floors[$order[$i % $count]['index']]++;
+        }
 
         $shares = [];
-        for ($i = 0; $i < $parts; $i++) {
-            $shares[] = round(($base + ($i < $remainder ? 1 : 0)) / 100, 2);
+        for ($index = 0; $index < $count; $index++) {
+            $shares[$index] = round($floors[$index] / 100, 2);
         }
 
         return $shares;
@@ -212,8 +270,13 @@ class TransportSettlementService
                 'beneficiary_id' => $beneficiary->id,
                 'amount' => $entry['amount'],
                 'group_id' => null,
-                'notes' => $mode === TransportSupport::MODE_ALLOWANCE
-                    ? "{$entry['attendances']} حضور"
+                // Why this child got this amount, carried into the expense:
+                // the number of trips it was worked out from, or for an
+                // allowance the number of times they came.
+                'notes' => $entry['attendances'] > 0
+                    ? ($mode === TransportSupport::MODE_ALLOWANCE
+                        ? "{$entry['attendances']} حضور"
+                        : "{$entry['attendances']} رحلة")
                     : null,
                 // Shaped the way the expense form rehydrates a saved row, so
                 // the names appear in the selected list rather than as bare

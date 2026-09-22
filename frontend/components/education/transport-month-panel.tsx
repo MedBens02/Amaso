@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -21,8 +20,9 @@ import api from "@/lib/api"
  * The end-of-month sheet.
  *
  * Two halves that are settled separately, because they are two kinds of
- * spending: one vehicle whose cost is divided among whoever rode it, and a
- * set of allowances that are each one child's. Each half has its own button
+ * spending: one vehicle whose cost is shared out among whoever rode it, in
+ * proportion to how often each of them did, and a set of allowances that
+ * are each one child's. Each half has its own button
  * carrying it into the expense form with the names and amounts already
  * filled in, and each freezes on its own once it has been paid - the fuel
  * bill can be written up while the attendance counts are still coming in.
@@ -49,7 +49,7 @@ interface MonthSummary {
 interface Line {
   id: number
   mode: string
-  rode_consistently: boolean
+  /** Trips on the bus for a rider; times they came for an allowance. */
   attendances: number
   rate: string | number | null
   amount: string | number
@@ -60,25 +60,42 @@ interface Line {
   }
 }
 
-interface Totals {
-  bus_pot: number
-  riders_counted: number
-  riders_total: number
-  share_per_rider: number | null
-  bus_total: number
-  allowance_total: number
-  allowance_children: number
-  grand_total: number
-}
-
 const dirham = (v: number | string | null | undefined) =>
   v == null ? "—" : `${Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} د.م.`
+
+/**
+ * Share an amount out in proportion to a list of weights, exactly.
+ *
+ * The same arithmetic as TransportSettlementService::splitProRata, and it
+ * has to stay the same: this one only decides what the screen shows while
+ * somebody is still typing, and the server's answer is what gets stored.
+ * Each share is floored in centimes and the centimes left over go one each
+ * to the shares that lost most in the flooring, so the shares add up to the
+ * amount spent rather than to a rounded version of it.
+ */
+function splitProRata(total: number, weights: number[]): number[] {
+  const count = weights.length
+  if (count === 0) return []
+
+  const sum = weights.reduce((a, b) => a + b, 0)
+  if (sum <= 0) return new Array(count).fill(0)
+
+  const centimes = Math.round(total * 100)
+  const floors = weights.map((weight) => Math.floor((centimes * weight) / sum))
+  const order = weights
+    .map((weight, index) => ({ index, remainder: (centimes * weight) % sum, weight }))
+    .sort((a, b) => b.remainder - a.remainder || b.weight - a.weight || a.index - b.index)
+
+  const leftover = centimes - floors.reduce((a, b) => a + b, 0)
+  for (let i = 0; i < leftover; i++) floors[order[i % count].index]++
+
+  return floors.map((c) => c / 100)
+}
 
 export function TransportMonthPanel({ academicYearId }: { academicYearId: number }) {
   const [months, setMonths] = useState<MonthSummary[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [lines, setLines] = useState<Line[]>([])
-  const [totals, setTotals] = useState<Totals | null>(null)
   const [month, setMonth] = useState<MonthSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -90,6 +107,9 @@ export function TransportMonthPanel({ academicYearId }: { academicYearId: number
   const [driver, setDriver] = useState("")
   const [other, setOther] = useState("")
   const [dirty, setDirty] = useState(false)
+  // Most children ride every trip the bus makes, so the common case is one
+  // number typed once and a handful of rows corrected afterwards.
+  const [fillTrips, setFillTrips] = useState("")
 
   const { toast } = useToast()
   const router = useRouter()
@@ -114,7 +134,6 @@ export function TransportMonthPanel({ academicYearId }: { academicYearId: number
   const apply = (data: any) => {
     setMonth(data.month)
     setLines(data.lines || [])
-    setTotals(data.totals)
     setFuel(String(data.month.fuel_cost ?? ""))
     setDriver(String(data.month.driver_cost ?? ""))
     setOther(String(data.month.other_cost ?? ""))
@@ -141,15 +160,31 @@ export function TransportMonthPanel({ academicYearId }: { academicYearId: number
   /**
    * What the sheet would say if it were saved now.
    *
-   * Computed here as well as on the server so that ticking a name moves the
-   * numbers immediately. The server's answer is what gets stored - this only
-   * has to agree with it, which it does because it is the same arithmetic.
-   * A settled half is read from the stored amounts instead, since those are
-   * frozen and no longer follow from what is on screen.
+   * Computed here as well as on the server so that changing a trip count
+   * moves the numbers immediately. The server's answer is what gets stored -
+   * this only has to agree with it, which it does because it is the same
+   * arithmetic. A settled half is read from the stored amounts instead,
+   * since those are frozen and no longer follow from what is on screen.
    */
   const preview = useMemo(() => {
     const pot = (Number(fuel) || 0) + (Number(driver) || 0) + (Number(other) || 0)
-    const counted = lines.filter((l) => l.mode === "bus" && l.rode_consistently).length
+
+    // Only the riders with a trip against them take a share, and the share
+    // each one takes is in proportion to how many.
+    //
+    // Allocated in id order, not the order the table shows. The odd centimes
+    // go to whoever lost most in the flooring, and between riders who lost
+    // the same they go by position - so previewing them in the alphabetical
+    // order on screen would put a spare centime against a different name
+    // than the one the server puts it against when the sheet is saved.
+    const riders = lines
+      .filter((l) => l.mode === "bus" && (Number(l.attendances) || 0) > 0)
+      .slice()
+      .sort((a, b) => a.id - b.id)
+    const trips = riders.reduce((sum, l) => sum + (Number(l.attendances) || 0), 0)
+    const shares = splitProRata(pot, riders.map((l) => Number(l.attendances) || 0))
+    const shareByLine = new Map(riders.map((l, index) => [l.id, shares[index]]))
+
     const busStored = lines
       .filter((l) => l.mode === "bus")
       .reduce((sum, l) => sum + (Number(l.amount) || 0), 0)
@@ -167,13 +202,23 @@ export function TransportMonthPanel({ academicYearId }: { academicYearId: number
 
     return {
       pot,
-      counted,
-      share: counted > 0 ? Math.round((pot / counted) * 100) / 100 : null,
+      counted: riders.length,
+      trips,
+      perTrip: trips > 0 ? Math.round((pot / trips) * 100) / 100 : null,
+      shareByLine,
       busTotal,
       allowanceTotal,
       grand: Math.round((busTotal + allowanceTotal) * 100) / 100,
     }
   }, [fuel, driver, other, lines, busLocked, allowanceLocked])
+
+  /** Everybody rode the same number of trips, bar the ones corrected after. */
+  const applyTripsToAll = () => {
+    const value = Math.max(0, Math.min(60, Number(fillTrips) || 0))
+
+    setLines((rows) => rows.map((row) => (row.mode === "bus" ? { ...row, attendances: value } : row)))
+    setDirty(true)
+  }
 
   const setLine = (id: number, patch: Partial<Line>) => {
     setLines((rows) => rows.map((row) => (row.id === id ? { ...row, ...patch } : row)))
@@ -187,7 +232,6 @@ export function TransportMonthPanel({ academicYearId }: { academicYearId: number
       const payload: Record<string, any> = {
         lines: lines.map((l) => ({
           id: l.id,
-          rode_consistently: l.rode_consistently,
           attendances: Number(l.attendances) || 0,
         })),
       }
@@ -398,34 +442,51 @@ export function TransportMonthPanel({ academicYearId }: { academicYearId: number
                 <div className="rounded-lg border bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                     <span className="text-blue-800 dark:text-blue-300">
-                      {dirham(preview.pot)} ÷ {preview.counted} مستفيداً استفادوا بانتظام
+                      {dirham(preview.pot)} ÷ {preview.trips} رحلة لـ {preview.counted} مستفيداً
                     </span>
                     <span className="font-bold text-blue-900 dark:text-blue-200">
-                      نصيب المستفيد الواحد ≈ {preview.share == null ? "—" : dirham(preview.share)}
+                      كلفة الرحلة الواحدة ≈ {preview.perTrip == null ? "—" : dirham(preview.perTrip)}
                     </span>
                   </div>
                   <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
-                    تُوزَّع السنتيمات المتبقية على الأنصبة الأولى حتى يكون مجموع الأنصبة مطابقاً للمبلغ المصروف تماماً
+                    نصيب كل مستفيد بقدر عدد رحلاته. تُوزَّع السنتيمات المتبقية على أكبر الكسور حتى يكون مجموع الأنصبة مطابقاً للمبلغ المصروف تماماً
                   </p>
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                     <h3 className="font-semibold text-sm">
                       ركاب الحافلة ({preview.counted} من {busLines.length})
                     </h3>
                     {!busLocked && (
-                      <Button variant="ghost" size="sm" onClick={refresh}>
-                        <RefreshCw className="h-4 w-4 ml-1" />
-                        إضافة المسجلين الجدد
-                      </Button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* One number for the whole roster, then correct the
+                            few who missed a week - rather than typing the
+                            same figure twenty-five times. */}
+                        <Input
+                          type="number" min={0} max={60} inputMode="numeric"
+                          className="h-8 w-24" placeholder="عدد الرحلات"
+                          value={fillTrips} onChange={(e) => setFillTrips(e.target.value)}
+                        />
+                        <Button
+                          variant="outline" size="sm"
+                          onClick={applyTripsToAll}
+                          disabled={fillTrips.trim() === ""}
+                        >
+                          تطبيق على الجميع
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={refresh}>
+                          <RefreshCw className="h-4 w-4 ml-1" />
+                          إضافة المسجلين الجدد
+                        </Button>
+                      </div>
                     )}
                   </div>
                   <div className="overflow-x-auto rounded-lg border">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-28">استفاد بانتظام</TableHead>
+                          <TableHead className="w-28">عدد الرحلات</TableHead>
                           <TableHead>المستفيد</TableHead>
                           <TableHead>نقطة الالتقاء</TableHead>
                           <TableHead className="text-end">النصيب</TableHead>
@@ -436,26 +497,41 @@ export function TransportMonthPanel({ academicYearId }: { academicYearId: number
                           <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">
                             لا يوجد ركاب في هذا الشهر
                           </TableCell></TableRow>
-                        ) : busLines.map((line) => (
-                          <TableRow key={line.id} className={line.rode_consistently ? "" : "opacity-55"}>
-                            <TableCell>
-                              <Checkbox
-                                checked={line.rode_consistently}
-                                disabled={busLocked}
-                                onCheckedChange={(v) => setLine(line.id, { rode_consistently: Boolean(v) })}
-                              />
-                            </TableCell>
-                            <TableCell className="font-medium">{nameOf(line)}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {line.support?.pickup_point || "—"}
-                            </TableCell>
-                            <TableCell className="text-end font-medium">
-                              {line.rode_consistently
-                                ? dirham(busLocked || !dirty ? line.amount : preview.share)
-                                : <span className="text-muted-foreground">—</span>}
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        ) : busLines.map((line) => {
+                          const trips = Number(line.attendances) || 0
+
+                          return (
+                            <TableRow key={line.id} className={trips > 0 ? "" : "opacity-55"}>
+                              <TableCell>
+                                {busLocked ? (
+                                  // Months settled before the counts existed
+                                  // have none to show, and their amounts are
+                                  // frozen from the even split they were
+                                  // worked out under.
+                                  <span className="text-sm">{trips > 0 ? trips : "—"}</span>
+                                ) : (
+                                  <Input
+                                    type="number" min={0} max={60} inputMode="numeric"
+                                    className="h-8 w-20"
+                                    value={line.attendances}
+                                    onChange={(e) => setLine(line.id, { attendances: Number(e.target.value) || 0 })}
+                                  />
+                                )}
+                              </TableCell>
+                              <TableCell className="font-medium">{nameOf(line)}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {line.support?.pickup_point || "—"}
+                              </TableCell>
+                              <TableCell className="text-end font-medium">
+                                {busLocked || !dirty
+                                  ? dirham(line.amount)
+                                  : trips > 0
+                                    ? dirham(preview.shareByLine.get(line.id) ?? 0)
+                                    : <span className="text-muted-foreground">—</span>}
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
                       </TableBody>
                     </Table>
                   </div>
