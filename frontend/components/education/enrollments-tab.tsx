@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -28,11 +28,38 @@ const GRADE_SCALES = [10, 20, 100]
 
 type GradeDraft = { s1: string; s2: string; scale: string }
 
-const draftOf = (row: any): GradeDraft => ({
-  s1: row.first_semester_grade == null ? "" : String(Number(row.first_semester_grade)),
-  s2: row.second_semester_grade == null ? "" : String(Number(row.second_semester_grade)),
-  scale: String(Number(row.grade_scale) || 20),
-})
+/** The two halves of an ordinary school year, and what a level starts on. */
+const SEMESTER_LABELS = ["الأسدس الأول", "الأسدس الثاني"] as const
+
+const markNamed = (row: any, label: string) =>
+  (row?.grades ?? []).find((grade: any) => grade.label === label)
+
+const draftOf = (row: any): GradeDraft => {
+  const first = markNamed(row, SEMESTER_LABELS[0])
+  const second = markNamed(row, SEMESTER_LABELS[1])
+
+  return {
+    s1: first ? String(Number(first.mark)) : "",
+    s2: second ? String(Number(second.mark)) : "",
+    scale: String(Number(row.grade_scale) || 20),
+  }
+}
+
+/**
+ * Whether a level's year is the plain two semesters.
+ *
+ * Those are the levels the table can edit in place, which is nearly the
+ * whole school and where typing straight into a row beats opening a dialog
+ * forty times. A level weighted its own way cannot be two columns, so its
+ * rows show the year's mark and send the user to the dialog instead.
+ */
+const isPlainSemesters = (components: any[] | undefined) =>
+  Array.isArray(components) &&
+  components.length === SEMESTER_LABELS.length &&
+  components.every(
+    (component, index) =>
+      component.label === SEMESTER_LABELS[index] && Number(component.weight) === 50,
+  )
 
 export function EnrollmentsTab() {
   const [enrollments, setEnrollments] = useState<any[]>([])
@@ -173,9 +200,35 @@ export function EnrollmentsTab() {
     }))
   }
 
-  const draftAverage = (enrollment: any) => {
+  /** Each level's marking scheme, by id, for the rows that reference it. */
+  const schemes = useMemo(() => {
+    const byId = new Map<number, any[]>()
+    for (const level of levels) byId.set(level.id, level.grade_components ?? [])
+
+    return byId
+  }, [levels])
+
+  const componentsFor = (enrollment: any) => schemes.get(enrollment?.education_level_id) ?? []
+
+  /** Whether this row's marks can be typed straight into the table. */
+  const editableInline = (enrollment: any) => isPlainSemesters(componentsFor(enrollment))
+
+  /**
+   * The year's mark for one row.
+   *
+   * A row being edited in the table shows what its two semesters currently
+   * come to, so the number moves while somebody types. Everything else shows
+   * the mark the server worked out from the whole weighted scheme, which is
+   * the only figure that means anything for a level marked on exams.
+   */
+  const yearMark = (enrollment: any) => {
+    if (! editableInline(enrollment)) {
+      return enrollment.average_grade == null ? null : Number(enrollment.average_grade)
+    }
+
     const draft = gradeDrafts[enrollment.id]
     if (!draft) return null
+
     const marks = [draft.s1, draft.s2]
       .filter((value) => value !== "")
       .map(Number)
@@ -197,6 +250,14 @@ export function EnrollmentsTab() {
         const original = serverGrades.current[Number(id)]
         if (!original) return false
         return draft.s1 !== original.s1 || draft.s2 !== original.s2 || draft.scale !== original.scale
+      })
+      // A level weighted its own way has no semester columns to save; its
+      // marks are only ever entered in the dialog, and the server refuses
+      // them here anyway.
+      .filter(([id]) => {
+        const row = enrollments.find((enrollment) => enrollment.id === Number(id))
+
+        return row === undefined || editableInline(row)
       })
       .map(([id, draft]) => ({
         enrollment_id: Number(id),
@@ -357,7 +418,8 @@ export function EnrollmentsTab() {
                 enrollments.map((enrollment) => {
                   const status = STATUS_LABELS[enrollment.status] || STATUS_LABELS.enrolled
                   const draft = gradeDrafts[enrollment.id]
-                  const average = draftAverage(enrollment)
+                  const average = yearMark(enrollment)
+                  const inline = editableInline(enrollment)
                   const scale = Number(draft?.scale) || 20
                   return (
                     <TableRow key={enrollment.id}>
@@ -401,30 +463,52 @@ export function EnrollmentsTab() {
                           <div className="text-xs text-muted-foreground">{enrollment.specialty}</div>
                         )}
                       </TableCell>
-                      <TableCell className="text-center">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max={scale}
-                          value={draft?.s1 ?? ""}
-                          onChange={(e) => editDraft(enrollment.id, "s1", e.target.value)}
-                          className="h-8 text-center px-1"
-                          placeholder="—"
-                        />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max={scale}
-                          value={draft?.s2 ?? ""}
-                          onChange={(e) => editDraft(enrollment.id, "s2", e.target.value)}
-                          className="h-8 text-center px-1"
-                          placeholder="—"
-                        />
-                      </TableCell>
+                      {inline ? (
+                        <>
+                          <TableCell className="text-center">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max={scale}
+                              value={draft?.s1 ?? ""}
+                              onChange={(e) => editDraft(enrollment.id, "s1", e.target.value)}
+                              className="h-8 text-center px-1"
+                              placeholder="—"
+                            />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max={scale}
+                              value={draft?.s2 ?? ""}
+                              onChange={(e) => editDraft(enrollment.id, "s2", e.target.value)}
+                              className="h-8 text-center px-1"
+                              placeholder="—"
+                            />
+                          </TableCell>
+                        </>
+                      ) : (
+                        /* This level is not marked in two halves, so two
+                           boxes cannot hold its year. The marks it does have
+                           are named and weighted, which only the dialog has
+                           room for. */
+                        <TableCell colSpan={2} className="text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 text-xs text-muted-foreground"
+                            onClick={() => setExamTarget(enrollment)}
+                          >
+                            <ClipboardList className="h-3.5 w-3.5 ml-1" />
+                            {(enrollment.grades?.length ?? 0) > 0
+                              ? `${enrollment.grades.length} نقطة`
+                              : "أدخل النقط"}
+                          </Button>
+                        </TableCell>
+                      )}
                       <TableCell className="text-center">
                         <div className="flex flex-col items-center gap-1">
                           {average === null ? (
@@ -436,19 +520,26 @@ export function EnrollmentsTab() {
                           )}
                           {/* The ceiling is a property of the institution's
                               marking, not of the app - a faculty marking out
-                              of 20 is as common as one marking out of 100. */}
-                          <Select value={draft?.scale ?? "20"} onValueChange={(value) => editDraft(enrollment.id, "scale", value)}>
-                            <SelectTrigger className="h-6 w-[70px] px-2 text-[11px] text-muted-foreground">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {GRADE_SCALES.map((value) => (
-                                <SelectItem key={value} value={String(value)} className="text-xs">
-                                  من {value}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                              of 20 is as common as one marking out of 100.
+                              Only offered on a row the table can edit: on the
+                              others each mark carries its own ceiling and the
+                              year's is set in the dialog. */}
+                          {inline ? (
+                            <Select value={draft?.scale ?? "20"} onValueChange={(value) => editDraft(enrollment.id, "scale", value)}>
+                              <SelectTrigger className="h-6 w-[70px] px-2 text-[11px] text-muted-foreground">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {GRADE_SCALES.map((value) => (
+                                  <SelectItem key={value} value={String(value)} className="text-xs">
+                                    من {value}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground">من {scale}</span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -474,7 +565,7 @@ export function EnrollmentsTab() {
                           actions={[
                             { label: "تعديل التسجيل", icon: Pencil, onSelect: () => openEdit(enrollment) },
                             {
-                              label: `نقط الامتحانات${enrollment.grades?.length ? ` (${enrollment.grades.length})` : ""}`,
+                              label: `نقط السنة${enrollment.grades?.length ? ` (${enrollment.grades.length})` : ""}`,
                               icon: ClipboardList,
                               onSelect: () => setExamTarget(enrollment),
                             },
@@ -512,6 +603,7 @@ export function EnrollmentsTab() {
         open={examTarget !== null}
         onOpenChange={(open) => !open && setExamTarget(null)}
         enrollment={examTarget}
+        components={examTarget ? componentsFor(examTarget) : []}
         onSaved={fetchEnrollments}
       />
     </Card>

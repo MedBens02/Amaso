@@ -18,6 +18,9 @@ class WidowController extends Controller
         // The current year's enrollment, not the orphan's own (unused,
         // legacy) education_level_id - see Orphan::currentEducationLabel().
         'orphans.currentEnrollment.educationLevel',
+        // The marks are rows now, so the card and the list read them through
+        // the relation rather than off two columns.
+        'orphans.currentEnrollment.grades',
         'phones',
         'widowFiles',
         'widowSocial.housingType',
@@ -36,7 +39,7 @@ class WidowController extends Controller
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = Widow::query()->with(['orphans.currentEnrollment.educationLevel']);
+        $query = Widow::query()->with(['orphans.currentEnrollment.educationLevel', 'orphans.currentEnrollment.grades']);
 
         if ($request->filled('search')) {
             $search = $request->get('search');
@@ -150,6 +153,7 @@ class WidowController extends Controller
         $widow->load([
             ...self::DETAIL_RELATIONS,
             'orphans.currentEnrollment.school',
+            'orphans.currentEnrollment.grades',
             'sponsorships.kafil.donor',
         ]);
 

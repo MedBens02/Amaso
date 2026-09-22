@@ -4,12 +4,18 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowUpDown, Edit2, ListOrdered, Plus, Trash2 } from "lucide-react"
+import { ArrowUpDown, Edit2, ListOrdered, Plus, Scale, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { ReferenceItemDialog } from "@/components/references/reference-item-dialog"
 import { EducationLevelReorder } from "@/components/references/education-level-reorder"
 import type { EducationLevel } from "@/components/references/education-level-reorder"
+import { GradeSchemeDialog } from "@/components/education/grade-scheme-dialog"
 import { API_BASE_URL } from "@/lib/api"
+
+/** A level as this screen needs it: the ladder rung plus how its year is marked. */
+type LevelWithScheme = EducationLevel & {
+  grade_components?: Array<{ id: number; label: string; weight: number | string }>
+}
 
 /**
  * The school levels, and the order they run in.
@@ -21,10 +27,11 @@ import { API_BASE_URL } from "@/lib/api"
  * sits in the education section, next to the registrations that use it.
  */
 export function EducationLevelsTab() {
-  const [levels, setLevels] = useState<EducationLevel[]>([])
+  const [levels, setLevels] = useState<LevelWithScheme[]>([])
   const [loading, setLoading] = useState(true)
   const [dialog, setDialog] = useState<{ open: boolean; item?: EducationLevel }>({ open: false })
   const [reorderOpen, setReorderOpen] = useState(false)
+  const [schemeLevel, setSchemeLevel] = useState<LevelWithScheme | null>(null)
   const { toast } = useToast()
 
   const load = async () => {
@@ -47,6 +54,15 @@ export function EducationLevelsTab() {
   useEffect(() => {
     load()
   }, [])
+
+  /** "50% + 50%" - short enough to sit under the name and be read at a glance. */
+  const schemeSummary = (level: LevelWithScheme) => {
+    const components = level.grade_components ?? []
+
+    if (components.length === 0) return "لا يوجد نظام احتساب"
+
+    return components.map((c) => `${c.label} ${Number(c.weight)}%`).join(" + ")
+  }
 
   const remove = async (level: EducationLevel) => {
     if (!window.confirm(`هل أنت متأكد من حذف "${level.name_ar}"؟`)) return
@@ -92,7 +108,8 @@ export function EducationLevelsTab() {
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground mb-4">
-          الترتيب هنا هو السلّم الذي يصعده الانتقال في نهاية السنة الدراسية.
+          الترتيب هنا هو السلّم الذي يصعده الانتقال في نهاية السنة الدراسية، ونظام الاحتساب هو
+          الذي يُستخرج منه المعدل السنوي لكل تلميذ في المستوى.
         </p>
 
         {loading ? (
@@ -110,10 +127,23 @@ export function EducationLevelsTab() {
                     {level.name_en && (
                       <span className="text-xs text-muted-foreground block">{level.name_en}</span>
                     )}
+                    {/* How a year at this level is marked, so the exception
+                        stands out from the levels that use the ordinary two
+                        semesters. */}
+                    <span className="text-xs text-muted-foreground block">{schemeSummary(level)}</span>
                   </div>
                   {level.is_active === false && <Badge variant="secondary">غير نشط</Badge>}
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSchemeLevel(level)}
+                    aria-label={`نظام احتساب ${level.name_ar}`}
+                    title="نظام احتساب المعدل السنوي"
+                  >
+                    <Scale className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -151,6 +181,13 @@ export function EducationLevelsTab() {
         onOpenChange={setReorderOpen}
         educationLevels={levels}
         onReorderSuccess={load}
+      />
+
+      <GradeSchemeDialog
+        open={schemeLevel !== null}
+        onOpenChange={(open) => !open && setSchemeLevel(null)}
+        level={schemeLevel}
+        onSaved={load}
       />
     </Card>
   )

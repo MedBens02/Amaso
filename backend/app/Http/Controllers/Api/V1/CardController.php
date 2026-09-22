@@ -65,6 +65,8 @@ class CardController extends Controller
             'enrollments.academicYear',
             'enrollments.educationLevel',
             'enrollments.school',
+            // The year's mark is worked out from these.
+            'enrollments.grades',
         ]);
 
         return $this->download(

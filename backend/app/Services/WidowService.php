@@ -385,8 +385,7 @@ class WidowService
         // registrar's grades and result are never silently discarded.
         if (!($child['is_schooled'] ?? true)) {
             if ($enrollment && $enrollment->status === OrphanEnrollment::STATUS_ENROLLED
-                && $enrollment->first_semester_grade === null
-                && $enrollment->second_semester_grade === null) {
+                && $enrollment->grades->isEmpty()) {
                 $enrollment->delete();
             }
 

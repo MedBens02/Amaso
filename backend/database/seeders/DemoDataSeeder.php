@@ -14,6 +14,7 @@ use App\Models\IncomeCategory;
 use App\Models\Kafil;
 use App\Models\KafalaChamilaSplit;
 use App\Models\KafilSponsorship;
+use App\Models\EducationLevelGradeComponent;
 use App\Models\OrphanEnrollment;
 use App\Models\TransportSupport;
 use App\Models\Partner;
@@ -585,7 +586,7 @@ class DemoDataSeeder extends Seeder
 
                     // Creating the family already opened an enrollment for the
                     // current year, so this fills it in rather than inserting again.
-                    OrphanEnrollment::updateOrCreate(
+                    $enrollment = OrphanEnrollment::updateOrCreate(
                         ['orphan_id' => $orphan->id, 'academic_year_id' => $academicYear->id],
                         [
                             'education_level_id' => $levelId,
@@ -595,8 +596,6 @@ class DemoDataSeeder extends Seeder
                             'higher_education_year' => $courseYear,
                             'status' => $isCurrent ? $statuses[$index % count($statuses)] : 'passed',
                             'grade_scale' => $scale,
-                            'first_semester_grade' => $graded ? $mark() : null,
-                            'second_semester_grade' => $secondSemester ? $mark() : null,
                             'has_tutoring' => $hasTutoring,
                             'tutoring_subjects' => $hasTutoring
                                 ? ['الرياضيات', 'الفيزياء والكيمياء', 'اللغة الفرنسية', 'الرياضيات، الفيزياء'][$index % 4]
@@ -606,6 +605,34 @@ class DemoDataSeeder extends Seeder
                                 : null,
                         ]
                     );
+
+                    // The marks are rows carrying what each one counts for,
+                    // so this seeds the level's own scheme rather than two
+                    // columns. A year still being taught has only the first
+                    // semester in, which is what a half-marked year looks
+                    // like on the screen.
+                    $enrollment->grades()->delete();
+
+                    if ($graded) {
+                        $components = $enrollment->educationLevel?->gradeComponents
+                            ?? collect(EducationLevelGradeComponent::DEFAULT_SCHEME)
+                                ->map(fn ($c) => (object) $c);
+
+                        foreach ($components as $position => $component) {
+                            // Position 1 is the second half of the year.
+                            if ($position === 1 && ! $secondSemester) {
+                                continue;
+                            }
+
+                            $enrollment->grades()->create([
+                                'label' => $component->label,
+                                'mark' => $mark(),
+                                'scale' => $scale,
+                                'weight' => $component->weight,
+                                'sort_order' => $position,
+                            ]);
+                        }
+                    }
                 }
 
                 $index++;

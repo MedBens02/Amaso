@@ -41,8 +41,9 @@ class OrphanEnrollment extends Model
         'specialty',
         'higher_education_phase',
         'higher_education_year',
-        'first_semester_grade',
-        'second_semester_grade',
+        // The marks themselves live in enrollment_grades, one row each with
+        // what it counts for. This is only the ceiling the year's mark is
+        // expressed on.
         'grade_scale',
         'has_tutoring',
         'tutoring_subjects',
@@ -52,8 +53,6 @@ class OrphanEnrollment extends Model
     ];
 
     protected $casts = [
-        'first_semester_grade' => 'decimal:2',
-        'second_semester_grade' => 'decimal:2',
         'grade_scale' => 'decimal:2',
         'higher_education_year' => 'integer',
         'has_tutoring' => 'boolean',
@@ -62,30 +61,114 @@ class OrphanEnrollment extends Model
     protected $appends = ['average_grade', 'grade_percentage', 'higher_education_label'];
 
     /**
-     * The year's mark: the mean of both semesters once both are in, and the
-     * single recorded semester before that - so a student is rankable mid-year
-     * without a half-empty average dragging them down.
+     * The year's mark, expressed on this enrollment's own ceiling.
+     *
+     * Rounded once, from the exact weighted figure rather than from the
+     * rounded percentage beside it - rounding twice moved a mark by a
+     * hundredth, which is visible next to a pass line drawn at exactly half.
      */
     public function getAverageGradeAttribute(): ?float
     {
-        $marks = array_values(array_filter(
-            [$this->first_semester_grade, $this->second_semester_grade],
-            fn ($mark) => $mark !== null,
-        ));
+        $percentage = $this->weightedPercentage();
+        $scale = (float) ($this->grade_scale ?: 20);
 
-        return $marks === [] ? null : round(array_sum($marks) / count($marks), 2);
+        return $percentage === null ? null : self::round2($percentage / 100 * $scale);
     }
 
     /**
-     * Schools mark out of 20, some faculties out of another ceiling; comparing
-     * percentages is the only way a mixed ranking means anything.
+     * The year's mark as a percentage: every mark weighted by what it counts
+     * for, which is the only way to compare a baccalaureate year against a
+     * primary one.
      */
     public function getGradePercentageAttribute(): ?float
     {
-        $average = $this->average_grade;
-        $scale = (float) ($this->grade_scale ?: 20);
+        $percentage = $this->weightedPercentage();
 
-        return $average === null || $scale <= 0 ? null : round($average / $scale * 100, 2);
+        return $percentage === null ? null : self::round2($percentage);
+    }
+
+    /**
+     * The weighted mean of this year's marks, unrounded, as a percentage.
+     *
+     * Divided by the weight actually present rather than by 100, so a student
+     * with only the first semester in is rankable on that alone instead of
+     * being dragged down by the exam they have not sat yet - the same
+     * principle the old two-semester mean followed, and for two semesters at
+     * half each it produces exactly the figure that mean did.
+     *
+     * A mark weighted zero is on the record and out of the average: a mock
+     * exam, a resit that did not count, or a mark entered against a level
+     * whose scheme has no place for it. There is deliberately no fallback
+     * that averages weightless marks anyway - "worth nothing" is an answer,
+     * and quietly counting a practice paper towards the year would be worse
+     * than showing no mark at all.
+     */
+    /**
+     * One of this year's marks by name, or null if it was never recorded.
+     *
+     * The two semesters used to be columns and everything read them directly.
+     * They are rows now, and a level is free to have neither - so everywhere
+     * that wants "the first semester mark" asks for it by name and copes with
+     * not getting one.
+     */
+    public function markNamed(string $label): ?EnrollmentGrade
+    {
+        return $this->grades->firstWhere('label', $label);
+    }
+
+    /** The first semester's mark, for the screens and cards that show it. */
+    public function getFirstSemesterGradeAttribute(): ?float
+    {
+        $grade = $this->markNamed(EducationLevelGradeComponent::DEFAULT_SCHEME[0]['label']);
+
+        return $grade === null ? null : (float) $grade->mark;
+    }
+
+    /** The second semester's mark. */
+    public function getSecondSemesterGradeAttribute(): ?float
+    {
+        $grade = $this->markNamed(EducationLevelGradeComponent::DEFAULT_SCHEME[1]['label']);
+
+        return $grade === null ? null : (float) $grade->mark;
+    }
+
+    /**
+     * Round to a hundredth without the last bit of the float deciding.
+     *
+     * A year's marks can land exactly on a rounding boundary - two marks of
+     * 15.15 and 13.84 average to precisely 14.495 - and binary floating point
+     * stores that as either a hair above or a hair below depending on which
+     * arithmetic got there. One route rounded to 14.50 and the other to
+     * 14.49. The pass line is drawn at exactly half marks, so a hundredth is
+     * the difference between a pass and a fail for a student sitting on it.
+     *
+     * Rounding at six decimals first absorbs that representation error -
+     * marks are recorded to two, so there is nothing real down there to lose
+     * - and the second round then has a number that is actually 14.495.
+     */
+    private static function round2(float $value): float
+    {
+        return round(round($value, 6), 2);
+    }
+
+    private function weightedPercentage(): ?float
+    {
+        $weighted = 0.0;
+        $weights = 0.0;
+
+        foreach ($this->grades as $grade) {
+            $percentage = $grade->exactPercentage();
+            $weight = (float) $grade->weight;
+
+            if ($percentage === null || $weight <= 0) {
+                continue;
+            }
+
+            $weighted += $percentage * $weight;
+            $weights += $weight;
+        }
+
+        return $weights > 0 ? $weighted / $weights : null;
     }
 
     /**

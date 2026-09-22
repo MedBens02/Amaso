@@ -25,6 +25,17 @@ class SchoolPerformanceService
     public const SEMESTER_SECOND = 'second';
     public const SEMESTER_AVERAGE = 'average';
 
+    /**
+     * Which named mark each ranking reads.
+     *
+     * The report has always offered "first semester" and "second semester",
+     * and those are now the names of two components rather than two columns.
+     */
+    private const COMPONENT_LABELS = [
+        self::SEMESTER_FIRST => 'الأسدس الأول',
+        self::SEMESTER_SECOND => 'الأسدس الثاني',
+    ];
+
     /** How a ranking is cut up before top_n is applied. */
     public const GROUP_NONE = 'none';
     public const GROUP_LEVEL = 'level';
@@ -145,7 +156,7 @@ class SchoolPerformanceService
 
     private function query(array $filters, ?int $yearId)
     {
-        return OrphanEnrollment::with(['orphan.widow', 'academicYear', 'educationLevel', 'school'])
+        return OrphanEnrollment::with(['orphan.widow', 'academicYear', 'educationLevel', 'school', 'grades'])
             ->when($yearId, fn ($q) => $q->where('academic_year_id', $yearId))
             ->when(
                 !empty($filters['education_level_id']),
@@ -181,21 +192,41 @@ class SchoolPerformanceService
             : AcademicYear::where('is_current', true)->first();
     }
 
+    /**
+     * The mark a ranking is built on.
+     *
+     * A semester is one of the year's components now rather than a column,
+     * so it is looked up by name. A level whose scheme has no semesters - a
+     * baccalaureate year marked on exams - simply has no mark for that
+     * ranking and drops out of it, which is the honest answer rather than a
+     * zero that would place the student last.
+     */
     private function markFor(OrphanEnrollment $row, string $semester): ?float
     {
-        return match ($semester) {
-            self::SEMESTER_FIRST => $row->first_semester_grade === null ? null : (float) $row->first_semester_grade,
-            self::SEMESTER_SECOND => $row->second_semester_grade === null ? null : (float) $row->second_semester_grade,
-            default => $row->average_grade,
-        };
+        if ($semester === self::SEMESTER_AVERAGE) {
+            return $row->average_grade;
+        }
+
+        $grade = $row->markNamed(self::COMPONENT_LABELS[$semester] ?? $semester);
+
+        return $grade === null ? null : (float) $grade->mark;
     }
 
+    /**
+     * Comparing percentages is the only way a mixed ranking means anything:
+     * schools mark out of 20, some faculties out of another ceiling, and a
+     * single exam may be marked on a ceiling of its own.
+     */
     private function percentageFor(OrphanEnrollment $row, string $semester): ?float
     {
-        $mark = $this->markFor($row, $semester);
-        $scale = (float) ($row->grade_scale ?: 20);
+        if ($semester === self::SEMESTER_AVERAGE) {
+            return $row->grade_percentage;
+        }
 
-        return $mark === null || $scale <= 0 ? null : round($mark / $scale * 100, 2);
+        $grade = $row->markNamed(self::COMPONENT_LABELS[$semester] ?? $semester);
+        $exact = $grade?->exactPercentage();
+
+        return $exact === null ? null : round($exact, 2);
     }
 
     private function studentRow(OrphanEnrollment $row, ?int $rank, string $semester): array
@@ -218,9 +249,22 @@ class SchoolPerformanceService
             'education_level' => $row->educationLevel?->name_ar,
             'specialty' => $row->specialty,
             'status' => $row->status,
-            'first_semester_grade' => $row->first_semester_grade === null ? null : (float) $row->first_semester_grade,
-            'second_semester_grade' => $row->second_semester_grade === null ? null : (float) $row->second_semester_grade,
+            'first_semester_grade' => $row->first_semester_grade,
+            'second_semester_grade' => $row->second_semester_grade,
             'grade_scale' => (float) ($row->grade_scale ?: 20),
+            // Every mark behind the year's figure, so a reader can see what
+            // an exam-weighted year was actually built from rather than two
+            // semester columns that may be a tenth of it.
+            'marks' => $row->grades
+                ->map(fn ($grade) => [
+                    'label' => $grade->label,
+                    'mark' => (float) $grade->mark,
+                    'scale' => (float) $grade->scale,
+                    'weight' => (float) $grade->weight,
+                ])
+                ->values()
+                ->all(),
+            'average_grade' => $row->average_grade,
             'grade' => $this->markFor($row, $semester),
             'percentage' => $this->percentageFor($row, $semester),
         ];

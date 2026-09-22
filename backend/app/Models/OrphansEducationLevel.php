@@ -45,4 +45,19 @@ class OrphansEducationLevel extends Model
     {
         return $this->hasMany(Orphan::class, 'education_level_id');
     }
+
+    /**
+     * How a year's mark is worked out at this level.
+     *
+     * Ordinary levels carry the two semesters at half each; the final years
+     * carry the ministry's own weighting, with the national exam worth most
+     * of the mark. Set once here by somebody who knows the rules, so nobody
+     * marking a child ever types a weight.
+     */
+    public function gradeComponents()
+    {
+        return $this->hasMany(EducationLevelGradeComponent::class, 'education_level_id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
 }

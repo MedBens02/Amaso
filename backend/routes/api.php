@@ -241,8 +241,14 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::get('orphans-education-levels', function () {
+        // With the marking scheme: the registrations screen needs to know
+        // which levels are the plain two semesters it can edit in the table,
+        // and the year-marks dialog needs the components to lay out.
         return response()->json([
-            'data' => \App\Models\OrphansEducationLevel::active()->ordered()->get(),
+            'data' => \App\Models\OrphansEducationLevel::with('gradeComponents')
+                ->active()
+                ->ordered()
+                ->get(),
         ]);
     });
 
@@ -321,6 +327,8 @@ Route::prefix('v1')->group(function () {
         Route::put('education-levels/{level}', [References\EducationLevelController::class, 'update']);
         Route::delete('education-levels/{level}', [References\EducationLevelController::class, 'destroy']);
         Route::post('education-levels/reorder', [References\EducationLevelController::class, 'reorder']);
+        // How a year's mark is worked out at this level, saved as a whole.
+        Route::put('education-levels/{level}/components', [References\EducationLevelController::class, 'saveComponents']);
 
         // Sub-Budgets
         Route::get('budgets', [References\BudgetController::class, 'index']);

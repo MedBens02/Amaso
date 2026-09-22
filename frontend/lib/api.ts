@@ -753,8 +753,16 @@ class ApiClient {
     return this.request<any>(`/kafala-chamila/splits/${id}`, { method: 'DELETE' })
   }
 
-  /** Replaces the whole set of named exam marks on one enrollment. */
-  async saveExamGrades(enrollmentId: number, grades: Array<{ label: string; mark: number; scale: number }>) {
+  /**
+   * Replaces the whole set of a year's marks on one enrollment.
+   *
+   * Each carries what it counts for, as a percentage of the year. A weight
+   * of zero records the mark and keeps it out of the average.
+   */
+  async saveExamGrades(
+    enrollmentId: number,
+    grades: Array<{ label: string; mark: number; scale: number; weight: number }>,
+  ) {
     return this.request<any>(`/enrollments/${enrollmentId}/grades`, {
       method: 'PUT',
       body: JSON.stringify({ grades }),
@@ -1364,6 +1372,20 @@ class ApiClient {
   }
 
   // Education levels for orphans
+  /**
+   * Replaces a level's marking scheme. The whole set at once, because the
+   * weights are only valid as a set that totals 100.
+   */
+  async saveLevelGradeComponents(
+    levelId: number,
+    components: Array<{ label: string; weight: number }>,
+  ) {
+    return this.request<any>(`/references/education-levels/${levelId}/components`, {
+      method: 'PUT',
+      body: JSON.stringify({ components }),
+    })
+  }
+
   async getOrphansEducationLevels() {
     return this.request<any[]>('/orphans-education-levels')
   }

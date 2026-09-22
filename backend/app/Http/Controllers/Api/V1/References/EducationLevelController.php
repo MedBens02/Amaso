@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api\V1\References;
 
 use App\Http\Controllers\Controller;
+use App\Models\EducationLevelGradeComponent;
 use App\Models\OrphansEducationLevel;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class EducationLevelController extends Controller
 {
@@ -22,14 +24,82 @@ class EducationLevelController extends Controller
      */
     public function index(): JsonResponse
     {
-        $levels = OrphansEducationLevel::orderBy('sort_order')->orderBy('id')->get();
+        $levels = OrphansEducationLevel::with('gradeComponents')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
 
         return response()->json(['data' => $levels]);
+    }
+
+    /**
+     * Replace a level's marking scheme in one go.
+     *
+     * The whole set at once rather than a row at a time, because the thing
+     * being saved is not a component - it is the scheme, and a scheme is only
+     * valid as a whole. Saving one row at a time would mean passing through
+     * states where the weights do not add up to 100, and the screen would
+     * have to decide whether to warn about a total that is halfway through
+     * being edited.
+     */
+    public function saveComponents(Request $request, OrphansEducationLevel $level): JsonResponse
+    {
+        $validated = $request->validate([
+            'components' => ['required', 'array', 'min:1', 'max:20'],
+            'components.*.label' => ['required', 'string', 'max:120'],
+            'components.*.weight' => ['required', 'numeric', 'min:0', 'max:100'],
+        ], [
+            'components.required' => 'نظام الاحتساب يحتاج مكوّناً واحداً على الأقل',
+            'components.min' => 'نظام الاحتساب يحتاج مكوّناً واحداً على الأقل',
+            'components.*.label.required' => 'اسم المكوّن مطلوب',
+            'components.*.weight.required' => 'معامل المكوّن مطلوب',
+            'components.*.weight.max' => 'المعامل لا يتجاوز 100%',
+        ]);
+
+        $labels = array_map(fn ($component) => trim($component['label']), $validated['components']);
+
+        if (count($labels) !== count(array_unique($labels))) {
+            throw ValidationException::withMessages([
+                'components' => ['لا يمكن تكرار اسم المكوّن في المستوى نفسه'],
+            ]);
+        }
+
+        // To the centime of a percent, because 100/3 is 33.33 three times and
+        // a scheme that adds to 99.99 is a scheme somebody mistyped.
+        $total = round(array_sum(array_column($validated['components'], 'weight')), 2);
+
+        if (abs($total - 100) > 0.001) {
+            throw ValidationException::withMessages([
+                'components' => ["مجموع المعاملات يجب أن يساوي 100% (المجموع الحالي {$total}%)"],
+            ]);
+        }
+
+        DB::transaction(function () use ($level, $validated) {
+            $level->gradeComponents()->delete();
+
+            foreach ($validated['components'] as $index => $component) {
+                $level->gradeComponents()->create([
+                    'label' => trim($component['label']),
+                    'weight' => $component['weight'],
+                    'sort_order' => $index,
+                ]);
+            }
+        });
+
+        return response()->json([
+            'message' => "تم حفظ نظام احتساب \"{$level->name_ar}\"",
+            'data' => $level->fresh('gradeComponents')->gradeComponents,
+        ]);
     }
 
     public function store(Request $request): JsonResponse
     {
         $level = OrphansEducationLevel::create($this->validateLevel($request));
+
+        // A level with no scheme has no way to work out a year's mark, so a
+        // new one starts on the ordinary two semesters and is re-weighted
+        // from the same screen if it needs to be.
+        EducationLevelGradeComponent::ensureDefaultFor([$level->id]);
 
         return response()->json([
             'message' => 'تم إنشاء المرحلة التعليمية بنجاح',

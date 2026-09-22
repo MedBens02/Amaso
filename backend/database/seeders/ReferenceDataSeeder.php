@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\EducationLevelGradeComponent;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -65,6 +66,13 @@ class ReferenceDataSeeder extends Seeder
                 ['name_en' => $en, 'sort_order' => $order, 'is_active' => true, 'updated_at' => $now, 'created_at' => $now]
             );
         }
+
+        // Every level needs a way of working out a year's mark, and the
+        // ordinary one is two semesters at half each. An administrator
+        // re-weights the final years afterwards; this only fills the gap.
+        EducationLevelGradeComponent::ensureDefaultFor(
+            DB::table('orphans_education_level')->pluck('id'),
+        );
 
         foreach (['راتب', 'معاش', 'مساعدة', 'تجارة', 'عمل حر', 'تبرعات', 'إيجار عقار', 'حرفة'] as $name) {
             DB::table('widow_income_categories')->updateOrInsert(['name' => $name], ['updated_at' => $now, 'created_at' => $now]);

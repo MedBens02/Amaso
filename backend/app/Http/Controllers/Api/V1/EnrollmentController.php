@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
+use App\Models\EducationLevelGradeComponent;
 use App\Models\OrphanEnrollment;
 use App\Models\OrphansEducationLevel;
 use App\Models\School;
@@ -145,12 +146,27 @@ class EnrollmentController extends Controller
             'grades.*.label' => ['required', 'string', 'max:120'],
             'grades.*.mark' => ['required', 'numeric', 'min:0'],
             'grades.*.scale' => ['required', 'numeric', 'min:1', 'max:1000'],
+            // What this mark counts for, as a percentage of the year. Zero is
+            // a real answer: a mock exam is on the record and out of the
+            // average.
+            'grades.*.weight' => ['sometimes', 'numeric', 'min:0', 'max:100'],
         ], [
             'grades.*.label.required' => 'اسم النقطة مطلوب',
             'grades.*.mark.required' => 'النقطة مطلوبة',
             'grades.*.mark.numeric' => 'النقطة يجب أن تكون رقماً',
             'grades.*.scale.required' => 'السلم مطلوب',
+            'grades.*.weight.max' => 'المعامل لا يتجاوز 100%',
         ]);
+
+        // Two rows of the same name would both claim to be the same component
+        // and the year's mark would count it twice.
+        $labels = array_map(fn ($grade) => trim($grade['label']), $validated['grades']);
+        if (count($labels) !== count(array_unique($labels))) {
+            return response()->json([
+                'message' => 'لا يمكن تكرار اسم النقطة في السنة نفسها.',
+                'errors' => ['grades' => ['اسم النقطة مكرر']],
+            ], 422);
+        }
 
         // A mark above its own ceiling is a typo, not a record worth keeping -
         // the same rule the semester marks have always had.
@@ -168,17 +184,26 @@ class EnrollmentController extends Controller
 
             foreach ($validated['grades'] as $index => $grade) {
                 $enrollment->grades()->create([
-                    'label' => $grade['label'],
+                    'label' => trim($grade['label']),
                     'mark' => $grade['mark'],
                     'scale' => $grade['scale'],
+                    'weight' => $grade['weight'] ?? 0,
                     'sort_order' => $index,
                 ]);
             }
         });
 
+        $fresh = $enrollment->fresh('grades');
+
         return response()->json([
             'message' => 'تم حفظ النقط بنجاح',
-            'data' => $enrollment->fresh('grades')->grades,
+            'data' => [
+                'grades' => $fresh->grades,
+                // So the row on the screen behind the dialog can show the new
+                // year mark without refetching the whole table.
+                'average_grade' => $fresh->average_grade,
+                'grade_percentage' => $fresh->grade_percentage,
+            ],
         ]);
     }
 
@@ -202,18 +227,31 @@ class EnrollmentController extends Controller
         ]);
 
         $rows = collect($validated['grades'])->keyBy('enrollment_id');
-        $enrollments = OrphanEnrollment::whereIn('id', $rows->keys())->get();
+        $enrollments = OrphanEnrollment::with('grades')->whereIn('id', $rows->keys())->get();
+
+        // One query for every level's scheme rather than one per student:
+        // this runs for a whole class at a time.
+        $schemes = EducationLevelGradeComponent::query()
+            ->whereIn('education_level_id', $enrollments->pluck('education_level_id')->filter()->unique())
+            ->orderBy('sort_order')
+            ->get()
+            ->groupBy('education_level_id');
+
+        $columns = [
+            'first_semester_grade' => 'الأسدس الأول',
+            'second_semester_grade' => 'الأسدس الثاني',
+        ];
 
         $saved = 0;
         $rejected = [];
 
-        DB::transaction(function () use ($enrollments, $rows, &$saved, &$rejected) {
+        DB::transaction(function () use ($enrollments, $rows, $schemes, $columns, &$saved, &$rejected) {
             foreach ($enrollments as $enrollment) {
                 $row = $rows[$enrollment->id];
                 $scale = (float) ($row['grade_scale'] ?? $enrollment->grade_scale ?: 20);
 
                 // A mark above its own ceiling is a typo, not a record worth keeping.
-                $overCeiling = collect(['first_semester_grade', 'second_semester_grade'])
+                $overCeiling = collect(array_keys($columns))
                     ->filter(fn ($key) => isset($row[$key]) && $row[$key] !== null && (float) $row[$key] > $scale);
 
                 if ($overCeiling->isNotEmpty()) {
@@ -225,16 +263,60 @@ class EnrollmentController extends Controller
                     continue;
                 }
 
-                // Only the keys actually sent are touched, so a null clears a
-                // mark on purpose while an absent key leaves it alone.
-                $changes = [];
-                foreach (['first_semester_grade', 'second_semester_grade', 'grade_scale'] as $key) {
-                    if (array_key_exists($key, $row)) {
-                        $changes[$key] = $row[$key];
-                    }
+                $scheme = $schemes->get($enrollment->education_level_id);
+
+                // These two columns on the screen are two components of the
+                // year, so a level whose scheme has no place for them cannot
+                // take a mark this way - it would be recorded at no weight
+                // and count for nothing, which looks like entering a mark and
+                // is not.
+                $missing = collect($columns)
+                    ->filter(fn ($label, $key) => array_key_exists($key, $row) && $row[$key] !== null)
+                    ->reject(fn ($label) => $scheme === null || $scheme->firstWhere('label', $label) !== null);
+
+                if ($missing->isNotEmpty()) {
+                    $rejected[] = [
+                        'enrollment_id' => $enrollment->id,
+                        'message' => 'نظام احتساب هذا المستوى لا يتضمن ' . $missing->implode('، ') . ' — استعمل نافذة نقط السنة.',
+                    ];
+
+                    continue;
                 }
 
-                $enrollment->update($changes);
+                if (array_key_exists('grade_scale', $row) && $row['grade_scale'] !== null) {
+                    $enrollment->update(['grade_scale' => $row['grade_scale']]);
+                    // The ceiling on screen is the one these marks were given
+                    // on; leaving the rows behind would silently re-price them.
+                    $enrollment->grades()
+                        ->whereIn('label', array_values($columns))
+                        ->update(['scale' => $row['grade_scale']]);
+                }
+
+                // Only the keys actually sent are touched, so a null clears a
+                // mark on purpose while an absent key leaves it alone.
+                foreach ($columns as $key => $label) {
+                    if (! array_key_exists($key, $row)) {
+                        continue;
+                    }
+
+                    if ($row[$key] === null) {
+                        $enrollment->grades()->where('label', $label)->delete();
+
+                        continue;
+                    }
+
+                    $component = $scheme?->firstWhere('label', $label);
+
+                    $enrollment->grades()->updateOrCreate(
+                        ['label' => $label],
+                        [
+                            'mark' => $row[$key],
+                            'scale' => $scale,
+                            'weight' => $component?->weight ?? 0,
+                            'sort_order' => $component?->sort_order ?? 0,
+                        ],
+                    );
+                }
 
                 $saved++;
             }
@@ -252,16 +334,12 @@ class EnrollmentController extends Controller
     }
 
     /**
-     * A mark cannot exceed the scale it was given on - which may be arriving in
-     * the same request, so the ceiling is resolved before the rules are built.
+     * The ceiling the year's mark is expressed on. The marks themselves are
+     * rows, each with its own scale, saved through the grade endpoints.
      */
     private function gradeRules(Request $request, ?OrphanEnrollment $enrollment = null): array
     {
-        $scale = (float) ($request->input('grade_scale') ?? $enrollment?->grade_scale ?? 20);
-
         return [
-            'first_semester_grade' => ['nullable', 'numeric', 'min:0', "max:{$scale}"],
-            'second_semester_grade' => ['nullable', 'numeric', 'min:0', "max:{$scale}"],
             'grade_scale' => ['nullable', 'numeric', 'min:1', 'max:1000'],
         ];
     }
@@ -287,10 +365,6 @@ class EnrollmentController extends Controller
     private function messages(): array
     {
         return [
-            'first_semester_grade.max' => 'نقطة الأسدس الأول تتجاوز السلم المعتمد',
-            'second_semester_grade.max' => 'نقطة الأسدس الثاني تتجاوز السلم المعتمد',
-            'first_semester_grade.min' => 'النقطة لا يمكن أن تكون سالبة',
-            'second_semester_grade.min' => 'النقطة لا يمكن أن تكون سالبة',
             'higher_education_phase.in' => 'سلك التعليم العالي غير معروف',
             'higher_education_year.min' => 'سنة التعليم العالي تبدأ من 1',
             'higher_education_year.max' => 'سنة التعليم العالي لا يمكن أن تتجاوز 8',

@@ -45,10 +45,13 @@
                 <thead>
                     <tr>
                         <th width="16%">السنة</th>
-                        <th width="22%">المستوى</th>
-                        <th width="26%">المؤسسة</th>
-                        <th width="12%" class="center">الأسدس 1</th>
-                        <th width="12%" class="center">الأسدس 2</th>
+                        <th width="24%">المستوى</th>
+                        <th width="36%">المؤسسة</th>
+                        {{-- One figure rather than two semester columns: a
+                             baccalaureate year is marked on exams and has no
+                             semesters to put in them, while every year has a
+                             mark for the year. --}}
+                        <th width="12%" class="center">المعدل</th>
                         <th width="12%" class="center">النتيجة</th>
                     </tr>
                 </thead>
@@ -58,8 +61,9 @@
                             <td>{{ $enrollment->academicYear?->label ?? '—' }}</td>
                             <td>{{ $enrollment->educationLevel?->name_ar ?? '—' }}</td>
                             <td>{{ $enrollment->school?->name ?? '—' }}</td>
-                            <td class="center">{{ $enrollment->first_semester_grade === null ? '—' : number_format((float) $enrollment->first_semester_grade, 2) }}</td>
-                            <td class="center">{{ $enrollment->second_semester_grade === null ? '—' : number_format((float) $enrollment->second_semester_grade, 2) }}</td>
+                            <td class="center">{{ $enrollment->average_grade === null
+                                ? '—'
+                                : number_format($enrollment->average_grade, 2) . ' / ' . number_format((float) ($enrollment->grade_scale ?: 20), 0) }}</td>
                             <td class="center">{{ match ($enrollment->status) {
                                 'passed' => 'ناجح', 'failed' => 'راسب', 'left' => 'غادر', default => 'مسجل',
                             } }}</td>
