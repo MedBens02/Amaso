@@ -97,7 +97,12 @@ Route::prefix('v1')->group(function () {
 
     // Incomes CRUD + approval
     Route::apiResource('incomes', IncomeController::class);
-    Route::post('incomes/{income}/approve', [IncomeController::class, 'approve']);
+    // Approving is what turns a recorded figure into money the books count,
+    // so it is the accountants' and the administration's to do - not
+    // everybody's. The button is hidden for the rest, but hiding a button
+    // stops nobody calling the endpoint, which is why the rule lives here.
+    Route::post('incomes/{income}/approve', [IncomeController::class, 'approve'])
+        ->middleware('role:admin,superuser,accountant');
     Route::post('incomes/{income}/transfer-to-bank', [IncomeController::class, 'transferToBank']);
 
     // Kafala Chamila (comprehensive sponsorship) split
@@ -153,7 +158,8 @@ Route::prefix('v1')->group(function () {
 
     // Expenses CRUD + approval
     Route::apiResource('expenses', ExpenseController::class);
-    Route::post('expenses/{expense}/approve', [ExpenseController::class, 'approve']);
+    Route::post('expenses/{expense}/approve', [ExpenseController::class, 'approve'])
+        ->middleware('role:admin,superuser,accountant');
 
     // Transfers CRUD + approval
     Route::apiResource('transfers', TransferController::class);

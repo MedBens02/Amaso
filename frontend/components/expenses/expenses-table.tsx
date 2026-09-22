@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast"
 import { api, apiUrl } from "@/lib/api"
 import { formatDateArabic } from "@/lib/date-utils"
 import { NewExpenseDialog } from "@/components/forms/NewExpenseForm"
+import { isCurrentUserApprover } from "@/lib/roles"
 
 interface Expense {
   id: number
@@ -102,6 +103,13 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
   // The id currently being approved, or null. Blocks a second approval
   // click from firing while one is already in flight - see performApproval.
   const [approvingId, setApprovingId] = useState<number | null>(null)
+  // Read once, after mount: the profile lives in localStorage, which the
+  // server render cannot see.
+  const [canApprove, setCanApprove] = useState(false)
+
+  useEffect(() => {
+    setCanApprove(isCurrentUserApprover())
+  }, [])
   const [bankAccounts, setBankAccounts] = useState<any[]>([])
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null)
@@ -438,10 +446,12 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
         <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-950/40 rounded-lg border border-blue-200 dark:border-blue-900">
           <span className="text-sm font-medium text-blue-900 dark:text-blue-400">تم تحديد {selectedIds.size} عنصر</span>
           <div className="flex gap-2">
-            <Button size="sm" onClick={handleBulkValidate}>
-              <CheckCircle className="h-4 w-4 ml-2" />
-              تأكيد المحدد
-            </Button>
+            {canApprove && (
+              <Button size="sm" onClick={handleBulkValidate}>
+                <CheckCircle className="h-4 w-4 ml-2" />
+                تأكيد المحدد
+              </Button>
+            )}
             <Button size="sm" variant="outline" onClick={() => setSelectedIds(new Set())}>
               إلغاء التحديد
             </Button>
@@ -526,13 +536,15 @@ export function ExpensesTable({ searchTerm, appliedFilters }: ExpensesTableProps
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => handleApproveExpense(expense)}
-                          disabled={expense.status === "Approved" || approvingId === expense.id}
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                          تأكيد
-                        </DropdownMenuItem>
+                        {canApprove && (
+                          <DropdownMenuItem
+                            onClick={() => handleApproveExpense(expense)}
+                            disabled={expense.status === "Approved" || approvingId === expense.id}
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                            تأكيد
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => handleDuplicateExpense(expense)}>
                           <Copy className="h-4 w-4" />
                           نسخ
