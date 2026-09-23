@@ -212,8 +212,9 @@ of sending it. The system notices this and leaves the code requirement
 **off** rather than locking everyone out silently — but that means the
 second step is not protecting anything yet.
 
-Set it up now. `backend/.env.example` has the full Gmail block with the
-app-password caveat; the short version:
+Set it up now. The association's own mailbox is the right sender — staff
+see a code from `system@amaso.site`, which matches the domain the system
+runs on, and there are no app passwords to manage.
 
 ```bash
 sudo -u amaso nano /opt/amaso/backend/.env
@@ -221,12 +222,52 @@ sudo -u amaso nano /opt/amaso/backend/.env
 
 ```ini
 MAIL_MAILER=smtp
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USERNAME=amaso.association@gmail.com
-MAIL_PASSWORD=<16-character Google app password, not the account password>
-MAIL_FROM_ADDRESS=amaso.association@gmail.com
+MAIL_HOST=smtp.hostinger.com
+MAIL_PORT=465
+MAIL_SCHEME=smtps
+MAIL_USERNAME=system@amaso.site
+MAIL_PASSWORD=<the mailbox password>
+MAIL_FROM_ADDRESS=system@amaso.site
+MAIL_FROM_NAME="جمعية المنصور لكفالة اليتيم"
 ```
+
+`MAIL_FROM_ADDRESS` must be the same mailbox as `MAIL_USERNAME`. A mail
+server rejects a message claiming to come from an address the sender did
+not authenticate as, and that mistake produces a working test followed by
+silent failures.
+
+Port 465 with `MAIL_SCHEME=smtps` is TLS from the first byte. Port 587 with
+`MAIL_SCHEME=null` works too and upgrades with STARTTLS — 465 is simpler
+because there is no upgrade step to fail. Both are open outbound on OCI.
+
+Check `APP_URL` is the real address while you are in the file. The server
+announces that hostname to the mail server when it connects, and one still
+saying `localhost` is a reason for a receiving server to be suspicious:
+
+```ini
+APP_URL=https://amaso.site
+```
+
+### The three DNS records that decide inbox or spam
+
+A six-digit login code in the spam folder is the same as no login code.
+Pointing `amaso.site` at the VM changed the `A` record; the mail records
+are separate and must still be intact. Check from your own machine:
+
+```bash
+dig +short MX  amaso.site      # must list Hostinger's mail servers
+dig +short TXT amaso.site      # must include a v=spf1 record
+dig +short TXT _dmarc.amaso.site
+```
+
+- **MX** — if this is empty, the mailbox is unreachable and nothing arrives.
+  Restore it from Hostinger's DNS panel.
+- **SPF** — says Hostinger is allowed to send as `amaso.site`. Hostinger
+  adds it automatically; if `dig` shows nothing, add their record.
+- **DKIM and DMARC** — enable DKIM in the Hostinger email panel, then add a
+  DMARC record. `v=DMARC1; p=none; rua=mailto:system@amaso.site` is the
+  right thing to start with: it asks for reports without rejecting anything
+  while you confirm the rest is set up.
 
 Then prove it, and switch the requirement on:
 
@@ -241,8 +282,8 @@ php artisan amaso:two-factor --all --on
 not arrive you still have a shell, and `php artisan amaso:two-factor --all
 --off` puts it back.
 
-Outbound port 587 is open by default on OCI — Oracle does not block SMTP
-the way some providers do.
+Outbound SMTP is open by default on OCI — Oracle does not block it the way
+some providers do.
 
 ---
 

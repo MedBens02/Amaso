@@ -57,27 +57,31 @@ anything, which is the point of the release.
 So: set the mail settings first, and the upgrade switches everybody on by
 itself.
 
-Edit `/opt/amaso/backend/.env`:
+Edit `/opt/amaso/backend/.env`. The association's own mailbox is the right
+sender — the address staff see matches the domain the system runs on:
 
 ```ini
 MAIL_MAILER=smtp
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=587
-MAIL_SCHEME=null
-MAIL_USERNAME=amaso.association@gmail.com
-MAIL_PASSWORD=abcdefghijklmnop
-MAIL_FROM_ADDRESS=amaso.association@gmail.com
+MAIL_HOST=smtp.hostinger.com
+MAIL_PORT=465
+MAIL_SCHEME=smtps
+MAIL_USERNAME=system@amaso.site
+MAIL_PASSWORD=<the mailbox password>
+MAIL_FROM_ADDRESS=system@amaso.site
 MAIL_FROM_NAME="جمعية المنصور لكفالة اليتيم"
 ```
 
-`MAIL_PASSWORD` is a **16-character Google app password**, not the account's
-own password. Google only offers app passwords once 2-Step Verification is on
-for that Google account: myaccount.google.com → Security → 2-Step Verification,
-then myaccount.google.com/apppasswords. Paste it without the spaces Google
-displays it with.
+`MAIL_FROM_ADDRESS` must be the same mailbox as `MAIL_USERNAME` — a mail
+server rejects a message claiming to come from an address the sender did
+not authenticate as.
 
-`MAIL_FROM_ADDRESS` must be the same address as `MAIL_USERNAME` — Gmail rejects
-mail claiming to be from anybody else.
+Gmail works too, if that is what the association already uses. There
+`MAIL_HOST=smtp.gmail.com`, `MAIL_PORT=587`, `MAIL_SCHEME=null`, and
+`MAIL_PASSWORD` is a **16-character Google app password**, not the account
+password — Google only offers app passwords once 2-Step Verification is on
+for that account.
+
+`backend/.env.example` carries both blocks in full, with the caveats.
 
 Prove it works before going further:
 
