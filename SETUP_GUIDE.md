@@ -8,6 +8,7 @@ Three ways to run this, depending on what you need.
 | **Test it on the association's PC** | [`setup/README.md`](setup/README.md) *(français)* | ~10 min |
 | **Put it on a server** they can reach from anywhere | [`deploy/README.md`](deploy/README.md) | ~20 min |
 | **Upgrade a server** that already holds the association's records | [`UPGRADE.md`](UPGRADE.md) | ~15 min |
+| **Put it on Oracle Cloud** in Casablanca, so the records stay in Morocco | [`deploy/OCI.md`](deploy/OCI.md) | ~30 min |
 
 Putting it on a server is one command on a fresh Ubuntu 24.04 VM:
 

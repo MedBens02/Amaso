@@ -550,14 +550,43 @@ fi
 # Oracle Cloud, AWS and Azure images ship a REJECT rule in iptables that
 # blocks 80/443 no matter what ufw says. Opening it here saves an hour of
 # wondering why the site is unreachable.
-if command -v iptables >/dev/null && iptables -C INPUT -j REJECT --reject-with icmp-host-prohibited 2>/dev/null; then
+#
+# Where the allow rules go matters more than it looks. iptables reads the
+# chain in order and stops at the first rule that matches, so an ACCEPT
+# placed after the REJECT never runs - the site stays unreachable and this
+# script still reports success. So the REJECT is located and the allows go
+# in at its position, pushing it down, rather than at a fixed number that
+# happens to be right on one image and silently wrong on the next.
+reject_position() {
+    iptables -L INPUT --line-numbers -n 2>/dev/null \
+        | awk '$2 == "REJECT" { print $1; exit }'
+}
+
+if command -v iptables >/dev/null && [[ -n "$(reject_position)" ]]; then
     warn "The image has a default REJECT rule in iptables - inserting allow rules for 80 and 443"
-    iptables -I INPUT 5 -p tcp --dport 80 -j ACCEPT
-    iptables -I INPUT 6 -p tcp --dport 443 -j ACCEPT
-    if command -v netfilter-persistent >/dev/null; then
-        netfilter-persistent save >/dev/null 2>&1 || true
+
+    for port in 80 443; do
+        # Drop any copy this script added on an earlier run, wherever it
+        # landed, so re-running fixes a rule that went in below the REJECT
+        # instead of leaving it there and reporting success.
+        while iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null; do
+            iptables -D INPUT -p tcp --dport "$port" -j ACCEPT
+        done
+        iptables -I INPUT "$(reject_position)" -p tcp --dport "$port" -j ACCEPT
+    done
+
+    # Persist, or say plainly that the doors close again at the next reboot.
+    # The old code installed the package and never called save, so the rules
+    # lived until the machine restarted and then quietly went away.
+    if ! command -v netfilter-persistent >/dev/null; then
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -qq iptables-persistent >/dev/null 2>&1 || true
+    fi
+
+    if command -v netfilter-persistent >/dev/null && netfilter-persistent save >/dev/null 2>&1; then
+        ok "Ports 80 and 443 opened in iptables, and saved for the next boot"
     else
-        apt-get install -y -qq iptables-persistent >/dev/null 2>&1 || true
+        warn "Ports 80 and 443 are open now but could not be saved - they will close again on reboot"
+        warn "Fix with:  apt-get install iptables-persistent && netfilter-persistent save"
     fi
 fi
 
