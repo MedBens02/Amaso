@@ -62,8 +62,24 @@ else
     bad "code" "$APP_DIR is not a git checkout - deploy.sh has not run"
 fi
 
+# Whether the browser is running the code this server has checked out.
+#
+# The build can lag the code without anything looking broken: nginx serves
+# whatever is in frontend/out, so a deploy whose build failed leaves the API
+# speaking the new version while the browser runs the old one. The symptom
+# is a login that bounces back to the login page, and nothing in any log
+# says why. Comparing the build against the commit answers it outright.
 if [[ -f "$APP_DIR/frontend/out/index.html" ]]; then
-    good "frontend build" "$(du -sh "$APP_DIR/frontend/out" 2>/dev/null | cut -f1) in frontend/out"
+    size="$(du -sh "$APP_DIR/frontend/out" 2>/dev/null | cut -f1)"
+    built_at="$(stat -c %Y "$APP_DIR/frontend/out/index.html" 2>/dev/null || echo 0)"
+    commit_at="$(sudo -u "$APP_USER" -H git -C "$APP_DIR" log -1 --format=%ct 2>/dev/null || echo 0)"
+
+    if (( commit_at > 0 && built_at < commit_at )); then
+        bad "frontend build" "STALE - built $(date -d "@${built_at}" '+%Y-%m-%d %H:%M'), code is from $(date -d "@${commit_at}" '+%Y-%m-%d %H:%M')"
+        row "" "the browser is running an older version than the API; re-run deploy.sh"
+    else
+        good "frontend build" "${size} in frontend/out, built $(date -d "@${built_at}" '+%Y-%m-%d %H:%M')"
+    fi
 else
     bad "frontend build" "frontend/out/index.html missing - the build did not finish"
 fi
