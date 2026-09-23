@@ -22,6 +22,11 @@ class UpdateWidowRequest extends FormRequest
             'email' => ['nullable', 'email', 'max:150'],
             'address' => ['nullable', 'string', 'max:500'],
             'neighborhood' => ['nullable', 'string', 'max:100'],
+            // The "not before she was widowed" rule is in withValidator
+            // below rather than here. A declarative after_or_equal only sees
+            // the request, and an edit that changes the admission date alone
+            // does not carry the death date - so the rule compared against
+            // nothing and passed. See the note there.
             'admission_date' => ['sometimes', 'date'],
             'national_id' => [
                 'sometimes', 
@@ -34,7 +39,15 @@ class UpdateWidowRequest extends FormRequest
 
             // When she was widowed. Worth recording on any family, not only
             // the ones registered while still in عدة.
-            'husband_death_date' => ['nullable', 'date', 'before_or_equal:today'],
+            'husband_death_date' => [
+                'nullable',
+                // Without it a يتيم جديد case has nothing to date the عدة
+                // from, and the admission-date rule above has nothing to
+                // compare against.
+                'required_if:is_idda_case,true',
+                'date',
+                'before_or_equal:today',
+            ],
 
             // A family registered as a يتيم جديد case: supported through عدة
             // and kept off the beneficiary lists until the association
@@ -132,6 +145,46 @@ class UpdateWidowRequest extends FormRequest
         ];
     }
 
+    /**
+     * The admission date against the death date, using whichever values the
+     * record will actually end up with.
+     *
+     * This cannot be an `after_or_equal:husband_death_date` rule. That
+     * compares two fields of the *request*, and an update carries only what
+     * changed: editing the admission date alone sends no death date, the
+     * rule finds nothing to compare against, and passes. The date it has to
+     * be checked against is the one already on the row.
+     *
+     * Both directions matter, because either field can be the one being
+     * moved - pushing the death date past a fixed admission date is the same
+     * mistake seen from the other side.
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $widow = $this->route('widow');
+
+            $admission = $this->has('admission_date')
+                ? $this->input('admission_date')
+                : $widow?->admission_date?->format('Y-m-d');
+
+            $death = $this->has('husband_death_date')
+                ? $this->input('husband_death_date')
+                : $widow?->husband_death_date?->format('Y-m-d');
+
+            if (! $admission || ! $death) {
+                return;
+            }
+
+            if (strtotime($admission) < strtotime($death)) {
+                $validator->errors()->add(
+                    $this->has('admission_date') ? 'admission_date' : 'husband_death_date',
+                    'تاريخ الانتساب لا يمكن أن يسبق تاريخ وفاة الزوج',
+                );
+            }
+        });
+    }
+
     public function messages(): array
     {
         return [
@@ -146,6 +199,9 @@ class UpdateWidowRequest extends FormRequest
             'address.max' => 'العنوان يجب أن يكون أقل من 500 حرف',
             'neighborhood.max' => 'الحي يجب أن يكون أقل من 100 حرف',
             'admission_date.date' => 'تاريخ الانتساب يجب أن يكون تاريخاً صحيحاً',
+            'admission_date.after_or_equal' => 'تاريخ الانتساب لا يمكن أن يسبق تاريخ وفاة الزوج',
+            'husband_death_date.required_if' => 'تاريخ وفاة الزوج مطلوب لحالة يتيم جديد',
+            'husband_death_date.before_or_equal' => 'تاريخ وفاة الزوج لا يمكن أن يكون في المستقبل',
             'national_id.unique' => 'رقم البطاقة الوطنية مسجل مسبقاً',
             'national_id.max' => 'رقم البطاقة الوطنية يجب أن يكون أقل من 20 رقم',
             'birth_date.date' => 'تاريخ الميلاد يجب أن يكون تاريخاً صحيحاً',

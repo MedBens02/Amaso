@@ -197,6 +197,33 @@ const widowSchema = z
     },
   )
 
+  .refine(
+    (data) => {
+      // A family cannot join the association before she was widowed. Mirrors
+      // the server rule, so the form says so at the field instead of the
+      // save failing after everything else has been filled in.
+      if (!data.husbandDeathDate || !data.admissionDate) return true
+      return toDateInputValue(data.admissionDate) >= data.husbandDeathDate
+    },
+    {
+      message: "تاريخ الانضمام لا يمكن أن يسبق تاريخ وفاة الزوج",
+      path: ["admissionDate"],
+    },
+  )
+  .refine(
+    (data) => {
+      // A يتيم جديد case is dated from the death: without it there is
+      // nothing to count the عدة from and nothing to check the admission
+      // date against.
+      if (!data.isIddaCase) return true
+      return Boolean(data.husbandDeathDate)
+    },
+    {
+      message: "تاريخ وفاة الزوج مطلوب لحالة يتيم جديد",
+      path: ["husbandDeathDate"],
+    },
+  )
+
 type WidowFormData = z.infer<typeof widowSchema>
 
 interface AddWidowDialogProps {
@@ -730,6 +757,10 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                       <div onClick={(e) => e.stopPropagation()}>
                         <DateField
                           max={toDateInputValue(new Date())}
+                          /* Not before she was widowed - the calendar refuses
+                             the earlier days rather than letting somebody
+                             pick one and be told afterwards. */
+                          min={form.watch("husbandDeathDate") || undefined}
                           value={toDateInputValue(field.value)}
                           onChange={(value) => field.onChange(fromDateInputValue(value))}
                         />
