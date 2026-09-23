@@ -33,6 +33,8 @@ use App\Services\KafalaChamilaService;
 use App\Services\TransferService;
 use App\Services\WidowService;
 use App\Support\AuditLogger;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -56,6 +58,18 @@ class DemoDataSeeder extends Seeder
     private KafalaChamilaService $kafalaChamila;
     private TransferService $transfers;
 
+    /**
+     * Which account the invented money is recorded against.
+     *
+     * Every demo income and expense needs an author, and this used to be a
+     * hardcoded 1. That holds on a database seeded from empty, where the
+     * first account is always id 1, and breaks the moment the accounts came
+     * from somewhere else - restored from a backup, or kept across a reset
+     * while everything else was replaced. The foreign key then refuses the
+     * insert and the seeding stops half way through.
+     */
+    private int $authorId = 1;
+
     public function __construct()
     {
         $this->widows = app(WidowService::class);
@@ -71,6 +85,22 @@ class DemoDataSeeder extends Seeder
         // the activity log would bury whatever the association actually did
         // on a demo install.
         AuditLogger::disable();
+
+        // Whoever is actually here. Falls back to 1 only when there are no
+        // accounts at all, which is the case the old constant assumed.
+        $author = User::query()->orderBy('id')->first();
+        $this->authorId = (int) ($author?->id ?? 1);
+
+        // Sign in as that account for the rest of this run. The income,
+        // expense and transfer services stamp approvals with
+        // `auth()->id() ?? 1`, and a seeder has nobody signed in - so the
+        // fallback put a literal 1 on every approved row and the foreign
+        // key refused it on any database whose accounts are not numbered
+        // from 1. setUser rather than login: no events, no session, nothing
+        // to undo afterwards.
+        if ($author) {
+            Auth::setUser($author);
+        }
 
         // Three fiscal years and three academic years, so the year-over-year
         // reports, the academic-year filter and the "all periods" exports
@@ -740,8 +770,8 @@ class DemoDataSeeder extends Seeder
                     // Banked in its own year, so the closed year holds no
                     // approved cash sitting outside an account.
                     'transferred_at' => $date,
-                    'created_by' => 1,
-                    'approved_by' => 1,
+                    'created_by' => $this->authorId,
+                    'approved_by' => $this->authorId,
                     'approved_at' => $date,
                 ]);
 
@@ -767,8 +797,8 @@ class DemoDataSeeder extends Seeder
                     'receipt_number' => sprintf('EX-%d-%02d', $fiscalYear['year'], $n),
                     'unrelated_to_benef' => $beneficiaryId === null,
                     'status' => 'Approved',
-                    'created_by' => 1,
-                    'approved_by' => 1,
+                    'created_by' => $this->authorId,
+                    'approved_by' => $this->authorId,
                     'approved_at' => $expenseDate,
                 ]);
 
@@ -823,7 +853,7 @@ class DemoDataSeeder extends Seeder
                 'payment_method' => $month % 3 === 0 ? 'Cheque' : 'Cash',
                 'receipt_number' => sprintf('RC-%d-%02d', (int) date('Y'), $month),
                 'status' => 'Draft',
-                'created_by' => 1,
+                'created_by' => $this->authorId,
             ]);
 
             if ($month <= $monthsElapsed - 2) {
@@ -845,7 +875,7 @@ class DemoDataSeeder extends Seeder
                 'payment_method' => 'Cash',
                 'receipt_number' => 'RC-' . (1000 + $index),
                 'status' => 'Draft',
-                'created_by' => 1,
+                'created_by' => $this->authorId,
             ]);
             if ($index % 2 === 0) {
                 $this->incomes->approve($income);
@@ -878,7 +908,7 @@ class DemoDataSeeder extends Seeder
                     'payment_method' => 'BankWire',
                     'bank_account_id' => $bankAccounts[1]->id,
                     'status' => 'Draft',
-                    'created_by' => 1,
+                    'created_by' => $this->authorId,
                 ]);
                 $this->incomes->approve($income);
             }
@@ -905,7 +935,7 @@ class DemoDataSeeder extends Seeder
                 'payment_method' => 'Cash',
                 'receipt_number' => 'RC-KC-1',
                 'status' => 'Draft',
-                'created_by' => 1,
+                'created_by' => $this->authorId,
             ], $splitsFor(800));
             foreach ($firstBatch as $income) {
                 $this->incomes->approve($income);
@@ -918,7 +948,7 @@ class DemoDataSeeder extends Seeder
                 'payment_method' => 'Cash',
                 'receipt_number' => 'RC-KC-2',
                 'status' => 'Draft',
-                'created_by' => 1,
+                'created_by' => $this->authorId,
             ], $splitsFor(800));
         }
     }
@@ -1004,7 +1034,7 @@ class DemoDataSeeder extends Seeder
             'amount' => 6000,
             'remarks' => 'تغطية مستحقات الكفالات الشهرية',
             'status' => 'Draft',
-            'created_by' => 1,
+            'created_by' => $this->authorId,
         ]));
 
         Transfer::create([
@@ -1015,7 +1045,7 @@ class DemoDataSeeder extends Seeder
             'amount' => 1500,
             'remarks' => 'إرجاع فائض الشهر الماضي',
             'status' => 'Draft',
-            'created_by' => 1,
+            'created_by' => $this->authorId,
         ]);
     }
 

@@ -15,7 +15,7 @@ The deployed version's last migration is
 `2025_09_19_000001_promote_existing_admins_to_superuser`. Check it:
 
 ```bash
-cd /opt/amaso/backend        # or wherever the application lives
+cd /var/www/amaso/backend        # or wherever the application lives
 php artisan migrate:status | tail -5
 ```
 
@@ -29,7 +29,7 @@ are safe either way, because `migrate` only applies what is missing.
 ## 1. Take a backup, and keep it where you can find it
 
 ```bash
-cd /opt/amaso/deploy
+cd /opt/amaso-installer/deploy
 sudo bash backup.sh
 sudo bash backup.sh --list
 ```
@@ -57,7 +57,7 @@ anything, which is the point of the release.
 So: set the mail settings first, and the upgrade switches everybody on by
 itself.
 
-Edit `/opt/amaso/backend/.env`. The association's own mailbox is the right
+Edit `/var/www/amaso/backend/.env`. The association's own mailbox is the right
 sender — the address staff see matches the domain the system runs on:
 
 ```ini
@@ -86,7 +86,7 @@ for that account.
 Prove it works before going further:
 
 ```bash
-cd /opt/amaso/backend
+cd /var/www/amaso/backend
 php artisan config:clear
 php artisan amaso:mail-test votre-adresse@gmail.com
 ```
@@ -102,7 +102,7 @@ exits non-zero, so it is safe to put in a script.
 ### On the Linux server
 
 ```bash
-cd /opt/amaso/deploy
+cd /opt/amaso-installer/deploy
 sudo BRANCH=claude/charity-project-recap-evybxh bash deploy.sh
 ```
 
@@ -127,7 +127,7 @@ stashed and restored around the pull.
 ### By hand, if you would rather see each step
 
 ```bash
-cd /opt/amaso
+cd /var/www/amaso
 git fetch origin claude/charity-project-recap-evybxh
 git reset --hard origin/claude/charity-project-recap-evybxh
 
@@ -154,7 +154,7 @@ If mail was already configured in §2, the upgrade did this for you and you can
 skip to §5. Check either way:
 
 ```bash
-cd /opt/amaso/backend
+cd /var/www/amaso/backend
 php artisan amaso:two-factor
 ```
 
@@ -178,7 +178,7 @@ php artisan amaso:two-factor --all --off
 ## 5. Check it worked
 
 ```bash
-cd /opt/amaso/backend
+cd /var/www/amaso/backend
 php artisan migrate:status | tail -12      # eleven new lines, all "Ran"
 php artisan amaso:password-policy          # 30 days, 10-minute codes, who is due
 cd ../deploy && sudo bash status.sh        # services, disk, certificate
@@ -235,6 +235,101 @@ structure or rewrites reference rows that the application itself can edit.
 
 ---
 
+## Starting the data over, keeping the accounts
+
+For a server that has been carrying trial records and should now hold the
+demo set instead — the invented families used for training and
+demonstrations — while the staff keep the logins they already have.
+
+**This destroys every beneficiary, every income and every expense on the
+server.** Look at what is there before you run it:
+
+```bash
+cd /var/www/amaso/backend
+php artisan tinker --execute '
+  printf("widows %d, orphans %d, incomes %d, expenses %d\n",
+    App\Models\Widow::count(), App\Models\Orphan::count(),
+    App\Models\Income::count(), App\Models\Expense::count());
+  foreach (App\Models\User::orderBy("id")->get() as $u)
+      printf("  account %d  %s  (%s)\n", $u->id, $u->email, $u->role);'
+```
+
+If those counts are records the association actually needs, stop. A backup
+is not a substitute for being sure — restoring is a separate job under time
+pressure, and the point of reading the numbers first is not to need it.
+
+Take one anyway, and keep it somewhere other than the server:
+
+```bash
+cd /opt/amaso-installer/deploy
+sudo bash backup.sh
+sudo bash backup.sh --list          # note the newest filename
+```
+
+Then, in order. **Deploy first** — the accounts are saved after the new
+columns exist, so the file and the schema agree:
+
+```bash
+# 1. the credentials, in a file rather than on the command line
+sudo install -m 600 /dev/null /root/.amaso-reset.cnf
+sudo bash -c 'printf "[client]\nuser=amaso\npassword=%s\nhost=127.0.0.1\n" \
+    "$(cat /root/.amaso-db-password)" > /root/.amaso-reset.cnf'
+
+# 2. save the accounts - and nothing else
+sudo mysqldump --defaults-extra-file=/root/.amaso-reset.cnf \
+    --no-create-info --complete-insert --default-character-set=utf8mb4 \
+    amaso users > /root/amaso-accounts.sql
+sudo grep -c INSERT /root/amaso-accounts.sql     # at least 1
+
+# 3. empty the database and rebuild the schema
+cd /var/www/amaso/backend
+sudo -u amaso php artisan migrate:fresh --force
+
+# 4. put the accounts back, before anything can reference them
+sudo mysql --defaults-extra-file=/root/.amaso-reset.cnf \
+    --default-character-set=utf8mb4 amaso < /root/amaso-accounts.sql
+
+# 5. reference data. It reports "the starting accounts already exist -
+#    their passwords were left alone", which is the point of the order
+sudo -u amaso php artisan db:seed --force
+
+# 6. the demo families, money and school records
+sudo -u amaso php artisan db:seed --class=DemoDataSeeder --force
+
+# 7. tidy up
+sudo rm -f /root/.amaso-reset.cnf
+```
+
+`--complete-insert` writes the column names into the file. Without it the
+insert is positional, and a dump taken before an upgrade will not line up
+with a table that has gained a column — which fails loudly if you are lucky
+and puts values in the wrong columns if you are not.
+
+Saving the accounts and restoring them **before** any seeding is what makes
+the rest work. The user seeder skips an account that already exists, so the
+passwords survive untouched; and the demo data is then written against a
+real account rather than against whichever id happened to come first.
+
+### Check it
+
+```bash
+sudo -u amaso php artisan tinker --execute '
+  printf("widows %d, orphans %d, incomes %d, expenses %d\n",
+    App\Models\Widow::count(), App\Models\Orphan::count(),
+    App\Models\Income::count(), App\Models\Expense::count());
+  foreach (App\Models\User::orderBy("id")->get() as $u)
+      printf("  account %d  %s  2FA=%s\n", $u->id, $u->email,
+             $u->two_factor_enabled ? "on" : "OFF");'
+```
+
+Expect roughly 26 families and 53 orphans, and every account still listed.
+Then sign in with an existing password — it has not changed.
+
+Everyone is signed out, because the sessions and API tokens were in tables
+that were dropped. That is expected; signing in again is all it takes.
+
+---
+
 ## 7. Two new rules the association will notice
 
 **Passwords expire after 30 days.** Five days before, a band appears across the
@@ -267,7 +362,7 @@ one that works.
 **Nobody can sign in.** Almost always the mail settings. From the server:
 
 ```bash
-cd /opt/amaso/backend
+cd /var/www/amaso/backend
 php artisan amaso:mail-test you@example.com     # see the actual SMTP error
 php artisan amaso:two-factor --all --off        # password-only, while you fix it
 ```
@@ -291,11 +386,11 @@ Fix the cause and run the same line; it will skip what is already done.
 **Put it all back.** Only if a migration genuinely damaged something:
 
 ```bash
-cd /opt/amaso/deploy
+cd /opt/amaso-installer/deploy
 sudo bash backup.sh --list
 sudo bash backup.sh --restore /var/backups/amaso/<the file>.sql.gz
 
-cd /opt/amaso
+cd /var/www/amaso
 git reset --hard <the commit that was deployed before>
 cd backend && composer install --no-dev --optimize-autoloader
 cd ../frontend && npm ci && npm run build

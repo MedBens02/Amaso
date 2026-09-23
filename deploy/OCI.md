@@ -217,7 +217,7 @@ see a code from `system@amaso.site`, which matches the domain the system
 runs on, and there are no app passwords to manage.
 
 ```bash
-sudo -u amaso nano /opt/amaso/backend/.env
+sudo -u amaso nano /var/www/amaso/backend/.env
 ```
 
 ```ini
@@ -272,7 +272,7 @@ dig +short TXT _dmarc.amaso.site
 Then prove it, and switch the requirement on:
 
 ```bash
-cd /opt/amaso/backend
+cd /var/www/amaso/backend
 php artisan config:clear
 php artisan amaso:mail-test you@example.com     # a real email must arrive
 php artisan amaso:two-factor --all --on
@@ -290,7 +290,7 @@ some providers do.
 ## 6. Check it
 
 ```bash
-cd /opt/amaso/deploy && sudo bash status.sh
+cd /opt/amaso-installer/deploy && sudo bash status.sh
 ```
 
 Then in a browser at `https://nizam.amaso.ma`: sign in (you should be asked
@@ -341,7 +341,7 @@ to that one bucket and can do nothing else in the account.
 ```bash
 sudo apt install -y python3-oci-cli     # or: bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)"
 
-cd /opt/amaso/deploy
+cd /opt/amaso-installer/deploy
 sudo OCI_BUCKET=amaso-backups bash backup.sh --to-cloud     # prove it once
 sudo OCI_BUCKET=amaso-backups bash backup.sh --install-cron # then every night
 ```
@@ -411,7 +411,7 @@ certificate. Fix it, then re-run it with the domain and the address
 for the certificate:
 
 ```bash
-cd /opt/amaso/deploy
+cd /opt/amaso-installer/deploy
 sudo bash enable-https.sh nizam.amaso.ma admin@amaso.ma
 ```
 
