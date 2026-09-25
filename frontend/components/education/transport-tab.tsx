@@ -2,19 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { RowActions } from "@/components/ui/row-actions"
 import { useToast } from "@/hooks/use-toast"
-import { Bus, Search, Loader2, Edit, Trash2, Users, UserPlus, Wallet, Footprints } from "lucide-react"
+import { Bus, UserPlus, Wallet, Footprints } from "lucide-react"
 import api from "@/lib/api"
-import {
-  TransportSupportDialog, type TransportSupport, MODES, SUPPORT_STATUSES,
-} from "./transport-support-dialog"
+import { TransportSupportDialog, type TransportSupport } from "./transport-support-dialog"
 import { TransportMonthPanel } from "./transport-month-panel"
 
 interface AcademicYear {
@@ -31,10 +25,6 @@ export function TransportTab() {
   const [yearId, setYearId] = useState<number | null>(null)
   const [support, setSupport] = useState<TransportSupport[]>([])
   const [loading, setLoading] = useState(true)
-
-  const [search, setSearch] = useState("")
-  const [modeFilter, setModeFilter] = useState("all")
-  const [statusFilter, setStatusFilter] = useState("active")
 
   const [dialog, setDialog] = useState<{ open: boolean; support: TransportSupport | null }>(
     { open: false, support: null },
@@ -59,11 +49,10 @@ export function TransportTab() {
     if (!yearId) return
     try {
       setLoading(true)
+      // Everything for the year: the counts above are worked out here, and
+      // the filters that used to narrow this went with the table.
       const response = await api.getTransportSupport({
         academic_year_id: yearId,
-        mode: modeFilter === "all" ? undefined : modeFilter,
-        status: statusFilter === "all" ? undefined : statusFilter,
-        search: search.trim() || undefined,
         per_page: 200,
       })
       setSupport(response.data || [])
@@ -72,12 +61,9 @@ export function TransportTab() {
     } finally {
       setLoading(false)
     }
-  }, [yearId, modeFilter, statusFilter, search])
+  }, [yearId])
 
-  useEffect(() => {
-    const timer = setTimeout(loadSupport, search ? 300 : 0)
-    return () => clearTimeout(timer)
-  }, [loadSupport])
+  useEffect(() => { loadSupport() }, [loadSupport])
 
   const counts = useMemo(() => {
     const live = support.filter((s) => s.status === "active")
@@ -90,27 +76,8 @@ export function TransportTab() {
     }
   }, [support])
 
-  const remove = async (row: TransportSupport) => {
-    try {
-      const response = await api.deleteTransportSupport(row.id)
-      toast({ title: "تم", description: (response as any).message })
-      loadSupport()
-    } catch (error: any) {
-      toast({ title: "تعذر الحذف", description: error.message, variant: "destructive" })
-    }
-  }
 
-  const statusBadge = (status: string) => {
-    const label = SUPPORT_STATUSES[status] || status
-    if (status === "active") return <Badge className="bg-green-600 hover:bg-green-600">{label}</Badge>
-    if (status === "suspended") return <Badge variant="secondary">{label}</Badge>
-    return <Badge variant="outline">{label}</Badge>
-  }
 
-  const nameOf = (row: TransportSupport) => {
-    const o = row.enrollment?.orphan
-    return o ? `${o.first_name} ${o.last_name}` : "—"
-  }
 
   return (
     <div className="space-y-6">
@@ -182,102 +149,11 @@ export function TransportTab() {
 
       {yearId && <TransportMonthPanel academicYearId={yearId} />}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            المستفيدون من النقل
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div className="relative md:col-span-2">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                className="pr-9"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="ابحث باسم المستفيد..."
-              />
-            </div>
-            <Select value={modeFilter} onValueChange={setModeFilter}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">كل أنواع الدعم</SelectItem>
-                {Object.entries(MODES).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">كل الحالات</SelectItem>
-                {Object.entries(SUPPORT_STATUSES).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {loading ? (
-            <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin" /></div>
-          ) : support.length === 0 ? (
-            <p className="text-center text-muted-foreground py-10">لا يوجد مستفيدون مطابقون</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>المستفيد</TableHead>
-                    <TableHead>نوع الدعم</TableHead>
-                    <TableHead>نقطة الالتقاء / القيمة</TableHead>
-                    <TableHead>من</TableHead>
-                    <TableHead>الحالة</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {support.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell className="font-medium">
-                        {nameOf(row)}
-                        {row.enrollment?.educationLevel?.name_ar && (
-                          <p className="text-xs text-muted-foreground font-normal">
-                            {row.enrollment.educationLevel.name_ar}
-                          </p>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={row.mode === "bus" ? "default" : "secondary"}>
-                          {row.mode_label || MODES[row.mode]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {row.mode === "bus"
-                          ? (row.pickup_point || "—")
-                          : `${dirham(row.allowance_rate)} / حضور`}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {row.start_date ? String(row.start_date).slice(0, 10) : "—"}
-                      </TableCell>
-                      <TableCell>{statusBadge(row.status)}</TableCell>
-                      <TableCell>
-                        <RowActions
-                          actions={[
-                            { label: "تعديل", icon: Edit, onSelect: () => setDialog({ open: true, support: row }) },
-                            { label: "حذف", icon: Trash2, onSelect: () => remove(row), destructive: true },
-                          ]}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* The المستفيدون من النقل table was here. The month sheet above
+          already lists every rider with the trips they made, which is
+          what this screen is for; a second list of the same children,
+          filtered differently, was the same names twice. Registering a
+          beneficiary is still the button at the top. */}
 
       {yearId && (
         <TransportSupportDialog

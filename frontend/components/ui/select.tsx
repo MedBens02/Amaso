@@ -17,6 +17,17 @@ import { cn } from "@/lib/utils"
 const SelectValueContext = React.createContext<string | undefined>(undefined)
 
 /**
+ * Whether this select's list is actually open.
+ *
+ * SelectContent needs it and cannot infer it. Radix decides whether to
+ * render the list's *DOM*, but the wrapper below it is an ordinary React
+ * component: it mounts as soon as it appears in the tree and its effects
+ * run there and then, open or not. An effect that assumed "mounted" meant
+ * "open" therefore ran all the time - see the search listener.
+ */
+const SelectOpenContext = React.createContext(false)
+
+/**
  * The Root, plus knowledge of its own value.
  *
  * Both halves are covered: a controlled Select passes `value` and this
@@ -27,25 +38,41 @@ const Select = ({
   value,
   defaultValue,
   onValueChange,
+  open,
+  defaultOpen,
+  onOpenChange,
   children,
   ...props
 }: React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>) => {
   const [uncontrolled, setUncontrolled] = React.useState(defaultValue)
   const current = value !== undefined ? value : uncontrolled
 
+  // Tracked the same way as the value: follow `open` when the caller
+  // controls it, keep our own when it does not.
+  const [openState, setOpenState] = React.useState(defaultOpen ?? false)
+  const isOpen = open !== undefined ? open : openState
+
   return (
     <SelectValueContext.Provider value={current}>
-      <SelectPrimitive.Root
-        value={value}
-        defaultValue={defaultValue}
-        onValueChange={(next) => {
-          setUncontrolled(next)
-          onValueChange?.(next)
-        }}
-        {...props}
-      >
-        {children}
-      </SelectPrimitive.Root>
+      <SelectOpenContext.Provider value={isOpen}>
+        <SelectPrimitive.Root
+          value={value}
+          defaultValue={defaultValue}
+          open={open}
+          defaultOpen={defaultOpen}
+          onOpenChange={(next) => {
+            setOpenState(next)
+            onOpenChange?.(next)
+          }}
+          onValueChange={(next) => {
+            setUncontrolled(next)
+            onValueChange?.(next)
+          }}
+          {...props}
+        >
+          {children}
+        </SelectPrimitive.Root>
+      </SelectOpenContext.Provider>
     </SelectValueContext.Provider>
   )
 }
@@ -175,6 +202,7 @@ const SelectContent = React.forwardRef<
 ) => {
   const [query, setQuery] = React.useState("")
   const selected = React.useContext(SelectValueContext)
+  const open = React.useContext(SelectOpenContext)
 
   /**
    * Typing filters the list instead of jumping through it.
@@ -193,11 +221,17 @@ const SelectContent = React.forwardRef<
    * be the capture phase: the focused option's own handler treats a space
    * as "pick this one", and would otherwise close the list halfway through
    * a two-word search. Only letters and Backspace are taken - the arrows,
-   * Enter and Escape are left alone - and the listener lives exactly as
-   * long as the open list does.
+   * Enter and Escape are left alone.
+   *
+   * `open` is the whole of what keeps this safe, and leaving it out was a
+   * bug worth naming: this component mounts when it is rendered, not when
+   * the list opens, so without it the listener sat on the document for as
+   * long as the screen did and swallowed every printable key on the page.
+   * A date box two fields away accepted nothing, and the page looked frozen
+   * rather than wrong.
    */
   React.useEffect(() => {
-    if (!searchable) return
+    if (!searchable || !open) return
 
     const onKey = (event: KeyboardEvent) => {
       const consume = () => {
@@ -221,7 +255,14 @@ const SelectContent = React.forwardRef<
     document.addEventListener("keydown", onKey, true)
 
     return () => document.removeEventListener("keydown", onKey, true)
-  }, [searchable])
+  }, [searchable, open])
+
+  // Nothing typed carries over to the next opening. onCloseAutoFocus covers
+  // the ordinary close; this covers the ones that do not fire it, such as
+  // the whole dialog going away underneath the list.
+  React.useEffect(() => {
+    if (!open) setQuery("")
+  }, [open])
 
   const visible = React.useMemo(() => {
     if (!searchable || query.trim() === "") return children
