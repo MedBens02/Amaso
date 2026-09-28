@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\V1\BudgetCategoryController;
 use App\Http\Controllers\Api\V1\BankAccountController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DonorController;
@@ -44,8 +45,18 @@ Route::prefix('v1')->group(function () {
 
     // Authentication (public)
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+    // The second step. Throttled harder than the first: the password is
+    // already known by whoever gets here, so this is the last wall, and six
+    // digits only hold while the guesses are rationed.
+    Route::post('auth/verify-code', [AuthController::class, 'verifyCode'])
+        ->middleware('throttle:10,1');
 
-    Route::middleware('auth:sanctum')->group(function () {
+    // fresh.password: once a password is past its age, or was reset by an
+    // administrator, nothing but changing it answers. Applied to the whole
+    // group rather than per route, because the rule is "nothing else" and a
+    // list of exceptions kept by hand grows a hole the first time somebody
+    // adds an endpoint.
+    Route::middleware(['auth:sanctum', 'fresh.password'])->group(function () {
 
     // Authentication (requires a valid token)
     Route::post('auth/logout', [AuthController::class, 'logout']);
@@ -67,6 +78,8 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('users', UserController::class);
         Route::patch('users/{user}/active', [UserController::class, 'setActive']);
         Route::post('users/{user}/password', [UserController::class, 'resetPassword']);
+        // The way back in when mail stops: see UserController::setTwoFactor.
+        Route::patch('users/{user}/two-factor', [UserController::class, 'setTwoFactor']);
 
         // The activity log. Read-only: there is no route that writes,
         // edits or deletes a row, deliberately.
@@ -80,6 +93,8 @@ Route::prefix('v1')->group(function () {
     // Widows CRUD (families; destroy archives instead of deleting)
     Route::apiResource('widows', WidowController::class)->withTrashed(['show']);
     Route::post('widows/{widow}/restore', [WidowController::class, 'restore'])->withTrashed();
+    // A family whose عدة is over, taken on as one of the association's own.
+    Route::post('widows/{widow}/enrol', [WidowController::class, 'enrol']);
     Route::get('widows-reference-data', [WidowController::class, 'getReferenceData']);
 
     // Orphans CRUD (read-only, managed through widows)
@@ -97,7 +112,12 @@ Route::prefix('v1')->group(function () {
 
     // Incomes CRUD + approval
     Route::apiResource('incomes', IncomeController::class);
-    Route::post('incomes/{income}/approve', [IncomeController::class, 'approve']);
+    // Approving is what turns a recorded figure into money the books count,
+    // so it is the accountants' and the administration's to do - not
+    // everybody's. The button is hidden for the rest, but hiding a button
+    // stops nobody calling the endpoint, which is why the rule lives here.
+    Route::post('incomes/{income}/approve', [IncomeController::class, 'approve'])
+        ->middleware('role:admin,superuser,accountant');
     Route::post('incomes/{income}/transfer-to-bank', [IncomeController::class, 'transferToBank']);
 
     // Kafala Chamila (comprehensive sponsorship) split
@@ -105,6 +125,9 @@ Route::prefix('v1')->group(function () {
     Route::get('kafala-chamila/balances', [KafalaChamilaController::class, 'balances']);
     Route::get('kafala-chamila/family-balances', [KafalaChamilaController::class, 'familyBalances']);
     Route::put('kafala-chamila/splits', [KafalaChamilaController::class, 'updateSplits']);
+    Route::post('kafala-chamila/splits', [KafalaChamilaController::class, 'storeSplit']);
+    Route::put('kafala-chamila/splits/{split}', [KafalaChamilaController::class, 'updateSplit']);
+    Route::delete('kafala-chamila/splits/{split}', [KafalaChamilaController::class, 'destroySplit']);
     Route::post('kafala-chamila/incomes', [KafalaChamilaController::class, 'storeIncome']);
 
     // Per-entity information cards (PDF)
@@ -121,12 +144,16 @@ Route::prefix('v1')->group(function () {
     Route::get('reports/expenses.xlsx', [ReportController::class, 'expenseListExcel']);
     Route::get('reports/families/{widow}/financial', [ReportController::class, 'familyFinancial']);
     Route::get('reports/families/{widow}/financial.pdf', [ReportController::class, 'familyFinancialPdf']);
+    Route::get('reports/families/{widow}/financial.xlsx', [ReportController::class, 'familyFinancialExcel']);
     Route::get('reports/sponsorship-gaps', [ReportController::class, 'sponsorshipGaps']);
     Route::get('reports/sponsorship-gaps.pdf', [ReportController::class, 'sponsorshipGapsPdf']);
+    Route::get('reports/sponsorship-gaps.xlsx', [ReportController::class, 'sponsorshipGapsExcel']);
     Route::get('reports/kafil-follow-up', [ReportController::class, 'kafilFollowUp']);
     Route::get('reports/kafil-follow-up.pdf', [ReportController::class, 'kafilFollowUpPdf']);
+    Route::get('reports/kafil-follow-up.xlsx', [ReportController::class, 'kafilFollowUpExcel']);
     Route::get('reports/budget-utilization', [ReportController::class, 'budgetUtilization']);
     Route::get('reports/budget-utilization.pdf', [ReportController::class, 'budgetUtilizationPdf']);
+    Route::get('reports/budget-utilization.xlsx', [ReportController::class, 'budgetUtilizationExcel']);
     Route::get('reports/widows', [ReportController::class, 'widows']);
     Route::get('reports/widows.pdf', [ReportController::class, 'widowsPdf']);
     Route::get('reports/widows.xlsx', [ReportController::class, 'widowsExcel']);
@@ -143,11 +170,14 @@ Route::prefix('v1')->group(function () {
     Route::get('reports/annual.xlsx', [ReportController::class, 'annualExcel']);
     Route::get('reports/school-performance', [ReportController::class, 'schoolPerformance']);
     Route::get('reports/school-performance.pdf', [ReportController::class, 'schoolPerformancePdf']);
+    Route::get('reports/school-performance.xlsx', [ReportController::class, 'schoolPerformanceExcel']);
     Route::get('reports/kafils/{kafil}/statement.pdf', [ReportController::class, 'kafilStatementPdf']);
+    Route::get('reports/kafils/{kafil}/statement.xlsx', [ReportController::class, 'kafilStatementExcel']);
 
     // Expenses CRUD + approval
     Route::apiResource('expenses', ExpenseController::class);
-    Route::post('expenses/{expense}/approve', [ExpenseController::class, 'approve']);
+    Route::post('expenses/{expense}/approve', [ExpenseController::class, 'approve'])
+        ->middleware('role:admin,superuser,accountant');
 
     // Transfers CRUD + approval
     Route::apiResource('transfers', TransferController::class);
@@ -166,6 +196,8 @@ Route::prefix('v1')->group(function () {
     Route::post('academic-years', [AcademicYearController::class, 'store']);
     Route::post('academic-years/rollover', [AcademicYearController::class, 'rollover']);
     Route::post('enrollments/grades', [EnrollmentController::class, 'storeGrades']);
+    // The named exam marks on one enrollment, saved as a set.
+    Route::put('enrollments/{enrollment}/grades', [EnrollmentController::class, 'saveGrades']);
     Route::apiResource('enrollments', EnrollmentController::class)->except(['show'])
         ->parameters(['enrollments' => 'enrollment']);
 
@@ -187,6 +219,14 @@ Route::prefix('v1')->group(function () {
 
     // Lookup data endpoints
     Route::get('bank-accounts', [BankAccountController::class, 'index']);
+    // Adding or removing an account is a change to where the association's
+    // money is held, so it sits with the people who answer for the books.
+    Route::post('bank-accounts', [BankAccountController::class, 'store'])
+        ->middleware('role:admin,superuser,accountant');
+    Route::put('bank-accounts/{bankAccount}', [BankAccountController::class, 'update'])
+        ->middleware('role:admin,superuser,accountant');
+    Route::delete('bank-accounts/{bankAccount}', [BankAccountController::class, 'destroy'])
+        ->middleware('role:admin,superuser,accountant');
     // The ledger has always been written; this is what reads it back, so a
     // balance can be traced and checked against the bank's own statement.
     Route::get('bank-accounts/{bankAccount}/statement', [BankAccountController::class, 'statement']);
@@ -196,6 +236,13 @@ Route::prefix('v1')->group(function () {
             'data' => \App\Models\Budget::orderByDesc('is_default')->orderBy('label')->get(),
         ]);
     });
+
+    // Which categories each fund offers. Read by the income and expense
+    // forms to narrow their category lists, and by the screen that sets them.
+    Route::get('budget-categories', [BudgetCategoryController::class, 'index']);
+    Route::get('budgets/{budget}/categories', [BudgetCategoryController::class, 'show']);
+    Route::put('budgets/{budget}/categories', [BudgetCategoryController::class, 'update'])
+        ->middleware('role:admin,superuser,accountant');
 
     Route::get('income-categories', function () {
         return response()->json([
@@ -216,8 +263,14 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::get('orphans-education-levels', function () {
+        // With the marking scheme: the registrations screen needs to know
+        // which levels are the plain two semesters it can edit in the table,
+        // and the year-marks dialog needs the components to lay out.
         return response()->json([
-            'data' => \App\Models\OrphansEducationLevel::active()->ordered()->get(),
+            'data' => \App\Models\OrphansEducationLevel::with('gradeComponents')
+                ->active()
+                ->ordered()
+                ->get(),
         ]);
     });
 
@@ -234,6 +287,23 @@ Route::prefix('v1')->group(function () {
         Route::post('illnesses', [References\IllnessController::class, 'store']);
         Route::put('illnesses/{illness}', [References\IllnessController::class, 'update']);
         Route::delete('illnesses/{illness}', [References\IllnessController::class, 'destroy']);
+
+        // Sectors, and the neighborhoods inside them
+        Route::get('sectors', [References\SectorController::class, 'index']);
+        Route::post('sectors', [References\SectorController::class, 'store']);
+        Route::put('sectors/{sector}', [References\SectorController::class, 'update']);
+        Route::delete('sectors/{sector}', [References\SectorController::class, 'destroy']);
+
+        Route::get('neighborhoods', [References\NeighborhoodController::class, 'index']);
+        Route::post('neighborhoods', [References\NeighborhoodController::class, 'store']);
+        Route::put('neighborhoods/{neighborhood}', [References\NeighborhoodController::class, 'update']);
+        Route::delete('neighborhoods/{neighborhood}', [References\NeighborhoodController::class, 'destroy']);
+
+        // Housing Types
+        Route::get('housing-types', [References\HousingTypeController::class, 'index']);
+        Route::post('housing-types', [References\HousingTypeController::class, 'store']);
+        Route::put('housing-types/{housingType}', [References\HousingTypeController::class, 'update']);
+        Route::delete('housing-types/{housingType}', [References\HousingTypeController::class, 'destroy']);
 
         // Aid Types
         Route::get('aid-types', [References\AidTypeController::class, 'index']);
@@ -279,6 +349,8 @@ Route::prefix('v1')->group(function () {
         Route::put('education-levels/{level}', [References\EducationLevelController::class, 'update']);
         Route::delete('education-levels/{level}', [References\EducationLevelController::class, 'destroy']);
         Route::post('education-levels/reorder', [References\EducationLevelController::class, 'reorder']);
+        // How a year's mark is worked out at this level, saved as a whole.
+        Route::put('education-levels/{level}/components', [References\EducationLevelController::class, 'saveComponents']);
 
         // Sub-Budgets
         Route::get('budgets', [References\BudgetController::class, 'index']);

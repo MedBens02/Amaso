@@ -50,3 +50,33 @@ export function buildCategoryOptions(categories: CategoryNode[]): CategoryOption
 
   return options
 }
+
+/**
+ * The categories a fund offers, for the income and expense forms.
+ *
+ * A fund with no list attached offers every category rather than none: a
+ * budget somebody has just created, or one the association never narrowed,
+ * must stay usable. A screen that offers no choices reads as broken, not as
+ * strict.
+ *
+ * The category already chosen is always kept in the list, even when the fund
+ * does not offer it. Two reasons, and both of them are bugs otherwise: an
+ * expense recorded before the lists existed still has to show its own
+ * category when it is reopened, and the select draws the text on its trigger
+ * from the option that is mounted - drop the chosen one and the field goes
+ * blank while still holding a value.
+ */
+export function categoriesForBudget<T extends { id: number }>(
+  categories: T[],
+  budgetId: number | null | undefined,
+  linksByBudget: Record<string, number[]> | undefined,
+  selectedId?: number | null,
+): T[] {
+  const allowed = budgetId ? linksByBudget?.[String(budgetId)] : undefined
+
+  if (!allowed || allowed.length === 0) return categories
+
+  const ids = new Set(allowed)
+
+  return categories.filter((category) => ids.has(category.id) || category.id === selectedId)
+}

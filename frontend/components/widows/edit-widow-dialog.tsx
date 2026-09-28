@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { IddaFields } from "@/components/widows/idda-fields"
 import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -14,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
@@ -24,6 +26,7 @@ import { MultiSelectRS } from "@/components/common/MultiSelectRS"
 import { ExtraPhonesField } from "@/components/widows/extra-phones-field"
 import { ChildExtraFields } from "@/components/widows/child-extra-fields"
 import { SingleSelectRS } from "@/components/common/SingleSelectRS"
+import { groupBySector } from "@/lib/neighborhoods"
 import { StarRating } from "@/components/common/StarRating"
 import { useToast } from "@/hooks/use-toast"
 import { Plus, Trash2, User, Users, Home, Heart, HandHeart, Edit } from "lucide-react"
@@ -47,6 +50,9 @@ const editWidowSchema = z
     neighborhood: z.string().min(1, "الحي مطلوب"),
     address: z.string().optional(),
     admissionDate: z.date({ required_error: "تاريخ الانضمام مطلوب" }),
+    husbandDeathDate: z.string().optional(),
+    isIddaCase: z.boolean().optional(),
+    iddaEndDate: z.string().optional(),
     maritalStatus: z.string().optional(),
     educationLevel: z.string().optional(),
     disabilityFlag: z.boolean().default(false),
@@ -126,6 +132,33 @@ const editWidowSchema = z
     }
   )
 
+  .refine(
+    (data) => {
+      // A family cannot join the association before she was widowed. Mirrors
+      // the server rule, so the form says so at the field instead of the
+      // save failing after everything else has been filled in.
+      if (!data.husbandDeathDate || !data.admissionDate) return true
+      return toDateInputValue(data.admissionDate) >= data.husbandDeathDate
+    },
+    {
+      message: "تاريخ الانضمام لا يمكن أن يسبق تاريخ وفاة الزوج",
+      path: ["admissionDate"],
+    },
+  )
+  .refine(
+    (data) => {
+      // A يتيم جديد case is dated from the death: without it there is
+      // nothing to count the عدة from and nothing to check the admission
+      // date against.
+      if (!data.isIddaCase) return true
+      return Boolean(data.husbandDeathDate)
+    },
+    {
+      message: "تاريخ وفاة الزوج مطلوب لحالة يتيم جديد",
+      path: ["husbandDeathDate"],
+    },
+  )
+
 type EditWidowFormData = z.infer<typeof editWidowSchema>
 
 interface Widow {
@@ -137,6 +170,9 @@ interface Widow {
   address?: string
   neighborhood?: string
   admission_date: string
+  husband_death_date?: string | null
+  is_idda_case?: boolean
+  idda_end_date?: string | null
   national_id: string
   birth_date: string
   marital_status: string
@@ -173,6 +209,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
   const [schools, setSchools] = useState<any[]>([])
   const [referenceData, setReferenceData] = useState({
     housing_types: [],
+    neighborhoods: [],
     skills: [],
     illnesses: [],
     aid_types: [],
@@ -201,6 +238,9 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
       neighborhood: "",
       address: "",
       admissionDate: new Date(),
+      husbandDeathDate: "",
+      isIddaCase: false,
+      iddaEndDate: "",
       maritalStatus: "Widowed",
       educationLevel: "",
       disabilityFlag: false,
@@ -300,6 +340,9 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
         neighborhood: widow.neighborhood || "",
         address: widow.address || "",
         admissionDate: admissionDate,
+        husbandDeathDate: widow.husband_death_date || "",
+        isIddaCase: Boolean(widow.is_idda_case),
+        iddaEndDate: widow.idda_end_date || "",
         maritalStatus: widow.marital_status || "Widowed",
         educationLevel: widow.education_level || "",
         disabilityFlag: widow.disability_flag || false,
@@ -419,6 +462,9 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
         address: data.address || undefined,
         neighborhood: data.neighborhood,
         admission_date: data.admissionDate.toISOString().split('T')[0],
+        husband_death_date: data.husbandDeathDate || null,
+        is_idda_case: Boolean(data.isIddaCase),
+        idda_end_date: data.isIddaCase ? (data.iddaEndDate || null) : null,
         national_id: data.nationalId || undefined,
         birth_date: data.birthDate.toISOString().split('T')[0],
         marital_status: data.maritalStatus as 'Widowed' | 'Divorced' | 'Single',
@@ -648,11 +694,14 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                       control={form.control}
                       render={({ field }) => (
                         <div onClick={(e) => e.stopPropagation()}>
-                          <Input
-                            type="date"
+                          <DateField
                             max={toDateInputValue(new Date())}
+                            /* Not before she was widowed - the calendar
+                               refuses the earlier days rather than letting
+                               somebody pick one and be told afterwards. */
+                            min={form.watch("husbandDeathDate") || undefined}
                             value={toDateInputValue(field.value)}
-                            onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
+                            onChange={(value) => field.onChange(fromDateInputValue(value))}
                           />
                         </div>
                       )}
@@ -704,10 +753,21 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="neighborhood">الحي *</Label>
-                    <Input
-                      id="neighborhood"
-                      {...form.register("neighborhood")}
-                      placeholder="أدخل الحي"
+                    {/* The same picker the add form uses. A free text box
+                        here is how a typo became a neighbourhood: the two
+                        forms write to the same column. */}
+                    <Controller
+                      name="neighborhood"
+                      control={form.control}
+                      render={({ field }) => (
+                        <SingleSelectRS
+                          options={groupBySector(referenceData.neighborhoods || [])}
+                          onChange={field.onChange}
+                          value={field.value || ""}
+                          placeholder="اختر الحي أو اكتب حياً جديداً"
+                          isCreatable={true}
+                        />
+                      )}
                     />
                     {form.formState.errors.neighborhood && (
                       <p className="text-sm text-red-500">{form.formState.errors.neighborhood.message}</p>
@@ -720,11 +780,10 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                       control={form.control}
                       render={({ field }) => (
                         <div onClick={(e) => e.stopPropagation()}>
-                          <Input
-                            type="date"
+                          <DateField
                             max={toDateInputValue(new Date())}
                             value={toDateInputValue(field.value)}
-                            onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
+                            onChange={(value) => field.onChange(fromDateInputValue(value))}
                           />
                         </div>
                       )}
@@ -734,6 +793,18 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                     )}
                   </div>
                 </div>
+
+                <IddaFields
+                  husbandDeathDate={form.watch("husbandDeathDate") || ""}
+                  isIddaCase={form.watch("isIddaCase") || false}
+                  iddaEndDate={form.watch("iddaEndDate") || ""}
+                  admissionDate={toDateInputValue(form.watch("admissionDate"))}
+                  onChange={(patch) => {
+                    if (patch.husbandDeathDate !== undefined) form.setValue("husbandDeathDate", patch.husbandDeathDate)
+                    if (patch.isIddaCase !== undefined) form.setValue("isIddaCase", patch.isIddaCase)
+                    if (patch.iddaEndDate !== undefined) form.setValue("iddaEndDate", patch.iddaEndDate)
+                  }}
+                />
 
                 <div className="space-y-2">
                   <Label htmlFor="address">العنوان التفصيلي</Label>
@@ -854,7 +925,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                                 <SelectTrigger>
                                   <SelectValue placeholder="اختر المرحلة الدراسية" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent searchable>
                                   <SelectItem value="0">غير محدد</SelectItem>
                                   {educationLevels.map((level) => (
                                     <SelectItem key={level.id} value={level.id.toString()}>
@@ -877,11 +948,10 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                         control={form.control}
                         render={({ field }) => (
                           <div onClick={(e) => e.stopPropagation()}>
-                            <Input
-                            type="date"
+                            <DateField
                             max={toDateInputValue(new Date())}
                             value={toDateInputValue(field.value)}
-                            onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
+                            onChange={(value) => field.onChange(fromDateInputValue(value))}
                           />
                           </div>
                         )}
@@ -912,7 +982,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                             <SelectTrigger>
                               <SelectValue placeholder="اختر نوع السكن" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent searchable>
                               {referenceData.housing_types.map((type: any) => (
                                 <SelectItem key={type.id} value={type.id.toString()}>
                                   {type.label}
@@ -1040,7 +1110,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                                 <SelectTrigger>
                                   <SelectValue placeholder="اختر المصدر" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent searchable>
                                   {referenceData.income_categories.map((category: any) => (
                                     <SelectItem key={category.id} value={category.id.toString()}>
                                       {category.name}
@@ -1107,7 +1177,7 @@ export function EditWidowDialog({ widow, open, onOpenChange, onSuccess }: EditWi
                                 <SelectTrigger>
                                   <SelectValue placeholder="اختر الفئة" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent searchable>
                                   {referenceData.expense_categories.map((category: any) => (
                                     <SelectItem key={category.id} value={category.id.toString()}>
                                       {category.name}

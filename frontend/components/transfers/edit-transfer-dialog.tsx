@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -219,10 +220,9 @@ export function EditTransferDialog({ transfer, open, onOpenChange, onTransferUpd
                 control={form.control}
                 render={({ field }) => (
                   <div onClick={(e) => e.stopPropagation()}>
-                    <Input
-                      type="date"
+                    <DateField
                       value={toDateInputValue(field.value)}
-                      onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
+                      onChange={(value) => field.onChange(fromDateInputValue(value))}
                     />
                   </div>
                 )}
@@ -242,7 +242,7 @@ export function EditTransferDialog({ transfer, open, onOpenChange, onTransferUpd
                     <SelectTrigger>
                       <SelectValue placeholder="اختر الحساب المرسل" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent searchable>
                       {bankAccounts.map((account) => (
                         <SelectItem key={account.id} value={account.id.toString()}>
                           <div className="flex items-center justify-between w-full">
@@ -276,7 +276,7 @@ export function EditTransferDialog({ transfer, open, onOpenChange, onTransferUpd
                     <SelectTrigger>
                       <SelectValue placeholder="اختر الحساب المستقبل" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent searchable>
                       {bankAccounts
                         .filter((account) => account.id.toString() !== fromAccount)
                         .map((account) => (

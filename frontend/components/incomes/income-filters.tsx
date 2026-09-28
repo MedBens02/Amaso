@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { X, RefreshCw } from "lucide-react"
 import { useState, useEffect } from "react"
 import api from "@/lib/api"
@@ -70,21 +71,19 @@ export function IncomeFilters({ filters, onFiltersChange, onApply, onClear }: In
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="income-from-date">من تاريخ</Label>
-          <Input
+          <DateField
             id="income-from-date"
-            type="date"
             value={toDateInputValue(filters.fromDate)}
-            onChange={(e) => updateFilter('fromDate', fromDateInputValue(e.target.value))}
+            onChange={(value) => updateFilter('fromDate', fromDateInputValue(value))}
           />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="income-to-date">إلى تاريخ</Label>
-          <Input
+          <DateField
             id="income-to-date"
-            type="date"
             value={toDateInputValue(filters.toDate)}
-            onChange={(e) => updateFilter('toDate', fromDateInputValue(e.target.value))}
+            onChange={(value) => updateFilter('toDate', fromDateInputValue(value))}
           />
         </div>
       </div>
@@ -100,7 +99,7 @@ export function IncomeFilters({ filters, onFiltersChange, onApply, onClear }: In
             <SelectTrigger>
               <SelectValue placeholder="اختر السنة المالية" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               <SelectItem value="all">جميع السنوات</SelectItem>
               {fiscalYears.map((year) => (
                 <SelectItem key={year.id} value={year.id.toString()}>
@@ -120,7 +119,7 @@ export function IncomeFilters({ filters, onFiltersChange, onApply, onClear }: In
             <SelectTrigger>
               <SelectValue placeholder="اختر الميزانية" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               <SelectItem value="all">جميع الميزانيات</SelectItem>
               {budgets.map((budget) => (
                 <SelectItem key={budget.id} value={budget.id.toString()}>

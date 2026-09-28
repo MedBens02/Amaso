@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import {
   Dialog,
@@ -141,16 +142,27 @@ export function UserFormDialog({
   ) => (
     <div className="space-y-2">
       <Label htmlFor={`user-${key}`}>{label}</Label>
-      <Input
-        id={`user-${key}`}
-        type={options.type ?? "text"}
-        dir={options.dir}
-        placeholder={options.placeholder}
-        autoComplete={options.autoComplete}
-        value={form[key]}
-        onChange={(e) => setForm((prev) => ({ ...prev, [key]: e.target.value }))}
-        aria-invalid={Boolean(errors[key])}
-      />
+      {options.type === "password" ? (
+        <PasswordInput
+          id={`user-${key}`}
+          placeholder={options.placeholder}
+          autoComplete={options.autoComplete}
+          value={form[key]}
+          onChange={(e) => setForm((prev) => ({ ...prev, [key]: e.target.value }))}
+          aria-invalid={Boolean(errors[key])}
+        />
+      ) : (
+        <Input
+          id={`user-${key}`}
+          type={options.type ?? "text"}
+          dir={options.dir}
+          placeholder={options.placeholder}
+          autoComplete={options.autoComplete}
+          value={form[key]}
+          onChange={(e) => setForm((prev) => ({ ...prev, [key]: e.target.value }))}
+          aria-invalid={Boolean(errors[key])}
+        />
+      )}
       {errors[key] && <p className="text-sm text-destructive">{errors[key][0]}</p>}
     </div>
   )

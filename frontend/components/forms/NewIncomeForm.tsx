@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -26,7 +27,7 @@ import { ar } from "date-fns/locale"
 import { toDateInputValue, fromDateInputValue } from "@/lib/date-utils"
 import { AddDonorSheet } from "@/components/donors/add-donor-sheet"
 import { KafalaChamilaSplitEditor } from "@/components/forms/KafalaChamilaSplitEditor"
-import { buildCategoryOptions } from "@/lib/categories"
+import { buildCategoryOptions, categoriesForBudget } from "@/lib/categories"
 import api from "@/lib/api"
 
 const incomeSchema = z
@@ -138,6 +139,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
   // Form data states
   const [budgets, setBudgets] = useState<any[]>([])
   const [incomeCategories, setIncomeCategories] = useState<any[]>([])
+  const [budgetCategories, setBudgetCategories] = useState<{ income: Record<string, number[]>; expense: Record<string, number[]> } | undefined>()
   const [donors, setDonors] = useState<any[]>([])
   const [kafils, setKafils] = useState<any[]>([])
   const [bankAccounts, setBankAccounts] = useState<any[]>([])
@@ -194,18 +196,22 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
   const loadFormData = async () => {
     setLoading(true)
     try {
-      const [budgetsRes, categoriesRes, donorsRes, kafilsRes, bankAccountsRes, fiscalYearRes] = await Promise.all([
+      const [budgetsRes, categoriesRes, donorsRes, kafilsRes, bankAccountsRes, fiscalYearRes, linksRes] = await Promise.all([
         api.getBudgets(),
         api.getIncomeCategories(),
         api.getDonors(),
         api.getKafilsForSponsorship(),
         api.getBankAccounts(),
-        api.getActiveFiscalYear()
+        api.getActiveFiscalYear(),
+        // Which categories each fund offers; a failure leaves them all on
+        // offer, the same fallback an unlisted fund gets.
+        api.getBudgetCategories().catch(() => ({ data: undefined as any })),
       ])
       
       const loadedBudgets = budgetsRes.data || []
       setBudgets(loadedBudgets)
       setIncomeCategories(categoriesRes.data || [])
+      setBudgetCategories(linksRes.data)
 
       // Every income lands in some budget; the general one is the sane default
       // so the common case is one less decision.
@@ -296,7 +302,17 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
 
   // Categories are independent of budgets - the full tree is always offered,
   // parents first with their children indented underneath.
-  const categoryOptions = useMemo(() => buildCategoryOptions(incomeCategories), [incomeCategories])
+  // Narrowed to what the chosen fund takes in. The category already picked
+  // stays in the list whatever the fund says, or reopening an older income
+  // would blank its own field.
+  const categoryOptions = useMemo(() => {
+    const budgetId = Number(form.watch("budget_id")) || null
+    const selected = Number(form.watch("income_category_id")) || null
+
+    return buildCategoryOptions(
+      categoriesForBudget(incomeCategories, budgetId, budgetCategories?.income, selected),
+    )
+  }, [incomeCategories, budgetCategories, form.watch("budget_id"), form.watch("income_category_id")])
 
   // Handle kafil selection and auto-fill amount
   const handleKafilChange = (kafil: any) => {
@@ -518,11 +534,10 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                 name="income_date"
                 control={form.control}
                 render={({ field }) => (
-                  <Input
-                    type="date"
+                  <DateField
                     max={toDateInputValue(new Date())}
                     value={toDateInputValue(field.value)}
-                    onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
+                    onChange={(value) => field.onChange(fromDateInputValue(value))}
                   />
                 )}
               />
@@ -795,7 +810,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
                           <SelectTrigger>
                             <SelectValue placeholder={incomeType === 'kafala_chamila' ? 'اختر الأسرة المستفيدة' : 'اختر الأسرة المستفيدة (اختياري)'} />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent searchable>
                             {selectedKafilSponsorship.sponsorships
                               // A sponsorship with no resolvable family cannot
                               // be offered: Radix refuses an empty value, and
@@ -977,7 +992,7 @@ export function NewIncomeDialog({ open, onOpenChange, initialData, onSuccess }: 
             ⚠️ تحذير السنة المالية
           </DialogTitle>
           <DialogDescription>
-            التاريخ المحدد ({pendingSubmitData ? format(pendingSubmitData.income_date, 'yyyy/MM/dd') : ''}) لا يقع ضمن السنة المالية النشطة ({activeFiscalYear?.year}).
+            التاريخ المحدد ({pendingSubmitData ? format(pendingSubmitData.income_date, 'dd/MM/yyyy') : ''}) لا يقع ضمن السنة المالية النشطة ({activeFiscalYear?.year}).
             <br /><br />
             سيتم ربط هذا الإيراد بالسنة المالية النشطة ({activeFiscalYear?.year}) وليس بسنة التاريخ المحدد.
             <br /><br />

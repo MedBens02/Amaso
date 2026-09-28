@@ -6,6 +6,10 @@ from anywhere, rather than from one PC in the office.
 For running it on a single Windows machine instead, see
 [`../setup/README.md`](../setup/README.md).
 
+For Oracle Cloud's Casablanca region specifically — creating the machine,
+the two firewalls, free-tier shapes and what it costs — see
+[`OCI.md`](OCI.md), which uses these same scripts.
+
 ---
 
 ## The short version

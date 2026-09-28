@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Edit, Phone, Loader2, Users, ChevronUp, ChevronDown, ChevronsUpDown, Printer, Archive, ArchiveRestore, FileText } from "lucide-react"
+import { Archive, ArchiveRestore, ChevronDown, ChevronUp, ChevronsUpDown, Edit, Eye, FileSpreadsheet, FileText, Loader2, Phone, Printer, Users } from "lucide-react"
 import { RowActions } from "@/components/ui/row-actions"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
@@ -154,6 +154,8 @@ export function WidowsTable({
         // Add all filter parameters, converting boolean strings to actual booleans
         ...(filters.has_disability && filters.has_disability !== "all" && { has_disability: filters.has_disability === "true" }),
         ...(filters.education_level && filters.education_level !== "all" && { education_level: filters.education_level }),
+        ...(filters.sector_id && filters.sector_id !== "all" && { sector_id: parseInt(filters.sector_id) }),
+        ...(filters.neighborhood && filters.neighborhood !== "all" && { neighborhood: filters.neighborhood }),
         ...(filters.illness_id && filters.illness_id !== "all" && { illness_id: parseInt(filters.illness_id) }),
         ...(filters.aid_type_id && filters.aid_type_id !== "all" && { aid_type_id: parseInt(filters.aid_type_id) }),
         ...(filters.skill_id && filters.skill_id !== "all" && { skill_id: parseInt(filters.skill_id) }),
@@ -207,9 +209,10 @@ export function WidowsTable({
   }
 
   /** Everything the association has done for this family, over the current year. */
-  const handleFamilyReport = async (widow: Widow) => {
+  const handleFamilyReport = async (widow: Widow, format: "pdf" | "xlsx" = "pdf") => {
     try {
-      await api.downloadPdf(`/reports/families/${widow.id}/financial.pdf`)
+      const path = `/reports/families/${widow.id}/financial.${format}`
+      format === "pdf" ? await api.downloadPdf(path) : await api.downloadExcel(path)
       toast({ title: "تم تحميل التقرير المالي للأسرة" })
     } catch (error: any) {
       toast({
@@ -434,7 +437,8 @@ export function WidowsTable({
                         { label: "عرض التفاصيل", icon: Eye, onSelect: () => handleView(widow) },
                         { label: "تحرير البيانات", icon: Edit, onSelect: () => handleEdit(widow), hidden: archived },
                         { label: "طباعة بطاقة الأرملة", icon: Printer, onSelect: () => handlePrint(widow) },
-                        { label: "التقرير المالي للأسرة", icon: FileText, onSelect: () => handleFamilyReport(widow) },
+                        { label: "التقرير المالي للأسرة (PDF)", icon: FileText, onSelect: () => handleFamilyReport(widow) },
+                        { label: "التقرير المالي للأسرة (Excel)", icon: FileSpreadsheet, onSelect: () => handleFamilyReport(widow, "xlsx") },
                         {
                           label: "استعادة الملف",
                           icon: ArchiveRestore,

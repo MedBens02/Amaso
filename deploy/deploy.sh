@@ -292,6 +292,39 @@ chmod -R go-rwx "$APP_DIR/backend/storage" "$APP_DIR/backend/bootstrap/cache"
 ok "Runtime directories in place, logs kept private"
 
 # ---------------------------------------------------------------------------
+# Can this machine finish?
+#
+# Asked here, before the migrations, rather than beside the build that needs
+# it. The frontend build is the single largest thing this server ever does -
+# 1.34 GB peak resident, measured, which is more than a 1 GB VPS has - and an
+# OOM kill during `next build` reports itself as the word "Killed" and
+# nothing else.
+#
+# Checking it later was worse than useless. The migrations had already run by
+# then, so a machine too small to build left the database upgraded and the
+# old frontend still being served: the API speaks the new version, the
+# browser is running the old one, and the symptom is a login that bounces
+# back to the login page with nothing in any log to explain it. Refusing
+# before anything irreversible happens leaves the server exactly as it was.
+# ---------------------------------------------------------------------------
+mem_total=$(( $(ram_mb) + $(swap_mb) ))
+if (( mem_total < BUILD_NEED_MB )); then
+    die "$(cat <<MSG
+Only ${mem_total} MB of RAM + swap; the frontend build peaks near 1.4 GB
+    and would be killed part way through. Nothing has been changed.
+
+    Add swap and try again:
+        sudo fallocate -l 3G /swapfile && sudo chmod 600 /swapfile
+        sudo mkswap /swapfile && sudo swapon /swapfile
+        echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+    (provision.sh does this for you - re-running it is the easier route.)
+MSG
+)"
+fi
+ok "${mem_total} MB of RAM + swap available for a build that needs about 1.4 GB"
+
+# ---------------------------------------------------------------------------
 # Database
 #
 # `migrate --force` applies new structure only. It never drops or rewrites
@@ -363,28 +396,6 @@ fi
 # the browser talks to one origin and no Node process runs in production.
 # ---------------------------------------------------------------------------
 log "Building the frontend"
-
-# The single largest thing this server ever does. Measured at 1.34 GB peak
-# resident for this application, which is more than a 1 GB VPS has - and an
-# OOM kill during `next build` reports itself as the word "Killed" and
-# nothing else, with frontend/out left missing. Checked here so the reason
-# is named before the build rather than guessed at afterwards.
-mem_total=$(( $(ram_mb) + $(swap_mb) ))
-if (( mem_total < BUILD_NEED_MB )); then
-    die "$(cat <<MSG
-Only ${mem_total} MB of RAM + swap; the frontend build peaks near 1.4 GB
-    and will be killed part way through.
-
-    Add swap and try again:
-        sudo fallocate -l 3G /swapfile && sudo chmod 600 /swapfile
-        sudo mkswap /swapfile && sudo swapon /swapfile
-        echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-
-    (provision.sh does this for you - re-running it is the easier route.)
-MSG
-)"
-fi
-ok "${mem_total} MB of RAM + swap available for a build that needs about 1.4 GB"
 
 as_app npm --prefix "$APP_DIR/frontend" ci --no-audit --no-fund --silent \
     || as_app npm --prefix "$APP_DIR/frontend" install --no-audit --no-fund --silent

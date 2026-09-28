@@ -37,7 +37,7 @@ class TransportMonthController extends Controller
                 'lines',
                 'lines as riders_count' => fn ($q) => $q
                     ->where('mode', TransportSupport::MODE_BUS)
-                    ->where('rode_consistently', true),
+                    ->where('attendances', '>', 0),
                 'lines as allowance_count' => fn ($q) => $q
                     ->where('mode', TransportSupport::MODE_ALLOWANCE)
                     ->where('attendances', '>', 0),
@@ -131,11 +131,13 @@ class TransportMonthController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
             'lines' => ['sometimes', 'array'],
             'lines.*.id' => ['required', 'integer'],
-            'lines.*.rode_consistently' => ['sometimes', 'boolean'],
+            // Trips on the bus for a rider, times they came for an
+            // allowance. Both are a count of days in one month, so both are
+            // bounded the same way.
             'lines.*.attendances' => ['sometimes', 'integer', 'min:0', 'max:60'],
             'lines.*.notes' => ['sometimes', 'nullable', 'string', 'max:500'],
         ], [
-            'lines.*.attendances.max' => 'عدد مرات الحضور في الشهر لا يتجاوز 60',
+            'lines.*.attendances.max' => 'عدد الرحلات أو مرات الحضور في الشهر لا يتجاوز 60',
         ]);
 
         // The bus's costs belong to the bus half. Once that has been paid,
@@ -180,7 +182,7 @@ class TransportMonthController extends Controller
                 }
 
                 $line->fill(array_intersect_key($row, array_flip([
-                    'rode_consistently', 'attendances', 'notes',
+                    'attendances', 'notes',
                 ])));
                 $line->save();
             }
@@ -376,6 +378,7 @@ class TransportMonthController extends Controller
             ->values();
 
         $riders = $lines->filter(fn ($line) => $line->countsTowardsSplit());
+        $trips = (int) $riders->sum(fn ($line) => $line->splitWeight());
         $allowances = $lines->where('mode', TransportSupport::MODE_ALLOWANCE);
 
         return [
@@ -389,12 +392,11 @@ class TransportMonthController extends Controller
                 'bus_pot' => $month->bus_pot,
                 'riders_counted' => $riders->count(),
                 'riders_total' => $lines->where('mode', TransportSupport::MODE_BUS)->count(),
-                // What one child's share works out at. Shown rather than
-                // stored: the shares themselves carry the odd centimes, and
-                // this is the round number the staff recognise.
-                'share_per_rider' => $riders->count() > 0
-                    ? round($month->bus_pot / $riders->count(), 2)
-                    : null,
+                'bus_trips' => $trips,
+                // What one trip cost. Shown rather than stored: the shares
+                // themselves carry the odd centimes, and this is the round
+                // number the staff can check the sheet against.
+                'cost_per_trip' => $trips > 0 ? round($month->bus_pot / $trips, 2) : null,
                 'bus_total' => round((float) $riders->sum('amount'), 2),
                 'allowance_total' => round((float) $allowances->sum('amount'), 2),
                 'allowance_children' => $allowances->where('attendances', '>', 0)->count(),

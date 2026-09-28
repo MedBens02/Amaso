@@ -12,6 +12,8 @@ interface ReferenceData {
   illnesses: Array<{ id: number; label: string }>
   aid_types: Array<{ id: number; label: string }>
   partners: Array<{ id: number; name: string }>
+  sectors: Array<{ id: number; label: string }>
+  neighborhoods: Array<{ label: string; sector_id: number | null }>
 }
 
 interface WidowFiltersProps {
@@ -25,6 +27,8 @@ export function WidowFilters({ onFiltersChange, initialFilters = {} }: WidowFilt
     illnesses: [],
     aid_types: [],
     partners: [],
+    sectors: [],
+    neighborhoods: [],
   })
 
   const [filters, setFilters] = useState({
@@ -37,6 +41,8 @@ export function WidowFilters({ onFiltersChange, initialFilters = {} }: WidowFilt
     has_chronic_illness: initialFilters.has_chronic_illness || "all",
     has_active_maouna: initialFilters.has_active_maouna || "all",
     maouna_partner_id: initialFilters.maouna_partner_id || "all",
+    sector_id: initialFilters.sector_id || "all",
+    neighborhood: initialFilters.neighborhood || "all",
   })
 
   const [loading, setLoading] = useState(true)
@@ -58,7 +64,12 @@ export function WidowFilters({ onFiltersChange, initialFilters = {} }: WidowFilt
   }, [])
 
   const handleFilterChange = (key: string, value: string) => {
-    const newFilters = { ...filters, [key]: value }
+    applyFilters({ [key]: value })
+  }
+
+  /** Several keys at once, so two related changes cannot overwrite each other. */
+  const applyFilters = (changes: Record<string, string>) => {
+    const newFilters = { ...filters, ...changes }
     setFilters(newFilters)
     onFiltersChange(newFilters)
   }
@@ -74,6 +85,8 @@ export function WidowFilters({ onFiltersChange, initialFilters = {} }: WidowFilt
       has_chronic_illness: "all",
       has_active_maouna: "all",
       maouna_partner_id: "all",
+      sector_id: "all",
+      neighborhood: "all",
     }
     setFilters(clearedFilters)
     onFiltersChange(clearedFilters)
@@ -93,6 +106,52 @@ export function WidowFilters({ onFiltersChange, initialFilters = {} }: WidowFilt
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {/* Sector, and the neighbourhoods inside it */}
+        <div className="space-y-2">
+          <Label>القطاع</Label>
+          <Select
+            value={filters.sector_id}
+            onValueChange={(value) => {
+              // A neighbourhood from the sector you just left would filter
+              // the list down to nothing and look like a broken filter.
+              applyFilters({ sector_id: value, neighborhood: 'all' })
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="اختر القطاع" />
+            </SelectTrigger>
+            <SelectContent searchable>
+              <SelectItem value="all">جميع القطاعات</SelectItem>
+              {referenceData.sectors?.map((sector) => (
+                <SelectItem key={sector.id} value={sector.id.toString()}>
+                  {sector.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>الحي</Label>
+          <Select value={filters.neighborhood} onValueChange={(value) => handleFilterChange('neighborhood', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="اختر الحي" />
+            </SelectTrigger>
+            <SelectContent searchable>
+              <SelectItem value="all">جميع الأحياء</SelectItem>
+              {(referenceData.neighborhoods ?? [])
+                .filter((item) =>
+                  filters.sector_id === 'all' || String(item.sector_id ?? '') === filters.sector_id,
+                )
+                .map((item) => (
+                  <SelectItem key={item.label} value={item.label}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Disability Filter */}
         <div className="space-y-2">
           <Label>حالة الإعاقة</Label>
@@ -178,7 +237,7 @@ export function WidowFilters({ onFiltersChange, initialFilters = {} }: WidowFilt
             <SelectTrigger>
               <SelectValue placeholder="اختر شريك المؤونة" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               <SelectItem value="all">جميع الشركاء</SelectItem>
               {referenceData.partners.map((partner) => (
                 <SelectItem key={partner.id} value={partner.id.toString()}>
@@ -196,7 +255,7 @@ export function WidowFilters({ onFiltersChange, initialFilters = {} }: WidowFilt
             <SelectTrigger>
               <SelectValue placeholder="اختر نوع المرض" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               <SelectItem value="all">جميع الأمراض</SelectItem>
               {referenceData.illnesses.map((illness) => (
                 <SelectItem key={illness.id} value={illness.id.toString()}>
@@ -214,7 +273,7 @@ export function WidowFilters({ onFiltersChange, initialFilters = {} }: WidowFilt
             <SelectTrigger>
               <SelectValue placeholder="اختر نوع المساعدة" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               <SelectItem value="all">جميع أنواع المساعدة</SelectItem>
               {referenceData.aid_types.map((aid) => (
                 <SelectItem key={aid.id} value={aid.id.toString()}>
@@ -232,7 +291,7 @@ export function WidowFilters({ onFiltersChange, initialFilters = {} }: WidowFilt
             <SelectTrigger>
               <SelectValue placeholder="اختر المهارة" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               <SelectItem value="all">جميع المهارات</SelectItem>
               {referenceData.skills.map((skill) => (
                 <SelectItem key={skill.id} value={skill.id.toString()}>

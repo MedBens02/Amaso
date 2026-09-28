@@ -137,7 +137,7 @@ export function OrphanFilters({ onFiltersChange, initialFilters = {} }: OrphanFi
             <SelectTrigger>
               <SelectValue placeholder={loading ? "جاري التحميل..." : "اختر المستوى التعليمي"} />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable>
               <SelectItem value="all">جميع المستويات</SelectItem>
               {educationLevels.map((level) => (
                 <SelectItem key={level.id} value={level.name_ar}>

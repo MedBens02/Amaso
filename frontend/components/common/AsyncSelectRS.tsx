@@ -3,7 +3,7 @@
 import type { ReactNode } from "react"
 import { useEffect, useRef, useState } from "react"
 import AsyncSelect from "react-select/async"
-import { reactSelectStyles } from "@/lib/react-select-theme"
+import { reactSelectProps } from "@/lib/react-select-theme"
 
 export interface AsyncOption<T = any> {
   label: string
@@ -84,25 +84,18 @@ export function AsyncSelectRS<T = any>({
   return (
     <div className={className}>
       <AsyncSelect<AsyncOption<T>, false>
+        {...reactSelectProps}
         cacheOptions
         defaultOptions={defaultOptions}
         loadOptions={debouncedLoad}
         value={selectedOption}
         onChange={(option) => onChange(option ? option.value : null, option ?? null)}
         placeholder={placeholder}
-        isRtl
         isDisabled={isDisabled}
         isClearable={isClearable}
-        menuPortalTarget={typeof document !== "undefined" ? document.body : null}
-        menuPosition="fixed"
-        menuShouldBlockScroll={false}
-        menuShouldScrollIntoView={false}
-        styles={reactSelectStyles}
-        classNamePrefix="rs"
         formatOptionLabel={formatOptionLabel}
         noOptionsMessage={({ inputValue }) => (inputValue ? `لا توجد نتائج لـ "${inputValue}"` : "لا توجد خيارات")}
         loadingMessage={() => "جاري البحث..."}
-        components={{ IndicatorSeparator: () => null }}
       />
     </div>
   )

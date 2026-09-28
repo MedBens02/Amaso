@@ -43,6 +43,11 @@ class AccountingSeeder extends Seeder
         );
         DB::table('budgets')->where('id', '!=', self::GENERAL_BUDGET_ID)->update(['is_default' => false]);
 
+        // After the pinned ids, never before: this one takes whatever comes
+        // next, and creating it first would put it on an id the lines above
+        // then rename out from under it.
+        \App\Models\Budget::ensureIdda();
+
         $incomeCategories = [
             [1, 1, 'تبرعات للرعاية الصحية'],
             [3, 1, 'دعم العلاجات'],
@@ -108,6 +113,11 @@ class AccountingSeeder extends Seeder
                 ['label' => $label, 'updated_at' => $now, 'created_at' => $now]
             );
         }
+
+        // After the categories above exist. The migration that made the link
+        // tables could not do this on a fresh install: it runs before any
+        // seeder, when there is nothing to link.
+        \App\Support\DefaultBudgetCategories::apply();
 
         DB::table('fiscal_years')->updateOrInsert(
             ['year' => (int) date('Y')],

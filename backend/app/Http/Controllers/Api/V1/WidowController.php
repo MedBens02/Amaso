@@ -18,6 +18,9 @@ class WidowController extends Controller
         // The current year's enrollment, not the orphan's own (unused,
         // legacy) education_level_id - see Orphan::currentEducationLabel().
         'orphans.currentEnrollment.educationLevel',
+        // The marks are rows now, so the card and the list read them through
+        // the relation rather than off two columns.
+        'orphans.currentEnrollment.grades',
         'phones',
         'widowFiles',
         'widowSocial.housingType',
@@ -36,7 +39,16 @@ class WidowController extends Controller
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = Widow::query()->with(['orphans.currentEnrollment.educationLevel']);
+        $query = Widow::query()->with(['orphans.currentEnrollment.educationLevel', 'orphans.currentEnrollment.grades']);
+
+        // A family in عدة is not one of the association's families yet, so
+        // she is not in the list of them. The عدة screen asks for her by
+        // name through this same endpoint rather than having one of its own.
+        match ($request->get('idda')) {
+            'only' => $query->iddaCases(),
+            'all' => null,
+            default => $query->regular(),
+        };
 
         if ($request->filled('search')) {
             $search = $request->get('search');
@@ -57,6 +69,20 @@ class WidowController extends Controller
 
         if ($request->filled('education_level')) {
             $query->where('education_level', $request->get('education_level'));
+        }
+
+        if ($request->filled('neighborhood')) {
+            $query->where('neighborhood', $request->get('neighborhood'));
+        }
+
+        // A sector is asked for by id and answered in names, because that
+        // is what the family record holds. An empty sector matches nothing,
+        // which is right: it has no neighborhoods for anybody to live in.
+        if ($request->filled('sector_id')) {
+            $query->whereIn(
+                'neighborhood',
+                \App\Models\Neighborhood::where('sector_id', $request->get('sector_id'))->pluck('label'),
+            );
         }
 
         if ($request->filled('illness_id')) {
@@ -136,6 +162,7 @@ class WidowController extends Controller
         $widow->load([
             ...self::DETAIL_RELATIONS,
             'orphans.currentEnrollment.school',
+            'orphans.currentEnrollment.grades',
             'sponsorships.kafil.donor',
         ]);
 
@@ -179,6 +206,29 @@ class WidowController extends Controller
     }
 
     /**
+     * Take a family on: she stops being a عدة case and becomes one of the
+     * association's families.
+     *
+     * The decision a human makes, not one a date makes. Her عدة running out
+     * is what puts the case in front of somebody; this is somebody answering
+     * it. The dates stay on the record - how she came to the association is
+     * part of her history, not something to tidy away once she is enrolled.
+     */
+    public function enrol(Widow $widow): JsonResponse
+    {
+        if (! $widow->is_idda_case) {
+            return response()->json(['message' => 'هذه الأسرة مسجّلة أصلاً ضمن الأسر المكفولة'], 400);
+        }
+
+        $widow->update(['is_idda_case' => false]);
+
+        return response()->json([
+            'message' => "تم تسجيل أسرة \"{$widow->full_name}\" ضمن الأسر المكفولة",
+            'data' => $widow->fresh(),
+        ]);
+    }
+
+    /**
      * Restore an archived family.
      */
     public function restore(Widow $widow): JsonResponse
@@ -206,13 +256,31 @@ class WidowController extends Controller
                 'income_categories' => \App\Models\WidowIncomeCategory::all(['id', 'name']),
                 'expense_categories' => \App\Models\WidowExpenseCategory::all(['id', 'name']),
                 'partners' => \App\Models\Partner::with(['field', 'subfield'])->get(['id', 'name', 'field_id', 'subfield_id']),
-                // Drawn from the families themselves rather than a fixed list:
-                // both columns are free text, so the only values worth
-                // offering as a filter are the ones that will match something.
-                'neighborhoods' => Widow::query()
-                    ->whereNotNull('neighborhood')->where('neighborhood', '!=', '')
-                    ->distinct()->orderBy('neighborhood')->pluck('neighborhood'),
-                'education_levels' => Widow::query()
+                'sectors' => \App\Models\Sector::orderBy('label')->get(['id', 'label']),
+                // The managed list, not whatever happens to be typed into
+                // the families' records - that is what let a typo become a
+                // neighborhood. Names still in use but never added to the
+                // list are appended so that no family's address quietly
+                // disappears from the form; they show with no sector until
+                // somebody files them.
+                'neighborhoods' => \App\Models\Neighborhood::with('sector')
+                    ->orderBy('label')
+                    ->get(['id', 'label', 'sector_id'])
+                    ->map(fn ($item) => [
+                        'id' => $item->id,
+                        'label' => $item->label,
+                        'sector_id' => $item->sector_id,
+                        'sector' => $item->sector?->label,
+                    ])
+                    ->concat(
+                        Widow::query()->regular()
+                            ->whereNotNull('neighborhood')->where('neighborhood', '!=', '')
+                            ->whereNotIn('neighborhood', \App\Models\Neighborhood::pluck('label'))
+                            ->distinct()->orderBy('neighborhood')->pluck('neighborhood')
+                            ->map(fn ($label) => ['id' => null, 'label' => $label, 'sector_id' => null, 'sector' => null]),
+                    )
+                    ->values(),
+                'education_levels' => Widow::query()->regular()
                     ->whereNotNull('education_level')->where('education_level', '!=', '')
                     ->distinct()->orderBy('education_level')->pluck('education_level'),
             ],

@@ -57,6 +57,62 @@ export interface EnrollmentInput {
   grade_scale?: number | null
 }
 
+/**
+ * What comes back from step one of a login.
+ *
+ * Two genuinely different replies, not one reply with optional fields: an
+ * account that requires a code is handed no token at all, and a type that
+ * admits both at once invites reading a token that is not there.
+ */
+type LoginData =
+  | { token: string; user: any }
+  | {
+      requires_code: true
+      challenge: string
+      expires_in_minutes: number
+      email_hint: string
+    }
+
+export type LoginOutcome =
+  | { status: 'signed_in'; user: any }
+  | {
+      status: 'code_required'
+      /** Names this attempt to the server. Not the account, and not a token. */
+      challenge: string
+      /** "m*****d@amaso.site" - enough to recognise, no help to a stranger. */
+      emailHint: string
+      expiresInMinutes: number
+      message?: string
+    }
+
+/**
+ * Fired when the server refuses a call because the password is overdue.
+ *
+ * An event rather than a redirect: the person is properly signed in, their
+ * token is good, and the only thing standing in the way is a password they
+ * can change without leaving the screen they are on. Sending them to /login
+ * would look like being thrown out and would lose whatever they were doing.
+ */
+/**
+ * The calls where a 401 means "wrong credentials", not "your session died".
+ *
+ * Everywhere else a 401 means the stored token is gone, and the right answer
+ * is to clear it and go back to the login page. On these two it is the whole
+ * point of the reply: signing in with the wrong password, or typing the
+ * wrong digits, has to leave the person exactly where they are - sending
+ * them "back" to a screen they never left, minus the challenge they were
+ * halfway through, turns one mistyped digit into starting over.
+ */
+const CREDENTIAL_ENDPOINTS = ['/auth/login', '/auth/verify-code']
+
+export const PASSWORD_EXPIRED_EVENT = 'amaso:password-expired'
+
+function announcePasswordExpired() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(PASSWORD_EXPIRED_EVENT))
+  }
+}
+
 export class ApiError extends Error {
   status: number
   errors?: Record<string, string[]>
@@ -188,10 +244,22 @@ class ApiClient {
         // let the caller show that. A 401 on any other endpoint means the
         // stored token is gone/expired: drop it and send the user back to
         // the login page instead of leaving every page silently broken.
-        if (response.status === 401 && endpoint !== '/auth/login' && typeof window !== 'undefined') {
+        if (
+          response.status === 401 &&
+          !CREDENTIAL_ENDPOINTS.includes(endpoint) &&
+          typeof window !== 'undefined'
+        ) {
           this.clearSession()
           window.location.href = '/login'
         }
+
+        // Not an expired session - an expired password. The token is still
+        // good, so the session is left alone and the app is told to ask for
+        // a new password where the person already is.
+        if (response.status === 423 && data?.code === 'password_expired') {
+          announcePasswordExpired()
+        }
+
         throw new ApiError(response, data)
       }
 
@@ -205,17 +273,60 @@ class ApiClient {
   }
 
   // Authentication
-  async login(email: string, password: string) {
-    const response = await this.request<{ token: string; user: any }>('/auth/login', {
+
+  /** Keep the token and the cached profile in step, in memory and storage. */
+  private storeSession(token: string, user: any) {
+    this.setToken(token)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(TOKEN_STORAGE_KEY, token)
+      window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user))
+    }
+  }
+
+  /**
+   * Step one. The password alone no longer finishes a login.
+   *
+   * When the account requires a code there is no token in the reply, so the
+   * two outcomes are returned as separate shapes rather than one shape with
+   * an optional token - reading `.token` off a response that never carried
+   * one is how a browser ends up storing the string "undefined" and calling
+   * it a session.
+   */
+  async login(email: string, password: string): Promise<LoginOutcome> {
+    const response = await this.request<LoginData>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
 
-    this.setToken(response.data.token)
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(TOKEN_STORAGE_KEY, response.data.token)
-      window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(response.data.user))
+    if ('requires_code' in response.data) {
+      return {
+        status: 'code_required',
+        challenge: response.data.challenge,
+        emailHint: response.data.email_hint,
+        expiresInMinutes: response.data.expires_in_minutes,
+        message: response.message,
+      }
     }
+
+    this.storeSession(response.data.token, response.data.user)
+
+    return { status: 'signed_in', user: response.data.user }
+  }
+
+  /**
+   * Step two: the challenge from step one plus the digits from the inbox.
+   *
+   * The email address is not sent again. The challenge already names the
+   * attempt, and asking the browser to hold an address it would have to send
+   * back would make the code a second password rather than a second factor.
+   */
+  async verifyLoginCode(challenge: string, code: string) {
+    const response = await this.request<{ token: string; user: any }>('/auth/verify-code', {
+      method: 'POST',
+      body: JSON.stringify({ challenge, code }),
+    })
+
+    this.storeSession(response.data.token, response.data.user)
 
     return response
   }
@@ -271,11 +382,7 @@ class ApiClient {
       body: JSON.stringify(data),
     })
 
-    this.setToken(response.data.token)
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(TOKEN_STORAGE_KEY, response.data.token)
-      window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(response.data.user))
-    }
+    this.storeSession(response.data.token, response.data.user)
 
     return response
   }
@@ -342,6 +449,21 @@ class ApiClient {
     })
   }
 
+  /**
+   * Turn the emailed login code on or off for one account.
+   *
+   * The way back in when somebody's address stops working - a staff member
+   * who has left the organisation that hosted their mailbox, or a mail
+   * provider having a bad week. It is per account rather than global so that
+   * one person's problem does not take the second factor off everybody.
+   */
+  async setUserTwoFactor(id: number, enabled: boolean) {
+    return this.request<any>(`/users/${id}/two-factor`, {
+      method: 'PATCH',
+      body: JSON.stringify({ two_factor_enabled: enabled }),
+    })
+  }
+
   async resetUserPassword(id: number, password: string) {
     return this.request<any>(`/users/${id}/password`, {
       method: 'POST',
@@ -405,6 +527,7 @@ class ApiClient {
   async createDonor(data: {
     first_name: string
     last_name: string
+    national_id?: string
     phone?: string
     email?: string
     address?: string
@@ -421,6 +544,7 @@ class ApiClient {
   async updateDonor(id: number, data: {
     first_name: string
     last_name: string
+    national_id?: string
     phone?: string
     email?: string
     address?: string
@@ -634,11 +758,25 @@ class ApiClient {
    * page - the same trap the incomes search was in, where a name present in
    * the database simply did not come up.
    */
-  async getBeneficiaries(params?: { search?: string; type?: 'Widow' | 'Orphan'; per_page?: number }) {
+  /**
+   * Who can be picked, which depends on which fund is paying.
+   *
+   * The عدة fund offers the families still in their waiting period and
+   * nobody else; every other fund offers the association's families and not
+   * them. Passing the budget is what makes that happen, so a form that
+   * forgets to pass it gets the ordinary families - the safe way round.
+   */
+  async getBeneficiaries(params?: {
+    search?: string
+    type?: 'Widow' | 'Orphan'
+    per_page?: number
+    budget_id?: number
+  }) {
     const query = new URLSearchParams()
     if (params?.search) query.set('search', params.search)
     if (params?.type) query.set('type', params.type)
     if (params?.per_page) query.set('per_page', String(params.per_page))
+    if (params?.budget_id) query.set('budget_id', String(params.budget_id))
 
     const suffix = query.toString()
     return this.request<any[]>(`/beneficiaries${suffix ? `?${suffix}` : ''}`)
@@ -727,8 +865,65 @@ class ApiClient {
     return this.request<any>('/reports/sponsorship-gaps')
   }
 
+  async createBankAccount(data: Record<string, any>) {
+    return this.request<any>('/bank-accounts', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async updateBankAccount(id: number, data: Record<string, any>) {
+    return this.request<any>(`/bank-accounts/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  }
+
+  async deleteBankAccount(id: number) {
+    return this.request<any>(`/bank-accounts/${id}`, { method: 'DELETE' })
+  }
+
+  async createKafalaChamilaSplit(label: string) {
+    return this.request<any>('/kafala-chamila/splits', { method: 'POST', body: JSON.stringify({ label }) })
+  }
+
+  async renameKafalaChamilaSplit(id: number, label: string) {
+    return this.request<any>(`/kafala-chamila/splits/${id}`, { method: 'PUT', body: JSON.stringify({ label }) })
+  }
+
+  async deleteKafalaChamilaSplit(id: number) {
+    return this.request<any>(`/kafala-chamila/splits/${id}`, { method: 'DELETE' })
+  }
+
+  /**
+   * Replaces the whole set of a year's marks on one enrollment.
+   *
+   * Each carries what it counts for, as a percentage of the year. A weight
+   * of zero records the mark and keeps it out of the average.
+   */
+  async saveExamGrades(
+    enrollmentId: number,
+    grades: Array<{ label: string; mark: number; scale: number; weight: number }>,
+  ) {
+    return this.request<any>(`/enrollments/${enrollmentId}/grades`, {
+      method: 'PUT',
+      body: JSON.stringify({ grades }),
+    })
+  }
+
   async getBudgets() {
     return this.request<any[]>('/budgets')
+  }
+
+  /** Which categories each fund offers, as budget id => category ids. */
+  async getBudgetCategories() {
+    return this.request<{ income: Record<string, number[]>; expense: Record<string, number[]> }>(
+      '/budget-categories',
+    )
+  }
+
+  async saveBudgetCategories(
+    budgetId: number,
+    lists: { income_category_ids: number[]; expense_category_ids: number[] },
+  ) {
+    return this.request<any>(`/budgets/${budgetId}/categories`, {
+      method: 'PUT',
+      body: JSON.stringify(lists),
+    })
   }
 
   async getIncomeCategories() {
@@ -750,6 +945,8 @@ class ApiClient {
     widow_id?: number
     has_disability?: boolean
     education_level?: string
+    sector_id?: number
+    neighborhood?: string
     illness_id?: number
     aid_type_id?: number
     skill_id?: number
@@ -762,13 +959,18 @@ class ApiClient {
     sort_by?: string
     sort_order?: 'asc' | 'desc'
     archived?: boolean
+    /** 'only' for the عدة cases, 'all' for both; omitted means the families. */
+    idda?: 'only' | 'all'
   }) {
     const searchParams = new URLSearchParams()
     if (params?.search) searchParams.set('search', params.search)
     if (params?.archived) searchParams.set('archived', '1')
+    if (params?.idda) searchParams.set('idda', params.idda)
     if (params?.widow_id) searchParams.set('widow_id', params.widow_id.toString())
     if (params?.has_disability !== undefined) searchParams.set('has_disability', params.has_disability.toString())
     if (params?.education_level) searchParams.set('education_level', params.education_level)
+    if (params?.sector_id) searchParams.set('sector_id', params.sector_id.toString())
+    if (params?.neighborhood) searchParams.set('neighborhood', params.neighborhood)
     if (params?.illness_id) searchParams.set('illness_id', params.illness_id.toString())
     if (params?.aid_type_id) searchParams.set('aid_type_id', params.aid_type_id.toString())
     if (params?.skill_id) searchParams.set('skill_id', params.skill_id.toString())
@@ -883,6 +1085,11 @@ class ApiClient {
   }
 
   /** Archive a family (soft delete) with the leaving information. */
+  /** Take a family on once her عدة is over: she becomes one of the families. */
+  async enrolWidow(id: number) {
+    return this.request<any>(`/widows/${id}/enrol`, { method: 'POST' })
+  }
+
   async archiveWidow(id: number, leaving: {
     leaving_date: string
     leaving_reason: string
@@ -1141,9 +1348,7 @@ class ApiClient {
       throw new ApiError(response, data)
     }
 
-    const disposition = response.headers.get('Content-Disposition') || ''
-    const match = disposition.match(/filename="?([^"';]+)"?/)
-    const filename = match ? match[1] : fallbackName
+    const filename = filenameFrom(response.headers.get('Content-Disposition')) ?? fallbackName
 
     const blob = await response.blob()
     const url = URL.createObjectURL(blob)
@@ -1328,9 +1533,47 @@ class ApiClient {
   }
 
   // Education levels for orphans
+  /**
+   * Replaces a level's marking scheme. The whole set at once, because the
+   * weights are only valid as a set that totals 100.
+   */
+  async saveLevelGradeComponents(
+    levelId: number,
+    components: Array<{ label: string; weight: number }>,
+  ) {
+    return this.request<any>(`/references/education-levels/${levelId}/components`, {
+      method: 'PUT',
+      body: JSON.stringify({ components }),
+    })
+  }
+
   async getOrphansEducationLevels() {
     return this.request<any[]>('/orphans-education-levels')
   }
+}
+
+/**
+ * The name the server gave the file.
+ *
+ * Reports and cards are titled in Arabic, which cannot travel in the plain
+ * `filename=` parameter - the header is bytes with no declared encoding. The
+ * server sends the real name in RFC 5987's `filename*`, which declares UTF-8
+ * and percent-encodes it, and leaves a plain ASCII name in `filename=` for
+ * anything that does not understand that. Read the good one first.
+ */
+function filenameFrom(disposition: string | null): string | null {
+  if (!disposition) return null
+
+  const encoded = disposition.match(/filename\*\s*=\s*UTF-8''([^;]+)/i)
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded[1].trim())
+    } catch {
+      // A malformed escape is not worth losing the download over.
+    }
+  }
+
+  return disposition.match(/filename="?([^"';]+)"?/)?.[1] ?? null
 }
 
 export const api = new ApiClient()
@@ -1403,9 +1646,26 @@ if (typeof window !== 'undefined' && !(window as any).__amasoFetchPatched) {
 
     const response = await originalFetch(input, init)
 
-    if (isApiRequest && response.status === 401 && !url.includes('/auth/login')) {
+    if (
+      isApiRequest &&
+      response.status === 401 &&
+      !CREDENTIAL_ENDPOINTS.some((path) => url.includes(path))
+    ) {
       api.clearSession()
       window.location.href = '/login'
+    }
+
+    // The same password-expiry signal, for the screens that call fetch()
+    // directly. Read from a clone so the caller still gets an unread body.
+    if (isApiRequest && response.status === 423) {
+      try {
+        const body = await response.clone().json()
+        if (body?.code === 'password_expired') {
+          announcePasswordExpired()
+        }
+      } catch {
+        /* not JSON; nothing to signal */
+      }
     }
 
     // Any successful write can have changed a cached reference list. The

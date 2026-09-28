@@ -17,6 +17,7 @@
         'heading' => 'بيانات المتبرع',
         'items' => [
             'الاسم الكامل' => trim("{$donor->first_name} {$donor->last_name}"),
+            'رقم البطاقة الوطنية' => $or($donor->national_id),
             'رقم الهاتف' => $or($donor->phone),
             'البريد الإلكتروني' => $or($donor->email),
             'العنوان' => $or($donor->address),

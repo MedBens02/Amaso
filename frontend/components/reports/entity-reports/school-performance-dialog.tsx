@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { FileDown, GraduationCap, Loader2 } from "lucide-react"
+import { FileDown, FileSpreadsheet, GraduationCap, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
 
@@ -109,27 +109,32 @@ export function SchoolPerformanceDialog({ open, onOpenChange }: SchoolPerformanc
     }
   }
 
-  const generatePDF = async () => {
+  /** The filters, in one place, so the table and both files agree. */
+  const exportFilters = () => ({
+    academic_year_id: academicYearId !== ANY ? parseInt(academicYearId) : undefined,
+    semester,
+    gender: gender !== ANY ? gender : undefined,
+    education_level_id: levelId !== ANY ? parseInt(levelId) : undefined,
+    school_id: schoolId !== ANY ? parseInt(schoolId) : undefined,
+    school_type: schoolType !== ANY ? schoolType : undefined,
+    is_private: sector === ANY ? undefined : sector === "private",
+    is_amaso_linked: amasoLinked === ANY ? undefined : amasoLinked === "yes",
+    group_by: groupBy,
+    top_n: topN ? parseInt(topN) : undefined,
+  })
+
+  const generateFile = async (format: "pdf" | "xlsx") => {
     if (isGenerating) return
 
     setIsGenerating(true)
     try {
-      await api.downloadPdf('/reports/school-performance.pdf', {
-        academic_year_id: academicYearId !== ANY ? parseInt(academicYearId) : undefined,
-        semester,
-        gender: gender !== ANY ? gender : undefined,
-        education_level_id: levelId !== ANY ? parseInt(levelId) : undefined,
-        school_id: schoolId !== ANY ? parseInt(schoolId) : undefined,
-        school_type: schoolType !== ANY ? schoolType : undefined,
-        is_private: sector === ANY ? undefined : sector === "private",
-        is_amaso_linked: amasoLinked === ANY ? undefined : amasoLinked === "yes",
-        group_by: groupBy,
-        top_n: topN ? parseInt(topN) : undefined,
-      })
-      toast({ title: "تم تحميل التقرير" })
+      format === "pdf"
+        ? await api.downloadPdf('/reports/school-performance.pdf', exportFilters())
+        : await api.downloadExcel('/reports/school-performance.xlsx', exportFilters())
+      toast({ title: format === "pdf" ? "تم تحميل التقرير" : "تم تحميل ملف Excel" })
     } catch (error: any) {
       toast({
-        title: "خطأ في إنشاء الـ PDF",
+        title: "خطأ في إنشاء الملف",
         description: error?.message || "حدث خطأ أثناء إنشاء الملف. يرجى المحاولة مرة أخرى",
         variant: "destructive",
       })
@@ -156,7 +161,7 @@ export function SchoolPerformanceDialog({ open, onOpenChange }: SchoolPerformanc
               <Label className="text-xs">السنة الدراسية</Label>
               <Select value={academicYearId} onValueChange={setAcademicYearId}>
                 <SelectTrigger><SelectValue placeholder="السنة" /></SelectTrigger>
-                <SelectContent>
+                <SelectContent searchable>
                   <SelectItem value={ANY}>السنة الحالية</SelectItem>
                   {years.map((year) => (
                     <SelectItem key={year.id} value={year.id.toString()}>
@@ -195,7 +200,7 @@ export function SchoolPerformanceDialog({ open, onOpenChange }: SchoolPerformanc
               <Label className="text-xs">المستوى الدراسي</Label>
               <Select value={levelId} onValueChange={setLevelId}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent searchable>
                   <SelectItem value={ANY}>كل المستويات</SelectItem>
                   {levels.map((level) => (
                     <SelectItem key={level.id} value={level.id.toString()}>{level.name_ar}</SelectItem>
@@ -232,7 +237,7 @@ export function SchoolPerformanceDialog({ open, onOpenChange }: SchoolPerformanc
               <Label className="text-xs">المؤسسة</Label>
               <Select value={schoolId} onValueChange={setSchoolId}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent searchable>
                   <SelectItem value={ANY}>كل المؤسسات</SelectItem>
                   {schools.map((school) => (
                     <SelectItem key={school.id} value={school.id.toString()}>{school.name}</SelectItem>
@@ -417,7 +422,11 @@ export function SchoolPerformanceDialog({ open, onOpenChange }: SchoolPerformanc
 
           <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)}>إغلاق</Button>
-            <Button onClick={generatePDF} disabled={!report || isGenerating}>
+            <Button variant="outline" onClick={() => generateFile("xlsx")} disabled={!report || isGenerating}>
+              {isGenerating ? <Loader2 className="h-4 w-4 ml-2 animate-spin" /> : <FileSpreadsheet className="h-4 w-4 ml-2" />}
+              تصدير Excel
+            </Button>
+            <Button onClick={() => generateFile("pdf")} disabled={!report || isGenerating}>
               {isGenerating ? <Loader2 className="h-4 w-4 ml-2 animate-spin" /> : <FileDown className="h-4 w-4 ml-2" />}
               تصدير PDF
             </Button>

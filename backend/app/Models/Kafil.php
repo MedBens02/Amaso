@@ -25,6 +25,9 @@ class Kafil extends Model
         'monthly_pledge' => 'decimal:2',
     ];
 
+    // national_id is deliberately not appended: it reads through the donor
+    // relation, and appending it would fetch one donor per kafil every time
+    // a list of them is serialised.
     protected $appends = [
         'full_name',
         'total_sponsorship_amount',
@@ -50,6 +53,20 @@ class Kafil extends Model
     public function getFullNameAttribute(): string
     {
         return trim($this->first_name . ' ' . $this->last_name);
+    }
+
+    /**
+     * The card number, read from the donor record rather than stored here.
+     *
+     * A kafil row keeps its own copy of the name, phone and address, which
+     * is why editing a donor and editing their sponsor record are two
+     * separate things that can disagree. A person has one card number, and
+     * it is on the donor, so this reads it there instead of adding a sixth
+     * field that can drift out of step.
+     */
+    public function getNationalIdAttribute(): ?string
+    {
+        return $this->donor?->national_id;
     }
 
     /**

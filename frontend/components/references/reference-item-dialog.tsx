@@ -22,17 +22,23 @@ import { useToast } from "@/hooks/use-toast"
 interface ReferenceItemDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  type: 'illness' | 'skill' | 'aid-type' | 'income-category' | 'expense-category' | 'partner' | 'education-level' | 'partner-field' | 'partner-subfield'
+  type: 'illness' | 'skill' | 'aid-type' | 'housing-type' | 'sector' | 'neighborhood' | 'income-category' | 'expense-category' | 'partner' | 'education-level' | 'partner-field' | 'partner-subfield'
   item?: any
   onSuccess: () => void
   extraProps?: any
 }
+
+/** Radix will not take "" as an option value, so the empty choice needs a name. */
+const NO_SECTOR = "__none__"
 
 const getTitle = (type: string) => {
   const titles = {
     'illness': 'المرض',
     'skill': 'المهارة',
     'aid-type': 'نوع المساعدة',
+    'housing-type': 'نوع السكن',
+    'sector': 'القطاع',
+    'neighborhood': 'الحي',
     'income-category': 'فئة الدخل',
     'expense-category': 'فئة المصروف',
     'partner': 'الشريك',
@@ -42,6 +48,9 @@ const getTitle = (type: string) => {
   }
   return titles[type as keyof typeof titles] || 'العنصر'
 }
+
+/** The lookups whose text lives in a `label` column; the rest use `name`. */
+const labelledTypes = ['skill', 'aid-type', 'housing-type', 'sector', 'neighborhood', 'illness']
 
 const getSchema = (type: string) => {
   if (type === 'illness') {
@@ -60,7 +69,16 @@ const getSchema = (type: string) => {
     })
   }
 
-  if (type === 'skill' || type === 'aid-type') {
+  if (type === 'neighborhood') {
+    return z.object({
+      label: z.string().min(1, "اسم الحي مطلوب"),
+      // Left unset on purpose is a real answer: a neighbourhood nobody has
+      // filed yet is better on the list than missing from it.
+      sector_id: z.number().nullable().optional(),
+    })
+  }
+
+  if (type === 'skill' || type === 'aid-type' || type === 'housing-type' || type === 'sector') {
     return z.object({
       label: z.string().min(1, "التسمية مطلوبة"),
     })
@@ -108,13 +126,19 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
   const title = getTitle(type)
   const isEdit = !!item
 
-  const form = useForm({
+  // One dialog, twelve different shapes: getSchema returns a different zod
+  // object per kind, and react-hook-form types itself from whichever branch
+  // TypeScript happens to infer - so every field belonging to one of the
+  // other eleven was an error. The schema still validates at runtime; it is
+  // only the static shape that cannot be pinned to one of them.
+  const form = useForm<any>({
     resolver: zodResolver(getSchema(type)),
     defaultValues: {
       name: item?.name || "",
       name_ar: item?.name_ar || "",
       name_en: item?.name_en || "",
       label: item?.label || "",
+      sector_id: item?.sector_id ?? null,
       phone: item?.phone || "",
       email: item?.email || "",
       address: item?.address || "",
@@ -134,6 +158,7 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
         name_ar: item.name_ar || "",
         name_en: item.name_en || "",
         label: item.label || "",
+        sector_id: item.sector_id ?? null,
         phone: item.phone || "",
         email: item.email || "",
         address: item.address || "",
@@ -149,6 +174,7 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
         name_ar: "",
         name_en: "",
         label: "",
+        sector_id: null,
         phone: "",
         email: "",
         address: "",
@@ -177,6 +203,9 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
         'illness': 'references/illnesses',
         'skill': 'references/skills',
         'aid-type': 'references/aid-types',
+        'housing-type': 'references/housing-types',
+        'sector': 'references/sectors',
+        'neighborhood': 'references/neighborhoods',
         'income-category': 'references/widow-income-categories',
         'expense-category': 'references/widow-expense-categories',
         'partner': 'references/partners',
@@ -325,6 +354,47 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
                 <Label htmlFor="is_chronic">مرض مزمن</Label>
               </div>
             </>
+          ) : type === 'neighborhood' ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="label">اسم الحي *</Label>
+                <Input id="label" {...form.register('label')} placeholder="مثال: حي النور" />
+                {form.formState.errors.label && (
+                  <p className="text-sm text-red-600">{form.formState.errors.label.message}</p>
+                )}
+                {isEdit && (
+                  <p className="text-sm text-muted-foreground">
+                    تغيير الاسم سيُحدّث كل الأسر المسجلة بهذا الحي.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="sector_id">القطاع</Label>
+                <Controller
+                  control={form.control}
+                  name="sector_id"
+                  render={({ field }) => (
+                    <Select
+                      value={field.value ? String(field.value) : NO_SECTOR}
+                      onValueChange={(value) => field.onChange(value === NO_SECTOR ? null : parseInt(value))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختر القطاع" />
+                      </SelectTrigger>
+                      <SelectContent searchable>
+                        <SelectItem value={NO_SECTOR}>بدون قطاع</SelectItem>
+                        {extraProps?.sectors?.map((sector: any) => (
+                          <SelectItem key={sector.id} value={String(sector.id)}>
+                            {sector.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+            </>
           ) : type === 'partner-field' ? (
             <div className="space-y-2">
               <Label htmlFor="label">اسم المجال *</Label>
@@ -349,7 +419,7 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
                       <SelectTrigger>
                         <SelectValue placeholder="اختر المجال" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent searchable>
                         {extraProps?.fields?.map((fieldOption: any) => (
                           <SelectItem key={fieldOption.id} value={fieldOption.id.toString()}>
                             {fieldOption.label}
@@ -446,7 +516,7 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
                       <SelectTrigger>
                         <SelectValue placeholder="اختر المجال (اختياري)" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent searchable>
                         <SelectItem value="0">بدون مجال</SelectItem>
                         {extraProps?.fields?.map((fieldOption: any) => (
                           <SelectItem key={fieldOption.id} value={fieldOption.id.toString()}>
@@ -483,7 +553,7 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
                               : "اختر التخصص (اختياري)"
                           } />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent searchable>
                           <SelectItem value="0">بدون تخصص</SelectItem>
                           {availableSubfields.map((subfield: any) => (
                             <SelectItem key={subfield.id} value={subfield.id.toString()}>
@@ -504,18 +574,20 @@ export function ReferenceItemDialog({ open, onOpenChange, type, item, onSuccess,
             </>
           ) : (
             <div className="space-y-2">
-              <Label htmlFor={type === 'skill' || type === 'aid-type' || type === 'illness' ? 'label' : 'name'}>
+              <Label htmlFor={labelledTypes.includes(type) ? 'label' : 'name'}>
                 {type === 'skill' ? 'اسم المهارة' :
                  type === 'aid-type' ? 'نوع المساعدة' :
+                 type === 'housing-type' ? 'نوع السكن' :
+                 type === 'sector' ? 'اسم القطاع' :
                  type === 'illness' ? 'المرض' :
                  type === 'income-category' ? 'اسم فئة الدخل' :
                  type === 'expense-category' ? 'اسم فئة المصروف' :
                  'الاسم'} *
               </Label>
               <Input
-                id={type === 'skill' || type === 'aid-type' || type === 'illness' ? 'label' : 'name'}
-                {...form.register(type === 'skill' || type === 'aid-type' || type === 'illness' ? 'label' : 'name')}
-                placeholder={type === 'income-category' ? 'مثال: راتب، مساعدات خارجية' : type === 'expense-category' ? 'مثال: رواتب، مصاريف إدارية' : 'ادخل الاسم'}
+                id={labelledTypes.includes(type) ? 'label' : 'name'}
+                {...form.register(labelledTypes.includes(type) ? 'label' : 'name')}
+                placeholder={type === 'income-category' ? 'مثال: راتب، مساعدات خارجية' : type === 'expense-category' ? 'مثال: رواتب، مصاريف إدارية' : type === 'housing-type' ? 'مثال: شقة، منزل، غرفة' : type === 'sector' ? 'مثال: القطاع الشمالي' : 'ادخل الاسم'}
               />
               {form.formState.errors.name && (
                 <p className="text-sm text-red-600">{form.formState.errors.name.message}</p>

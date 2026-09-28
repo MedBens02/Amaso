@@ -39,6 +39,20 @@ class Setting extends Model
         return ($value === null || $value === '') ? $default : $value;
     }
 
+    /**
+     * Drop the cached copy.
+     *
+     * Public because a migration that writes settings through the query
+     * builder - the normal thing for a migration to do, since the model may
+     * not exist yet when it runs - leaves this cache holding the values from
+     * before the upgrade. It is remembered forever, so nothing else would
+     * ever clear it.
+     */
+    public static function forget(): void
+    {
+        Cache::forget(self::CACHE_KEY);
+    }
+
     /** @param array<string, string|null> $values */
     public static function putMany(array $values): void
     {

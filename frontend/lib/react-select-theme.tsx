@@ -1,4 +1,7 @@
-import type { StylesConfig } from "react-select"
+"use client"
+
+import * as React from "react"
+import { components as reactSelectComponents, type MenuListProps, type StylesConfig } from "react-select"
 
 /**
  * react-select, dressed in the app's own theme.
@@ -59,9 +62,17 @@ export const reactSelectStyles: StylesConfig<any, any, any> = {
   menuPortal: (base) => ({ ...base, zIndex: 99999, pointerEvents: "auto" }),
   menuList: (base) => ({
     ...base,
-    maxHeight: "260px",
+    // No maxHeight of our own. react-select works one out for every open -
+    // `maxMenuHeight` where the menu fits, less where it does not - and a
+    // fixed 260px here overrode it, so a control near the bottom of the
+    // window opened a list 260px tall into 150px of space and the rest of
+    // it was simply off the screen. There is no scrolling out of that:
+    // the menu is `position: fixed`, so nothing scrolls it into view.
     backgroundColor: "hsl(var(--popover))",
     padding: "4px",
+    // Reaching the end of the list should not start scrolling whatever is
+    // behind it.
+    overscrollBehavior: "contain",
   }),
   option: (base, state) => ({
     ...base,
@@ -92,14 +103,75 @@ export const reactSelectStyles: StylesConfig<any, any, any> = {
 }
 
 /**
- * Spread onto every <ReactSelect> so one import carries the theme, the portal
- * and the Arabic empty-state together.
+ * The option list, with the wheel put back.
+ *
+ * A Radix dialog locks scrolling while it is open, and it does it by
+ * listening for `wheel` on the document and calling preventDefault on
+ * anything that did not come from inside the dialog. Our menu is portalled
+ * to <body> precisely so the dialog cannot clip it - which also puts it
+ * outside the dialog, so every wheel tick over the list was cancelled. The
+ * arrow keys worked (they are not wheel events) and so did dragging the
+ * scrollbar (also not a wheel event), which is exactly how it was reported:
+ * a list you can see, can scroll by hand, and cannot scroll with the mouse.
+ *
+ * Stopping the event at the list keeps it from reaching the document
+ * listener at all, so the browser scrolls the list the way it normally
+ * would. `overscrollBehavior: contain` above stops the page moving once the
+ * list has nowhere left to go.
  */
+function MenuList(props: MenuListProps<any, boolean, any>) {
+  const [node, setNode] = React.useState<HTMLDivElement | null>(null)
+  const { innerRef } = props
+
+  const captureRef = React.useCallback(
+    (element: HTMLDivElement | null) => {
+      setNode(element)
+      if (typeof innerRef === "function") innerRef(element)
+      else if (innerRef) (innerRef as React.MutableRefObject<HTMLDivElement | null>).current = element
+    },
+    [innerRef],
+  )
+
+  React.useEffect(() => {
+    if (!node) return
+    const keepItHere = (event: WheelEvent) => event.stopPropagation()
+    node.addEventListener("wheel", keepItHere)
+    return () => node.removeEventListener("wheel", keepItHere)
+  }, [node])
+
+  return <reactSelectComponents.MenuList {...props} innerRef={captureRef} />
+}
+
+/**
+ * Everything a <ReactSelect> in this app needs that is not about the data it
+ * shows: the theme, the portal, the placement and the Arabic empty states.
+ *
+ * Spread it, do not copy it. Five wrappers each carrying their own copy of
+ * these six props is what let the clipped menu and the dead wheel live in
+ * some of them and not others.
+ */
+export const reactSelectComponentOverrides = {
+  IndicatorSeparator: () => null,
+  MenuList,
+}
+
 export const reactSelectProps = {
   styles: reactSelectStyles,
+  components: reactSelectComponentOverrides,
+  classNamePrefix: "rs",
   menuPortalTarget: typeof document !== "undefined" ? document.body : null,
   menuPosition: "fixed" as const,
+  // Open upwards when there is not enough room below. Without this the menu
+  // always opens downwards and a control low on the screen loses its last
+  // options off the bottom edge.
+  menuPlacement: "auto" as const,
+  maxMenuHeight: 280,
+  // Below this much room, open upwards rather than squeezing the list into
+  // what is left: react-select only flips once the space below is too small
+  // even for the minimum, and its own 140px minimum is two or three options.
+  minMenuHeight: 220,
   menuShouldBlockScroll: false,
+  menuShouldScrollIntoView: false,
   isRtl: true,
   noOptionsMessage: () => "لا توجد خيارات",
   loadingMessage: () => "جاري التحميل...",

@@ -10,6 +10,7 @@ use App\Models\KafalaChamilaSplit;
 use App\Services\KafalaChamilaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class KafalaChamilaController extends Controller
 {
@@ -65,9 +66,7 @@ class KafalaChamilaController extends Controller
      */
     public function updateSplits(UpdateKafalaChamilaSplitsRequest $request): JsonResponse
     {
-        if (!auth()->user()?->isAdmin()) {
-            throw new BusinessRuleException('غير مخول لتعديل نسب توزيع الكفالة الشاملة. هذه العملية مقتصرة على المديرين فقط.', 403);
-        }
+        $this->requireAdmin();
 
         $splits = $this->kafalaChamila->updateSplits($request->validated()['splits']);
 
@@ -75,6 +74,92 @@ class KafalaChamilaController extends Controller
             'message' => 'تم تحديث نسب توزيع الكفالة الشاملة بنجاح',
             'data' => $splits,
         ]);
+    }
+
+    /**
+     * Add a part to the split.
+     *
+     * The seven were fixed in the schema and in the wording around it, which
+     * was right while nobody had asked for an eighth. It comes in at zero
+     * percent: the percentages must total exactly 100, and a new part cannot
+     * know whose share it is taking.
+     */
+    public function storeSplit(Request $request): JsonResponse
+    {
+        $this->requireAdmin();
+
+        $validated = $request->validate([
+            'label' => ['required', 'string', 'max:120', Rule::unique('kafala_chamila_splits', 'label')],
+        ], [
+            'label.required' => 'اسم البند مطلوب',
+            'label.unique' => 'يوجد بند بهذا الاسم',
+        ]);
+
+        $split = $this->kafalaChamila->createSplit($validated['label']);
+
+        return response()->json([
+            'message' => 'تم إضافة البند بنسبة 0%. عدّل النسب ليصبح مجموعها 100%.',
+            'data' => $split->load(['budget', 'incomeCategory']),
+        ], 201);
+    }
+
+    /** Rename a part, and the budget and category that carry its money. */
+    public function updateSplit(Request $request, KafalaChamilaSplit $split): JsonResponse
+    {
+        $this->requireAdmin();
+
+        $validated = $request->validate([
+            'label' => ['required', 'string', 'max:120', Rule::unique('kafala_chamila_splits', 'label')->ignore($split->id)],
+        ], [
+            'label.required' => 'اسم البند مطلوب',
+            'label.unique' => 'يوجد بند بهذا الاسم',
+        ]);
+
+        return response()->json([
+            'message' => 'تم تحديث البند بنجاح',
+            'data' => $this->kafalaChamila->renameSplit($split, $validated['label']),
+        ]);
+    }
+
+    /**
+     * Remove a part - only while no money has gone through it, and never
+     * the last one, and never one still holding a share of the split.
+     */
+    public function destroySplit(KafalaChamilaSplit $split): JsonResponse
+    {
+        $this->requireAdmin();
+
+        if (KafalaChamilaSplit::count() <= 1) {
+            throw new BusinessRuleException('لا يمكن حذف آخر بند في توزيع الكفالة الشاملة.', 422);
+        }
+
+        if ((float) $split->percentage > 0.001) {
+            throw new BusinessRuleException(
+                "لا يمكن حذف \"{$split->label}\" وله نسبة {$split->percentage}%. أعد توزيع نسبته على البنود الأخرى أولاً.",
+                422,
+            );
+        }
+
+        $usage = $this->kafalaChamila->splitUsage($split);
+
+        if ($usage['incomes'] + $usage['expenses'] > 0) {
+            throw new BusinessRuleException(
+                "لا يمكن حذف \"{$split->label}\": سُجّل عليه {$usage['incomes']} إيراد و{$usage['expenses']} مصروف. ميزانيته هي سجل أين ذهب ذلك المال.",
+                422,
+            );
+        }
+
+        $label = $split->label;
+        $this->kafalaChamila->deleteSplit($split);
+
+        return response()->json(['message' => "تم حذف البند \"{$label}\" بنجاح"]);
+    }
+
+    private function requireAdmin(): void
+    {
+        if (!auth()->user()?->isAdmin()) {
+            throw new BusinessRuleException('غير مخول لتعديل توزيع الكفالة الشاملة. هذه العملية مقتصرة على المديرين فقط.', 403);
+        }
     }
 
     /**

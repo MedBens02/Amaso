@@ -37,8 +37,15 @@ class ReportAggregateService
             ? now()->subYears((int) $filters['max_age'] + 1)->endOfDay()
             : null;
 
-        $widows = Widow::query()
+        // Families still in عدة are left out: they are being supported while
+        // the case is looked at, not yet taken on, and counting them would
+        // overstate every figure in this report.
+        $widows = Widow::query()->regular()
             ->when(!empty($filters['neighborhood']), fn ($q) => $q->where('neighborhood', $filters['neighborhood']))
+            ->when(!empty($filters['sector_id']), fn ($q) => $q->whereIn(
+                'neighborhood',
+                \App\Models\Neighborhood::where('sector_id', $filters['sector_id'])->pluck('label'),
+            ))
             ->when(isset($filters['disability_flag']), fn ($q) => $q->where('disability_flag', (bool) $filters['disability_flag']))
             ->when(!empty($filters['education_level']), fn ($q) => $q->where('education_level', $filters['education_level']))
             ->when($bornOnOrBefore, fn ($q) => $q->whereDate('birth_date', '<=', $bornOnOrBefore))
@@ -63,6 +70,15 @@ class ReportAggregateService
 
         $withDisability = (clone $widows)->where('disability_flag', true)->count();
 
+        // Neighborhood name -> the sector it is filed under, fetched once
+        // rather than joined per row. The family record carries the name,
+        // so this is the only way from a family to its sector.
+        $sectorOf = \App\Models\Neighborhood::with('sector')
+            ->get()
+            ->mapWithKeys(fn ($item) => [$item->label => $item->sector?->label])
+            ->filter()
+            ->all();
+
         return [
             'totals' => [
                 'widows' => $totalWidows,
@@ -77,6 +93,17 @@ class ReportAggregateService
             ],
             'by_neighborhood' => (clone $widows)
                 ->selectRaw('COALESCE(NULLIF(neighborhood, ""), "غير محدد") as label, COUNT(*) as total')
+                ->groupBy('label')->orderByDesc('total')->get()
+                ->map(fn ($r) => ['label' => $r->label, 'total' => (int) $r->total])->all(),
+            // The same families counted one level up. Joined by name rather
+            // than by id because that is what the family record carries; a
+            // neighborhood nobody has filed under a sector, and a family
+            // whose neighborhood is not on the list at all, both land in
+            // "غير محدد" rather than being left out of the total.
+            'by_sector' => (clone $widows)
+                ->leftJoin('neighborhoods', 'neighborhoods.label', '=', 'widows.neighborhood')
+                ->leftJoin('sectors', 'sectors.id', '=', 'neighborhoods.sector_id')
+                ->selectRaw('COALESCE(NULLIF(sectors.label, ""), "غير محدد") as label, COUNT(*) as total')
                 ->groupBy('label')->orderByDesc('total')->get()
                 ->map(fn ($r) => ['label' => $r->label, 'total' => (int) $r->total])->all(),
             'orphans_by_gender' => (clone $orphans)
@@ -96,6 +123,7 @@ class ReportAggregateService
                     'full_name' => $w->full_name,
                     'phone' => $w->phone,
                     'neighborhood' => $w->neighborhood,
+                    'sector' => $sectorOf[$w->neighborhood] ?? '—',
                     'orphans_count' => $w->orphans_count,
                     'sponsorships_count' => $w->sponsorships_count,
                     'admission_date' => $w->admission_date?->format('Y-m-d'),
@@ -258,8 +286,22 @@ class ReportAggregateService
             ->selectRaw('widow_id, SUM(amount) as total, COUNT(*) as kafils')
             ->groupBy('widow_id')->get()->keyBy('widow_id');
 
-        $rows = Widow::query()
+        $rows = Widow::query()->regular()
             ->when(!empty($filters['neighborhood']), fn ($q) => $q->where('neighborhood', $filters['neighborhood']))
+            ->when(!empty($filters['sector_id']), fn ($q) => $q->whereIn(
+                'neighborhood',
+                \App\Models\Neighborhood::where('sector_id', $filters['sector_id'])->pluck('label'),
+            ))
+            // One sponsor's own families. The shortfall itself stays what
+            // it was - the whole commitment against the target, from every
+            // sponsor - because what a family is still short does not
+            // change depending on who is asking.
+            ->when(!empty($filters['kafil_id']), fn ($q) => $q->whereHas(
+                'sponsorships',
+                fn ($s) => $s->where('kafil_id', $filters['kafil_id']),
+            ))
+            ->when(!empty($filters['admission_from']), fn ($q) => $q->whereDate('admission_date', '>=', $filters['admission_from']))
+            ->when(!empty($filters['admission_to']), fn ($q) => $q->whereDate('admission_date', '<=', $filters['admission_to']))
             ->withCount('orphans')
             ->orderBy('first_name')
             ->get()

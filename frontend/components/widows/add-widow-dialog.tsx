@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { IddaFields } from "@/components/widows/idda-fields"
 import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -14,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
@@ -24,6 +26,7 @@ import { MultiSelectRS } from "@/components/common/MultiSelectRS"
 import { ExtraPhonesField } from "@/components/widows/extra-phones-field"
 import { ChildExtraFields } from "@/components/widows/child-extra-fields"
 import { SingleSelectRS } from "@/components/common/SingleSelectRS"
+import { groupBySector, type NeighborhoodOption } from "@/lib/neighborhoods"
 import { StarRating } from "@/components/common/StarRating"
 import { useToast } from "@/hooks/use-toast"
 import { Plus, Trash2, User, Users, Home, Heart, HandHeart } from "lucide-react"
@@ -47,6 +50,11 @@ const widowSchema = z
     neighborhood: z.string().min(1, "الحي مطلوب"),
     address: z.string().optional(),
     admissionDate: z.date({ required_error: "تاريخ الانضمام مطلوب" }),
+    // When she was widowed, and whether this is still a عدة case rather than
+    // one of the association's families.
+    husbandDeathDate: z.string().optional(),
+    isIddaCase: z.boolean().optional(),
+    iddaEndDate: z.string().optional(),
     maritalStatus: z.string().optional(),
     educationLevel: z.string().optional(),
     disabilityFlag: z.boolean().default(false),
@@ -189,6 +197,33 @@ const widowSchema = z
     },
   )
 
+  .refine(
+    (data) => {
+      // A family cannot join the association before she was widowed. Mirrors
+      // the server rule, so the form says so at the field instead of the
+      // save failing after everything else has been filled in.
+      if (!data.husbandDeathDate || !data.admissionDate) return true
+      return toDateInputValue(data.admissionDate) >= data.husbandDeathDate
+    },
+    {
+      message: "تاريخ الانضمام لا يمكن أن يسبق تاريخ وفاة الزوج",
+      path: ["admissionDate"],
+    },
+  )
+  .refine(
+    (data) => {
+      // A يتيم جديد case is dated from the death: without it there is
+      // nothing to count the عدة from and nothing to check the admission
+      // date against.
+      if (!data.isIddaCase) return true
+      return Boolean(data.husbandDeathDate)
+    },
+    {
+      message: "تاريخ وفاة الزوج مطلوب لحالة يتيم جديد",
+      path: ["husbandDeathDate"],
+    },
+  )
+
 type WidowFormData = z.infer<typeof widowSchema>
 
 interface AddWidowDialogProps {
@@ -204,7 +239,7 @@ interface LookupOption {
 }
 
 interface LookupData {
-  neighborhoods: LookupOption[]
+  neighborhoods: NeighborhoodOption[]
   housingTypes: LookupOption[]
   incomeCategories: LookupOption[]
   expenseCategories: LookupOption[]
@@ -240,6 +275,9 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
       email: "",
       address: "",
       neighborhood: "",
+      husbandDeathDate: "",
+      isIddaCase: false,
+      iddaEndDate: "",
       maritalStatus: "Widowed",
       educationLevel: "",
       children: [],
@@ -327,16 +365,14 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
         ])
 
         const apiData: LookupData = {
-          // The neighbourhoods already on file, read from the same endpoint
-          // the rest of this form reads. These used to be four names written
-          // into this file, which meant a neighbourhood added through the
-          // form's own "write a new one" box was saved, appeared in the
-          // referential, and then could never be picked for the next family -
-          // while one of the four hardcoded names belonged to no family at all.
-          neighborhoods: (widowsRefData?.data?.neighborhoods || []).map((name: string) => ({
-            id: name,
-            name,
-          })),
+          // The managed list, with each neighbourhood's sector, read from
+          // the same endpoint as the rest of this form. These used to be
+          // four names written into this file, which meant a neighbourhood
+          // added through the form's own "write a new one" box was saved,
+          // appeared in the referential, and then could never be picked for
+          // the next family - while one of the four hardcoded names
+          // belonged to no family at all.
+          neighborhoods: widowsRefData?.data?.neighborhoods || [],
           housingTypes: (widowsRefData?.data?.housing_types || []).map((item: any) => ({
             id: item.id.toString(),
             name: item.label
@@ -459,6 +495,9 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
           ? data.neighborhood.replace('__new_option_', '') 
           : data.neighborhood,
         admission_date: data.admissionDate.toISOString().split('T')[0],
+        husband_death_date: data.husbandDeathDate || null,
+        is_idda_case: data.isIddaCase,
+        idda_end_date: data.isIddaCase ? (data.iddaEndDate || null) : null,
         national_id: data.nationalId || "",
         birth_date: data.birthDate.toISOString().split('T')[0],
         marital_status: data.maritalStatus || "Widowed",
@@ -716,11 +755,14 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                     control={form.control}
                     render={({ field }) => (
                       <div onClick={(e) => e.stopPropagation()}>
-                        <Input
-                          type="date"
+                        <DateField
                           max={toDateInputValue(new Date())}
+                          /* Not before she was widowed - the calendar refuses
+                             the earlier days rather than letting somebody
+                             pick one and be told afterwards. */
+                          min={form.watch("husbandDeathDate") || undefined}
                           value={toDateInputValue(field.value)}
-                          onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
+                          onChange={(value) => field.onChange(fromDateInputValue(value))}
                         />
                       </div>
                     )}
@@ -791,10 +833,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                     control={form.control}
                     render={({ field }) => (
                       <SingleSelectRS
-                        options={lookupData.neighborhoods.map((neighborhood) => ({ 
-                          label: neighborhood.name, 
-                          value: neighborhood.name 
-                        }))}
+                        options={groupBySector(lookupData.neighborhoods)}
                         onChange={field.onChange}
                         value={field.value || ""}
                         placeholder="اختر الحي أو اكتب حياً جديداً"
@@ -813,11 +852,10 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                     control={form.control}
                     render={({ field }) => (
                       <div onClick={(e) => e.stopPropagation()}>
-                        <Input
-                          type="date"
+                        <DateField
                           max={toDateInputValue(new Date())}
                           value={toDateInputValue(field.value)}
-                          onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
+                          onChange={(value) => field.onChange(fromDateInputValue(value))}
                         />
                       </div>
                     )}
@@ -827,6 +865,18 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                   )}
                 </div>
               </div>
+
+              <IddaFields
+                husbandDeathDate={form.watch("husbandDeathDate") || ""}
+                isIddaCase={form.watch("isIddaCase") || false}
+                iddaEndDate={form.watch("iddaEndDate") || ""}
+                admissionDate={toDateInputValue(form.watch("admissionDate"))}
+                onChange={(patch) => {
+                  if (patch.husbandDeathDate !== undefined) form.setValue("husbandDeathDate", patch.husbandDeathDate)
+                  if (patch.isIddaCase !== undefined) form.setValue("isIddaCase", patch.isIddaCase)
+                  if (patch.iddaEndDate !== undefined) form.setValue("iddaEndDate", patch.iddaEndDate)
+                }}
+              />
 
               {/* الحالة الاجتماعية was dropped from the form: the column
                   is required by the API and keeps its "Widowed" default, but
@@ -984,7 +1034,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                               <SelectTrigger>
                                 <SelectValue placeholder="اختر المرحلة الدراسية" />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent searchable>
                                 <SelectItem value="0">غير محدد</SelectItem>
                                 {educationLevels.map((level) => (
                                   <SelectItem key={level.id} value={level.id.toString()}>
@@ -1007,11 +1057,10 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                       control={form.control}
                       render={({ field }) => (
                         <div onClick={(e) => e.stopPropagation()}>
-                          <Input
-                            type="date"
+                          <DateField
                             max={toDateInputValue(new Date())}
                             value={toDateInputValue(field.value)}
-                            onChange={(e) => field.onChange(fromDateInputValue(e.target.value))}
+                            onChange={(value) => field.onChange(fromDateInputValue(value))}
                           />
                         </div>
                       )}
@@ -1040,7 +1089,7 @@ export function AddWidowDialog({ open, onOpenChange, onSuccess }: AddWidowDialog
                             <SelectTrigger>
                               <SelectValue placeholder="اختر نوع السكن" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent searchable>
                               {lookupData.housingTypes.map((type) => (
                                 <SelectItem key={type.id} value={type.id.toString()}>
                                   {type.name}

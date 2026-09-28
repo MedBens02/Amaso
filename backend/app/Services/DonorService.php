@@ -106,6 +106,7 @@ class DonorService
         return [
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
+            'national_id' => $data['national_id'] ?? null,
             'phone' => $data['phone'] ?? null,
             'email' => $data['email'] ?? null,
             'address' => $data['address'] ?? null,

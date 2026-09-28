@@ -37,6 +37,18 @@ export function isCurrentUserAdmin(): boolean {
 }
 
 /**
+ * May turn a recorded figure into money the books count.
+ *
+ * Presentation only, like the others here: the endpoints carry
+ * `role:admin,superuser,accountant` themselves, because a hidden button
+ * stops nobody calling them.
+ */
+export function isCurrentUserApprover(): boolean {
+  const role = getCurrentUser()?.role
+  return role === "admin" || role === "superuser" || role === "accountant"
+}
+
+/**
  * May manage accounts and read the activity log.
  *
  * Presentation only - the backend gates both on `role:superuser`, because

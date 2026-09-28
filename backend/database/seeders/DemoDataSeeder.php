@@ -14,6 +14,7 @@ use App\Models\IncomeCategory;
 use App\Models\Kafil;
 use App\Models\KafalaChamilaSplit;
 use App\Models\KafilSponsorship;
+use App\Models\EducationLevelGradeComponent;
 use App\Models\OrphanEnrollment;
 use App\Models\TransportSupport;
 use App\Models\Partner;
@@ -32,6 +33,8 @@ use App\Services\KafalaChamilaService;
 use App\Services\TransferService;
 use App\Services\WidowService;
 use App\Support\AuditLogger;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -55,6 +58,18 @@ class DemoDataSeeder extends Seeder
     private KafalaChamilaService $kafalaChamila;
     private TransferService $transfers;
 
+    /**
+     * Which account the invented money is recorded against.
+     *
+     * Every demo income and expense needs an author, and this used to be a
+     * hardcoded 1. That holds on a database seeded from empty, where the
+     * first account is always id 1, and breaks the moment the accounts came
+     * from somewhere else - restored from a backup, or kept across a reset
+     * while everything else was replaced. The foreign key then refuses the
+     * insert and the seeding stops half way through.
+     */
+    private int $authorId = 1;
+
     public function __construct()
     {
         $this->widows = app(WidowService::class);
@@ -70,6 +85,22 @@ class DemoDataSeeder extends Seeder
         // the activity log would bury whatever the association actually did
         // on a demo install.
         AuditLogger::disable();
+
+        // Whoever is actually here. Falls back to 1 only when there are no
+        // accounts at all, which is the case the old constant assumed.
+        $author = User::query()->orderBy('id')->first();
+        $this->authorId = (int) ($author?->id ?? 1);
+
+        // Sign in as that account for the rest of this run. The income,
+        // expense and transfer services stamp approvals with
+        // `auth()->id() ?? 1`, and a seeder has nobody signed in - so the
+        // fallback put a literal 1 on every approved row and the foreign
+        // key refused it on any database whose accounts are not numbered
+        // from 1. setUser rather than login: no events, no session, nothing
+        // to undo afterwards.
+        if ($author) {
+            Auth::setUser($author);
+        }
 
         // Three fiscal years and three academic years, so the year-over-year
         // reports, the academic-year filter and the "all periods" exports
@@ -90,6 +121,7 @@ class DemoDataSeeder extends Seeder
         $this->seedPriorYears($fiscalYears, $donors, $widows);
         $this->seedBeneficiaryGroup($widows);
         $this->archiveOneFamily($sponsorlessWidow);
+        $this->markIddaCases($widows);
 
         $this->command?->info('Demo data seeded: '
             . Widow::count() . ' widows, '
@@ -449,6 +481,9 @@ class DemoDataSeeder extends Seeder
             $donors[] = Donor::create([
                 'first_name' => $first,
                 'last_name' => $last,
+                // Invented, like every other identifier in this seeder:
+                // a letter and six digits, in the shape of a Moroccan CIN.
+                'national_id' => 'D' . rand(100000, 999999),
                 'phone' => '06' . rand(10000000, 99999999),
                 'email' => strtolower($first) . '.' . strtolower($last) . '@example.com',
                 'is_kafil' => $index < 8,
@@ -582,7 +617,7 @@ class DemoDataSeeder extends Seeder
 
                     // Creating the family already opened an enrollment for the
                     // current year, so this fills it in rather than inserting again.
-                    OrphanEnrollment::updateOrCreate(
+                    $enrollment = OrphanEnrollment::updateOrCreate(
                         ['orphan_id' => $orphan->id, 'academic_year_id' => $academicYear->id],
                         [
                             'education_level_id' => $levelId,
@@ -592,8 +627,6 @@ class DemoDataSeeder extends Seeder
                             'higher_education_year' => $courseYear,
                             'status' => $isCurrent ? $statuses[$index % count($statuses)] : 'passed',
                             'grade_scale' => $scale,
-                            'first_semester_grade' => $graded ? $mark() : null,
-                            'second_semester_grade' => $secondSemester ? $mark() : null,
                             'has_tutoring' => $hasTutoring,
                             'tutoring_subjects' => $hasTutoring
                                 ? ['الرياضيات', 'الفيزياء والكيمياء', 'اللغة الفرنسية', 'الرياضيات، الفيزياء'][$index % 4]
@@ -603,6 +636,34 @@ class DemoDataSeeder extends Seeder
                                 : null,
                         ]
                     );
+
+                    // The marks are rows carrying what each one counts for,
+                    // so this seeds the level's own scheme rather than two
+                    // columns. A year still being taught has only the first
+                    // semester in, which is what a half-marked year looks
+                    // like on the screen.
+                    $enrollment->grades()->delete();
+
+                    if ($graded) {
+                        $components = $enrollment->educationLevel?->gradeComponents
+                            ?? collect(EducationLevelGradeComponent::DEFAULT_SCHEME)
+                                ->map(fn ($c) => (object) $c);
+
+                        foreach ($components as $position => $component) {
+                            // Position 1 is the second half of the year.
+                            if ($position === 1 && ! $secondSemester) {
+                                continue;
+                            }
+
+                            $enrollment->grades()->create([
+                                'label' => $component->label,
+                                'mark' => $mark(),
+                                'scale' => $scale,
+                                'weight' => $component->weight,
+                                'sort_order' => $position,
+                            ]);
+                        }
+                    }
                 }
 
                 $index++;
@@ -709,8 +770,8 @@ class DemoDataSeeder extends Seeder
                     // Banked in its own year, so the closed year holds no
                     // approved cash sitting outside an account.
                     'transferred_at' => $date,
-                    'created_by' => 1,
-                    'approved_by' => 1,
+                    'created_by' => $this->authorId,
+                    'approved_by' => $this->authorId,
                     'approved_at' => $date,
                 ]);
 
@@ -736,8 +797,8 @@ class DemoDataSeeder extends Seeder
                     'receipt_number' => sprintf('EX-%d-%02d', $fiscalYear['year'], $n),
                     'unrelated_to_benef' => $beneficiaryId === null,
                     'status' => 'Approved',
-                    'created_by' => 1,
-                    'approved_by' => 1,
+                    'created_by' => $this->authorId,
+                    'approved_by' => $this->authorId,
                     'approved_at' => $expenseDate,
                 ]);
 
@@ -792,7 +853,7 @@ class DemoDataSeeder extends Seeder
                 'payment_method' => $month % 3 === 0 ? 'Cheque' : 'Cash',
                 'receipt_number' => sprintf('RC-%d-%02d', (int) date('Y'), $month),
                 'status' => 'Draft',
-                'created_by' => 1,
+                'created_by' => $this->authorId,
             ]);
 
             if ($month <= $monthsElapsed - 2) {
@@ -814,7 +875,7 @@ class DemoDataSeeder extends Seeder
                 'payment_method' => 'Cash',
                 'receipt_number' => 'RC-' . (1000 + $index),
                 'status' => 'Draft',
-                'created_by' => 1,
+                'created_by' => $this->authorId,
             ]);
             if ($index % 2 === 0) {
                 $this->incomes->approve($income);
@@ -847,7 +908,7 @@ class DemoDataSeeder extends Seeder
                     'payment_method' => 'BankWire',
                     'bank_account_id' => $bankAccounts[1]->id,
                     'status' => 'Draft',
-                    'created_by' => 1,
+                    'created_by' => $this->authorId,
                 ]);
                 $this->incomes->approve($income);
             }
@@ -874,7 +935,7 @@ class DemoDataSeeder extends Seeder
                 'payment_method' => 'Cash',
                 'receipt_number' => 'RC-KC-1',
                 'status' => 'Draft',
-                'created_by' => 1,
+                'created_by' => $this->authorId,
             ], $splitsFor(800));
             foreach ($firstBatch as $income) {
                 $this->incomes->approve($income);
@@ -887,7 +948,7 @@ class DemoDataSeeder extends Seeder
                 'payment_method' => 'Cash',
                 'receipt_number' => 'RC-KC-2',
                 'status' => 'Draft',
-                'created_by' => 1,
+                'created_by' => $this->authorId,
             ], $splitsFor(800));
         }
     }
@@ -973,7 +1034,7 @@ class DemoDataSeeder extends Seeder
             'amount' => 6000,
             'remarks' => 'تغطية مستحقات الكفالات الشهرية',
             'status' => 'Draft',
-            'created_by' => 1,
+            'created_by' => $this->authorId,
         ]));
 
         Transfer::create([
@@ -984,7 +1045,7 @@ class DemoDataSeeder extends Seeder
             'amount' => 1500,
             'remarks' => 'إرجاع فائض الشهر الماضي',
             'status' => 'Draft',
-            'created_by' => 1,
+            'created_by' => $this->authorId,
         ]);
     }
 
@@ -1004,6 +1065,45 @@ class DemoDataSeeder extends Seeder
                 'updated_at' => now(),
             ]);
         }
+    }
+
+    /**
+     * Two families registered as يتيم جديد cases, one of each kind.
+     *
+     * They exist so the screen has something on it: a family still inside her
+     * عدة, who appears only when the عدة fund is paying, and one whose عدة has
+     * run out and is waiting for somebody to enrol or archive her. Both are
+     * lifted out of the beneficiary lists, which is most of what the feature
+     * does and is hard to see on an empty table.
+     */
+    private function markIddaCases(array $widows): void
+    {
+        // From the end of the list, so the families the money and the
+        // sponsorships were seeded against are left where they are.
+        $candidates = collect($widows)
+            ->reverse()
+            ->filter(fn (Widow $widow) => ! $widow->fresh()?->trashed())
+            ->values();
+
+        if ($candidates->count() < 2) {
+            return;
+        }
+
+        $inIdda = $candidates[0];
+        $inIdda->update([
+            'husband_death_date' => now()->subMonths(2)->subDays(6)->format('Y-m-d'),
+            'admission_date' => now()->subMonths(1)->subDays(9)->format('Y-m-d'),
+            'idda_end_date' => now()->addMonths(2)->addDays(4)->format('Y-m-d'),
+            'is_idda_case' => true,
+        ]);
+
+        $ended = $candidates[1];
+        $ended->update([
+            'husband_death_date' => now()->subMonths(6)->format('Y-m-d'),
+            'admission_date' => now()->subMonths(5)->subDays(12)->format('Y-m-d'),
+            'idda_end_date' => now()->subDays(18)->format('Y-m-d'),
+            'is_idda_case' => true,
+        ]);
     }
 
     private function archiveOneFamily(Widow $widow): void

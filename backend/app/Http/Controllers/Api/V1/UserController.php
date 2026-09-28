@@ -109,13 +109,48 @@ class UserController extends Controller
     }
 
     /**
+     * Switch the emailed login code off, or back on, for one account.
+     *
+     * The way back in when the post stops. A login refuses rather than waving
+     * somebody through when the code cannot be sent - a second factor that
+     * vanishes with your mail server was never one - so there has to be a
+     * door, and this is it: a deliberate act by an administrator, on one
+     * named account, recorded in the activity log like everything else.
+     *
+     * If nobody can get in at all, `php artisan amaso:two-factor` does the
+     * same thing from the server.
+     */
+    public function setTwoFactor(Request $request, User $user): JsonResponse
+    {
+        $validated = $request->validate([
+            'two_factor_enabled' => ['required', 'boolean'],
+        ], [
+            'two_factor_enabled.required' => 'الحالة مطلوبة',
+        ]);
+
+        $user->forceFill(['two_factor_enabled' => $validated['two_factor_enabled']])->save();
+
+        return response()->json([
+            'message' => $validated['two_factor_enabled']
+                ? "تم تفعيل التحقق بخطوتين لحساب \"{$user->name}\""
+                : "تم تعطيل التحقق بخطوتين لحساب \"{$user->name}\" — سيدخل بكلمة المرور وحدها",
+            'data' => $user->toProfileArray(),
+        ]);
+    }
+
+    /**
      * Set a new password on someone else's behalf. Their sessions are
      * revoked - a reset is only meaningful if whoever held the old password
      * is actually shut out.
      */
     public function resetPassword(ResetUserPasswordRequest $request, User $user): JsonResponse
     {
-        $user->forceFill(['password' => $request->validated()['password']])->save();
+        // Cleared rather than stamped: the owner has not chosen this one, so
+        // they are asked for their own the next time they sign in.
+        $user->forceFill([
+            'password' => $request->validated()['password'],
+            'password_changed_at' => null,
+        ])->save();
         $user->tokens()->delete();
 
         return response()->json([

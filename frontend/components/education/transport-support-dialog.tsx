@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
@@ -289,12 +290,12 @@ export function TransportSupportDialog({ open, onOpenChange, academicYearId, sup
 
             <div className="space-y-2">
               <Label>تاريخ البداية</Label>
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <DateField value={startDate} onChange={setStartDate} />
             </div>
 
             <div className="space-y-2">
               <Label>تاريخ الانتهاء</Label>
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <DateField value={endDate} onChange={setEndDate} />
             </div>
           </div>
 

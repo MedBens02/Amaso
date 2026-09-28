@@ -49,6 +49,8 @@ class User extends Authenticatable
         'phone',
         'address',
         'is_active',
+        'two_factor_enabled',
+        'password_changed_at',
     ];
 
     /**
@@ -73,6 +75,8 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'two_factor_enabled' => 'boolean',
+            'password_changed_at' => 'datetime',
         ];
     }
 
@@ -101,6 +105,38 @@ class User extends Authenticatable
      * login response, /auth/me and the admin account list cannot drift apart
      * (the frontend caches whichever one it saw last under the same key).
      */
+    /**
+     * Whether this password has to be changed before anything else happens.
+     *
+     * Null means an administrator reset it, or the account was just made
+     * with a password somebody else chose - either way the person has not
+     * picked their own yet, so it is treated as due whatever the age rule
+     * says. A max age of zero switches the age rule off but not this: a
+     * password the owner has never chosen is not one they have kept.
+     */
+    public function mustChangePassword(): bool
+    {
+        if ($this->password_changed_at === null) {
+            return true;
+        }
+
+        $maxAge = (int) Setting::get('password_max_age_days', '30');
+
+        return $maxAge > 0 && $this->password_changed_at->addDays($maxAge)->isPast();
+    }
+
+    /** Days left on this password, or null when the rule is switched off. */
+    public function passwordExpiresInDays(): ?int
+    {
+        $maxAge = (int) Setting::get('password_max_age_days', '30');
+
+        if ($maxAge <= 0 || $this->password_changed_at === null) {
+            return null;
+        }
+
+        return (int) ceil(now()->diffInDays($this->password_changed_at->copy()->addDays($maxAge), false));
+    }
+
     public function toProfileArray(): array
     {
         return [
@@ -112,6 +148,12 @@ class User extends Authenticatable
             'address' => $this->address,
             'is_active' => (bool) $this->is_active,
             'last_login_at' => $this->last_login_at?->toIso8601String(),
+            'two_factor_enabled' => (bool) $this->two_factor_enabled,
+            // The frontend routes straight to the change-password screen on
+            // this, but it is the middleware that enforces it - a client is
+            // not something to rely on for a rule that matters.
+            'must_change_password' => $this->mustChangePassword(),
+            'password_expires_in_days' => $this->passwordExpiresInDays(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

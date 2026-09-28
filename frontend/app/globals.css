@@ -89,17 +89,24 @@
   background: hsl(var(--accent));
 }
 
-/* React Select Menu Portal Fix */
+/* React Select Menu Portal Fix
+ *
+ * Stacking and clicks only. Nothing here may position the menu: react-select
+ * works out for itself whether the list opens below the control or above it,
+ * and these rules used to pin `position: relative !important` on the menu and
+ * `fixed !important` on its portal, which took that decision away. A relative
+ * menu sits in the portal's flow, so "open above" moved it by the height of
+ * the control and no further - a control near the bottom of the window kept
+ * opening a full-height list downwards and losing its last options off the
+ * screen. */
 .rs__menu-portal {
   z-index: 99999 !important;
-  position: fixed !important;
   pointer-events: auto !important;
 }
 
 .rs__menu {
   z-index: 99999 !important;
   pointer-events: auto !important;
-  position: relative !important;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
 }
 

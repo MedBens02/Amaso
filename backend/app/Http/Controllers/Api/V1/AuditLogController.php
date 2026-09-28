@@ -142,8 +142,9 @@ class AuditLogController extends Controller
         'family_liaison' => 'مسؤول الأسرة',
         'leaving_date' => 'تاريخ المغادرة',
         'leaving_reason' => 'سبب المغادرة',
-        'first_semester_grade' => 'نقطة الأسدس الأول',
-        'second_semester_grade' => 'نقطة الأسدس الثاني',
+        'label' => 'اسم النقطة',
+        'mark' => 'النقطة',
+        'weight' => 'المعامل',
         'value' => 'القيمة',
     ];
 

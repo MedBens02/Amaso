@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Select, { MultiValue, ActionMeta } from 'react-select'
-import { reactSelectStyles } from '@/lib/react-select-theme'
+import { reactSelectProps } from '@/lib/react-select-theme'
 import CreatableSelect from 'react-select/creatable'
 
 export interface Option {
@@ -55,23 +55,12 @@ export function MultiSelectRS({
     onChange(values)
   }
 
-  /**
-   * The shared theme, plus the few rules this control needs on top.
-   *
-   * The local copy that used to live here set `position: 'relative'` on the
-   * menu. react-select portals the menu to <body> and positions it absolutely
-   * against the control; forcing it relative broke that, and with it the
-   * list's own max-height - which is why long lists (income sources, skills,
-   * sponsors) appeared to stop partway down with no way to scroll. The shared
-   * theme leaves the positioning to the library and caps the list instead.
-   */
-  const customStyles = { ...reactSelectStyles }
-
   const SelectComponent = isCreatable ? CreatableSelect : Select
 
   return (
     <div className={className}>
       <SelectComponent
+        {...reactSelectProps}
         isMulti
         options={options}
         value={selectedOptions}
@@ -81,11 +70,6 @@ export function MultiSelectRS({
         isDisabled={isDisabled}
         isClearable={isClearable}
         menuPortalTarget={menuPortalTarget}
-        menuPosition="fixed"
-        menuShouldBlockScroll={false}
-        menuShouldScrollIntoView={false}
-        styles={customStyles}
-        classNamePrefix="rs"
         closeMenuOnSelect={false}
         hideSelectedOptions={false}
         blurInputOnSelect={false}
@@ -104,10 +88,6 @@ export function MultiSelectRS({
           const values = newValue.map(opt => opt.value)
           onChange(values)
         }}
-        components={{
-          IndicatorSeparator: () => null,
-        }}
-        noOptionsMessage={() => "لا توجد خيارات"}
       />
     </div>
   )

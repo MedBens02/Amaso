@@ -27,6 +27,7 @@ import { NewIncomeDialog } from "@/components/forms/NewIncomeForm"
 import { TransferIncomeDialog } from "@/components/incomes/transfer-income-dialog"
 import { ViewIncomeDialog } from "@/components/incomes/view-income-dialog"
 import { cn, toNumber } from "@/lib/utils"
+import { isCurrentUserApprover } from "@/lib/roles"
 
 // Interface for real income data from API
 interface IncomeData {
@@ -132,6 +133,14 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [showValidateDialog, setShowValidateDialog] = useState(false)
   const [showTransferDialog, setShowTransferDialog] = useState(false)
+  // Read once, after mount: the profile lives in localStorage, which the
+  // prerender cannot see.
+  const [canApprove, setCanApprove] = useState(false)
+
+  useEffect(() => {
+    setCanApprove(isCurrentUserApprover())
+  }, [])
+
   const [validateTarget, setValidateTarget] = useState<{
     type: "single" | "bulk" | "batch"
     id?: number
@@ -718,13 +727,15 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem
-          onClick={() => handleValidateIncome(income.id)}
-          disabled={income.status === "Approved"}
-        >
-          <CheckCircle className="h-4 w-4" />
-          تأكيد
-        </DropdownMenuItem>
+        {canApprove && (
+          <DropdownMenuItem
+            onClick={() => handleValidateIncome(income.id)}
+            disabled={income.status === "Approved"}
+          >
+            <CheckCircle className="h-4 w-4" />
+            تأكيد
+          </DropdownMenuItem>
+        )}
         {needsTransfer(income) && (
           <DropdownMenuItem onClick={() => handleTransferIncome(income.id)}>
             <ArrowRightLeft className="h-4 w-4" />
@@ -895,10 +906,12 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
                   {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
                   {expanded ? "إخفاء الحصص" : `عرض الحصص (${group.rows.length})`}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleValidateBatch(group)} disabled={approvable.length === 0}>
-                  <CheckCircle className="h-4 w-4" />
-                  تأكيد الكل{approvable.length > 0 ? ` (${approvable.length})` : ""}
-                </DropdownMenuItem>
+                {canApprove && (
+                  <DropdownMenuItem onClick={() => handleValidateBatch(group)} disabled={approvable.length === 0}>
+                    <CheckCircle className="h-4 w-4" />
+                    تأكيد الكل{approvable.length > 0 ? ` (${approvable.length})` : ""}
+                  </DropdownMenuItem>
+                )}
                 {transferable.length > 0 && (
                   <DropdownMenuItem onClick={() => handleTransferBatch(group)}>
                     <ArrowRightLeft className="h-4 w-4" />
@@ -959,7 +972,7 @@ export function IncomesTable({ searchTerm, filters, refreshKey }: IncomesTablePr
         <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-950/40 rounded-lg border border-blue-200 dark:border-blue-900">
           <span className="text-sm font-medium text-blue-900 dark:text-blue-400">تم تحديد {selectedIds.size} عنصر</span>
           <div className="flex gap-2">
-            {selectedApprovableItems.length > 0 && (
+            {canApprove && selectedApprovableItems.length > 0 && (
               <Button size="sm" onClick={handleBulkValidate}>
                 <CheckCircle className="h-4 w-4 ml-2" />
                 تأكيد المحدد ({selectedApprovableItems.length})

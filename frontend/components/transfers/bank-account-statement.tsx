@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -181,11 +181,11 @@ export function BankAccountStatement({
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">من تاريخ</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-[160px]" />
+            <DateField value={from} onChange={setFrom} className="w-[160px]" />
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">إلى تاريخ</Label>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-[160px]" />
+            <DateField value={to} onChange={setTo} className="w-[160px]" />
           </div>
           {(sourceType !== "all" || from || to) && (
             <Button

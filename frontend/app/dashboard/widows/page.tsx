@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { IddaCasesPanel } from "@/components/widows/idda-cases-panel"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Search, Filter, Archive } from "lucide-react"
+import { Plus, Search, Filter, Archive, HeartHandshake } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { WidowsTable } from "@/components/widows/widows-table"
 import { WidowFilters } from "@/components/widows/widow-filters"
@@ -65,6 +66,12 @@ export default function WidowsPage() {
       <Tabs defaultValue="active" className="space-y-4">
         <TabsList>
           <TabsTrigger value="active">القائمة النشطة</TabsTrigger>
+          {/* Families in عدة are kept out of the active list on purpose, so
+              this is the only screen they appear on. */}
+          <TabsTrigger value="idda" className="flex items-center gap-2">
+            <HeartHandshake className="h-4 w-4" />
+            يتيم جديد
+          </TabsTrigger>
           <TabsTrigger value="archived" className="flex items-center gap-2">
             <Archive className="h-4 w-4" />
             المؤرشفات
@@ -86,6 +93,10 @@ export default function WidowsPage() {
               <WidowsTable searchTerm={searchTerm} filters={filters} refreshTrigger={refreshTrigger} />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="idda">
+          <IddaCasesPanel refreshTrigger={refreshTrigger} />
         </TabsContent>
 
         <TabsContent value="archived">

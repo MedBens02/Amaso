@@ -232,7 +232,7 @@ export function AccountingReferenceDialog({ open, onOpenChange, type, item, onSu
                     <SelectTrigger>
                       <SelectValue placeholder="بدون فئة أم (فئة رئيسية)" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent searchable>
                       <SelectItem value="none">بدون فئة أم (فئة رئيسية)</SelectItem>
                       {parentOptions
                         // A category cannot be its own parent, and one level of

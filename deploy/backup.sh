@@ -6,15 +6,17 @@
 #   sudo bash backup.sh --install-cron  take one nightly at 02:30
 #   sudo bash backup.sh --list          show what is stored
 #   sudo bash backup.sh --restore FILE  put a backup back
+#   sudo bash backup.sh --to-cloud      also copy it off the server
 #
 # Backups are gzipped SQL, written to /var/backups/amaso, and the last 30
 # are kept. The whole database is a few megabytes, so a full dump every
 # night costs almost nothing and restores in one command - which is worth
 # more here than anything cleverer.
 #
-# A copy that lives on the same machine as the database protects against
-# a mistake, not against losing the machine. Copy these off the server as
-# well; the guide explains how.
+# A copy that lives on the same machine as the database protects against a
+# mistake, not against losing the machine. --to-cloud sends the same file to
+# an object store as well, so the records survive the disk that held them.
+# On Oracle Cloud that is a free bucket; see deploy/OCI.md.
 
 set -euo pipefail
 
@@ -26,12 +28,61 @@ DB_NAME="${DB_NAME:-amaso}"
 DB_USER="${DB_USER:-amaso}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/amaso}"
 KEEP="${KEEP:-30}"
+# Where the off-server copy goes. Set OCI_BUCKET (and optionally
+# OCI_NAMESPACE, which is looked up when it is not given) to switch it on.
+OCI_BUCKET="${OCI_BUCKET:-}"
+OCI_NAMESPACE="${OCI_NAMESPACE:-}"
+# How the oci command proves who it is. "instance_principal" means the
+# server itself is authorised, through a dynamic group and a policy, so no
+# API key or private key is stored on the machine that holds the families'
+# records - the one place a stolen key would hurt most. Set OCI_AUTH to
+# anything else (e.g. "api_key") to use ~/.oci/config instead.
+OCI_AUTH="${OCI_AUTH:-instance_principal}"
 PASS_FILE="/root/.amaso-db-password"
 
 # common.sh drops the colour codes when stdout is not a terminal, which
 # matters here more than anywhere else: this runs nightly from cron into
 # /var/log/amaso-backup.log, and escape sequences in a log file make it
 # unreadable in exactly the situation you would be reading it.
+
+# ---------------------------------------------------------------------------
+# The off-server copy
+#
+# Deliberately best-effort: a bucket that is full, renamed or unreachable
+# must not fail the backup that already succeeded on disk. It says what
+# happened and returns non-zero, and the caller decides.
+# ---------------------------------------------------------------------------
+upload_to_cloud() {
+    local file="$1"
+
+    [[ -n "$OCI_BUCKET" ]] || { warn "No OCI_BUCKET set - keeping the backup on this server only"; return 1; }
+    command -v oci >/dev/null || { warn "The oci command is not installed - see deploy/OCI.md"; return 1; }
+
+    local auth=(--auth "$OCI_AUTH")
+    [[ "$OCI_AUTH" == "api_key" ]] && auth=()
+
+    local ns="$OCI_NAMESPACE"
+    if [[ -z "$ns" ]]; then
+        ns="$(oci "${auth[@]}" os ns get --query 'data' --raw-output 2>/dev/null || true)"
+    fi
+    [[ -n "$ns" ]] || {
+        warn "Could not read the Object Storage namespace - check the dynamic group and policy in deploy/OCI.md"
+        return 1
+    }
+
+    if oci "${auth[@]}" os object put \
+            --namespace "$ns" \
+            --bucket-name "$OCI_BUCKET" \
+            --file "$file" \
+            --name "$(basename "$file")" \
+            --force >/dev/null 2>&1; then
+        ok "Copied off the server to ${OCI_BUCKET}/$(basename "$file")"
+        return 0
+    fi
+
+    warn "Could not upload to ${OCI_BUCKET} - the backup is still on this server"
+    return 1
+}
 
 need_root
 [[ -f "$PASS_FILE" ]] || die "$PASS_FILE is missing - re-run provision.sh"
@@ -54,14 +105,32 @@ case "${1:-}" in
 # ---------------------------------------------------------------------------
 --install-cron)
     script_path="$(readlink -f "$0")"
+
+    # cron runs with almost no environment, so a bucket set in the shell
+    # that installed this would not reach the nightly run - the backup
+    # would quietly stay on the server. Bake it into the crontab instead.
+    cron_env=""
+    if [[ -n "$OCI_BUCKET" ]]; then
+        cron_env="OCI_BUCKET=${OCI_BUCKET}"
+        [[ -n "$OCI_NAMESPACE" ]] && cron_env+=$'\n'"OCI_NAMESPACE=${OCI_NAMESPACE}"
+        cron_env+=$'\n'"OCI_AUTH=${OCI_AUTH}"
+    fi
+
     cat > /etc/cron.d/amaso-backup <<CRONEOF
 # Nightly AMASO database backup. Output goes to the system log.
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+${cron_env}
 30 2 * * * root ${script_path} >> /var/log/amaso-backup.log 2>&1
 CRONEOF
     chmod 644 /etc/cron.d/amaso-backup
     ok "Nightly backup scheduled for 02:30, logging to /var/log/amaso-backup.log"
+    if [[ -n "$OCI_BUCKET" ]]; then
+        ok "Each backup will also be copied to the bucket ${OCI_BUCKET}"
+    else
+        warn "Backups will stay on this server only. To copy them off as well:"
+        warn "  sudo OCI_BUCKET=<bucket> bash backup.sh --install-cron"
+    fi
     ok "Remove it with:  rm /etc/cron.d/amaso-backup"
     exit 0
     ;;
@@ -101,7 +170,7 @@ CRONEOF
     ;;
 
 # ---------------------------------------------------------------------------
-""|--now)
+""|--now|--to-cloud)
     mkdir -p "$BACKUP_DIR"
     chmod 700 "$BACKUP_DIR"
 
@@ -130,10 +199,16 @@ CRONEOF
     removed="$(find "$BACKUP_DIR" -name 'amaso-*.sql.gz' -type f -printf '%T@ %p\n' \
         | sort -rn | tail -n "+$((KEEP + 1))" | cut -d' ' -f2- | tee >(xargs -r rm -f) | wc -l)"
     [[ "$removed" -gt 0 ]] && ok "Removed $removed backup(s) older than the last $KEEP"
+
+    # Asked for explicitly, or whenever a bucket is configured - so the
+    # nightly cron job copies off the server without needing its own flag.
+    if [[ "${1:-}" == "--to-cloud" || -n "$OCI_BUCKET" ]]; then
+        upload_to_cloud "$target" || true
+    fi
     exit 0
     ;;
 
 *)
-    die "Unknown option '$1'. Try --now, --list, --restore FILE or --install-cron."
+    die "Unknown option '$1'. Try --now, --to-cloud, --list, --restore FILE or --install-cron."
     ;;
 esac

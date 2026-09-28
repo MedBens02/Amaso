@@ -5,8 +5,12 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\BankAccount;
 use App\Models\BankAccountTransaction;
+use App\Models\Expense;
+use App\Models\Income;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class BankAccountController extends Controller
 {
@@ -23,6 +27,116 @@ class BankAccountController extends Controller
     {
         return response()->json([
             'data' => BankAccount::orderBy('label')->get(),
+        ]);
+    }
+
+    /**
+     * A new account starts where the bank says it does.
+     *
+     * `balance` is not something the caller sends: it is opening_balance
+     * plus every recorded movement, and a brand new account has none. Taking
+     * a balance here would let the two disagree from the first day, which is
+     * exactly what the reconciliation block on the statement exists to
+     * catch.
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $data = $this->validateAccount($request);
+
+        $account = BankAccount::create([
+            ...$data,
+            'balance' => $data['opening_balance'] ?? 0,
+        ]);
+
+        return response()->json([
+            'message' => 'تم إنشاء الحساب البنكي بنجاح',
+            'data' => $account,
+        ], 201);
+    }
+
+    /**
+     * Correcting the details, and - carefully - the starting figure.
+     *
+     * The invariant is opening_balance + every movement == balance. Editing
+     * the opening figure is a legitimate correction ("we typed the starting
+     * amount wrong"), but only if the balance moves by the same amount in
+     * the same breath; otherwise the account silently stops reconciling and
+     * the statement starts accusing the ledger of a drift that was entered
+     * here.
+     */
+    public function update(Request $request, BankAccount $bankAccount): JsonResponse
+    {
+        $data = $this->validateAccount($request, $bankAccount);
+
+        DB::transaction(function () use ($bankAccount, $data) {
+            if (array_key_exists('opening_balance', $data)) {
+                $shift = (float) $data['opening_balance'] - (float) $bankAccount->opening_balance;
+                $data['balance'] = (float) $bankAccount->balance + $shift;
+            }
+
+            $bankAccount->update($data);
+        });
+
+        return response()->json([
+            'message' => 'تم تحديث الحساب البنكي بنجاح',
+            'data' => $bankAccount->fresh(),
+        ]);
+    }
+
+    /**
+     * An account is only removable while nothing points at it.
+     *
+     * Incomes and expenses keep the account they were settled through, and
+     * the ledger is the record of how the balance got where it is - deleting
+     * the account would take that with it (the ledger cascades) and leave
+     * approved money pointing at nothing. An account that is no longer used
+     * is history, not a mistake, so the refusal says what is holding it.
+     */
+    public function destroy(BankAccount $bankAccount): JsonResponse
+    {
+        $incomes = Income::where('bank_account_id', $bankAccount->id)->count();
+        $expenses = Expense::where('bank_account_id', $bankAccount->id)->count();
+        $movements = BankAccountTransaction::where('bank_account_id', $bankAccount->id)->count();
+
+        if ($incomes + $expenses + $movements > 0) {
+            $parts = [];
+            if ($incomes > 0) $parts[] = "{$incomes} إيراد";
+            if ($expenses > 0) $parts[] = "{$expenses} مصروف";
+            if ($movements > 0) $parts[] = "{$movements} حركة في السجل";
+
+            return response()->json([
+                'message' => "لا يمكن حذف \"{$bankAccount->label}\": مرتبط بـ " . implode(' و', $parts) . '.',
+            ], 422);
+        }
+
+        // Nothing points at it, so the balance can only be the opening
+        // figure somebody typed. Deleting it anyway would drop that amount
+        // out of the association's total with nothing recording why - so it
+        // has to be written down to zero first, deliberately.
+        if (abs((float) $bankAccount->balance) > 0.009) {
+            return response()->json([
+                'message' => "لا يمكن حذف \"{$bankAccount->label}\": رصيده ليس صفراً. إن كان الحساب مسجلاً بالخطأ، غيّر رصيده الافتتاحي إلى صفر أولاً.",
+            ], 422);
+        }
+
+        $label = $bankAccount->label;
+        $bankAccount->delete();
+
+        return response()->json(['message' => "تم حذف الحساب البنكي \"{$label}\" بنجاح"]);
+    }
+
+    private function validateAccount(Request $request, ?BankAccount $current = null): array
+    {
+        return $request->validate([
+            'label' => ['required', 'string', 'max:120', Rule::unique('bank_accounts', 'label')->ignore($current?->id)],
+            'bank_name' => ['nullable', 'string', 'max:120'],
+            'account_number' => ['nullable', 'string', 'max:60'],
+            'opening_balance' => ['nullable', 'numeric'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'label.required' => 'اسم الحساب مطلوب',
+            'label.unique' => 'يوجد حساب بنكي بهذا الاسم',
+            'opening_balance.numeric' => 'الرصيد الافتتاحي يجب أن يكون رقماً',
         ]);
     }
 

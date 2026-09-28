@@ -1,4 +1,5 @@
 import type { OperationalReportSpec } from "./operational-report-dialog"
+import api from "@/lib/api"
 
 const money = (value: any) =>
   `${Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} د.م`
@@ -11,7 +12,24 @@ export const SPONSORSHIP_GAPS: OperationalReportSpec = {
   title: "تقرير نقص الكفالة",
   description: "الأسر غير المكفولة والأسر ذات التغطية الناقصة، مرتّبة بالأكثر حاجة أولاً",
   rowsKey: "families",
-  usesPeriod: false,
+  // Unlike the other two, this report is not about a window of money - it
+  // is a standing position - so its dates narrow which families are
+  // counted, by when they joined the association.
+  periodParams: { from: "admission_from", to: "admission_to" },
+  periodLabels: { from: "انتسبت من", to: "انتسبت إلى" },
+  picker: {
+    param: "kafil_id",
+    label: "الكفيل",
+    placeholder: "كل الكفلاء",
+    load: async (query: string) => {
+      const response = await api.getKafilsForSponsorship(query || undefined)
+
+      return (response.data || []).map((kafil: any) => ({
+        value: String(kafil.id),
+        label: kafil.name,
+      }))
+    },
+  },
   emptyMessage: "كل الأسر مغطاة بالكامل.",
   stats: [
     { key: "families_with_gap", label: "أسر بها نقص" },

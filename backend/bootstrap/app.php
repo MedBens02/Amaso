@@ -25,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureUserHasRole::class,
+            'fresh.password' => \App\Http\Middleware\RequireFreshPassword::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

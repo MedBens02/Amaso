@@ -118,7 +118,7 @@ cat > "$tmp" <<HEADER
 --       php artisan db:seed
 --       php artisan db:seed --class=DemoDataSeeder
 --
--- حسابات الدخول / Login accounts (password for all three: password)
+-- حسابات الدخول / Login accounts
 --   mohamed@amaso.site    مستخدم أعلى     superuser
 --   bouchra@amaso.site    مستخدم أعلى     superuser
 --

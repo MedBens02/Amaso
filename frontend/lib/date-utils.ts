@@ -49,17 +49,19 @@ export function formatDateArabic(date: Date, formatString: string = "PPP"): stri
 }
 
 /**
- * Converts a `Date` to and from the string a native `<input type="date">`
- * actually works with ("yyyy-MM-dd"), which is what replaced this app's
- * custom Popover+Calendar date pickers everywhere.
+ * Converts a `Date` to and from "yyyy-MM-dd", the string every date field in
+ * this app passes around - once the native `<input type="date">`, now
+ * `<DateField>` (components/ui/date-field.tsx).
  *
- * Those were broken in a specific, self-inflicted way: the calendar's own
- * caption renders in the browser's default locale (English month names,
- * Sunday-first weekday order) while a hand-rolled month/year <Select> next
- * to it used a hardcoded French month list - "Septembre" beside "September
- * 2026" in the same popup, not a react-day-picker bug. The native input has
- * no locale of its own to mismatch; the browser renders whatever picker UI
- * it always renders for a date field, in the user's OS language.
+ * The history is worth keeping, because each step fixed the previous one's
+ * mistake. First there were Popover+Calendar pickers whose caption rendered
+ * in the browser's locale (English month names, Sunday-first) beside a
+ * hand-rolled month <Select> with a hardcoded French month list - "Septembre"
+ * next to "September 2026" in the same popup. Those were replaced by the
+ * native date input, on the reasoning that it has no locale of its own to
+ * mismatch. It does: it renders the date in the *browser's* locale, so an
+ * English Chrome showed 12/31/2026 in an Arabic form. DateField draws the
+ * part people read itself and keeps the native control for its calendar.
  */
 export function toDateInputValue(date?: Date | null): string {
   if (!date || Number.isNaN(date.getTime())) return ""

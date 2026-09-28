@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import {
   Dialog,
@@ -91,9 +92,8 @@ export function ResetPasswordDialog({
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="reset-password">كلمة المرور الجديدة</Label>
-              <Input
+              <PasswordInput
                 id="reset-password"
-                type="password"
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -103,9 +103,8 @@ export function ResetPasswordDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="reset-confirm">تأكيد كلمة المرور</Label>
-              <Input
+              <PasswordInput
                 id="reset-confirm"
-                type="password"
                 autoComplete="new-password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}

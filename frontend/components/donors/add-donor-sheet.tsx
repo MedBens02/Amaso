@@ -11,12 +11,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { useToast } from "@/hooks/use-toast"
-import { User, Phone, Mail, MapPin, HandCoins } from "lucide-react"
+import { CreditCard, HandCoins, Mail, MapPin, Phone, User } from "lucide-react"
 import api from "@/lib/api"
 
 const donorSchema = z.object({
   firstName: z.string().min(1, "الاسم الأول مطلوب"),
   lastName: z.string().min(1, "اسم العائلة مطلوب"),
+  nationalId: z.string().optional(),
   phone: z.string().min(1, "رقم الهاتف مطلوب"),
   email: z.string().email("بريد إلكتروني غير صحيح").optional().or(z.literal("")),
   address: z.string().optional(),
@@ -42,6 +43,7 @@ export function AddDonorSheet({ open, onOpenChange, onSuccess, convertDonorData 
     defaultValues: {
       firstName: "",
       lastName: "",
+      nationalId: "",
       phone: "",
       email: "",
       address: "",
@@ -58,6 +60,7 @@ export function AddDonorSheet({ open, onOpenChange, onSuccess, convertDonorData 
         form.reset({
           firstName: convertDonorData.first_name || "",
           lastName: convertDonorData.last_name || "",
+          nationalId: convertDonorData.national_id || "",
           phone: convertDonorData.phone || "",
           email: convertDonorData.email || "",
           address: convertDonorData.address || "",
@@ -76,6 +79,7 @@ export function AddDonorSheet({ open, onOpenChange, onSuccess, convertDonorData 
         await api.updateDonor(convertDonorData.id, {
           first_name: data.firstName,
           last_name: data.lastName,
+          national_id: data.nationalId || undefined,
           phone: data.phone,
           email: data.email || undefined,
           address: data.address || undefined,
@@ -87,6 +91,7 @@ export function AddDonorSheet({ open, onOpenChange, onSuccess, convertDonorData 
         await api.createDonor({
           first_name: data.firstName,
           last_name: data.lastName,
+          national_id: data.nationalId || undefined,
           phone: data.phone,
           email: data.email || undefined,
           address: data.address || undefined,
@@ -151,6 +156,17 @@ export function AddDonorSheet({ open, onOpenChange, onSuccess, convertDonorData 
                 <p className="text-sm text-red-600">{form.formState.errors.lastName.message}</p>
               )}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="nationalId" className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              رقم البطاقة الوطنية
+            </Label>
+            <Input id="nationalId" {...form.register("nationalId")} placeholder="أدخل رقم البطاقة الوطنية" />
+            {form.formState.errors.nationalId && (
+              <p className="text-sm text-red-600">{form.formState.errors.nationalId.message}</p>
+            )}
           </div>
 
           <div className="space-y-2">

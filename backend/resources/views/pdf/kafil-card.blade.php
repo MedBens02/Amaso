@@ -17,6 +17,7 @@
         'heading' => 'بيانات الكفيل',
         'items' => [
             'الاسم الكامل' => $kafil->full_name,
+            'رقم البطاقة الوطنية' => $or($kafil->national_id),
             'رقم الهاتف' => $or($kafil->phone),
             'البريد الإلكتروني' => $or($kafil->email),
             'الالتزام الشهري' => PdfFormat::money($kafil->monthly_pledge),

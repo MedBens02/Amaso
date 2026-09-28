@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import AsyncSelect from "react-select/async"
 import { Badge } from "@/components/ui/badge"
-import { reactSelectStyles } from "@/lib/react-select-theme"
+import { reactSelectProps, reactSelectStyles } from "@/lib/react-select-theme"
 import api from "@/lib/api"
 
 interface Kafil {
@@ -54,10 +54,17 @@ export function KafilSelector({ value, onValueChange, placeholder = "اختر ا
 
   const loadOptions = async (inputValue: string): Promise<KafilOption[]> => {
     try {
-      if (inputValue.length < 2 && inputValue.length > 0) {
-        return []
+      // One letter is too little to ask the server for - it would match
+      // most of the register - but returning nothing for it told the person
+      // typing "لا توجد نتائج", which reads as "this search is broken"
+      // rather than "keep typing". The list already on hand is filtered
+      // instead, so the first keystroke narrows something.
+      if (inputValue.length === 1) {
+        const needle = inputValue.toLowerCase()
+
+        return defaultOptions.filter((option) => option.label.toLowerCase().includes(needle))
       }
-      
+
       const response = await api.getKafilsForSponsorship(inputValue || undefined)
       return response.data
         .filter((kafil: Kafil) => !excludeIds.includes(kafil.id.toString()))
@@ -119,6 +126,7 @@ export function KafilSelector({ value, onValueChange, placeholder = "اختر ا
           TypeScript widens onChange's argument to "one option or many" and
           reading .value off it stops compiling. */}
       <AsyncSelect<KafilOption, false>
+        {...reactSelectProps}
         cacheOptions
         defaultOptions={defaultOptions}
         loadOptions={loadOptions}
@@ -129,22 +137,13 @@ export function KafilSelector({ value, onValueChange, placeholder = "اختر ا
           }
         }}
         placeholder={placeholder}
-        isRtl={true}
         isClearable={true}
-        menuPortalTarget={document.body}
-        menuPosition="fixed"
-        menuShouldBlockScroll={false}
-        menuShouldScrollIntoView={false}
         styles={customStyles}
-        classNamePrefix="rs"
         formatOptionLabel={formatOptionLabel}
         noOptionsMessage={({ inputValue }) => 
           inputValue ? `لا توجد نتائج لـ "${inputValue}"` : "لا توجد كفلاء متاحين"
         }
         loadingMessage={() => "جاري البحث..."}
-        components={{
-          IndicatorSeparator: () => null,
-        }}
       />
     </div>
   )

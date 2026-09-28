@@ -14,7 +14,12 @@ class OrphanController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Orphan::query()->with(['widow', 'currentEnrollment.educationLevel']);
+        // Children of a family still in عدة are not on the lists either:
+        // their mother has not been taken on yet, and counting them would
+        // overstate the number of orphans the association looks after.
+        $query = Orphan::query()
+            ->whereHas('widow', fn ($w) => $w->regular())
+            ->with(['widow', 'currentEnrollment.educationLevel']);
 
         // Search functionality - first name, last name, or both together.
         // Without the concatenated check, typing a child's full name (the

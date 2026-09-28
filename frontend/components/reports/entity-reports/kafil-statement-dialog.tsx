@@ -12,10 +12,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
-import { FileDown, HandCoins, Loader2, Users } from "lucide-react"
+import { FileDown, FileSpreadsheet, HandCoins, Loader2, Users } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
 
@@ -77,19 +77,20 @@ export function KafilStatementDialog({ open, onOpenChange }: KafilStatementDialo
     }
   }
 
-  const generatePDF = async () => {
+  const generateFile = async (format: "pdf" | "xlsx") => {
     if (isGenerating || !statement) return
+
+    const period = { ...(from ? { from } : {}), ...(to ? { to } : {}) }
 
     setIsGenerating(true)
     try {
-      await api.downloadPdf(`/reports/kafils/${kafilId}/statement.pdf`, {
-        ...(from ? { from } : {}),
-        ...(to ? { to } : {}),
-      })
-      toast({ title: "تم تحميل الكشف" })
+      format === "pdf"
+        ? await api.downloadPdf(`/reports/kafils/${kafilId}/statement.pdf`, period)
+        : await api.downloadExcel(`/reports/kafils/${kafilId}/statement.xlsx`, period)
+      toast({ title: format === "pdf" ? "تم تحميل الكشف" : "تم تحميل ملف Excel" })
     } catch (error: any) {
       toast({
-        title: "خطأ في إنشاء الـ PDF",
+        title: "خطأ في إنشاء الملف",
         description: error?.message || "حدث خطأ أثناء إنشاء الملف. يرجى المحاولة مرة أخرى",
         variant: "destructive",
       })
@@ -140,11 +141,11 @@ export function KafilStatementDialog({ open, onOpenChange }: KafilStatementDialo
 
             <div className="space-y-2">
               <Label>من تاريخ</Label>
-              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+              <DateField value={from} onChange={setFrom} />
             </div>
             <div className="space-y-2">
               <Label>إلى تاريخ</Label>
-              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+              <DateField value={to} onChange={setTo} />
             </div>
             <div className="flex items-end">
               <Button onClick={loadStatement} disabled={loading} className="w-full">
@@ -238,7 +239,15 @@ export function KafilStatementDialog({ open, onOpenChange }: KafilStatementDialo
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               إغلاق
             </Button>
-            <Button onClick={generatePDF} disabled={!statement || isGenerating}>
+            <Button variant="outline" onClick={() => generateFile("xlsx")} disabled={!statement || isGenerating}>
+              {isGenerating ? (
+                <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="h-4 w-4 ml-2" />
+              )}
+              تحميل Excel
+            </Button>
+            <Button onClick={() => generateFile("pdf")} disabled={!statement || isGenerating}>
               {isGenerating ? (
                 <Loader2 className="h-4 w-4 ml-2 animate-spin" />
               ) : (

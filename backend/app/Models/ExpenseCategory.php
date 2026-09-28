@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ExpenseCategory extends Model
@@ -31,6 +32,19 @@ class ExpenseCategory extends Model
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    /**
+     * The funds this category is offered under.
+     *
+     * Empty means "every fund": a budget with no list attached offers the
+     * whole set rather than none, so adding a fund does not make it unusable
+     * until somebody fills its list in.
+     */
+    public function budgets(): BelongsToMany
+    {
+        return $this->belongsToMany(Budget::class, 'budget_expense_category', 'category_id', 'budget_id')
+            ->withTimestamps();
     }
 
     public function children(): HasMany
