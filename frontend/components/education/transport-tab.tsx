@@ -1,14 +1,15 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { Bus, UserPlus, Wallet, Footprints } from "lucide-react"
+import { Bus, Users, Wallet, Footprints } from "lucide-react"
 import api from "@/lib/api"
-import { TransportSupportDialog, type TransportSupport } from "./transport-support-dialog"
+import { type TransportSupport } from "./transport-support-dialog"
 import { TransportMonthPanel } from "./transport-month-panel"
 
 interface AcademicYear {
@@ -26,9 +27,6 @@ export function TransportTab() {
   const [support, setSupport] = useState<TransportSupport[]>([])
   const [loading, setLoading] = useState(true)
 
-  const [dialog, setDialog] = useState<{ open: boolean; support: TransportSupport | null }>(
-    { open: false, support: null },
-  )
 
   const { toast } = useToast()
 
@@ -96,9 +94,14 @@ export function TransportTab() {
           </Select>
         </div>
 
-        <Button onClick={() => setDialog({ open: true, support: null })} disabled={!yearId}>
-          <UserPlus className="h-4 w-4 ml-1" />
-          تسجيل مستفيد
+        {/* The list itself lives on its own screen - see transport-riders.
+            Registering from here and showing the result there would leave
+            this page claiming to have done something it does not display. */}
+        <Button asChild variant="outline">
+          <Link href="/dashboard/education/transport/riders">
+            <Users className="h-4 w-4 ml-1" />
+            المستفيدون من النقل
+          </Link>
         </Button>
       </div>
 
@@ -155,15 +158,6 @@ export function TransportTab() {
           filtered differently, was the same names twice. Registering a
           beneficiary is still the button at the top. */}
 
-      {yearId && (
-        <TransportSupportDialog
-          open={dialog.open}
-          onOpenChange={(open) => setDialog((s) => ({ ...s, open }))}
-          academicYearId={yearId}
-          support={dialog.support}
-          onSaved={loadSupport}
-        />
-      )}
     </div>
   )
 }

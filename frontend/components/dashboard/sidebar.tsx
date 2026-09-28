@@ -111,6 +111,7 @@ const groups: NavGroup[] = [
     items: [
       { name: "التسجيلات", href: "/dashboard/education", icon: GraduationCap },
       { name: "النقل المدرسي", href: "/dashboard/education/transport", icon: Bus },
+      { name: "مستفيدو النقل", href: "/dashboard/education/transport/riders", icon: Users },
       { name: "المؤسسات التعليمية", href: "/dashboard/education/schools", icon: School },
       { name: "السنوات الدراسية", href: "/dashboard/education/years", icon: Calendar },
       { name: "المستويات التعليمية", href: "/dashboard/education/levels", icon: ListOrdered },
