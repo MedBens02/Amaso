@@ -19,6 +19,16 @@
 
 Amaso is a complete management system designed specifically for charitable organizations in Arabic-speaking regions. The system handles complex operations including beneficiary management, financial tracking, sponsorship programs, and comprehensive reporting - all with full Arabic language support and RTL (Right-to-Left) layout.
 
+## 📚 Documentation
+
+| | |
+|---|---|
+| **Taking this project over** | [`docs/HANDOVER.md`](docs/HANDOVER.md) — the stack, the domain, the gotchas, and what is not done |
+| **Giving a hosting provider the requirements** | [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md) — shareable as-is |
+| **Reading the Arabic** | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) — عدة, كفالة شاملة, مؤونة, أسدس, and where each lives in the schema |
+
+Full index, including the operational guides: [`docs/`](docs/README.md).
+
 ## 🌟 Core Features
 
 ### 👥 **Beneficiary Management**
@@ -152,6 +162,7 @@ drift apart:
 | **Deploy to a server** | [`deploy/README.md`](deploy/README.md) |
 | **Upgrade a server that is already running** | [`UPGRADE.md`](UPGRADE.md) |
 | **Deploy to Oracle Cloud (Casablanca)** | [`deploy/OCI.md`](deploy/OCI.md) |
+| **Understand the system before changing it** | [`docs/HANDOVER.md`](docs/HANDOVER.md) |
 
 The short version, once PHP 8.2+, Composer, Node 20+ and MySQL are
 installed:
