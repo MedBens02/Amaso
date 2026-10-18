@@ -7,6 +7,7 @@ Three documents, written for three different readers.
 | [`INFRASTRUCTURE.md`](INFRASTRUCTURE.md) | **A hosting provider.** Shareable as-is. | What server does this need, and why that size? Ports, OS, mail, backups, data residency. No how-to, no credentials. |
 | [`HANDOVER.md`](HANDOVER.md) | **The next developer.** | What is this, how is it built, what will bite me? Includes an honest account of what is *not* done. |
 | [`GLOSSARY.md`](GLOSSARY.md) | **Anyone reading the screens or the data.** | What عدة, كفالة شاملة, مؤونة and أسدس mean, and which table each lives in. |
+| [`DATA-MODEL.md`](DATA-MODEL.md) | **Anyone touching the database.** | All 63 tables as Mermaid ER diagrams, by area, plus the rules the schema does not enforce. |
 
 Start with `HANDOVER.md` if you are picking the project up.
 
