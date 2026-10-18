@@ -267,6 +267,7 @@ php artisan amaso:finance-reconcile            # check the books against themsel
 |---|---|
 | [`INFRASTRUCTURE.md`](INFRASTRUCTURE.md) | What the server needs. For a hosting provider. |
 | [`GLOSSARY.md`](GLOSSARY.md) | The Arabic domain terms, and what they mean. |
+| [`DATA-MODEL.md`](DATA-MODEL.md) | The 63 tables, drawn. Start here before a migration. |
 | [`../SETUP_GUIDE.md`](../SETUP_GUIDE.md) | Getting it running locally. |
 | [`../deploy/README.md`](../deploy/README.md) | Installing on a server. |
 | [`../deploy/OCI.md`](../deploy/OCI.md) | Oracle Cloud, Casablanca region specifically. |
