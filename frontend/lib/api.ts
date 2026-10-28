@@ -1436,6 +1436,8 @@ class ApiClient {
   async updateKafil(id: number, data: {
     first_name: string
     last_name: string
+    /** Lives on the donor behind this sponsor; the API writes it through. */
+    national_id?: string
     phone?: string
     email?: string
     address?: string

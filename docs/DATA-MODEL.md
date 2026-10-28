@@ -339,6 +339,13 @@ erDiagram
     kafala_chamila_splits ||..o{ incomes : "percentages applied at entry"
 ```
 
+**The card number lives on `donors` only.** `kafils` has no `national_id`
+column: a person has one card number, and `Kafil::getNationalIdAttribute()`
+reads it through the donor rather than keeping a sixth field that can drift.
+A kafil *does* keep its own name, phone and address, which is why those two
+records can disagree and the card number cannot. Editing a sponsor writes
+the card number back to the donor (`KafilService::update`).
+
 `kafala_chamila_splits` is drawn with a **dashed** line to `incomes`
 because there is no foreign key: the split rules are read at the moment of
 entry, the percentages are applied, and the resulting rows carry only the

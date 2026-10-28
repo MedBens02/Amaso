@@ -10,6 +10,40 @@ use Illuminate\Support\Facades\DB;
 class KafilService
 {
     /**
+     * Update a sponsor's own details, and the card number on the person
+     * behind them.
+     *
+     * A kafil row keeps its own name, phone and address, but the card
+     * number is not one of its columns - a person has one, and it lives on
+     * the donor (see Kafil::getNationalIdAttribute). Editing it here has to
+     * reach through to the donor, which is why this is a transaction rather
+     * than a one-line update in the controller.
+     *
+     * The donor is only touched when the caller actually sent the field, so
+     * a partial update cannot silently wipe a card number it never carried.
+     * A kafil with no donor behind it should not exist; if one does, the
+     * card number is dropped rather than failing the save, because the rest
+     * of the edit is still worth keeping.
+     */
+    public function update(Kafil $kafil, array $data): Kafil
+    {
+        return DB::transaction(function () use ($kafil, $data) {
+            $hasNationalId = array_key_exists('national_id', $data);
+            $nationalId = $data['national_id'] ?? null;
+            unset($data['national_id']);
+
+            $kafil->update($data);
+
+            if ($hasNationalId && $kafil->donor) {
+                // An empty box means "no card number on file", not "".
+                $kafil->donor->update(['national_id' => $nationalId ?: null]);
+            }
+
+            return $kafil;
+        });
+    }
+
+    /**
      * Convert a kafil back to a plain donor: drop all sponsorships,
      * clear the donor flag and delete the kafil record.
      */

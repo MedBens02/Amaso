@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { User, Phone, Mail, MapPin, HandCoins, Edit, Eye } from "lucide-react"
+import { User, Phone, Mail, MapPin, HandCoins, Edit, Eye, CreditCard } from "lucide-react"
 import api from "@/lib/api"
 import { PrintKafilPDF } from "../donors/print-kafil-pdf"
 
@@ -21,6 +21,7 @@ interface Donor {
   first_name: string
   last_name: string
   full_name: string
+  national_id?: string
 }
 
 interface Widow {
@@ -139,6 +140,17 @@ export function ViewKafilDialog({ open, onOpenChange, onEdit, kafilId }: ViewKaf
                     رقم الهاتف
                   </div>
                   <p className="font-medium">{kafil.phone}</p>
+                </div>
+              )}
+
+              {/* Read from the donor: a sponsor has no card number of their own. */}
+              {kafil.donor?.national_id && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <CreditCard className="h-4 w-4" />
+                    رقم البطاقة الوطنية
+                  </div>
+                  <p className="font-medium">{kafil.donor.national_id}</p>
                 </div>
               )}
             </div>
