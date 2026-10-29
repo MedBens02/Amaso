@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\AcademicYearController;
 use App\Http\Controllers\Api\V1\EnrollmentController;
 use App\Http\Controllers\Api\V1\KafalaChamilaController;
 use App\Http\Controllers\Api\V1\CardController;
+use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\BeneficiaryGroupController;
 use App\Http\Controllers\Api\V1\SettingsController;
@@ -67,6 +68,9 @@ Route::prefix('v1')->group(function () {
     Route::patch('auth/profile', [AuthController::class, 'updateProfile']);
     Route::post('auth/password', [AuthController::class, 'changePassword'])
         ->middleware('throttle:10,1');
+
+    // The home screen. Shaped by the caller's own role - see DashboardService.
+    Route::get('dashboard', [DashboardController::class, 'index']);
 
     // The association's identity - everyone reads it, admins edit it
     Route::get('settings/organization', [SettingsController::class, 'organization']);

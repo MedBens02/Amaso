@@ -861,6 +861,11 @@ class ApiClient {
   }
 
   /** Families whose sponsorship falls short of the monthly target. */
+  /** The home screen, shaped by the signed-in account's own role. */
+  async getDashboard() {
+    return this.request<import('@/components/dashboard/role/types').DashboardData>('/dashboard')
+  }
+
   async getSponsorshipGaps() {
     return this.request<any>('/reports/sponsorship-gaps')
   }

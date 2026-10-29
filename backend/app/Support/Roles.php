@@ -66,22 +66,30 @@ final class Roles
      * Closing a transport month, which freezes the split and links the
      * expense that pays for it.
      *
-     * Wider than EDUCATION by the accountant, because the expense side is
-     * theirs, and narrower than "anyone in education" is not the point:
-     * closing does not approve the money. The expense it links still has to
-     * be approved by FINANCE like any other, so the person who runs the
-     * month cannot also decide the association has paid for it.
+     * Everyone who runs the month sheet (EDUCATION), plus the accountant,
+     * whose expense it is. Closing does not approve the money: the expense
+     * it links still has to be approved by FINANCE like any other, so the
+     * person who runs the month cannot also decide the association has paid.
+     *
+     * Settling a month is two calls - write the expense, then close the
+     * month on it - so this group and EXPENSE_ENTRY have to overlap on
+     * everyone who settles. They once did not: the education officer could
+     * close a month but not write its expense, and a social worker could
+     * write the expense and then be refused the close, leaving an expense
+     * with no month. Keep the two in step.
      */
     public const TRANSPORT_SETTLEMENT = 'role:' . User::ROLE_ADMIN . ',' . User::ROLE_SUPERUSER
-        . ',' . User::ROLE_ACCOUNTANT . ',' . User::ROLE_EDUCATION_OFFICER;
+        . ',' . User::ROLE_ACCOUNTANT . ',' . User::ROLE_EDUCATION_OFFICER . ',' . User::ROLE_SOCIAL_WORKER;
 
     /**
-     * Recording what was spent on a family, before anybody approves it.
+     * Writing down what was spent, before anybody approves it.
      *
-     * A social worker hands out the aid, so a social worker writes down
-     * that it went out. Turning that record into money the books count is
-     * FINANCE's, and that gate is on the approve route, not here.
+     * Whoever hands money out writes down that it went: the social worker
+     * for a family's aid, the education officer for a month's transport.
+     * Turning that record into money the books count is FINANCE's, and that
+     * gate is on the approve route, not here - a draft moves no balance and
+     * appears in no report.
      */
     public const EXPENSE_ENTRY = 'role:' . User::ROLE_ADMIN . ',' . User::ROLE_SUPERUSER
-        . ',' . User::ROLE_ACCOUNTANT . ',' . User::ROLE_SOCIAL_WORKER;
+        . ',' . User::ROLE_ACCOUNTANT . ',' . User::ROLE_SOCIAL_WORKER . ',' . User::ROLE_EDUCATION_OFFICER;
 }

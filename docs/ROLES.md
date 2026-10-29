@@ -58,7 +58,7 @@ edit and delete.
 | Beneficiary groups | everyone | `admin` `superuser` `social_worker` |
 | Donors, sponsors, sponsorships | everyone | `admin` `superuser` `accountant` |
 | Income | everyone | `admin` `superuser` `accountant` |
-| **Expenses — writing one down** | everyone | `admin` `superuser` `accountant` `social_worker` |
+| **Expenses — writing one down** | everyone | `admin` `superuser` `accountant` `social_worker` `education_officer` |
 | **Expenses — approving one** | — | `admin` `superuser` `accountant` |
 | Transfers, and approving them | everyone | `admin` `superuser` `accountant` |
 | Bank accounts | everyone | `admin` `superuser` `accountant` |
@@ -67,7 +67,7 @@ edit and delete.
 | **Kafala chamila split rules** | everyone | `admin` `superuser` |
 | Enrollments, marks, schools, academic years | everyone | `admin` `superuser` `education_officer` `social_worker` |
 | Transport riders and month sheets | everyone | `admin` `superuser` `education_officer` `social_worker` |
-| **Closing a transport month** | — | `admin` `superuser` `accountant` `education_officer` |
+| **Closing a transport month** | — | `admin` `superuser` `accountant` `education_officer` `social_worker` |
 | Reference lists — social file | everyone | `admin` `superuser` `social_worker` |
 | Reference lists — accounting, funds, partners | everyone | `admin` `superuser` `accountant` |
 | Reference lists — education levels | everyone | `admin` `superuser` `education_officer` `social_worker` |
@@ -76,17 +76,28 @@ edit and delete.
 
 Five rows are deliberately wider or narrower than the area they sit in:
 
-- **Writing an expense down is wider than approving one.** The social
-  worker who handed out the aid is the person who knows it went out.
-  Turning that record into money the books count stays with the books.
+- **Writing an expense down is wider than approving one.** Whoever hands
+  money out writes down that it went — the social worker for a family's
+  aid, the education officer for a month's transport. Turning that record
+  into money the books count stays with the books: a draft moves no balance
+  and appears in no report.
 - **The social worker is in the education group.** Before there was an
   education officer, registrations were theirs. Taking that away from an
   association that may not have filled the post yet would break a job
   somebody is doing today.
-- **Closing a transport month includes the accountant.** Closing freezes
-  the split and links the expense that pays for it. It does *not* approve
-  that expense — that still needs the books — so the person who runs the
-  month cannot decide the association has paid for it.
+- **Closing a transport month is everyone who runs the sheet, plus the
+  accountant.** Closing freezes the split and links the expense that pays
+  for it. It does *not* approve that expense — that still needs the books —
+  so the person who runs the month cannot decide the association has paid.
+
+  Settling a month is **two calls**: write the expense, then close the month
+  on it. So the expense-writing group and the settlement group must overlap
+  on everybody who settles. In the first version of this model they did
+  not, and it was caught only by testing the flow rather than each call:
+  the education officer could close a month but not write its expense, and
+  a social worker could write the expense and then be refused the close,
+  leaving an expense attached to no month. Both groups were widened to
+  match; `app/Support/Roles.php` says to keep them in step.
 - **Closing the fiscal year is narrower than the rest of the books.** The
   accountant gets the year ready; the administration closes it. This is not
   new policy: `FiscalYearController::canCloseFiscalYear()` has required an
@@ -110,8 +121,15 @@ Five rows are deliberately wider or narrower than the area they sit in:
 | `components/dashboard/sidebar.tsx` | Hides menu entries a role cannot use. |
 
 **The frontend is presentation only.** A hidden button stops nobody calling
-the endpoint. Every rule above is enforced server-side; the sidebar just
-keeps doors out of the menu that would not open.
+the endpoint. Every rule above is enforced server-side; the frontend just
+keeps doors out of sight that would not open:
+
+- the sidebar hides screens a role cannot use at all;
+- `useRoleIn(group)` hides write buttons on screens a role can read but not
+  change — adding, editing, archiving or restoring a family, and deciding a
+  عدة case, for anyone outside the families group;
+- each dashboard's quick actions carry the same role lists, so nobody is
+  offered a button that answers 403.
 
 Of the **123 write routes** in the API, the only ones open to any
 signed-in account are the five that have to be: logging in, the two-factor
@@ -135,14 +153,14 @@ got past the gate.
   read money   (GET incomes)    allowed    allowed    allowed    allowed    allowed
   write family (POST widows)    allowed    allowed    BLOCKED    allowed    BLOCKED
   write income (POST incomes)   allowed    allowed    allowed    BLOCKED    BLOCKED
-  write expense                 allowed    allowed    allowed    allowed    BLOCKED
+  write expense                 allowed    allowed    allowed    allowed    allowed
   approve expense               allowed    allowed    allowed    BLOCKED    BLOCKED
   approve transfer              allowed    allowed    allowed    BLOCKED    BLOCKED
   close fiscal year             allowed    allowed    BLOCKED    BLOCKED    BLOCKED
   edit kafala split rules       allowed    allowed    BLOCKED    BLOCKED    BLOCKED
   write enrollment              allowed    allowed    BLOCKED    allowed    allowed
   write transport rider         allowed    allowed    BLOCKED    allowed    allowed
-  close transport month         allowed    allowed    allowed    BLOCKED    allowed
+  close transport month         allowed    allowed    allowed    allowed    allowed
   manage accounts               allowed    BLOCKED    BLOCKED    BLOCKED    BLOCKED
   read audit log                allowed    BLOCKED    BLOCKED    BLOCKED    BLOCKED
 ```
@@ -150,9 +168,50 @@ got past the gate.
 Both read rows are `allowed` across every role on purpose. That is the
 first rule, visible.
 
+And the transport flow end to end — write the expense, then close the month
+on it, as each role:
+
+```
+                     write expense   close month   result
+  superuser                    201           200   settles the month
+  admin                        201           200   settles the month
+  accountant                   201           200   settles the month
+  social_worker                201           200   settles the month
+  education_officer            201           200   settles the month
+```
+
+Against the first version of the groups the last two rows were
+`201 / 403 — orphaned expense` and `403 — cannot start`.
+
 ---
 
-## 5. Before you deploy this
+## 5. The dashboards
+
+Each role opens the application on its own home screen, built from one
+request — `GET /dashboard` — that computes only the sections that role is
+shown (`app/Services/DashboardService.php`).
+
+| Role | Leads with | Then | Quick actions |
+|---|---|---|---|
+| `accountant` | Drafts waiting for approval; cash and cheques not yet banked | Year's income, expense, surplus, cash; the approval queue, oldest first; bank balances; the monthly chart | New income, expense, transfer, donor; financial report |
+| `social_worker` | عدة cases that are over and waiting for a decision; ones ending within 30 days | Families, orphans, عدة cases, families with no sponsor; the عدة list; the families nobody is paying for; *their own* expenses still waiting; the latest families; a compact schooling row | New family, record an expense, beneficiary groups, عدة cases |
+| `education_officer` | Transport months that ended unsettled; this month not opened; schooled children with no registration | Registered this year, unregistered, transport riders, last year's pass rate; transport months; the unregistered children; registrations by status | Registrations and marks, the month sheet, riders, schools; school report |
+| `admin` | Everybody's waiting items at once | One row of figures per department; the chart; the approval queue; sponsorship gaps | One entry into each department, plus settings |
+| `superuser` | As admin, plus passwords that are due | As admin, plus account health — who has no second factor, by name — and the latest activity | As admin, plus accounts and the activity log |
+
+The sections are about relevance, not secrecy: reading is open to every
+account, so nothing on one role's dashboard is hidden from another. The one
+exception is the accounts section, which describes other people's logins
+and is computed for the superuser only. There is no `?role=` parameter —
+the server decides from the signed-in account, so nobody can ask for
+another role's dashboard.
+
+Quick actions land on a screen already doing what the button said:
+`?new=1` opens the form, `?status=Draft` arrives with the drafts filtered.
+The parameter is removed from the address afterwards, so a refresh does not
+open the form twice.
+
+## 6. Before you deploy this
 
 Until now the roles were mostly nominal. Four of them existed, but outside
 account management, the activity log, approving income and expenses, bank
@@ -183,9 +242,33 @@ Then:
 If somebody is wrongly locked out, the fix is to change their role on
 إدارة الحسابات. Nothing is lost and no data is touched.
 
+### The cutover this association is using
+
+Make every account that is not a superuser an **admin** before the new
+code goes live, then narrow people to their real roles one at a time, once
+they have seen their dashboard. An admin can do everything operational, so
+nobody loses a screen on the day, and the superusers stay exactly as they
+are.
+
+Run it on the server, as the web user, **before** deploying:
+
+```bash
+cd /var/www/amaso/backend
+sudo -u amaso php artisan tinker --execute='
+  App\Models\User::where("role", "!=", "superuser")->get()
+    ->each(fn ($u) => $u->update(["role" => "admin"]));
+  App\Models\User::orderBy("role")->get(["name","email","role"])
+    ->each(fn ($u) => print(str_pad($u->role, 12)." ".$u->email.PHP_EOL));'
+```
+
+Each account is saved through its model rather than with one bulk
+`UPDATE`, so the audit log records every role change. Before is better than
+after: `admin` exists in the version already running, so changing roles
+first leaves no window in which anyone is refused.
+
 ---
 
-## 6. Adding or changing a role
+## 7. Adding or changing a role
 
 `users.role` is a `varchar(30)`, so a new role needs no migration.
 

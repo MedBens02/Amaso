@@ -19,9 +19,11 @@ class AuditLogController extends Controller
     /**
      * What each action reads as on screen. Kept here rather than in the
      * browser so the filter list and the rows are labelled from one place,
-     * and a new action cannot appear in the log with no name for it.
+     * and a new action cannot appear in the log with no name for it. Public
+     * because the superuser's dashboard shows the latest rows too, and two
+     * copies of this list would name the same action two ways.
      */
-    private const ACTION_LABELS = [
+    public const ACTION_LABELS = [
         'created' => 'إضافة',
         'updated' => 'تعديل',
         'deleted' => 'حذف',
@@ -39,7 +41,7 @@ class AuditLogController extends Controller
     ];
 
     /** The Arabic name of each kind of record the log follows. */
-    private const ENTITY_LABELS = [
+    public const ENTITY_LABELS = [
         'Income' => 'إيراد',
         'Expense' => 'مصروف',
         'Transfer' => 'تحويل',

@@ -12,6 +12,7 @@ import { NewExpenseDialog } from "@/components/forms/NewExpenseForm"
 import { ExpenseFilters, FilterValues } from "@/components/expenses/expense-filters"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
+import { useLinkedFromDashboard } from "@/lib/use-linked-from-dashboard"
 import { format } from "date-fns"
 
 export default function ExpensesPage() {
@@ -28,6 +29,17 @@ export default function ExpensesPage() {
   const [appliedFilters, setAppliedFilters] = useState<FilterValues>({})
   const [isExporting, setIsExporting] = useState(false)
   const { toast } = useToast()
+
+  // From the dashboard: "مصروف جديد" opens the form, "بانتظار الاعتماد"
+  // arrives with the drafts already filtered.
+  useLinkedFromDashboard({
+    onNew: () => setShowNewDialog(true),
+    onStatus: (status) => {
+      setFilters({ status })
+      setAppliedFilters({ status })
+      setShowFilters(true)
+    },
+  })
 
   /**
    * A month of transport, handed over from the education screen.

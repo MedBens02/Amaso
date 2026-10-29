@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast"
 import { ArchiveWidowDialog } from "@/components/widows/archive-widow-dialog"
 import { toDisplay } from "@/components/ui/date-field"
 import api from "@/lib/api"
+import { useRoleIn } from "@/lib/roles"
 
 interface IddaBlock {
   status: "active" | "ended"
@@ -53,6 +54,7 @@ export function IddaCasesPanel({ refreshTrigger }: { refreshTrigger?: number }) 
   const [cases, setCases] = useState<IddaCase[]>([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<number | null>(null)
+  const canWrite = useRoleIn("families")
   const [archiving, setArchiving] = useState<IddaCase | null>(null)
   const [reloads, setReloads] = useState(0)
   const { toast } = useToast()
@@ -134,6 +136,10 @@ export function IddaCasesPanel({ refreshTrigger }: { refreshTrigger?: number }) 
             <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100 dark:bg-amber-950/50 dark:text-amber-300">
               في العدّة
             </Badge>
+          ) : !canWrite ? (
+            // Taking a family on, or setting the case aside, is the
+            // families group's decision; everyone else sees it is waiting.
+            <Badge variant="outline">بانتظار القرار</Badge>
           ) : (
             <div className="flex flex-wrap gap-1">
               <Button

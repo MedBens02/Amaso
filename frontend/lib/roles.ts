@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react"
+
 /**
  * Mirrors the role values in App\Models\User::ROLES on the backend.
  * Keep in sync if a role is added/renamed there.
@@ -25,8 +27,11 @@ export const ROLE_GROUPS = {
   families: ["admin", "superuser", "social_worker"],
   /** Enrollments, marks, schools, transport. */
   education: ["admin", "superuser", "education_officer", "social_worker"],
-  /** Writing down what was spent, before anyone approves it. */
-  expenseEntry: ["admin", "superuser", "accountant", "social_worker"],
+  /**
+   * Writing down what was spent, before anyone approves it - including a
+   * transport month's expense, which is why the education officer is here.
+   */
+  expenseEntry: ["admin", "superuser", "accountant", "social_worker", "education_officer"],
 } as const
 
 export function currentUserIn(group: keyof typeof ROLE_GROUPS): boolean {
@@ -81,4 +86,18 @@ export function isCurrentUserApprover(): boolean {
  */
 export function isCurrentUserSuperuser(): boolean {
   return getCurrentUser()?.role === "superuser"
+}
+
+/**
+ * Whether the signed-in account may write in this group, for hiding a
+ * button it would be refused.
+ *
+ * False until mounted: there is no signed-in user during the static
+ * export's server render, and a write button that appears for a frame and
+ * then vanishes is worse than one that appears a frame late.
+ */
+export function useRoleIn(group: keyof typeof ROLE_GROUPS): boolean {
+  const [allowed, setAllowed] = useState(false)
+  useEffect(() => setAllowed(currentUserIn(group)), [group])
+  return allowed
 }
