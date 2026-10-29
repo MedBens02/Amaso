@@ -7,6 +7,31 @@ export const ROLE_LABELS: Record<string, string> = {
   admin: "مدير النظام",
   accountant: "محاسب",
   social_worker: "أخصائي اجتماعي",
+  education_officer: "مسؤول التعليم",
+}
+
+/**
+ * Who may write what, mirroring App\Support\Roles on the backend.
+ *
+ * Reading is open to anyone with an account, so nothing here hides a
+ * record - these decide which menu entries and buttons are worth showing.
+ * The endpoints carry the same lists themselves, because a hidden button
+ * stops nobody calling the API.
+ */
+export const ROLE_GROUPS = {
+  /** The books: income, expenses, transfers, accounts, the fiscal year. */
+  finance: ["admin", "superuser", "accountant"],
+  /** The families, the children, and the social file's reference lists. */
+  families: ["admin", "superuser", "social_worker"],
+  /** Enrollments, marks, schools, transport. */
+  education: ["admin", "superuser", "education_officer", "social_worker"],
+  /** Writing down what was spent, before anyone approves it. */
+  expenseEntry: ["admin", "superuser", "accountant", "social_worker"],
+} as const
+
+export function currentUserIn(group: keyof typeof ROLE_GROUPS): boolean {
+  const role = getCurrentUser()?.role
+  return !!role && (ROLE_GROUPS[group] as readonly string[]).includes(role)
 }
 
 export function getRoleLabel(role: string): string {

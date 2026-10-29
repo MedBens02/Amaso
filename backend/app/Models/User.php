@@ -22,11 +22,17 @@ class User extends Authenticatable
      *
      * Everything else - the money, the families, the fiscal year, the
      * reference data - an admin can do.
+     *
+     * The three below the administration are the association's actual jobs:
+     * the books, the families, and the children's schooling. Which routes
+     * each may write to is App\Support\Roles, in one place, because a model
+     * spelled out route by route stops being a model.
      */
     public const ROLE_SUPERUSER = 'superuser';
     public const ROLE_ADMIN = 'admin';
     public const ROLE_ACCOUNTANT = 'accountant';
     public const ROLE_SOCIAL_WORKER = 'social_worker';
+    public const ROLE_EDUCATION_OFFICER = 'education_officer';
 
     /** Allowed values for `role`, used by validation and the seeder. */
     public const ROLES = [
@@ -34,6 +40,7 @@ class User extends Authenticatable
         self::ROLE_ADMIN,
         self::ROLE_ACCOUNTANT,
         self::ROLE_SOCIAL_WORKER,
+        self::ROLE_EDUCATION_OFFICER,
     ];
 
     /**

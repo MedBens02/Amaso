@@ -8,6 +8,8 @@ Three documents, written for three different readers.
 | [`HANDOVER.md`](HANDOVER.md) | **The next developer.** | What is this, how is it built, what will bite me? Includes an honest account of what is *not* done. |
 | [`GLOSSARY.md`](GLOSSARY.md) | **Anyone reading the screens or the data.** | What عدة, كفالة شاملة, مؤونة and أسدس mean, and which table each lives in. |
 | [`DATA-MODEL.md`](DATA-MODEL.md) | **Anyone touching the database.** | All 63 tables as Mermaid ER diagrams, by area, plus the rules the schema does not enforce. |
+| [`ROLES.md`](ROLES.md) | **Whoever hands out accounts.** | The five roles, who may write what, and what to check before deploying it. |
+| [`guides/`](guides/README.md) | **The association's own staff.** In Arabic. | One guide per role: your screens, your tasks, what you cannot do and why. |
 
 Start with `HANDOVER.md` if you are picking the project up.
 

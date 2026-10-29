@@ -34,7 +34,7 @@ import {
   ListOrdered,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
-import { isCurrentUserAdmin, isCurrentUserSuperuser } from "@/lib/roles"
+import { isCurrentUserAdmin, isCurrentUserSuperuser, getCurrentUser, ROLE_GROUPS } from "@/lib/roles"
 import { logout } from "@/lib/auth"
 import api from "@/lib/api"
 
@@ -53,6 +53,15 @@ interface NavItem {
   adminOnly?: boolean
   /** Hidden from admins too - accounts and the activity log. */
   superuserOnly?: boolean
+  /**
+   * Hidden from anyone outside this list.
+   *
+   * Only for screens whose whole point is writing something the role may
+   * not write. Reading is open everywhere, so a screen somebody can read
+   * and act on stays in their menu even when parts of it are not theirs -
+   * hiding those would send them to ask a colleague to look something up.
+   */
+  roles?: readonly string[]
 }
 
 interface NavGroup {
@@ -85,7 +94,7 @@ const groups: NavGroup[] = [
     items: [
       { name: "الأرامل", href: "/dashboard/widows", icon: Users },
       { name: "الأيتام", href: "/dashboard/orphans", icon: Heart },
-      { name: "مجموعات المستفيدين", href: "/dashboard/beneficiary-groups", icon: Users },
+      { name: "مجموعات المستفيدين", href: "/dashboard/beneficiary-groups", icon: Users, roles: ROLE_GROUPS.families },
     ],
   },
   {
@@ -93,12 +102,16 @@ const groups: NavGroup[] = [
     name: "المالية",
     icon: Wallet,
     items: [
-      { name: "المتبرعون", href: "/dashboard/donors", icon: HandHeart },
-      { name: "الإيرادات", href: "/dashboard/incomes", icon: TrendingUp },
-      { name: "المصروفات", href: "/dashboard/expenses", icon: TrendingDown },
-      { name: "المشاريع الممولة", href: "/dashboard/budgeted-projects", icon: FolderOpen },
-      { name: "التحويلات", href: "/dashboard/transfers", icon: ArrowLeftRight },
-      { name: "السنوات المالية", href: "/dashboard/fiscal-years", icon: Calendar },
+      { name: "المتبرعون", href: "/dashboard/donors", icon: HandHeart, roles: ROLE_GROUPS.finance },
+      { name: "الإيرادات", href: "/dashboard/incomes", icon: TrendingUp, roles: ROLE_GROUPS.finance },
+      // Wider than the rest of this section: the person who handed out the
+      // aid is the person who writes down that it went out.
+      { name: "المصروفات", href: "/dashboard/expenses", icon: TrendingDown, roles: ROLE_GROUPS.expenseEntry },
+      { name: "المشاريع الممولة", href: "/dashboard/budgeted-projects", icon: FolderOpen, roles: ROLE_GROUPS.finance },
+      { name: "التحويلات", href: "/dashboard/transfers", icon: ArrowLeftRight, roles: ROLE_GROUPS.finance },
+      // The year-end is the books'. Everything above it an expense-writer
+      // needs, so the section itself is not hidden from them.
+      { name: "السنوات المالية", href: "/dashboard/fiscal-years", icon: Calendar, roles: ROLE_GROUPS.finance },
     ],
   },
   {
@@ -109,12 +122,12 @@ const groups: NavGroup[] = [
     // one of which held two more. Each of its screens is a page now, so
     // each one is reachable from here instead of only from inside it.
     items: [
-      { name: "التسجيلات", href: "/dashboard/education", icon: GraduationCap },
-      { name: "النقل المدرسي", href: "/dashboard/education/transport", icon: Bus },
-      { name: "مستفيدو النقل", href: "/dashboard/education/transport/riders", icon: Users },
-      { name: "المؤسسات التعليمية", href: "/dashboard/education/schools", icon: School },
-      { name: "السنوات الدراسية", href: "/dashboard/education/years", icon: Calendar },
-      { name: "المستويات التعليمية", href: "/dashboard/education/levels", icon: ListOrdered },
+      { name: "التسجيلات", href: "/dashboard/education", icon: GraduationCap, roles: ROLE_GROUPS.education },
+      { name: "النقل المدرسي", href: "/dashboard/education/transport", icon: Bus, roles: ROLE_GROUPS.education },
+      { name: "مستفيدو النقل", href: "/dashboard/education/transport/riders", icon: Users, roles: ROLE_GROUPS.education },
+      { name: "المؤسسات التعليمية", href: "/dashboard/education/schools", icon: School, roles: ROLE_GROUPS.education },
+      { name: "السنوات الدراسية", href: "/dashboard/education/years", icon: Calendar, roles: ROLE_GROUPS.education },
+      { name: "المستويات التعليمية", href: "/dashboard/education/levels", icon: ListOrdered, roles: ROLE_GROUPS.education },
     ],
   },
   {
@@ -122,8 +135,8 @@ const groups: NavGroup[] = [
     name: "البيانات المرجعية",
     icon: Database,
     items: [
-      { name: "المراجع العامة", href: "/dashboard/references", icon: Database },
-      { name: "المراجع المحاسبية", href: "/dashboard/accounting-references", icon: Calculator },
+      { name: "المراجع العامة", href: "/dashboard/references", icon: Database, roles: ROLE_GROUPS.families },
+      { name: "المراجع المحاسبية", href: "/dashboard/accounting-references", icon: Calculator, roles: ROLE_GROUPS.finance },
     ],
   },
   {
@@ -152,6 +165,10 @@ export function Sidebar() {
   // rendering the admin entry on the server would flash it for everyone.
   const [isAdmin, setIsAdmin] = useState(false)
   const [isSuperuser, setIsSuperuser] = useState(false)
+  // Read after mount for the same reason as the two above: on the server
+  // there is no signed-in user, and a null role must not hide a section
+  // from its owner for the first frame.
+  const [role, setRole] = useState<string | null>(null)
   // Whatever the admin saved on the settings screen, so the sidebar carries
   // the association's own name rather than a generic label.
   const [orgName, setOrgName] = useState("")
@@ -165,6 +182,7 @@ export function Sidebar() {
   useEffect(() => {
     setIsAdmin(isCurrentUserAdmin())
     setIsSuperuser(isCurrentUserSuperuser())
+    setRole(getCurrentUser()?.role ?? null)
 
     try {
       const savedGroups = window.localStorage.getItem(OPEN_GROUPS_KEY)
@@ -213,7 +231,9 @@ export function Sidebar() {
   }
 
   const visible = (item: NavItem) =>
-    (!item.adminOnly || isAdmin) && (!item.superuserOnly || isSuperuser)
+    (!item.adminOnly || isAdmin) &&
+    (!item.superuserOnly || isSuperuser) &&
+    (!item.roles || (!!role && item.roles.includes(role)))
 
   const link = (item: NavItem, nested: boolean) => {
     const isActive = pathname === item.href

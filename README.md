@@ -27,6 +27,8 @@ Amaso is a complete management system designed specifically for charitable organ
 | **Giving a hosting provider the requirements** | [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md) — shareable as-is |
 | **Reading the Arabic** | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) — عدة, كفالة شاملة, مؤونة, أسدس, and where each lives in the schema |
 | **Working on the database** | [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) — all 63 tables drawn as ER diagrams, by area |
+| **Handing out accounts** | [`docs/ROLES.md`](docs/ROLES.md) — the five roles and who may write what |
+| **Training the staff** | [`docs/guides/`](docs/guides/README.md) — a guide per role, in Arabic, with screenshots |
 
 Full index, including the operational guides: [`docs/`](docs/README.md).
 
