@@ -26,6 +26,26 @@ export function money(value: number): string {
   return `${CURRENCY.format(value || 0)} د.م`
 }
 
+/**
+ * A sum split for a figure tile: the dirhams, and then the centimes and the
+ * currency to be drawn small after them.
+ *
+ * A tile is narrow - four across on a laptop - and a year's income runs to
+ * seven figures. Drawn at one size the sum lost its currency to an ellipsis;
+ * rounding it would have fitted, but an accountant's balance is not a thing
+ * to round. This keeps every digit and gives the width to the ones that
+ * matter.
+ */
+export function moneyParts(value: number): { major: string; minor: string } {
+  const parts = CURRENCY.formatToParts(value || 0)
+  const cut = parts.findIndex((part) => part.type === "decimal")
+  const text = (slice: Intl.NumberFormatPart[]) => slice.map((part) => part.value).join("")
+
+  return cut === -1
+    ? { major: text(parts), minor: " د.م" }
+    : { major: text(parts.slice(0, cut)), minor: `${text(parts.slice(cut))} د.م` }
+}
+
 /** "2026-10-04" -> "04/10/2026", the order the association writes dates in. */
 export function shortDate(value: string | null | undefined): string {
   if (!value) return "—"
@@ -140,6 +160,7 @@ export type Tone = keyof typeof TONES
 export function Metric({
   label,
   value,
+  minor,
   hint,
   icon: Icon,
   tone,
@@ -148,6 +169,8 @@ export function Metric({
 }: {
   label: string
   value: string
+  /** Drawn small after the figure - see moneyParts. */
+  minor?: string
   hint: string
   icon: LucideIcon
   tone: Tone
@@ -158,27 +181,31 @@ export function Metric({
   const body = (
     <Card className={href ? "transition-colors hover:border-primary/40" : undefined}>
       <CardContent className="py-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-muted-foreground">{label}</p>
-            {loading ? (
-              <>
-                <Skeleton className="mt-2 h-7 w-28" />
-                <Skeleton className="mt-2 h-3 w-20" />
-              </>
-            ) : (
-              <>
-                <p className="mt-1 truncate text-2xl font-bold text-foreground" title={value}>
-                  {value}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
-              </>
-            )}
-          </div>
-          <span className={`shrink-0 rounded-xl p-2.5 ${TONES[tone]}`}>
-            <Icon className="h-5 w-5" />
+        {/* The icon shares the label's line, not the figure's: beside the
+            figure it took a third of the tile from the one thing the tile
+            is for. */}
+        <div className="flex items-center justify-between gap-3">
+          <p className="min-w-0 truncate text-sm font-medium text-muted-foreground">{label}</p>
+          <span className={`shrink-0 rounded-xl p-2 ${TONES[tone]}`}>
+            <Icon className="h-4 w-4" />
           </span>
         </div>
+        {loading ? (
+          <>
+            <Skeleton className="mt-2 h-7 w-28" />
+            <Skeleton className="mt-2 h-3 w-20" />
+          </>
+        ) : (
+          <>
+            <p className="mt-1 truncate text-2xl font-bold text-foreground" title={value + (minor ?? "")}>
+              {value}
+              {minor && <span className="text-sm font-semibold text-muted-foreground">{minor}</span>}
+            </p>
+            <p className="mt-1 truncate text-xs text-muted-foreground" title={hint}>
+              {hint}
+            </p>
+          </>
+        )}
       </CardContent>
     </Card>
   )

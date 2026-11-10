@@ -32,7 +32,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getRoleLabel } from "@/lib/roles"
 import type { AccountsSection, EducationSection, FamiliesSection, FinanceSection } from "./types"
-import { Empty, Metric, MetricRow, Panel, Row, RowsSkeleton, WHOLE, money, shortDate } from "./widgets"
+import { Empty, Metric, MetricRow, Panel, Row, RowsSkeleton, WHOLE, money, moneyParts, shortDate } from "./widgets"
 
 /**
  * The cards each dashboard is built from, one group per section of
@@ -47,13 +47,18 @@ type Loading = { loading: boolean }
 export function FinanceMetrics({ f, loading }: { f?: FinanceSection } & Loading) {
   const t = f?.totals
   const balance = t?.balance ?? 0
+  const income = moneyParts(t?.income ?? 0)
+  const expense = moneyParts(t?.expense ?? 0)
+  const surplus = moneyParts(balance)
+  const cash = moneyParts(f?.cash.total ?? 0)
 
   return (
     <MetricRow>
       <Metric
         loading={loading}
         label="إيرادات السنة"
-        value={money(t?.income ?? 0)}
+        value={income.major}
+        minor={income.minor}
         hint={`${WHOLE.format(t?.income_count ?? 0)} عملية معتمدة`}
         icon={HandCoins}
         tone="emerald"
@@ -62,7 +67,8 @@ export function FinanceMetrics({ f, loading }: { f?: FinanceSection } & Loading)
       <Metric
         loading={loading}
         label="مصروفات السنة"
-        value={money(t?.expense ?? 0)}
+        value={expense.major}
+        minor={expense.minor}
         hint={`${WHOLE.format(t?.expense_count ?? 0)} عملية معتمدة`}
         icon={Wallet}
         tone="orange"
@@ -71,7 +77,8 @@ export function FinanceMetrics({ f, loading }: { f?: FinanceSection } & Loading)
       <Metric
         loading={loading}
         label="الفائض"
-        value={money(balance)}
+        value={surplus.major}
+        minor={surplus.minor}
         hint={balance >= 0 ? "الإيرادات تغطي المصروفات" : "المصروفات تفوق الإيرادات"}
         icon={balance >= 0 ? TrendingUp : TrendingDown}
         tone={balance >= 0 ? "teal" : "rose"}
@@ -79,7 +86,8 @@ export function FinanceMetrics({ f, loading }: { f?: FinanceSection } & Loading)
       <Metric
         loading={loading}
         label="الرصيد المتوفر"
-        value={money(f?.cash.total ?? 0)}
+        value={cash.major}
+        minor={cash.minor}
         hint={`موزّع على ${WHOLE.format(f?.cash.accounts.length ?? 0)} حساب`}
         icon={Banknote}
         tone="indigo"
