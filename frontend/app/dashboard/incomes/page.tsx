@@ -11,6 +11,7 @@ import { NewIncomeDialog } from "@/components/forms/NewIncomeForm"
 import { IncomeFilters, FilterValues } from "@/components/incomes/income-filters"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
+import { useLinkedFromDashboard } from "@/lib/use-linked-from-dashboard"
 import { format } from "date-fns"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ChevronDown, FileText } from "lucide-react"
@@ -26,6 +27,17 @@ export default function IncomesPage() {
   const { toast } = useToast()
   const [budgets, setBudgets] = useState<any[]>([])
   const [fiscalYears, setFiscalYears] = useState<any[]>([])
+
+  // From the dashboard: "إيراد جديد" opens the form, "بانتظار الاعتماد"
+  // arrives with the drafts already filtered.
+  useLinkedFromDashboard({
+    onNew: () => setShowNewDialog(true),
+    onStatus: (status) => {
+      setFilters({ status })
+      setAppliedFilters({ status })
+      setShowFilters(true)
+    },
+  })
 
   // Load reference data for filter labels
   useEffect(() => {

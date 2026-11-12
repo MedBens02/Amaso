@@ -64,7 +64,7 @@ class KafilController extends Controller
 
     public function update(UpdateKafilRequest $request, Kafil $kafil): JsonResponse
     {
-        $kafil->update($request->validated());
+        $this->kafils->update($kafil, $request->validated());
         $kafil->load(['donor', 'sponsorships.widow']);
 
         return response()->json([

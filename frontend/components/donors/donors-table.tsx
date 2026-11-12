@@ -18,6 +18,7 @@ interface Donor {
   id: number
   first_name: string
   last_name: string
+  national_id?: string
   phone: string
   email: string
   address?: string
@@ -194,6 +195,14 @@ export function DonorsTable({ searchTerm, isKafilFilter, refreshTrigger }: Donor
                 <TableRow key={donor.id}>
                   <TableCell className="font-medium text-right">
                     {donor.first_name} {donor.last_name}
+                    {donor.national_id && (
+                      <>
+                        <br />
+                        <span className="text-xs font-normal text-muted-foreground">
+                          رقم البطاقة الوطنية: {donor.national_id}
+                        </span>
+                      </>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     {donor.phone && (

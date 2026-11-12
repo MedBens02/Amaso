@@ -10,12 +10,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { useToast } from "@/hooks/use-toast"
-import { User, Phone, Mail, MapPin, HandCoins, UserMinus } from "lucide-react"
+import { User, Phone, Mail, MapPin, HandCoins, UserMinus, CreditCard } from "lucide-react"
 import api from "@/lib/api"
 
 const kafilSchema = z.object({
   firstName: z.string().min(1, "الاسم الأول مطلوب"),
   lastName: z.string().min(1, "اسم العائلة مطلوب"),
+  nationalId: z.string().max(30, "رقم البطاقة الوطنية طويل جداً").optional(),
   phone: z.string().optional(),
   email: z.string().email("بريد إلكتروني غير صحيح").optional().or(z.literal("")),
   address: z.string().optional(),
@@ -40,6 +41,12 @@ interface Kafil {
   address?: string
   donor_id: number
   monthly_pledge: number
+  // A kafil has no card number of its own; it belongs to the person behind
+  // the sponsorship. The API eager-loads the donor so it is here to read.
+  donor?: {
+    id: number
+    national_id?: string
+  }
 }
 
 export function EditKafilSheet({ open, onOpenChange, onSuccess, kafilId }: EditKafilSheetProps) {
@@ -52,6 +59,7 @@ export function EditKafilSheet({ open, onOpenChange, onSuccess, kafilId }: EditK
     defaultValues: {
       firstName: "",
       lastName: "",
+      nationalId: "",
       phone: "",
       email: "",
       address: "",
@@ -76,6 +84,7 @@ export function EditKafilSheet({ open, onOpenChange, onSuccess, kafilId }: EditK
       form.reset({
         firstName: kafil.first_name,
         lastName: kafil.last_name,
+        nationalId: kafil.donor?.national_id || "",
         phone: kafil.phone || "",
         email: kafil.email || "",
         address: kafil.address || "",
@@ -126,6 +135,10 @@ export function EditKafilSheet({ open, onOpenChange, onSuccess, kafilId }: EditK
       await api.updateKafil(kafilId!, {
         first_name: data.firstName,
         last_name: data.lastName,
+        // Always sent, even when empty: the API only touches the donor's
+        // card number when the field is present, so sending undefined for a
+        // cleared box would silently leave the old number in place.
+        national_id: data.nationalId || "",
         phone: data.phone || undefined,
         email: data.email || undefined,
         address: data.address || undefined,
@@ -206,6 +219,17 @@ export function EditKafilSheet({ open, onOpenChange, onSuccess, kafilId }: EditK
                   <p className="text-sm text-red-600">{form.formState.errors.lastName.message}</p>
                 )}
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="nationalId" className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                رقم البطاقة الوطنية
+              </Label>
+              <Input id="nationalId" {...form.register("nationalId")} placeholder="أدخل رقم البطاقة الوطنية" />
+              {form.formState.errors.nationalId && (
+                <p className="text-sm text-red-600">{form.formState.errors.nationalId.message}</p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

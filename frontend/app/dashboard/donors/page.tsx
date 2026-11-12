@@ -12,11 +12,14 @@ import { Label } from "@/components/ui/label"
 import { ReportExportButtons } from "@/components/reports/report-export-buttons"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
+import { useLinkedFromDashboard } from "@/lib/use-linked-from-dashboard"
 
 export default function DonorsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [showFilters, setShowFilters] = useState(false)
   const [showAddSheet, setShowAddSheet] = useState(false)
+  // "متبرع جديد" on the dashboard lands here with the form already open.
+  useLinkedFromDashboard({ onNew: () => setShowAddSheet(true) })
   const [isKafilFilter, setIsKafilFilter] = useState<boolean | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [convertDonorData, setConvertDonorData] = useState<any>(null)

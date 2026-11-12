@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { API_BASE_URL } from "@/lib/api"
+import { useLinkedFromDashboard } from "@/lib/use-linked-from-dashboard"
 
 interface BankAccount {
   id: number
@@ -56,6 +57,13 @@ export default function TransfersPage() {
     status: "all",
     from_date: "",
     to_date: ""
+  })
+
+  // From the dashboard: "تحويل جديد" opens the form, "بانتظار الاعتماد"
+  // arrives with only the drafts showing.
+  useLinkedFromDashboard({
+    onNew: () => setShowNewDialog(true),
+    onStatus: (status) => setFilters((current) => ({ ...current, status })),
   })
 
   // Fetch bank accounts

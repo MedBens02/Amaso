@@ -12,6 +12,7 @@ import { ViewWidowDialog } from "./view-widow-dialog"
 import { EditWidowDialog } from "./edit-widow-dialog"
 import { WidowCardPrintDialog } from "./print-widow-pdf"
 import { ArchiveWidowDialog } from "./archive-widow-dialog"
+import { useRoleIn } from "@/lib/roles"
 
 /**
  * The two reasons the archive dialog offers, in the words it offers them.
@@ -125,6 +126,9 @@ export function WidowsTable({
   refreshTrigger,
   archived = false,
 }: WidowsTableProps) {
+  // Reading a family is everyone's; editing, archiving and restoring one is
+  // the families group's, and the API refuses the rest.
+  const canWrite = useRoleIn("families")
   const [widows, setWidows] = useState<Widow[]>([])
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
@@ -435,7 +439,7 @@ export function WidowsTable({
                     <RowActions
                       actions={[
                         { label: "عرض التفاصيل", icon: Eye, onSelect: () => handleView(widow) },
-                        { label: "تحرير البيانات", icon: Edit, onSelect: () => handleEdit(widow), hidden: archived },
+                        { label: "تحرير البيانات", icon: Edit, onSelect: () => handleEdit(widow), hidden: archived || !canWrite },
                         { label: "طباعة بطاقة الأرملة", icon: Printer, onSelect: () => handlePrint(widow) },
                         { label: "التقرير المالي للأسرة (PDF)", icon: FileText, onSelect: () => handleFamilyReport(widow) },
                         { label: "التقرير المالي للأسرة (Excel)", icon: FileSpreadsheet, onSelect: () => handleFamilyReport(widow, "xlsx") },
@@ -443,13 +447,13 @@ export function WidowsTable({
                           label: "استعادة الملف",
                           icon: ArchiveRestore,
                           onSelect: () => handleRestore(widow.id, widow.full_name),
-                          hidden: !archived,
+                          hidden: !archived || !canWrite,
                         },
                         {
                           label: "أرشفة الملف",
                           icon: Archive,
                           onSelect: () => setArchiveTarget({ id: widow.id, name: widow.full_name }),
-                          hidden: archived,
+                          hidden: archived || !canWrite,
                           destructive: true,
                         },
                       ]}

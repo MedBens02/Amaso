@@ -861,6 +861,11 @@ class ApiClient {
   }
 
   /** Families whose sponsorship falls short of the monthly target. */
+  /** The home screen, shaped by the signed-in account's own role. */
+  async getDashboard() {
+    return this.request<import('@/components/dashboard/role/types').DashboardData>('/dashboard')
+  }
+
   async getSponsorshipGaps() {
     return this.request<any>('/reports/sponsorship-gaps')
   }
@@ -1436,6 +1441,8 @@ class ApiClient {
   async updateKafil(id: number, data: {
     first_name: string
     last_name: string
+    /** Lives on the donor behind this sponsor; the API writes it through. */
+    national_id?: string
     phone?: string
     email?: string
     address?: string

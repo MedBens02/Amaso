@@ -13,11 +13,20 @@ import { AddWidowDialog } from "@/components/widows/add-widow-dialog"
 import { ReportExportButtons } from "@/components/reports/report-export-buttons"
 import { useToast } from "@/hooks/use-toast"
 import api from "@/lib/api"
+import { useRoleIn } from "@/lib/roles"
+import { useLinkedFromDashboard } from "@/lib/use-linked-from-dashboard"
 
 export default function WidowsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [showFilters, setShowFilters] = useState(false)
   const [showAddDialog, setShowAddDialog] = useState(false)
+  // Families are the social worker's to write. Everyone else reads them -
+  // the accountant to understand an expense, the education officer to find
+  // a child's family - and is not offered buttons the API would refuse.
+  const canWrite = useRoleIn("families")
+
+  // "أسرة جديدة" on the dashboard lands here with the form already open.
+  useLinkedFromDashboard({ onNew: () => setShowAddDialog(true) })
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [filters, setFilters] = useState({})
   const { toast } = useToast()
@@ -30,10 +39,10 @@ export default function WidowsPage() {
           <h1 className="text-3xl font-bold text-foreground">إدارة الأرامل</h1>
           <p className="text-muted-foreground mt-2">إدارة وتتبع بيانات الأرامل والمساعدات</p>
         </div>
-        <Button onClick={() => setShowAddDialog(true)}>
+        {canWrite && <Button onClick={() => setShowAddDialog(true)}>
           <Plus className="h-4 w-4 ml-2" />
           إضافة أرملة جديدة
-        </Button>
+        </Button>}
       </div>
 
       {/* Search and Filters */}
