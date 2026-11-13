@@ -219,7 +219,19 @@ resolve_host() {
 
 # The address the outside world reaches this machine on. Falls back to the
 # first local address when there is no outbound access to ask.
+#
+# PUBLIC_IP overrides the guess, and behind a load balancer it has to. Asking
+# ipify answers with the address this machine's traffic *leaves* from, which
+# in a private subnet is the NAT gateway - not the load balancer visitors
+# arrive through. Unset, that wrong answer reached the DNS hint ("point an A
+# record at ...") and APP_URL, and the domain would have been pointed at an
+# address that takes no incoming traffic at all.
 public_ip() {
+    if [[ -n "${PUBLIC_IP:-}" ]]; then
+        printf '%s' "$PUBLIC_IP"
+        return
+    fi
+
     local ip
     ip="$(curl -fsS --max-time 4 https://api.ipify.org 2>/dev/null)" \
         || ip="$(curl -fsS --max-time 4 https://ifconfig.me 2>/dev/null)" \
