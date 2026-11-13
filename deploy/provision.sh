@@ -428,6 +428,13 @@ php_admin_value[memory_limit] = 256M
 php_admin_flag[display_errors] = off
 php_admin_value[error_log] = /var/log/php-fpm-amaso.log
 php_admin_flag[log_errors] = on
+
+; PHP fills the session with an upload's progress whenever a POST names
+; the right field - before any application code runs, and whether or not
+; the application uses PHP sessions. That path carried the 2026 php2shell
+; flaws (CVE-2026-109618/109619) and the still-unpatched CVE-2026-115560.
+; Laravel keeps its own sessions and never reads it, so it goes.
+php_admin_flag[session.upload_progress.enabled] = off
 POOL
 ok "Pool sized to ${fpm_children} on-demand workers"
 
