@@ -123,6 +123,13 @@ must have two rules:
 
 If the wizard stopped with a limit error, it is the NAT check above.
 
+**If you create the NAT gateway by hand, give it an ephemeral address.**
+Nothing comes *in* through it — visitors arrive at the load balancer's
+reserved IP in §4 — so its address only matters if some outside service
+allowlists the server's outgoing address, and nothing AMASO talks to does.
+It keeps the same address for as long as the gateway exists. Save the
+reserved address for the load balancer, where the domain depends on it.
+
 ---
 
 ## 2. The firewall rules
