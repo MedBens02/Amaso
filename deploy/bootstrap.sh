@@ -22,6 +22,14 @@
 #   --skip-provision    the server is already prepared
 #   --no-backup-cron    do not schedule the nightly backup
 #
+# Behind a load balancer, give it the load balancer's address:
+#
+#   sudo PUBLIC_IP=<reserved IP> bash bootstrap.sh --domain ... --email ...
+#
+# Otherwise it asks an outside service what this machine's address is, and
+# from a private subnet the answer is the NAT gateway's - which takes no
+# incoming traffic and must never end up in a DNS record. See OCI.md §6.
+#
 # --demo is for a server the team is trying out, never for the real one. It
 # seeds invented families, money and school records so there is something to
 # click through, and it refuses to run into a database that already holds
