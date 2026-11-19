@@ -479,67 +479,149 @@ for a code, and it should arrive), open **الأرامل**, open **التعلي�
 
 ## 9. Get the backups off the machine
 
-`bootstrap.sh` already schedules a nightly dump to `/var/backups/amaso`.
-That protects against a mistake — someone deleting a family by accident —
-and not at all against losing the machine, because the backups are on the
-disk that would be lost with it.
+`bootstrap.sh` already schedules a nightly dump to `/var/backups/amaso`,
+keeping the last 30. That protects against a mistake — someone deleting a
+family by accident — and not at all against losing the machine, because the
+backups are on the disk that would be lost with it.
 
 Object Storage fixes that, and 20 GB of it is free forever. The private
 subnet reaches it through the service gateway from §1, so the backups never
-cross the public internet on the way. The database is
-a few megabytes, so thirty nightly copies do not come close.
+cross the public internet. The database is a few megabytes compressed, so a
+year of nightly copies stays well under 2 GB.
 
-**Create the bucket.** Storage → Buckets → **Create Bucket**, named
-`amaso-backups`. Leave it **Private** — this is the association's entire
-beneficiary register.
+### 9.1 The bucket
 
-**Let the server write to it without holding a key.** The obvious approach
-is to create an API key and put it on the machine, and it is the wrong one:
+Storage → Object Storage → Buckets → **Create Bucket**:
+
+| Field | Value |
+|---|---|
+| Name | `amaso-backups` |
+| Default storage tier | Standard |
+| Encryption | Encrypt using Oracle managed keys |
+| Visibility | stays **Private** — this is the association's entire beneficiary register |
+
+Open the bucket and note its **Namespace** (a short random word on the
+bucket's details). It goes into every command below.
+
+### 9.2 Let the server write to it, without a key
+
+The obvious approach is an API key on the machine, and it is the wrong one:
 the machine holding the records would also hold a credential to the place
-the backups live. Instance principals avoid that — the VM's own identity is
+the backups live. With *instance principals* the VM's own identity is
 authorised, and there is no key to steal.
 
-Identity → **Dynamic Groups** → Create, named `amaso-servers`, with the
-rule (the OCID is your compartment's, from Identity → Compartments):
+**Dynamic group.** Identity & Security → **Domains** → *Default* →
+**Dynamic groups** → Create, named `amaso-servers`, with the rule:
 
 ```
-ALL {instance.compartment.id = 'ocid1.compartment.oc1..aaaa....'}
+instance.id = '<the OCID of amaso-VM>'
 ```
 
-Identity → **Policies** → Create, in the same compartment:
+The OCID is on the instance's page (**Copy** next to OCID). Naming the one
+machine rather than the whole compartment keeps anything else you create
+later from inheriting access to the backups. **If you rebuild the server,
+put the new instance's OCID here** — otherwise its backups stay local.
+
+**Policy.** Identity & Security → **Policies** → Create, named
+`amaso-backups`, in the **root** compartment, with **Show manual editor** on:
 
 ```
-Allow dynamic-group amaso-servers to manage objects in compartment <name> where target.bucket.name = 'amaso-backups'
+Allow dynamic-group amaso-servers to manage objects in tenancy where all {target.bucket.name = 'amaso-backups', any {request.permission = 'OBJECT_CREATE', request.permission = 'OBJECT_INSPECT', request.permission = 'OBJECT_READ'}}
+Allow service objectstorage-af-casablanca-1 to manage object-family in tenancy
 ```
 
-`manage objects` rather than `manage buckets`: the server may add backups
-to that one bucket and can do nothing else in the account.
+(If you put the bucket in a compartment of its own, write
+`in compartment <its name>` instead of `in tenancy`.)
 
-**Install the CLI and switch it on:**
+What the first line deliberately leaves out: **delete and overwrite.** The
+server can add a backup, list them and read one back for a restore — and
+nothing else. Whoever got into the server could read the live database
+anyway, so reading the backups gives them nothing new; but they cannot
+destroy the copies, which is the one thing a ransomware attack needs to do.
+
+The second line lets Object Storage itself run the clean-up rule below.
+
+### 9.3 Delete old copies automatically
+
+Since the server cannot delete, the bucket does it: the bucket →
+**Lifecycle Policy Rules** → Create:
+
+| Field | Value |
+|---|---|
+| Name | `delete-after-1-year` |
+| Target | Objects |
+| Lifecycle action | Delete |
+| Number of days | 365 |
+
+Without it nothing is ever removed. That would stay inside the free 20 GB
+for years, but a register of widows and orphans should not be kept forever
+by accident either.
+
+### 9.4 Switch it on
+
+On the server (Bastion session), after the PR with this section is merged
+and deployed. Run everything from `/var/www/amaso/deploy` — that copy is
+updated by every deploy, `/opt/amaso-installer` is not:
 
 ```bash
-sudo apt install -y python3-oci-cli     # or: bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)"
+cd /var/www/amaso/deploy
+NS=<the namespace from 9.1>
 
-cd /opt/amaso-installer/deploy
-sudo OCI_BUCKET=amaso-backups bash backup.sh --to-cloud     # prove it once
-sudo OCI_BUCKET=amaso-backups bash backup.sh --install-cron # then every night
+# 1. Install the oci command and prove the server reaches the bucket
+sudo OCI_BUCKET=amaso-backups OCI_NAMESPACE=$NS bash backup.sh --setup-cloud
+
+# 2. Take a backup and copy it up, once, by hand
+sudo OCI_BUCKET=amaso-backups OCI_NAMESPACE=$NS bash backup.sh --to-cloud
+
+# 3. Every night from now on
+sudo OCI_BUCKET=amaso-backups OCI_NAMESPACE=$NS bash backup.sh --install-cron
 ```
 
-The second line bakes the bucket into the crontab, because cron runs with
-almost no environment and a bucket set only in your shell would never reach
-the nightly run.
+Step 1 should end with *This server reaches the bucket amaso-backups by
+itself*. If it says it cannot, the dynamic group rule or the policy is
+wrong — or was saved less than a couple of minutes ago.
 
-Confirm it arrived — in the console under the bucket, or:
+Step 3 writes the bucket and namespace into `/etc/cron.d/amaso-backup`,
+because cron runs with almost no environment and a bucket set only in your
+shell would never reach the nightly run. It also re-points the job at this
+copy of the script, so later deploys keep it current.
+
+### 9.5 Check it, and try a restore once
 
 ```bash
-oci --auth instance_principal os object list --bucket-name amaso-backups \
-    --namespace "$(oci --auth instance_principal os ns get --raw-output --query data)"
+sudo bash status.sh                                          # Backups → "off the server: copied to bucket"
+sudo OCI_BUCKET=amaso-backups OCI_NAMESPACE=$NS bash backup.sh --list-cloud
 ```
 
-**Also add a boot volume backup policy** — Storage → Block Volumes → the
-boot volume → **Oracle-defined backup policies** → *Bronze*. That snapshots
-the whole disk weekly, so a machine that will not boot is a restore rather
-than a rebuild. It counts against the 200 GB free allowance.
+A backup nobody has restored is a hope, not a backup. Once, while the
+server only holds demo data, go through the whole path:
+
+```bash
+sudo OCI_BUCKET=amaso-backups OCI_NAMESPACE=$NS bash backup.sh --fetch amaso-<date>.sql.gz
+sudo bash backup.sh --restore /var/backups/amaso/fetched-amaso-<date>.sql.gz
+```
+
+The restore saves what is there now before replacing it, and asks you to
+type the database name to confirm.
+
+**If the whole server is lost:** build a new one (§3, §6), put its OCID in
+the dynamic group, then `--setup-cloud`, `--list-cloud`, `--fetch` and
+`--restore` as above.
+
+### 9.6 The whole disk, too
+
+A snapshot of the whole boot disk turns "the machine will not boot" into a
+restore rather than a rebuild. Don't pick Oracle's ready-made *Bronze*
+policy: it keeps twelve monthly copies, and Always Free covers five volume
+backups, so the rest would be billed. Make a smaller one:
+
+Storage → Block Storage → **Backup policies** → Create, named
+`amaso-monthly`, with one schedule: **Incremental**, **Monthly**, day 1,
+retain **3 months**. Then the boot volume (Compute → amaso-VM → **Boot
+volume**) → **Edit** → Backup policy → `amaso-monthly`.
+
+Incremental copies only store what changed since the last one, so three of
+them take a fraction of the disk's size.
 
 ---
 

@@ -195,6 +195,23 @@ else
     bad "most recent" "no backups in $BACKUP_DIR"
 fi
 
+# Whether the nightly copy leaves the machine. The log is what the cron job
+# wrote, so its last word on the bucket is the last night's outcome.
+if grep -q '^OCI_BUCKET=' /etc/cron.d/amaso-backup 2>/dev/null; then
+    bucket="$(sed -n 's/^OCI_BUCKET=//p' /etc/cron.d/amaso-backup)"
+    last="$(grep -E 'Copied off the server|Could not upload|oci command is not installed|namespace' \
+        /var/log/amaso-backup.log 2>/dev/null | tail -1)"
+    if [[ "$last" == *"Copied off the server"* ]]; then
+        good "off the server" "copied to bucket ${bucket}"
+    elif [[ -n "$last" ]]; then
+        bad "off the server" "the last copy to ${bucket} failed - see /var/log/amaso-backup.log"
+    else
+        meh "off the server" "bucket ${bucket} set, no nightly run yet"
+    fi
+else
+    meh "off the server" "no - backups stay on this disk only (deploy/OCI.md §9)"
+fi
+
 # ---------------------------------------------------------------------------
 log "Who can reach it"
 
